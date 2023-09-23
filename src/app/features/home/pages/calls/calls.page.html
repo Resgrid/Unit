@@ -1,0 +1,13 @@
+<ion-content [fullscreen]="true">
+  <div *ngIf="!(callsState$ | async).activeCalls || (callsState$ | async).activeCalls.length <= 0">
+    <cta-panel [topIcon]="'information-circle'" [title]="'callsPage.ctaPanel.title' | translate" [details]="'callsPage.ctaPanel.details' | translate"
+      [extraDetails]="'callsPage.ctaPanel.extraDetails' | translate" [btnLabel]="'callsPage.ctaPanel.buttonLabel' | translate" [hideButton]="true"></cta-panel>
+  </div>
+  <ion-list *ngIf="(callsState$ | async).activeCalls && (callsState$ | async).activeCalls.length > 0">
+    <ion-item *ngFor="let call of (callsState$ | async).activeCalls" (click)="viewCall(call.Call.CallId)">
+      <div style="width: 98%;">
+        <app-call-card [call]="call.Call" [priority]="call.CallPriority"></app-call-card>
+      </div>
+    </ion-item>
+  </ion-list>
+</ion-content>

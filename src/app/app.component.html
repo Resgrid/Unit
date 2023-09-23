@@ -1,0 +1,44 @@
+<ion-app>
+	<ion-split-pane contentId="main-content">
+		<ion-menu contentId="main-content" type="overlay">
+			<ion-content>
+				<ion-grid class="safe-area">
+					<ion-row>
+						<ion-col>
+							<app-home-unit-card *ngIf="(homeState$ | async)?.activeUnit != null" [unit]="(homeState$ | async)?.activeUnit" [color]="'primary'">
+							</app-home-unit-card>
+
+							<app-home-unit-card *ngIf="(homeState$ | async)?.activeUnit == null" [unit]="noUnitSelected" [color]="'primary'" (click)="triggerSelectUnitModal()">
+							</app-home-unit-card>
+						</ion-col>
+						<ion-col>
+							<app-home-status-card></app-home-status-card>
+
+							<app-home-roles-card></app-home-roles-card>
+						</ion-col>
+					</ion-row>
+					<ion-row>
+						<ion-col>
+							<div style="width: 95%;">
+								<app-call-card *ngIf="(homeState$ | async)?.activeCall != null" [call]="(homeState$ | async).activeCall" [priority]="(homeState$ | async).activePriority" (click)="viewCall()">
+
+								</app-call-card>
+								<app-call-card *ngIf="(homeState$ | async)?.activeCall == null" [call]="noCallSelected" (click)="triggerSelectCallModal()">
+
+								</app-call-card>
+							</div>
+						</ion-col>
+					</ion-row>
+					<ion-row>
+						<ion-col>
+							<div style="padding: 1em;" *ngIf="(homeState$ | async)?.activeUnit != null">
+								<app-action-lists></app-action-lists>
+							</div>
+						</ion-col>
+					</ion-row>
+				</ion-grid>
+			</ion-content>
+		</ion-menu>
+		<ion-router-outlet id="main-content"></ion-router-outlet>
+	</ion-split-pane>
+</ion-app>

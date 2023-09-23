@@ -1,0 +1,26 @@
+<ion-content [fullscreen]="true">
+  <ion-fab vertical="top" horizontal="end" slot="fixed">
+    <ion-fab-button size="small" color="light" (click)="dismissModal()">
+      <ion-icon name="close-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+  <div class="container ion-padding the-form">
+    <ion-grid style="margin-left: 10px; margin-right: 10px;">
+      <ion-row class="ion-padding-top">
+        <ion-col>
+          <div class="input-item">
+            <ion-item lines="none" class="ion-no-padding">
+              <ion-label class="input-label" position="stacked">Active Unit</ion-label>
+              <ion-select placeholder="Choose Active Unit" [compareWith]="compareWith" [(ngModel)]="selectedUnit" interface="action-sheet">
+                <ion-select-option *ngFor="let unit of (homeState$ | async)?.units;" [value]="unit">{{ unit.Name }}</ion-select-option>
+              </ion-select>
+            </ion-item>
+          </div>
+          <ion-button class="action-button" expand="block" fill="solid" color="primary" type="submit" (click)="save()">
+            <span>{{'setActive' | translate}}</span>
+          </ion-button>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </div>
+</ion-content>
