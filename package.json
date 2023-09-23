@@ -71,7 +71,7 @@
     "jwt-decode": "3.1.2",
     "leaflet": "1.7.1",
     "mapbox-gl": "2.5.0",
-    "ng-gallery": "^7.1.2",
+    "ng-gallery": "^8.0.0",
     "ngrx-store-freeze": "0.2.4",
     "ngrx-store-localstorage": "14.0.0",
     "ngx-perfect-scrollbar": "10.1.1",
