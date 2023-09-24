@@ -1,10 +1,18 @@
 <ion-content [fullscreen]="true">
+  <ion-toolbar>
+    <ion-searchbar placeholder="Search..." animated (ionCancel)="hideSearch()" (ionChange)="search($event)"></ion-searchbar>
+  </ion-toolbar>
+
   <div *ngIf="!(callsState$ | async).activeCalls || (callsState$ | async).activeCalls.length <= 0">
     <cta-panel [topIcon]="'information-circle'" [title]="'callsPage.ctaPanel.title' | translate" [details]="'callsPage.ctaPanel.details' | translate"
       [extraDetails]="'callsPage.ctaPanel.extraDetails' | translate" [btnLabel]="'callsPage.ctaPanel.buttonLabel' | translate" [hideButton]="true"></cta-panel>
   </div>
+
+  <ion-refresher slot="fixed" (ionRefresh)="refresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
   <ion-list *ngIf="(callsState$ | async).activeCalls && (callsState$ | async).activeCalls.length > 0">
-    <ion-item *ngFor="let call of (callsState$ | async).activeCalls" (click)="viewCall(call.Call.CallId)">
+    <ion-item *ngFor="let call of filterCalls((callsState$ | async).activeCalls)" (click)="viewCall(call.Call.CallId)">
       <div style="width: 98%;">
         <app-call-card [call]="call.Call" [priority]="call.CallPriority"></app-call-card>
       </div>
