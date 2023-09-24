@@ -9,14 +9,18 @@ on:
       - unlabeled
 
 jobs:
-  ci-build:
+  build:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        node-version: [18.x]
+
     steps:
-      - uses: actions/github-script@v6
-      - uses: actions/setup-node@v1
-          with:
-            node-version: '18.x'
-        run: |
-            npm ci
-            npm run build
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - run: npm run build
