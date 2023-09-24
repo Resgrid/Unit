@@ -1,0 +1,22 @@
+name: CI Build
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - labeled
+      - unlabeled
+
+jobs:
+  ci-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/github-script@v6
+      - uses: actions/setup-node@v1
+          with:
+            node-version: '18.x'
+        run: |
+            npm ci
+            npm run build
