@@ -20,6 +20,7 @@ import { CallsState } from '../../store/calls.store';
 import {
   CallFileResultData,
   CallFilesService,
+  CallResultData,
   GetConfigResultData,
   ResgridConfig,
   UtilsService,
@@ -406,4 +407,28 @@ export class ModalViewCallPage implements AfterViewInit {
   public openFile(file: CallFileResultData) {}
 
   public uploadFile() {}
+
+  public getNoteCount(call: CallResultData) {
+    if (call && call.NotesCount && call.NotesCount > 0) {
+      return call.NotesCount;
+    } else {
+      return 0;
+    }
+  }
+
+  public getImagesCount(call: CallResultData) {
+    if (call && call.ImgagesCount && call.ImgagesCount > 0) {
+      return call.ImgagesCount;
+    } else {
+      return 0;
+    }
+  }
+
+  public getFilesCount(call: CallResultData) {
+    if (call && call.FileCount && call.FileCount > 0) {
+      return call.FileCount;
+    } else {
+      return 0;
+    }
+  }
 }
