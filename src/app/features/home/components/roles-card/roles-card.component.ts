@@ -1,7 +1,7 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { UnitResultData, UnitStatusResultData } from '@resgrid/ngx-resgridlib';
-import { Observable } from 'rxjs';
+import { Observable, take } from 'rxjs';
 import { selectCurrentUnitStatus, selectHomeState } from 'src/app/store';
 import { HomeState } from '../../store/home.store';
 
@@ -23,9 +23,18 @@ export class RolesCardComponent implements OnInit {
 
 
   ngOnInit() {
-    this.homeState$.subscribe(state => {
+    this.homeState$.pipe(take(1)).subscribe(state => {
+      let activeCount = 0;
       if (state && state.roles) {
         if (state.roles.length > 0) {
+          if (state.unitRoleAssignments) {
+            state.unitRoleAssignments.forEach(ura => {
+              if (ura.FullName && ura.FullName !== '') {
+                activeCount++;
+              }
+            });
+          }
+          this.status = `${activeCount} of ${state.roles.length} Roles Active`;
           this.isVisible = true;
         } else {
           this.status = 'No Roles';
