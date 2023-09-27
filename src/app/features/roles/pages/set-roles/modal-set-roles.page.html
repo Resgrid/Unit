@@ -8,14 +8,20 @@
     <ion-grid style="margin-left: 10px; margin-right: 10px;">
       <ion-row class="ion-padding-top">
         <ion-col>
+          <p>{{'setRolesPage.info' | translate}}</p>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col>
           <ion-list *ngIf="(rolesState$ | async).roles && (rolesState$ | async).roles.length > 0">
-            <ion-item lines="none" *ngFor="let role of filterRoles((rolesState$ | async).roles, (rolesState$ | async).unitRoleAssignments)">
-              <ion-label slot="start">
-                <h2>{{role.Name}}</h2>
-              </ion-label>
-              <ion-label slot="end">
-                
-              </ion-label>
+            <ion-item lines="none" *ngFor="let role of filterRoles((rolesState$ | async).roles, (rolesState$ | async).unitRoleAssignments); let i = index;">
+              <ion-select placeholder="Select a user">
+                <div slot="label">{{role.Name}}</div>
+                <ion-select-option *ngFor="let user of (rolesState$ | async).users" name="UserId" [(ngModel)]="selectedPersonnel[i].UserId" value="{{user.UserId}}">{{user.FirstName}} {{user.LastName}}</ion-select-option>
+              </ion-select>
+            </ion-item>
+            <ion-item color="primary" button detail="false" (click)="save()">
+              <ion-label>{{'setRolesPage.saveButton' | translate}}</ion-label>
             </ion-item>
           </ion-list>
         </ion-col>

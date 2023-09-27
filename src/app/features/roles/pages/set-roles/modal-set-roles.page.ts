@@ -25,6 +25,7 @@ export class ModalSetRolesPage implements OnInit {
   public serverForm: UntypedFormGroup;
   public rolesState$: Observable<RolesState | null>;
   public selectOptions: any;
+  public selectedPersonnel: ActiveUnitRoleResultData[] = [];
 
   constructor(private modal: ModalController, private store: Store<HomeState>) {
     this.rolesState$ = this.store.select(selectRolesState);
@@ -58,6 +59,7 @@ export class ModalSetRolesPage implements OnInit {
       });
     }
 
+    this.selectedPersonnel = filteredRoles;
     return filteredRoles;
   }
 

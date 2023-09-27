@@ -38,9 +38,9 @@ export class RolesEffects {
           // If successful, dispatch success action with result
           map((data) => ({
             type: notesAction.RolesActionTypes.GET_SET_ROLE_DATA_SUCCESS,
-            roles: data[0],
-            unitRoleAssignments: data[1],
-            users: data[2],
+            roles: data[0].Data,
+            unitRoleAssignments: data[1].Data,
+            users: data[2].Data,
           })),
           // If request fails, dispatch failed action
           catchError(() =>
