@@ -1,0 +1,25 @@
+<ion-content [fullscreen]="true">
+  <ion-fab vertical="top" horizontal="end" slot="fixed">
+    <ion-fab-button size="small" color="light" (click)="dismissModal()">
+      <ion-icon name="close-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+  <div class="container ion-padding">
+    <ion-grid style="margin-left: 10px; margin-right: 10px;">
+      <ion-row class="ion-padding-top">
+        <ion-col>
+          <ion-list *ngIf="(rolesState$ | async).roles && (rolesState$ | async).roles.length > 0">
+            <ion-item lines="none" *ngFor="let role of filterRoles((rolesState$ | async).roles, (rolesState$ | async).unitRoleAssignments)">
+              <ion-label slot="start">
+                <h2>{{role.Name}}</h2>
+              </ion-label>
+              <ion-label slot="end">
+                
+              </ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </div>
+</ion-content>

@@ -4,16 +4,12 @@ import { RouterModule, Routes } from '@angular/router';
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'list',
+    redirectTo: 'setRoles',
     pathMatch: 'full'
   },
   {
-    path: 'list',
-    loadChildren: () => import('./pages/notes-list/notes-list.module').then(m => m.NotesListModule)
-  },
-  {
-    path: 'view',
-    loadChildren: () => import('./pages/view-note/view-note.module').then(m => m.ViewNoteModule)
+    path: 'setRoles',
+    loadChildren: () => import('./pages/set-roles/modal-set-roles.module').then(m => m.ModalSetRolesPageModule)
   },
 ];
 

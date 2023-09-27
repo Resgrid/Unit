@@ -1,13 +1,13 @@
-import { NoteCategoryResultData, NoteResultData } from "@resgrid/ngx-resgridlib";
+import { ActiveUnitRoleResultData, NoteCategoryResultData, NoteResultData, PersonnelInfoResultData, UnitRoleResultData } from "@resgrid/ngx-resgridlib";
 
 export interface RolesState {
-    notes: NoteResultData[];
-    viewNote: NoteResultData;
-    noteCategories: NoteCategoryResultData[];
+    roles: UnitRoleResultData[];
+    unitRoleAssignments: ActiveUnitRoleResultData[];
+    users: PersonnelInfoResultData[];
 }
 
 export const initialState: RolesState = {
-    notes: null,
-    viewNote: null,
-    noteCategories: null
+    roles: null,
+    unitRoleAssignments: null,
+    users: null
 };

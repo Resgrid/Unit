@@ -11,6 +11,7 @@ import { StatusesState } from '../features/statuses/store/statuses.store';
 import { CallsState } from '../features/calls/store/calls.store';
 import { NotesState } from '../features/notes/store/notes.store';
 import { ProtocolsState } from '../features/protocols/store/protocols.store';
+import { RolesState } from '../features/roles/store/roles.store';
 
 export interface State extends fromRoot.State {
     settings: SettingsState;
@@ -123,3 +124,6 @@ export const selectNotesState = createFeatureSelector<NotesState>('notesModule')
 
 
 export const selectProtocolsState = createFeatureSelector<ProtocolsState>('protocolsModule');
+
+
+export const selectRolesState = createFeatureSelector<RolesState>('rolesModule');
