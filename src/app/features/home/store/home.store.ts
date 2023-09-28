@@ -15,7 +15,7 @@ export interface HomeState {
     activeStatuses: UnitTypeStatusResultData;
 
     currentStatus: UnitStatusResultData;
-    roles: UnitRoleResultData[];
+    //roles: UnitRoleResultData[];
 
     pushData: PushData;
 
@@ -26,7 +26,7 @@ export interface HomeState {
     callPriorties: CallPriorityResultData[];
     callTypes: CallTypeResultData[];
     unitStatuses: UnitTypeStatusResultData[];
-    unitRoleAssignments: ActiveUnitRoleResultData[];
+    //unitRoleAssignments: ActiveUnitRoleResultData[];
     groups: GroupResultData[];
     config: GetConfigResultData;
     rights: DepartmentRightsResult;
@@ -44,13 +44,13 @@ export const initialState: HomeState = {
     callPriorties: [],
     callTypes: [],
     unitStatuses: [],
-    unitRoleAssignments: [],
+    //unitRoleAssignments: [],
     groups: [],
     currentStatus: null,
     currentPositionTimestamp: null,
     mapDataTimestamp: null,
     pushData: null,
-    roles: [],
+    //roles: [],
     isMobileApp: false,
     rights: null,
     config: null,

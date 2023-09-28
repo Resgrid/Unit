@@ -2,9 +2,10 @@ import { Component, OnInit, Input } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { UnitResultData, UnitStatusResultData } from '@resgrid/ngx-resgridlib';
 import { Observable, Subscription, take } from 'rxjs';
-import { selectCurrentUnitStatus, selectHomeState } from 'src/app/store';
+import { selectCurrentUnitStatus, selectHomeState, selectRolesState } from 'src/app/store';
 import { HomeState } from '../../store/home.store';
 import * as RoleActions from '../../../../features/roles/store/roles.actions';
+import { RolesState } from 'src/app/features/roles/store/roles.store';
 
 @Component({
   selector: 'app-home-roles-card',
@@ -13,19 +14,21 @@ import * as RoleActions from '../../../../features/roles/store/roles.actions';
 })
 export class RolesCardComponent implements OnInit {
   public isVisible: boolean = false;
+  public rolesState$: Observable<RolesState | null>;
   public homeState$: Observable<HomeState | null>;
-  public $homeStateSub: Subscription;
+  public $rolesStateSub: Subscription;
 
   @Input() color: string = 'gray';
   @Input() status: string = 'Unknown';
 
-  constructor(private homeStore: Store<HomeState>) {
+  constructor(private rolesStore: Store<RolesState>, private homeStore: Store<HomeState>) {
+    this.rolesState$ = this.rolesStore.select(selectRolesState);
     this.homeState$ = this.homeStore.select(selectHomeState);
   }
 
   ngOnInit() {
-    if (!this.$homeStateSub || this.$homeStateSub.closed) {
-      this.$homeStateSub = this.homeState$.subscribe((state) => {
+    if (!this.$rolesStateSub || this.$rolesStateSub.closed) {
+      this.$rolesStateSub = this.rolesState$.subscribe((state) => {
         let activeCount = 0;
         if (state && state.roles) {
           if (state.roles.length > 0) {

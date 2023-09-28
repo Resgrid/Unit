@@ -8,12 +8,15 @@ import { selectHomeState, selectRolesState } from 'src/app/store';
 import {
   ActiveUnitRoleResultData,
   CallResultData,
+  SetUnitRolesInput,
+  SetUnitRolesRoleInput,
   UnitResultData,
   UnitRoleResultData,
 } from '@resgrid/ngx-resgridlib';
 import { take } from 'rxjs/operators';
 import * as _ from 'lodash';
 import { RolesState } from '../../store/roles.store';
+import * as RolesActions from '../../store/roles.actions';
 
 @Component({
   selector: 'app-modal-set-roles',
@@ -27,7 +30,7 @@ export class ModalSetRolesPage implements OnInit {
   public selectOptions: any;
   public selectedPersonnel: ActiveUnitRoleResultData[] = [];
 
-  constructor(private modal: ModalController, private store: Store<HomeState>) {
+  constructor(private modal: ModalController, private store: Store<HomeState>, private rolesStore: Store<RolesState>) {
     this.rolesState$ = this.store.select(selectRolesState);
   }
 
@@ -59,9 +62,27 @@ export class ModalSetRolesPage implements OnInit {
       });
     }
 
-    this.selectedPersonnel = filteredRoles;
+    this.selectedPersonnel = _.cloneDeep(filteredRoles);
     return filteredRoles;
   }
 
-  save() {}
+  save() {
+    let input: SetUnitRolesInput;
+    input = {
+      UnitId: this.selectedPersonnel[0].UnitId,
+      Roles: [],
+    };
+
+    this.selectedPersonnel.forEach(person => {
+      let role: SetUnitRolesRoleInput = {
+        UserId: person.UserId,
+        RoleId: person.UnitRoleId,
+        Name: person.Name
+      }
+
+      input.Roles.push(role);
+    });
+
+    this.rolesStore.dispatch(new RolesActions.SaveRoleData(input));
+  }
 }

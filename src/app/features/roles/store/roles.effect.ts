@@ -1,5 +1,5 @@
 import { Store } from '@ngrx/store';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { Actions, concatLatestFrom, createEffect, ofType } from '@ngrx/effects';
 import { Injectable } from '@angular/core';
 import {
   MenuController,
@@ -12,13 +12,14 @@ import {
   PersonnelService,
   UnitRolesService,
 } from '@resgrid/ngx-resgridlib';
-import { catchError, exhaustMap, map, mergeMap } from 'rxjs/operators';
+import { catchError, exhaustMap, map, mergeMap, switchMap, tap } from 'rxjs/operators';
 import { StorageProvider } from 'src/app/providers/storage';
 import * as _ from 'lodash';
 import { forkJoin, from, of } from 'rxjs';
 import { LoadingProvider } from 'src/app/providers/loading';
 import { RolesState } from './roles.store';
 import { ModalSetRolesPage } from '../pages/set-roles/modal-set-roles.page';
+import { selectHomeState } from 'src/app/store';
 
 @Injectable()
 export class RolesEffects {
@@ -69,6 +70,78 @@ export class RolesEffects {
       this.actions$.pipe(
         ofType(notesAction.RolesActionTypes.SHOW_SET_ROLE_MODAL),
         exhaustMap((data) => this.runModal(ModalSetRolesPage, null, null))
+      ),
+    { dispatch: false }
+  );
+
+  saveRoleData$ = createEffect(() =>
+		this.actions$.pipe(
+			ofType<notesAction.SaveRoleData>(
+				notesAction.RolesActionTypes.SAVE_ROLE_DATA
+			),
+			tap(() => this.loadingProvider.show()),
+			mergeMap((action) =>
+				this.unitRolesService.setRoleAssignmentsForUnit(action.assignments).pipe(
+					map((data) => ({
+						type: notesAction.RolesActionTypes.SAVE_ROLE_DATA_SUCCESS,
+            unitId: action.assignments.UnitId,
+					})),
+					catchError(() =>
+						of({
+							type: notesAction.RolesActionTypes.SAVE_ROLE_DATA_FAIL,
+						})
+					)
+				)
+			)
+		)
+	);
+
+	saveRoleDataSuccess$ = createEffect(() =>
+		this.actions$.pipe(
+      ofType<notesAction.SaveRoleDataSuccess>(
+				notesAction.RolesActionTypes.SAVE_ROLE_DATA_SUCCESS
+			),
+			switchMap(async (action) => this.closeModal()),
+      switchMap(async (action) => this.loadingProvider.hide()),
+			map((action) => ({
+				type: notesAction.RolesActionTypes.UPDATE_SET_ROLE_DATA,
+			}))
+		)
+	);
+
+  updateSetRoleData$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<notesAction.UpdateSetRoleData>(
+        notesAction.RolesActionTypes.UPDATE_SET_ROLE_DATA
+      ),
+      concatLatestFrom(() => [this.store.select(selectHomeState)]),
+      mergeMap(([action, homeState], index) =>
+        forkJoin([
+          this.unitRolesService.getRolesForUnit(homeState.activeUnit?.UnitId),
+          this.unitRolesService.getAllUnitRolesAndAssignmentsForDepartment(),
+          this.personnelService.getAllPersonnelInfos(''),
+        ]).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: notesAction.RolesActionTypes.UPDATE_SET_ROLE_DATA_SUCCESS,
+            roles: data[0].Data,
+            unitRoleAssignments: data[1].Data,
+            users: data[2].Data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({ type: notesAction.RolesActionTypes.UPDATE_SET_ROLE_DATA_FAIL })
+          )
+        )
+      )
+    )
+  );
+
+  saveRoleDataFail$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(notesAction.RolesActionTypes.SAVE_ROLE_DATA_FAIL),
+        switchMap(async (action) => this.loadingProvider.hide()),
       ),
     { dispatch: false }
   );

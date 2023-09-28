@@ -72,7 +72,7 @@ export class HomeProvider {
     const getCalls = this.callsProvider.getActiveCalls();
     const getCallPriorities = this.callPrioritiesProvider.getAllCallPriorites();
     const getunitStatuses = this.statusesService.getAllUnitStatuses();
-    const getUnitRolesAssignments = this.unitRolesService.getAllUnitRolesAndAssignmentsForDepartment();
+    //const getUnitRolesAssignments = this.unitRolesService.getAllUnitRolesAndAssignmentsForDepartment();
     const getCallTypes = this.callTypesProvider.getAllCallTypes();
     const getActiveUnit = this.storageProvider.getActiveUnit();
     const getActiveCall = this.storageProvider.getActiveCall();
@@ -85,7 +85,7 @@ export class HomeProvider {
       calls: getCalls,
       priorities: getCallPriorities,
       unitStatuses: getunitStatuses,
-      roleAssignments: getUnitRolesAssignments,
+      //roleAssignments: getUnitRolesAssignments,
       callTypes: getCallTypes,
       groups: getGroups,
       activeUnit: getActiveUnit,
@@ -99,7 +99,8 @@ export class HomeProvider {
           Calls: results.calls.Data,
           CallPriorties: results.priorities.Data,
           UnitStatuses: results.unitStatuses.Data,
-          UnitRoleAssignments: results.roleAssignments.Data,
+          //UnitRoleAssignments: results.roleAssignments.Data,
+          UnitRoleAssignments: [],
           CallTypes: results.callTypes.Data,
           Groups: results.groups.Data,
           ActiveUnitId: results.activeUnit,

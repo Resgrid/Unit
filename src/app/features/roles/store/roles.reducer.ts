@@ -14,7 +14,14 @@ export function reducer(
         ...state,
         roles: action.roles,
         unitRoleAssignments: action.unitRoleAssignments,
-        users: action.users
+        users: action.users,
+      };
+    case RolesActionTypes.UPDATE_SET_ROLE_DATA_SUCCESS:
+      return {
+        ...state,
+        roles: action.roles,
+        unitRoleAssignments: action.unitRoleAssignments,
+        users: action.users,
       };
     default:
       return state;
