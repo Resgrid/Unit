@@ -14,10 +14,10 @@
       <ion-row>
         <ion-col>
           <ion-list *ngIf="(rolesState$ | async).roles && (rolesState$ | async).roles.length > 0">
-            <ion-item lines="none" *ngFor="let role of filterRoles((rolesState$ | async).roles, (rolesState$ | async).unitRoleAssignments); let i = index;">
-              <ion-select placeholder="Select a user" [(ngModel)]="selectedPersonnel[i].UserId">
+            <ion-item lines="none" *ngFor="let role of selectedPersonnel">
+              <ion-select placeholder="Select a user" (ionChange)="handleUserChange(role, $event)" [compareWith]="compareWith" [value]="role.UserId">
                 <div slot="label">{{role.Name}}</div>
-                <ion-select-option *ngFor="let user of (rolesState$ | async).users" value="{{user.UserId}}">{{user.FirstName}} {{user.LastName}}</ion-select-option>
+                <ion-select-option *ngFor="let user of (rolesState$ | async).users" [value]="user.UserId">{{user.FirstName}} {{user.LastName}}</ion-select-option>
               </ion-select>
             </ion-item>
             <ion-item color="primary" button detail="false" (click)="save()">

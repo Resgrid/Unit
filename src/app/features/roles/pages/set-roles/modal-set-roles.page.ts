@@ -34,14 +34,20 @@ export class ModalSetRolesPage implements OnInit {
     this.rolesState$ = this.store.select(selectRolesState);
   }
 
-  ngOnInit() {}
+  ngOnInit() {
+    this.rolesState$.pipe(take(1)).subscribe((state) => {
+      if (state && state.roles && state.unitRoleAssignments) {
+        this.selectedPersonnel = _.cloneDeep(this.filterRoles(state.roles, state.unitRoleAssignments));
+      }
+    });
+  }
 
   dismissModal() {
     this.modal.dismiss();
   }
 
-  compareWith(o1: CallResultData, o2: CallResultData) {
-    return o1 && o2 ? o1.CallId === o2.CallId : o1 === o2;
+  compareWith(o1: string, o2: string) {
+    return o1 && o1 === o2;
   }
 
   public filterRoles(
@@ -62,8 +68,18 @@ export class ModalSetRolesPage implements OnInit {
       });
     }
 
-    this.selectedPersonnel = _.cloneDeep(filteredRoles);
+    //this.selectedPersonnel = _.cloneDeep(filteredRoles);
     return filteredRoles;
+  }
+
+  public handleUserChange(role: any, event: any) {
+    if (role && event && event.detail) {
+      for (let i = 0; i < this.selectedPersonnel.length; i++) {
+        if (this.selectedPersonnel[i].UnitRoleId == role.UnitRoleId) {
+          this.selectedPersonnel[i]["UserId"] = event.detail.value;
+        }
+      }
+    }
   }
 
   save() {
