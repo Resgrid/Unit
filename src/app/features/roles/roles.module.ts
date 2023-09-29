@@ -9,10 +9,8 @@ import { IonicModule } from '@ionic/angular';
 import { HammerModule } from '@angular/platform-browser';
 import { NgxResgridLibModule } from '@resgrid/ngx-resgridlib';
 import { TranslateModule } from '@ngx-translate/core';
-import { ShellModel } from 'src/app/shell/data-store';
 import { ShellModule } from 'src/app/shell/shell.module';
 import { RolesEffects } from './store/roles.effect';
-import { ModalSetRolesPage } from './pages/set-roles/modal-set-roles.page';
 
 @NgModule({
     declarations: [

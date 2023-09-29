@@ -1,16 +1,15 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
+import { UntypedFormGroup } from '@angular/forms';
 import { ModalController } from '@ionic/angular';
 import { Store } from '@ngrx/store';
 import { HomeState } from 'src/app/features/home/store/home.store';
 import { Observable } from 'rxjs';
-import { selectHomeState, selectRolesState } from 'src/app/store';
+import { selectRolesState } from 'src/app/store';
 import {
   ActiveUnitRoleResultData,
   CallResultData,
   SetUnitRolesInput,
   SetUnitRolesRoleInput,
-  UnitResultData,
   UnitRoleResultData,
 } from '@resgrid/ngx-resgridlib';
 import { take } from 'rxjs/operators';
@@ -76,7 +75,7 @@ export class ModalSetRolesPage implements OnInit {
     if (role && event && event.detail) {
       for (let i = 0; i < this.selectedPersonnel.length; i++) {
         if (this.selectedPersonnel[i].UnitRoleId == role.UnitRoleId) {
-          this.selectedPersonnel[i]["UserId"] = event.detail.value;
+          this.selectedPersonnel[i].UserId = event.detail.value;
         }
       }
     }

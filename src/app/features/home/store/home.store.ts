@@ -1,4 +1,4 @@
-import { ActiveUnitRoleResultData, CallPriorityResultData, CallResultData, CallTypeResultData, DepartmentRightsResult, GetConfigResultData, GroupResultData, MapDataAndMarkersData, UnitResultData, UnitRoleResultData, UnitStatusResultData, UnitTypeStatusResultData } from '@resgrid/ngx-resgridlib';
+import { CallPriorityResultData, CallResultData, CallTypeResultData, DepartmentRightsResult, GetConfigResultData, GroupResultData, MapDataAndMarkersData, UnitResultData, UnitStatusResultData, UnitTypeStatusResultData } from '@resgrid/ngx-resgridlib';
 import { GeoLocation } from "src/app/models/geoLocation";
 import { PushData } from "src/app/models/pushData";
 

@@ -1,5 +1,5 @@
 import { Action } from '@ngrx/store';
-import { ActiveUnitRoleResultData, CallProtocolsResultData, MapDataAndMarkersData, NoteCategoryResultData, NoteResultData, PersonnelInfoResultData, SetUnitRolesInput, UnitRoleResultData } from '@resgrid/ngx-resgridlib';
+import { ActiveUnitRoleResultData, PersonnelInfoResultData, SetUnitRolesInput, UnitRoleResultData } from '@resgrid/ngx-resgridlib';
 
 export enum RolesActionTypes {
   GET_SET_ROLE_DATA = '[ROLES] GET_SET_ROLE_DATA',
