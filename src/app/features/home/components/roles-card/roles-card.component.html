@@ -1,4 +1,4 @@
-<ion-card [ngStyle]="{'background-color':color }" *ngIf="isVisible">
+<ion-card [ngStyle]="{'background-color':color }" *ngIf="isVisible" (click)="showModal()">
   <ion-card-content class="ion-padding">
     <p class="text">{{ status }}</p>
   </ion-card-content>

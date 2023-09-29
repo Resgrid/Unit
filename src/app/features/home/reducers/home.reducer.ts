@@ -53,7 +53,7 @@ export function reducer(
           '0',
         ]);
 
-        if (activeUnit && activeUnit.Type){
+        if (activeUnit && activeUnit.Type) {
           const statusesForType = _.find(action.payload.UnitStatuses, [
             'UnitType',
             activeUnit.Type.toString(),
@@ -100,7 +100,7 @@ export function reducer(
         callPriorties: action.payload.CallPriorties,
         callTypes: action.payload.CallTypes,
         unitStatuses: action.payload.UnitStatuses,
-        unitRoleAssignments: action.payload.UnitRoleAssignments,
+        //unitRoleAssignments: action.payload.UnitRoleAssignments,
         groups: action.payload.Groups,
         activeUnit: activeUnit,
         activeStatuses: activeStatuses,
@@ -108,7 +108,7 @@ export function reducer(
         activePriority: activePriority,
         isMobileApp: action.payload.IsMobileApp,
         config: action.payload.Config,
-				rights: action.payload.Rights,
+        rights: action.payload.Rights,
       };
     case HomeActionTypes.SET_ACTIVEUNIT:
       return {
@@ -127,13 +127,13 @@ export function reducer(
         ...state,
         currentStatus: action.status,
       };
-      case HomeActionTypes.GET_CURRENT_ROLES_SET:
-        return {
-          ...state,
-          roles: action.roles,
-        };
+    //case HomeActionTypes.GET_CURRENT_ROLES_SET:
+    //  return {
+    //    ...state,
+    //    roles: action.roles,
+    //  };
     case HomeActionTypes.REFRESH_MAP_DATA:
-      const now = new Date()
+      const now = new Date();
 
       return {
         ...state,
@@ -153,6 +153,7 @@ export const getCurrentPositionState = (state: HomeState) =>
   state.currentPosition;
 export const getCurrentUnitStatus = (state: HomeState) => state.currentStatus;
 export const getActiveUnit = (state: HomeState) => state.activeUnit;
-export const getLastMapDataUpdate = (state: HomeState) => state.mapDataTimestamp;
+export const getLastMapDataUpdate = (state: HomeState) =>
+  state.mapDataTimestamp;
 export const getPushData = (state: HomeState) => state.pushData;
 export const getConfigData = (state: HomeState) => state.config;

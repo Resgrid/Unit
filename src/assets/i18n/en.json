@@ -75,6 +75,10 @@
     "appVersion": "Application Version",
     "apiLocation": "Current API"
   },
+  "setRolesPage": {
+    "info": "Set the current personnel current active in the unit roles. This will allow you to see who is responding to a call and who is on scene.",
+    "saveButton": "Set Active Roles for this Unit"
+  },
   "logoutModal": {
     "confirmLogoutText": "Are you sure you want to log out?"
   },

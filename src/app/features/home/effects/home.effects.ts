@@ -38,6 +38,8 @@ import { selectHomeState } from 'src/app/store';
 import { PushProvider } from 'src/app/providers/push';
 import { ModalCallPush } from '../modals/callPush/modal-callPush.page';
 import { GeolocationProvider } from 'src/app/providers/geolocation';
+import { RolesState } from '../../roles/store/roles.store';
+import * as RolesActions from '../../roles/store/roles.actions';
 
 @Injectable()
 export class HomeEffects {
@@ -115,7 +117,8 @@ export class HomeEffects {
         this.voiceStore.dispatch(new VoiceActions.GetAudioStreams());
       }),
       tap((action) => {
-        this.store.dispatch(new homeAction.GetCurrentRoles());
+        //this.store.dispatch(new homeAction.GetCurrentRoles());
+        this.rolesStore.dispatch(new RolesActions.UpdateSetRoleData())
       }),
       map((action) => ({
         type: homeAction.HomeActionTypes.LOADING_APP_DATA_DONE,
@@ -420,7 +423,8 @@ export class HomeEffects {
     private unitLocationService: UnitLocationService,
     private pushProvider: PushProvider,
     private menuCtrl: MenuController,
-    private unitRolesService: UnitRolesService
+    private unitRolesService: UnitRolesService,
+    private rolesStore: Store<RolesState>
   ) {}
 
   runModal = async (component, cssClass, properties) => {

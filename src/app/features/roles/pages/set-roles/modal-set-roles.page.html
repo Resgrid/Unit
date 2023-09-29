@@ -1,0 +1,31 @@
+<ion-content [fullscreen]="true">
+  <ion-fab vertical="top" horizontal="end" slot="fixed">
+    <ion-fab-button size="small" color="light" (click)="dismissModal()">
+      <ion-icon name="close-outline"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+  <div class="container ion-padding">
+    <ion-grid style="margin-left: 10px; margin-right: 10px;">
+      <ion-row class="ion-padding-top">
+        <ion-col>
+          <p>{{'setRolesPage.info' | translate}}</p>
+        </ion-col>
+      </ion-row>
+      <ion-row>
+        <ion-col>
+          <ion-list *ngIf="(rolesState$ | async).roles && (rolesState$ | async).roles.length > 0">
+            <ion-item lines="none" *ngFor="let role of selectedPersonnel">
+              <ion-select placeholder="Select a user" (ionChange)="handleUserChange(role, $event)" [compareWith]="compareWith" [value]="role.UserId">
+                <div slot="label">{{role.Name}}</div>
+                <ion-select-option *ngFor="let user of (rolesState$ | async).users" [value]="user.UserId">{{user.FirstName}} {{user.LastName}}</ion-select-option>
+              </ion-select>
+            </ion-item>
+            <ion-item color="primary" button detail="false" (click)="save()">
+              <ion-label>{{'setRolesPage.saveButton' | translate}}</ion-label>
+            </ion-item>
+          </ion-list>
+        </ion-col>
+      </ion-row>
+    </ion-grid>
+  </div>
+</ion-content>

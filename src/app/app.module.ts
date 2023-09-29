@@ -35,6 +35,7 @@ import { VgBufferingModule } from '@videogular/ngx-videogular/buffering';
 import { NotesModule } from './features/notes/notes.module';
 import { ShellModule } from './shell/shell.module';
 import { ProtocolsModule } from './features/protocols/protocols.module';
+import { RolesModule } from './features/roles/roles.module';
 
 //import adapter from 'webrtc-adapter';
 
@@ -109,7 +110,8 @@ let getBaseUrl = (): string => {
         VgBufferingModule,
         ShellModule,
         NotesModule,
-        ProtocolsModule
+        ProtocolsModule,
+        RolesModule
     ],
     providers: [
         { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }
