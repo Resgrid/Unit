@@ -30,6 +30,7 @@ import {
   throwError,
 } from 'rxjs';
 import { selectConfigData } from '../store';
+import { HttpClient } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root',
@@ -38,6 +39,7 @@ export class GeolocationProvider {
   isRegistering: boolean = false;
   watchPositionId: string = null;
   backgroundWatcherId: string = null;
+  private w3wKey: string = '';
 
   private configData$: Observable<GetConfigResultData | null>;
   protected geocoder$: Observable<google.maps.Geocoder>;
@@ -48,12 +50,15 @@ export class GeolocationProvider {
     private storageProvider: StorageProvider,
     private deviceService: DeviceService,
     private unitLocationService: UnitLocationService,
-    private store: Store<HomeState>
+    private store: Store<HomeState>,
+    private http: HttpClient
   ) {
     this.configData$ = this.store.select(selectConfigData);
 
     this.configData$.subscribe((configData) => {
       if (configData && configData.GoogleMapsKey && !this.geocoder$) {
+        this.w3wKey = configData.W3WKey;
+
         const connectableGeocoder$ = new Observable((subscriber) => {
           loader.load(configData.GoogleMapsKey).then(() => subscriber.next());
         }).pipe(
@@ -281,6 +286,17 @@ export class GeolocationProvider {
         return null;
       })
     );
+  }
+
+  public getCoordinatesFromW3W(w3w: string): Observable<GeoLocation> {
+      return this.http.get(`https://api.what3words.com/v3/convert-to-coordinates?words=${w3w}&key=${this.w3wKey}`)
+        .pipe(map((data: any) => {
+          if (data && data.coordinates) {
+            return new GeoLocation(data.coordinates.lat, data.coordinates.lng);
+          }
+
+          return null;
+      }));
   }
 }
 

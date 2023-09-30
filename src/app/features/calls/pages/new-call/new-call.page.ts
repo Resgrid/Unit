@@ -187,6 +187,12 @@ export class NewCallPage {
 	  );
   }
 
+  public findCoordinatesForW3W() {
+	this.callsStore.dispatch(
+		new CallsActions.GetCoordinatesForW3W(this.w3w)
+	  );
+  }
+
   public send() {
     if (this.subject.length === 0) {
       this.alertProvider.showErrorAlert(

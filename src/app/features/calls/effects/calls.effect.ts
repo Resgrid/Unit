@@ -639,6 +639,30 @@ export class CallsEffects {
     )
   );
 
+  getCoordinatesForW3W$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetCoordinatesForW3W>(
+        callActions.CallsActionTypes.GET_COORDINATES_FORW3W
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getCoordinatesFromW3W(action.w3w).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.GET_COORDINATES_FORW3W_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GET_COORDINATES_FORW3W_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
+
   done$ = createEffect(
     () =>
       this.actions$.pipe(

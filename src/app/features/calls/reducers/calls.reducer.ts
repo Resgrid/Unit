@@ -281,6 +281,11 @@ export function reducer(
         ...state,
         newCallLocation: action.payload,
       };
+    case CallsActionTypes.GET_COORDINATES_FORW3W_SUCCESS:
+      return {
+        ...state,
+        newCallLocation: action.payload,
+      };
     default:
       return state;
   }
