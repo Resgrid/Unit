@@ -236,6 +236,48 @@
     "uploadPhotoButton": "Upload Photo",
     "callFiles": "Call Files"
   },
+  "newCallPage": {
+    "title": "New Call",
+    "nameLabel": "Name",
+    "priorityLabel": "Priority",
+    "typeLabel": "Type",
+    "callIdLabel": "Call Id",
+    "contactNameLabel": "Contact Name",
+    "contactNumberLabel": "Contact Number",
+    "addressLabel": "Address",
+    "what3wordsLabel": "What3Words",
+    "natureLabel": "Nature",
+    "contactInfoHeader": "Contact Info",
+    "locationHeader": "Location",
+    "dispatchHeader": "Who To Dispatch",
+    "dispatchButton": "Create and Dispatch Call",
+    "recipientsLabel": "Dispatch",
+    "latitudeLabel": "Latitude (Decimal Notiation)",
+    "longitudeLabel": "Longitude (Decimal Notiation)",
+    "googlePlusLabel": "Plus Code"
+  },
+  "editCallPage": {
+    "title": "Edit Call",
+    "nameLabel": "Name",
+    "priorityLabel": "Priority",
+    "typeLabel": "Type",
+    "callIdLabel": "Call Id",
+    "contactNameLabel": "Contact Name",
+    "contactNumberLabel": "Contact Number",
+    "addressLabel": "Address",
+    "what3wordsLabel": "What3Words",
+    "natureLabel": "Nature",
+    "contactInfoHeader": "Contact Info",
+    "locationHeader": "Location",
+    "dispatchHeader": "Who To Dispatch",
+    "dispatchButton": "Update Call",
+    "recipientsLabel": "Dispatch",
+    "redispatchLabel": "Re-Dispatch"
+  },
+  "setLocationPage": {
+    "title": "Set Location",
+    "setLocationButton": "Set Location"
+  },
   "newCallPushModal": {
     "newCallPrefix": "New Call",
     "respondButton": "Respond and Set Active"

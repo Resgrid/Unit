@@ -1,6 +1,10 @@
 import { Injectable } from '@angular/core';
 import { Platform } from '@ionic/angular';
-import { DeviceService, SaveUnitLocationInput, UnitLocationService } from '@resgrid/ngx-resgridlib';
+import {
+  DeviceService,
+  SaveUnitLocationInput,
+  UnitLocationService,
+} from '@resgrid/ngx-resgridlib';
 import { StorageProvider } from './storage';
 import { registerPlugin } from '@capacitor/core';
 import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
@@ -12,21 +16,65 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
 import * as HomeActions from '../features/home/actions/home.actions';
+import { ConnectableObservable, Observable, bindCallback, map, of, publishReplay, switchMap, throwError } from 'rxjs';
 @Injectable({
   providedIn: 'root',
 })
 export class GeolocationProvider {
   isRegistering: boolean = false;
-  watchPositionId : string = null;
-  backgroundWatcherId : string = null;
+  watchPositionId: string = null;
+  backgroundWatcherId: string = null;
+
+  protected readonly geocoder$: Observable<google.maps.Geocoder>;
 
   constructor(
+    loader: LazyGoogleMapsLoader,
     private platform: Platform,
     private storageProvider: StorageProvider,
     private deviceService: DeviceService,
     private unitLocationService: UnitLocationService,
     private store: Store<HomeState>
-  ) {}
+  ) {
+    const connectableGeocoder$ = new Observable((subscriber) => {
+      loader.load().then(() => subscriber.next());
+    }).pipe(
+      map(() => this._createGeocoder()),
+      publishReplay(1)
+    ) as ConnectableObservable<google.maps.Geocoder>;
+
+    connectableGeocoder$.connect(); // ignore the subscription
+    // since we will remain subscribed till application exits
+
+    this.geocoder$ = connectableGeocoder$;
+  }
+
+  private _createGeocoder() {
+    return new google.maps.Geocoder();
+  }
+
+  private _getGoogleResults(
+    geocoder: google.maps.Geocoder,
+    request: google.maps.GeocoderRequest
+  ): Observable<google.maps.GeocoderResult[]> {
+    const geocodeObservable = bindCallback(geocoder.geocode);
+    return geocodeObservable(request).pipe(
+      switchMap(([results, status]) => {
+        if (status === google.maps.GeocoderStatus.OK) {
+          return of(results);
+        }
+
+        return throwError(status);
+      })
+    );
+  }
+
+  private geocode(
+    request: google.maps.GeocoderRequest
+  ): Observable<google.maps.GeocoderResult[]> {
+    return this.geocoder$.pipe(
+      switchMap((geocoder) => this._getGoogleResults(geocoder, request))
+    );
+  }
 
   public async getLocation(): Promise<GeoLocation> {
     let position: Position = null;
@@ -54,24 +102,30 @@ export class GeolocationProvider {
 
   public async startTracking() {
     if (!this.watchPositionId) {
-      this.watchPositionId = await Geolocation.watchPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 10000
-      }, (position, err) => {
-        if (position) {
-          let location = new GeoLocation(position.coords.latitude, position.coords.longitude);
-          location.Accuracy = position.coords.accuracy;
-          location.Altitude = position.coords.altitude;
-          location.AltitudeAccuracy = position.coords.altitudeAccuracy;
-          location.Heading = position.coords.heading;
-          location.Speed = position.coords.speed;
+      this.watchPositionId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 10000,
+        },
+        (position, err) => {
+          if (position) {
+            let location = new GeoLocation(
+              position.coords.latitude,
+              position.coords.longitude
+            );
+            location.Accuracy = position.coords.accuracy;
+            location.Altitude = position.coords.altitude;
+            location.AltitudeAccuracy = position.coords.altitudeAccuracy;
+            location.Heading = position.coords.heading;
+            location.Speed = position.coords.speed;
 
-          this.store.dispatch(
-            new HomeActions.GeolocationLocationUpdate(location)
-          );
+            this.store.dispatch(
+              new HomeActions.GeolocationLocationUpdate(location)
+            );
+          }
         }
-      });
+      );
     }
   }
 
@@ -86,7 +140,8 @@ export class GeolocationProvider {
     const that = this;
 
     if (this.platform.is('mobile')) {
-      let enableBackgroundGeolocation = await this.storageProvider.getEnableBackgroundGeolocation();
+      let enableBackgroundGeolocation =
+        await this.storageProvider.getEnableBackgroundGeolocation();
       let unitId = await that.storageProvider.getActiveUnit();
 
       if (unitId && enableBackgroundGeolocation) {
@@ -100,7 +155,8 @@ export class GeolocationProvider {
             // On Android, a notification must be shown to continue receiving
             // location updates in the background. This option specifies the text of
             // that notification.
-            backgroundMessage: 'Cancel to prevent battery drain and stop tracking.',
+            backgroundMessage:
+              'Cancel to prevent battery drain and stop tracking.',
 
             // The title of the notification mentioned above. Defaults to "Using
             // your location".
@@ -169,9 +225,10 @@ export class GeolocationProvider {
                 input.Heading = location.bearing.toString();
               }
 
-              that.unitLocationService.saveUnitLocation(input).subscribe(data => {
+              that.unitLocationService
+                .saveUnitLocation(input)
+                .subscribe((data) => {
                   if (data) {
-                    
                   }
                 });
             }
@@ -188,5 +245,108 @@ export class GeolocationProvider {
       });
       this.backgroundWatcherId = null;
     }
+  }
+
+  public getLocationFromAddress(address: string) {
+    return this.geocode({ address: address }).pipe(
+      map((data) => {
+        if (data && data.length > 0) {
+          return new GpsLocation(
+            data[0].geometry.location.lat(),
+            data[0].geometry.location.lng()
+          );
+        }
+
+        return null;
+      })
+    );
+  }
+}
+
+@Injectable({
+  providedIn: 'root',
+})
+export class LazyGoogleMapsLoader {
+  protected _scriptLoadingPromise: any;
+  protected readonly _SCRIPT_ID: string = 'googleMapsApiScript';
+  protected readonly callbackName: string = `lazyMapsAPILoader`;
+
+  constructor(private config: ResgridConfig) {}
+
+  load(): Promise<void> {
+    //const window = this._windowRef.nativeWindow() as any;
+    if (window.google && window.google.maps) {
+      // Google maps already loaded on the page.
+      return Promise.resolve();
+    }
+
+    if (this._scriptLoadingPromise) {
+      return this._scriptLoadingPromise;
+    }
+
+    // this can happen in HMR situations or Stackblitz.io editors.
+    const scriptOnPage = document.getElementById(this._SCRIPT_ID);
+    if (scriptOnPage) {
+      this._assignScriptLoadingPromise(scriptOnPage);
+      return this._scriptLoadingPromise;
+    }
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.async = true;
+    script.defer = true;
+    script.id = this._SCRIPT_ID;
+    script.src = this._getScriptSrc(this.callbackName);
+    this._assignScriptLoadingPromise(script);
+    document.body.appendChild(script);
+    return this._scriptLoadingPromise;
+  }
+
+  private _assignScriptLoadingPromise(scriptElem: HTMLElement) {
+    this._scriptLoadingPromise = new Promise((resolve, reject) => {
+      window[this.callbackName] = () => {
+        resolve(true);
+      };
+
+      scriptElem.onerror = (error: any) => {
+        reject(error);
+      };
+    });
+  }
+
+  protected _getScriptSrc(callbackName: string): string {
+    const hostAndPath: string = 'maps.googleapis.com/maps/api/js';
+    const queryParams: { [key: string]: string | string[] } = {
+      v: 'quarterly',
+      callback: callbackName,
+      key: this.config.googleApiKey,
+      //client: this._config.clientId,
+      //channel: this._config.channel,
+      //libraries: this._config.libraries,
+      //region: this._config.region,
+      language: 'en-US',
+    };
+    const params: string = Object.keys(queryParams)
+      .filter((k: string) => queryParams[k] != null)
+      .filter((k: string) => {
+        // remove empty arrays
+        return (
+          !Array.isArray(queryParams[k]) ||
+          (Array.isArray(queryParams[k]) && queryParams[k].length > 0)
+        );
+      })
+      .map((k: string) => {
+        // join arrays as comma seperated strings
+        const i = queryParams[k];
+        if (Array.isArray(i)) {
+          return { key: k, value: i.join(',') };
+        }
+        return { key: k, value: queryParams[k] };
+      })
+      .map((entry: { key: string; value: string | string[] }) => {
+        return `${entry.key}=${entry.value}`;
+      })
+      .join('&');
+    return `https://${hostAndPath}?${params}`;
   }
 }

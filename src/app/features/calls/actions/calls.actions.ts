@@ -4,7 +4,9 @@ import {
   CallFileResultData,
   CallNoteResultData,
   CallPriorityResultData,
-  CallResultData
+  CallResultData,
+  DispatchedEventResultData,
+  RecipientsResultData
 } from '@resgrid/ngx-resgridlib';
 
 export enum CallsActionTypes {
@@ -32,6 +34,38 @@ export enum CallsActionTypes {
   UPLOAD_CALLFILE = '[CALLS] UPLOAD_CALLFILE',
   UPLOAD_CALLFILE_SUCCESS = '[CALLS] UPLOAD_CALLFILE_SUCCESS',
   UPLOAD_CALLFILE_FAIL = '[CALLS] UPLOAD_CALLFILE_FAIL',
+  SHOW_NEW_CALL_MODAL = '[CALLS] SHOW_NEW_CALL_MODAL',
+  CLOSE_NEW_CALL_MODAL = '[CALLS] CLOSE_NEW_CALL_MODAL',
+  SHOW_SET_LOCATION_MODAL = '[CALLS] SHOW_SET_LOCATION_MODAL',
+  CLOSE_SET_LOCATION_MODAL = '[CALLS] CLOSE_SET_LOCATION_MODAL',
+  SET_NEW_CALL_LOCATION = '[CALLS] SET_NEW_CALL_LOCATION',
+  DISPATCH_CALL = '[CALLS] DISPATCH_CALL',
+  DISPATCH_CALL_SUCCESS = '[CALLS] DISPATCH_CALL_SUCCESS',
+  DISPATCH_CALL_FAIL = '[CALLS] DISPATCH_CALL_FAIL',
+  SHOW_SELECT_DISPATCHS = '[CALLS] SHOW_SELECT_DISPATCHS',
+  SHOW_SELECT_DISPATCHS_SUCCESS = '[CALLS] SHOW_SELECT_DISPATCHS_SUCCESS',
+  SHOW_SELECT_DISPATCHS_FAIL = '[CALLS] SHOW_SELECT_DISPATCHS_FAIL',
+  CLOSE_SELECT_DISPATCHS_MODAL = '[CALLS] CLOSE_SELECT_DISPATCHS_MODAL',
+  UPDATE_SELECTED_DISPTACHES = '[CALLS] UPDATE_SELECTED_DISPTACHES',
+  SHOW_CLOSE_CALL_MODAL = '[CALLS] SHOW_CLOSE_CALL_MODAL',
+  CLOSE_CLOSE_CALL_MODAL = '[CALLS] CLOSE_CLOSE_CALL_MODAL',
+  CLOSE_CALL = '[CALLS] CLOSE_CALL',
+  CLOSE_CALL_SUCCESS = '[CALLS] CLOSE_CALL_SUCCESS',
+  CLOSE_CALL_FAIL = '[CALLS] CLOSE_CALL_FAIL',
+  SET_EDIT_CALL_DISPATCHES = '[CALLS] SET_EDIT_CALL_DISPATCHES',
+  SHOW_EDIT_CALL_SELECT_DISPATCHS = '[CALLS] SHOW_EDIT_CALL_SELECT_DISPATCHS',
+  SHOW_EDIT_CALL_SELECT_DISPATCHS_SUCCESS = '[CALLS] SHOW_EDIT_CALL_SELECT_DISPATCHS_SUCCESS',
+  SHOW_EDIT_CALL_SELECT_DISPATCHS_FAIL = '[CALLS] SHOW_EDIT_CALL_SELECT_DISPATCHS_FAIL',
+  GET_EDIT_CALL_DISPATCHES = '[CALLS] GET_EDIT_CALL_DISPATCHES',
+  GET_EDIT_CALL_DISPATCHES_SUCCESS = '[CALLS] GET_EDIT_CALL_DISPATCHES_SUCCESS',
+  SHOW_EDIT_CALL_MODAL = '[CALLS] SHOW_EDIT_CALL_MODAL',
+  CLOSE_EDIT_CALL_MODAL = '[CALLS] CLOSE_EDIT_CALL_MODAL',
+  UPDATE_EDIT_CALL_SELECTED_DISPTACHES = '[CALLS] UPDATE_EDIT_CALL_SELECTED_DISPTACHES',
+  UPDATE_CALL = '[CALLS] UPDATE_CALL',
+  UPDATE_CALL_SUCCESS = '[CALLS] UPDATE_CALL_SUCCESS',
+  UPDATE_CALL_FAIL = '[CALLS] UPDATE_CALL_FAIL',
+  CLOSE_VIEW_CALL_MODAL = '[CALLS] CLOSE_VIEW_CALL_MODAL',
+  CLEAR_CALLS = '[CALLS] CLEAR_CALLS',
 }
 
 export class GetCalls implements Action {
@@ -155,6 +189,176 @@ export class UploadCallFileFail implements Action {
   constructor() {}
 }
 
+export class ShowNewCallModal implements Action {
+  readonly type = CallsActionTypes.SHOW_NEW_CALL_MODAL;
+  constructor() {}
+}
+
+export class ShowSetLocationModal implements Action {
+  readonly type = CallsActionTypes.SHOW_SET_LOCATION_MODAL;
+  constructor() {}
+}
+
+export class CloseSetLocationModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_SET_LOCATION_MODAL;
+  constructor() {}
+}
+
+export class CloseNewCallModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_NEW_CALL_MODAL;
+  constructor() {}
+}
+
+export class SetNewCallLocation implements Action {
+  readonly type = CallsActionTypes.SET_NEW_CALL_LOCATION;
+  constructor(public latitude: number, public longitude: number) {}
+}
+
+export class DispatchCall implements Action {
+  readonly type = CallsActionTypes.DISPATCH_CALL;
+  constructor(public name: string, public priority: number, public callType: string,
+    public contactName: string, public contactInfo: string, public externalId: string,
+    public incidentId: string, public referenceId: string, public nature: string,
+    public notes: string, public address: string, public w3w: string,
+    public latitude: number, public longitude: number, public dispatchList: string,
+    public dispatchOn: string, public callFormData: string) {}
+}
+
+export class DispatchCallSuccess implements Action {
+  readonly type = CallsActionTypes.DISPATCH_CALL_SUCCESS;
+  constructor() {}
+}
+
+export class DispatchCallFail implements Action {
+  readonly type = CallsActionTypes.DISPATCH_CALL_FAIL;
+  constructor() {}
+}
+
+export class ShowSelectDispatches implements Action {
+  readonly type = CallsActionTypes.SHOW_SELECT_DISPATCHS;
+  constructor() {}
+}
+
+export class ShowSelectDispatchesSuccess implements Action {
+  readonly type = CallsActionTypes.SHOW_SELECT_DISPATCHS_SUCCESS;
+  constructor(public dispatches: RecipientsResultData[]) {}
+}
+
+export class ShowSelectDispatchesFail implements Action {
+  readonly type = CallsActionTypes.SHOW_SELECT_DISPATCHS_FAIL;
+  constructor() {}
+}
+
+export class CloseSelectDispatchesModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_SELECT_DISPATCHS_MODAL;
+  constructor() {}
+}
+
+export class UpdatedSelectedDispatches implements Action {
+  readonly type = CallsActionTypes.UPDATE_SELECTED_DISPTACHES;
+  constructor(public id: string, public checked: boolean) {}
+}
+
+export class ShowCloseCallModal implements Action {
+  readonly type = CallsActionTypes.SHOW_CLOSE_CALL_MODAL;
+  constructor(public callId: string) {}
+}
+
+export class CloseCloseCallModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_CLOSE_CALL_MODAL;
+  constructor() {}
+}
+
+export class CloseCall implements Action {
+  readonly type = CallsActionTypes.CLOSE_CALL;
+  constructor(public callId: string, public closeType: number, public closeNote: string) {}
+}
+
+export class CloseCallSuccess implements Action {
+  readonly type = CallsActionTypes.CLOSE_CALL_SUCCESS;
+  constructor() {}
+}
+
+export class CloseCallFail implements Action {
+  readonly type = CallsActionTypes.CLOSE_CALL_FAIL;
+  constructor() {}
+}
+
+export class SetEditCallDispatches implements Action {
+  readonly type = CallsActionTypes.SET_EDIT_CALL_DISPATCHES;
+  constructor(public dispatchEvents: DispatchedEventResultData[]) {}
+}
+
+export class ShowEditCallSelectDispatches implements Action {
+  readonly type = CallsActionTypes.SHOW_EDIT_CALL_SELECT_DISPATCHS;
+  constructor() {}
+}
+
+export class ShowEditCallSelectDispatchesSuccess implements Action {
+  readonly type = CallsActionTypes.SHOW_EDIT_CALL_SELECT_DISPATCHS_SUCCESS;
+  constructor(public dispatches: RecipientsResultData[]) {}
+}
+
+export class ShowEditCallSelectDispatchesFail implements Action {
+  readonly type = CallsActionTypes.SHOW_EDIT_CALL_SELECT_DISPATCHS_FAIL;
+  constructor() {}
+}
+
+export class GetEditCallDispatches implements Action {
+  readonly type = CallsActionTypes.GET_EDIT_CALL_DISPATCHES;
+  constructor() {}
+}
+
+export class GetEditCallDispatchesSuccess implements Action {
+  readonly type = CallsActionTypes.GET_EDIT_CALL_DISPATCHES_SUCCESS;
+  constructor(public dispatches: RecipientsResultData[]) {}
+}
+
+export class ShowEditCallModal implements Action {
+  readonly type = CallsActionTypes.SHOW_EDIT_CALL_MODAL;
+  constructor(public callId: string) {}
+}
+
+export class CloseEditCallModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_EDIT_CALL_MODAL;
+  constructor() {}
+}
+
+export class UpdatedEditCallSelectedDispatches implements Action {
+  readonly type = CallsActionTypes.UPDATE_EDIT_CALL_SELECTED_DISPTACHES;
+  constructor(public id: string, public checked: boolean) {}
+}
+
+export class UpdateCall implements Action {
+  readonly type = CallsActionTypes.UPDATE_CALL;
+  constructor(public callId: string, public name: string, public priority: number, public callType: string,
+    public contactName: string, public contactInfo: string, public externalId: string,
+    public incidentId: string, public referenceId: string, public nature: string,
+    public notes: string, public address: string, public w3w: string,
+    public latitude: number, public longitude: number, public dispatchList: string,
+    public dispatchOn: string, public callFormData: string, public redispatch: boolean) {}
+}
+
+export class UpdateCallSuccess implements Action {
+  readonly type = CallsActionTypes.UPDATE_CALL_SUCCESS;
+  constructor() {}
+}
+
+export class UpdateCallFail implements Action {
+  readonly type = CallsActionTypes.UPDATE_CALL_FAIL;
+  constructor() {}
+}
+
+export class CloseViewCallModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_VIEW_CALL_MODAL;
+  constructor() {}
+}
+
+export class ClearCalls implements Action {
+  readonly type = CallsActionTypes.CLEAR_CALLS;
+  constructor() {}
+}
+
 export type CallActionsUnion =
   | GetCalls
   | GetCallsDone
@@ -178,4 +382,37 @@ export type CallActionsUnion =
   | OpenCallFilesModal
   | UploadCallFile
   | UploadCallFileSuccess
-  | UploadCallFileFail;
+  | UploadCallFileFail
+  | ShowNewCallModal
+  | ShowSetLocationModal
+  | CloseSetLocationModal
+  | SetNewCallLocation
+  | ShowSelectDispatches
+  | ShowSelectDispatchesSuccess
+  | CloseSelectDispatchesModal
+  | DispatchCall
+  | DispatchCallSuccess
+  | DispatchCallFail
+  | UpdatedSelectedDispatches
+  | ShowSelectDispatchesFail
+  | CloseNewCallModal
+  | ShowCloseCallModal
+  | CloseCloseCallModal
+  | CloseCall
+  | CloseCallSuccess
+  | CloseCallFail
+  | SetEditCallDispatches
+  | ShowEditCallSelectDispatches
+  | ShowEditCallSelectDispatchesSuccess
+  | ShowEditCallSelectDispatchesFail
+  | GetEditCallDispatches
+  | GetEditCallDispatchesSuccess
+  | ShowEditCallModal
+  | UpdatedEditCallSelectedDispatches
+  | CloseEditCallModal
+  | UpdateCall
+  | UpdateCallSuccess
+  | UpdateCallFail
+  | CloseViewCallModal
+  | ClearCalls
+  ;

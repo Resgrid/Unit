@@ -6,12 +6,14 @@ import * as homeReducers from '../features/home/reducers/home.reducer';
 import * as settingsReducers from '../features/settings/reducers/settings.reducer';
 import * as voiceReducers from '../features/voice/reducers/voice.reducer';
 import * as callsReducers from '../features/calls/reducers/calls.reducer';
+import * as messagesReducers from '../features/messages/reducers/messages.reducer';
 import { VoiceState } from '../features/voice/store/voice.store';
 import { StatusesState } from '../features/statuses/store/statuses.store';
 import { CallsState } from '../features/calls/store/calls.store';
 import { NotesState } from '../features/notes/store/notes.store';
 import { ProtocolsState } from '../features/protocols/store/protocols.store';
 import { RolesState } from '../features/roles/store/roles.store';
+import { MessagesState } from '../features/messages/store/messages.store';
 
 export interface State extends fromRoot.State {
     settings: SettingsState;
@@ -119,6 +121,26 @@ export const selectCallImagesState = createSelector(
   callsReducers.getCallImages
 );
 
+export const selectNewCallLocationState = createSelector(
+  selectCallsState,
+  callsReducers.getNewCallLocation
+);
+
+export const selectNewCallDispatchesState = createSelector(
+  selectCallsState,
+  callsReducers.getNewCallDispatches
+);
+
+export const selectEditCallLocationState = createSelector(
+  selectCallsState,
+  callsReducers.getEditCallLocation
+);
+
+export const selectEditCallDispatchesState = createSelector(
+  selectCallsState,
+  callsReducers.getEditCallDispatches
+);
+
 
 export const selectNotesState = createFeatureSelector<NotesState>('notesModule');
 
@@ -127,3 +149,10 @@ export const selectProtocolsState = createFeatureSelector<ProtocolsState>('proto
 
 
 export const selectRolesState = createFeatureSelector<RolesState>('rolesModule');
+
+export const selectMessagesState = createFeatureSelector<MessagesState>('messagesModule');
+
+export const selectRecipientsState = createSelector(
+  selectMessagesState,
+  messagesReducers.getRecipients
+);

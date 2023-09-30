@@ -36,6 +36,8 @@ import { NotesModule } from './features/notes/notes.module';
 import { ShellModule } from './shell/shell.module';
 import { ProtocolsModule } from './features/protocols/protocols.module';
 import { RolesModule } from './features/roles/roles.module';
+import { ScrollDirective } from './directives/scroll.directive';
+import { MessagesModule } from './features/messages/messages.module';
 
 //import adapter from 'webrtc-adapter';
 
@@ -56,7 +58,8 @@ let getBaseUrl = (): string => {
     declarations: [AppComponent,
         UnitCardComponent,
         StatusCardComponent,
-        RolesCardComponent],
+        RolesCardComponent,
+        ScrollDirective],
     imports: [
         BrowserModule,
         CommonModule,
@@ -111,10 +114,12 @@ let getBaseUrl = (): string => {
         ShellModule,
         NotesModule,
         ProtocolsModule,
-        RolesModule
+        RolesModule,
+        MessagesModule
     ],
     providers: [
-        { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }
+        { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+        ScrollDirective
     ],
     bootstrap: [AppComponent]
 })
