@@ -18,8 +18,19 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
 import * as HomeActions from '../features/home/actions/home.actions';
-import { ConnectableObservable, Observable, bindCallback, map, of, publishReplay, switchMap, take, throwError } from 'rxjs';
+import {
+  ConnectableObservable,
+  Observable,
+  bindCallback,
+  map,
+  of,
+  publishReplay,
+  switchMap,
+  take,
+  throwError,
+} from 'rxjs';
 import { selectConfigData } from '../store';
+
 @Injectable({
   providedIn: 'root',
 })
@@ -28,16 +39,16 @@ export class GeolocationProvider {
   watchPositionId: string = null;
   backgroundWatcherId: string = null;
 
+  private configData$: Observable<GetConfigResultData | null>
   protected readonly geocoder$: Observable<google.maps.Geocoder>;
 
   constructor(
-    loader: LazyGoogleMapsLoader,
+    private loader: LazyGoogleMapsLoader,
     private platform: Platform,
     private storageProvider: StorageProvider,
     private deviceService: DeviceService,
     private unitLocationService: UnitLocationService,
-    private store: Store<HomeState>,
-    public configData$: Observable<GetConfigResultData | null>
+    private store: Store<HomeState>
   ) {
     this.configData$ = this.store.select(selectConfigData);
 
@@ -180,7 +191,7 @@ export class GeolocationProvider {
             // Defaults to "false".
             stale: false,
 
-            // The minimum number of metres between subsequent locations. Defaults
+            // The minimum number of meter's between subsequent locations. Defaults
             // to 0.
             distanceFilter: 20,
           },
@@ -344,7 +355,7 @@ export class LazyGoogleMapsLoader {
         );
       })
       .map((k: string) => {
-        // join arrays as comma seperated strings
+        // join arrays as comma separated strings
         const i = queryParams[k];
         if (Array.isArray(i)) {
           return { key: k, value: i.join(',') };
