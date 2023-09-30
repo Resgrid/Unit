@@ -6,8 +6,10 @@ import {
   CallPriorityResultData,
   CallResultData,
   DispatchedEventResultData,
+  GpsLocation,
   RecipientsResultData
 } from '@resgrid/ngx-resgridlib';
+import { GeoLocation } from 'src/app/models/geoLocation';
 
 export enum CallsActionTypes {
   GET_CALLS = '[CALLS] GET_CALLS',
@@ -66,6 +68,9 @@ export enum CallsActionTypes {
   UPDATE_CALL_FAIL = '[CALLS] UPDATE_CALL_FAIL',
   CLOSE_VIEW_CALL_MODAL = '[CALLS] CLOSE_VIEW_CALL_MODAL',
   CLEAR_CALLS = '[CALLS] CLEAR_CALLS',
+  GET_COORDINATESFORADDRESS = '[CALLS] GET_COORDINATESFORADDRESS',
+  GET_COORDINATESFORADDRESS_SUCCESS = '[CALLS] GET_COORDINATESFORADDRESS_SUCCESS',
+  GET_COORDINATESFORADDRESS_FAIL = '[CALLS] GET_COORDINATESFORADDRESS_FAIL',
 }
 
 export class GetCalls implements Action {
@@ -359,6 +364,21 @@ export class ClearCalls implements Action {
   constructor() {}
 }
 
+export class GetCoordinatesForAddress implements Action {
+  readonly type = CallsActionTypes.GET_COORDINATESFORADDRESS;
+  constructor(public address: string) {}
+}
+
+export class GetCoordinatesForAddressSuccess implements Action {
+  readonly type = CallsActionTypes.GET_COORDINATESFORADDRESS_SUCCESS;
+  constructor(public payload: GeoLocation) {}
+}
+
+export class GetCoordinatesForAddressFail implements Action {
+  readonly type = CallsActionTypes.GET_COORDINATESFORADDRESS_FAIL;
+  constructor(public payload: string) {}
+}
+
 export type CallActionsUnion =
   | GetCalls
   | GetCallsDone
@@ -415,4 +435,7 @@ export type CallActionsUnion =
   | UpdateCallFail
   | CloseViewCallModal
   | ClearCalls
+  | GetCoordinatesForAddress
+  | GetCoordinatesForAddressSuccess
+  | GetCoordinatesForAddressFail
   ;

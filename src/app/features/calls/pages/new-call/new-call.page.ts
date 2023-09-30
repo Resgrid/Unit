@@ -181,6 +181,12 @@ export class NewCallPage {
     }
   }
 
+  public findCoordinatesForAddress() {
+	this.callsStore.dispatch(
+		new CallsActions.GetCoordinatesForAddress(this.address)
+	  );
+  }
+
   public send() {
     if (this.subject.length === 0) {
       this.alertProvider.showErrorAlert(

@@ -1,31 +1,31 @@
 import { Action, Store } from '@ngrx/store';
 import {
-	Actions,
-	concatLatestFrom,
-	createEffect,
-	Effect,
-	ofType,
+  Actions,
+  concatLatestFrom,
+  createEffect,
+  Effect,
+  ofType,
 } from '@ngrx/effects';
 import {
-	catchError,
-	exhaustMap,
-	map,
-	mergeMap,
-	switchMap,
-	tap,
-	withLatestFrom,
+  catchError,
+  exhaustMap,
+  map,
+  mergeMap,
+  switchMap,
+  tap,
+  withLatestFrom,
 } from 'rxjs/operators';
 import { Injectable } from '@angular/core';
 import { from, Observable, of, forkJoin } from 'rxjs';
 import {
-	CallFilesService,
-	CallNotesService,
-	CallsService,
-	KazooVoiceService,
-	MessagesService,
-	SaveUnitStatusInput,
-	UnitStatusService,
-	VoiceService,
+  CallFilesService,
+  CallNotesService,
+  CallsService,
+  KazooVoiceService,
+  MessagesService,
+  SaveUnitStatusInput,
+  UnitStatusService,
+  VoiceService,
 } from '@resgrid/ngx-resgridlib';
 import { MenuController, ModalController } from '@ionic/angular';
 import { HomeState } from '../../home/store/home.store';
@@ -41,629 +41,661 @@ import { CloseCallPage } from '../pages/close-call/close-call.page';
 import { AlertProvider } from 'src/app/providers/alert';
 import { EditCallPage } from '../pages/edit-call/edit-call.page';
 import { SelectDispatchesEditPage } from '../pages/select-dispatches-edit/select-dispatches-edit.page';
+import { GeolocationProvider } from 'src/app/providers/geolocation';
 
 @Injectable()
 export class CallsEffects {
-	private _modalRef: HTMLIonModalElement;
+  private _modalRef: HTMLIonModalElement;
 
-	getCalls$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.GetCalls>(callActions.CallsActionTypes.GET_CALLS),
-			tap(() => this.loadingProvider.show()),
-			concatLatestFrom(() => [this.homeStore.select(selectHomeState)]),
-			switchMap(([action, homeState], index) => {
-				return this.callsProvider.getActiveCalls().pipe(
-					map((data) => ({
-						type: callActions.CallsActionTypes.GET_CALLS_DONE,
-						calls: data.Data,
-						priorities: homeState.callPriorties,
-					})),
-					catchError(() =>
-						of({ type: callActions.CallsActionTypes.GET_CALLS_FAIL })
-					)
-				);
-			})
-		)
-	);
+  getCalls$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetCalls>(callActions.CallsActionTypes.GET_CALLS),
+      tap(() => this.loadingProvider.show()),
+      concatLatestFrom(() => [this.homeStore.select(selectHomeState)]),
+      switchMap(([action, homeState], index) => {
+        return this.callsProvider.getActiveCalls().pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.GET_CALLS_DONE,
+            calls: data.Data,
+            priorities: homeState.callPriorties,
+          })),
+          catchError(() =>
+            of({ type: callActions.CallsActionTypes.GET_CALLS_FAIL })
+          )
+        );
+      })
+    )
+  );
 
-	getCallById$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.GetCallById>(
-				callActions.CallsActionTypes.GET_CALL_BYID
-			),
-			tap(() => this.loadingProvider.show()),
-			concatLatestFrom(() => [this.homeStore.select(selectHomeState)]),
-			switchMap(([action, homeState], index) =>
-				forkJoin([
-					this.callsProvider.getCall(action.callId),
-					this.callsProvider.getCallExtraData(action.callId),
-				]).pipe(
-					map((result) => ({
-						type: callActions.CallsActionTypes.GET_CALL_BYID_SUCCESS,
-						call: result[0].Data,
-						data: result[1].Data,
-						priorities: homeState.callPriorties,
-					})),
-					catchError(() =>
-						of({ type: callActions.CallsActionTypes.GET_CALL_BYID_FAIL })
-					)
-				)
-			)
-		)
-	);
+  getCallById$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetCallById>(
+        callActions.CallsActionTypes.GET_CALL_BYID
+      ),
+      tap(() => this.loadingProvider.show()),
+      concatLatestFrom(() => [this.homeStore.select(selectHomeState)]),
+      switchMap(([action, homeState], index) =>
+        forkJoin([
+          this.callsProvider.getCall(action.callId),
+          this.callsProvider.getCallExtraData(action.callId),
+        ]).pipe(
+          map((result) => ({
+            type: callActions.CallsActionTypes.GET_CALL_BYID_SUCCESS,
+            call: result[0].Data,
+            data: result[1].Data,
+            priorities: homeState.callPriorties,
+          })),
+          catchError(() =>
+            of({ type: callActions.CallsActionTypes.GET_CALL_BYID_FAIL })
+          )
+        )
+      )
+    )
+  );
 
-	getCallByIdSuccess$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType(callActions.CallsActionTypes.GET_CALL_BYID_SUCCESS),
-			switchMap(() =>
-				this.runModal(ModalViewCallPage, 'modal-container-full', null, null)
-			),
-			switchMap(() => this.loadingProvider.hide()),
-			map(() => ({ type: callActions.CallsActionTypes.GET_CALL_BYID_DONE }))
-		)
-	);
+  getCallByIdSuccess$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(callActions.CallsActionTypes.GET_CALL_BYID_SUCCESS),
+      switchMap(() =>
+        this.runModal(ModalViewCallPage, 'modal-container-full', null, null)
+      ),
+      switchMap(() => this.loadingProvider.hide()),
+      map(() => ({ type: callActions.CallsActionTypes.GET_CALL_BYID_DONE }))
+    )
+  );
 
-	getCallByIdFail$ = createEffect(
-		() => this.actions$.pipe(switchMap(() => this.loadingProvider.hide())),
-		{ dispatch: false }
-	);
+  getCallByIdFail$ = createEffect(
+    () => this.actions$.pipe(switchMap(() => this.loadingProvider.hide())),
+    { dispatch: false }
+  );
 
-	getCallsDone$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.GET_CALLS_DONE),
-				exhaustMap(() => this.loadingProvider.hide()),
-				map((data) => ({
-					type: callActions.CallsActionTypes.DONE,
-				}))
-			)
-	);
+  getCallsDone$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(callActions.CallsActionTypes.GET_CALLS_DONE),
+      exhaustMap(() => this.loadingProvider.hide()),
+      map((data) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	getCallsFail$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.GET_CALLS_FAIL),
-				switchMap(() => this.loadingProvider.hide()),
-				map((data) => ({
-					type: callActions.CallsActionTypes.DONE,
-				}))
-			)
-	);
+  getCallsFail$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(callActions.CallsActionTypes.GET_CALLS_FAIL),
+      switchMap(() => this.loadingProvider.hide()),
+      map((data) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	showCallNotes$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.ShowCallNotesModal>(
-				callActions.CallsActionTypes.SHOW_CALLNOTES
-			),
-			mergeMap((action) =>
-				this.callNotesProvider.getCallNotes(action.callId).pipe(
-					map((data) => ({
-						type: callActions.CallsActionTypes.OPEN_CALLNOTES,
-						payload: data.Data,
-					}))
-				)
-			)
-		)
-	);
+  showCallNotes$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowCallNotesModal>(
+        callActions.CallsActionTypes.SHOW_CALLNOTES
+      ),
+      mergeMap((action) =>
+        this.callNotesProvider.getCallNotes(action.callId).pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.OPEN_CALLNOTES,
+            payload: data.Data,
+          }))
+        )
+      )
+    )
+  );
 
-	saveCallNote$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.SaveCallNote>(
-				callActions.CallsActionTypes.SAVE_CALLNOTE
-			),
-			mergeMap((action) =>
-				this.callNotesProvider
-					.saveCallNote(action.callId, action.userId, action.callNote, null)
-					.pipe(
-						// If successful, dispatch success action with result
-						map((data) => ({
-							type: callActions.CallsActionTypes.SHOW_CALLNOTES,
-							callId: action.callId,
-						})),
-						// If request fails, dispatch failed action
-						catchError(() =>
-							of({ type: callActions.CallsActionTypes.SAVE_CALLNOTE_FAIL })
-						)
-					)
-			)
-		)
-	);
+  saveCallNote$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.SaveCallNote>(
+        callActions.CallsActionTypes.SAVE_CALLNOTE
+      ),
+      mergeMap((action) =>
+        this.callNotesProvider
+          .saveCallNote(action.callId, action.userId, action.callNote, null)
+          .pipe(
+            // If successful, dispatch success action with result
+            map((data) => ({
+              type: callActions.CallsActionTypes.SHOW_CALLNOTES,
+              callId: action.callId,
+            })),
+            // If request fails, dispatch failed action
+            catchError(() =>
+              of({ type: callActions.CallsActionTypes.SAVE_CALLNOTE_FAIL })
+            )
+          )
+      )
+    )
+  );
 
-	setVewCallBackToDefault$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.SetViewCallModal>(
-				callActions.CallsActionTypes.SET_VIEW_CALL_MODAL
-			),
-			map((data) => ({
-				type: callActions.CallsActionTypes.DONE,
-			}))
-		)
-	);
+  setVewCallBackToDefault$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.SetViewCallModal>(
+        callActions.CallsActionTypes.SET_VIEW_CALL_MODAL
+      ),
+      map((data) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	openCallImagesModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.ShowCallImagesModal>(
-				callActions.CallsActionTypes.SHOW_CALLIMAGES
-			),
-			tap(() => this.loadingProvider.hide()),
-			mergeMap((action) =>
-				this.callFilesProvider.getCallImages(action.callId, true).pipe(
-					map((data) => ({
-						type: callActions.CallsActionTypes.OPEN_CALLIMAGES,
-						payload: data.Data,
-					}))
-				)
-			)
-		)
-	);
+  openCallImagesModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowCallImagesModal>(
+        callActions.CallsActionTypes.SHOW_CALLIMAGES
+      ),
+      tap(() => this.loadingProvider.hide()),
+      mergeMap((action) =>
+        this.callFilesProvider.getCallImages(action.callId, true).pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.OPEN_CALLIMAGES,
+            payload: data.Data,
+          }))
+        )
+      )
+    )
+  );
 
-	openCallFilesModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.ShowCallFilesModal>(
-				callActions.CallsActionTypes.SHOW_CALLFILESMODAL
-			),
-			tap(() => this.loadingProvider.hide()),
-			mergeMap((action) =>
-				this.callFilesProvider.getCallFiles(action.callId, true).pipe(
-					map((data) => ({
-						type: callActions.CallsActionTypes.OPEN_CALLFILESMODAL,
-						payload: data.Data,
-					}))
-				)
-			)
-		)
-	);
+  openCallFilesModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowCallFilesModal>(
+        callActions.CallsActionTypes.SHOW_CALLFILESMODAL
+      ),
+      tap(() => this.loadingProvider.hide()),
+      mergeMap((action) =>
+        this.callFilesProvider.getCallFiles(action.callId, true).pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.OPEN_CALLFILESMODAL,
+            payload: data.Data,
+          }))
+        )
+      )
+    )
+  );
 
-	uploadCallImage$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.UploadCallImage>(
-				callActions.CallsActionTypes.UPLOAD_CALLIMAGE
-			),
-			mergeMap((action) =>
-				this.callFilesProvider
-					.saveCallImage(
-						action.callId,
-						action.userId,
-						'',
-						action.name,
-						null,
-						action.image
-					)
-					.pipe(
-						// If successful, dispatch success action with result
-						map((data) => ({
-							type: callActions.CallsActionTypes.SHOW_CALLIMAGES,
-							callId: action.callId,
-						})),
-						// If request fails, dispatch failed action
-						catchError(() =>
-							of({ type: callActions.CallsActionTypes.UPLOAD_CALLIMAGE_FAIL })
-						)
-					)
-			)
-		)
-	);
+  uploadCallImage$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.UploadCallImage>(
+        callActions.CallsActionTypes.UPLOAD_CALLIMAGE
+      ),
+      mergeMap((action) =>
+        this.callFilesProvider
+          .saveCallImage(
+            action.callId,
+            action.userId,
+            '',
+            action.name,
+            null,
+            action.image
+          )
+          .pipe(
+            // If successful, dispatch success action with result
+            map((data) => ({
+              type: callActions.CallsActionTypes.SHOW_CALLIMAGES,
+              callId: action.callId,
+            })),
+            // If request fails, dispatch failed action
+            catchError(() =>
+              of({ type: callActions.CallsActionTypes.UPLOAD_CALLIMAGE_FAIL })
+            )
+          )
+      )
+    )
+  );
 
-	showNewCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType(callActions.CallsActionTypes.SHOW_NEW_CALL_MODAL),
-			switchMap(() =>
-				this.runModal(
-					NewCallPage,
-					'modal-container-full',
-					null,
-					'CallsFeatureModal'
-				)
-			),
-			switchMap(() => this.loadingProvider.hide())
-		),
-		{ dispatch: false }
-	);
+  showNewCallModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_NEW_CALL_MODAL),
+        switchMap(() =>
+          this.runModal(
+            NewCallPage,
+            'modal-container-full',
+            null,
+            'CallsFeatureModal'
+          )
+        ),
+        switchMap(() => this.loadingProvider.hide())
+      ),
+    { dispatch: false }
+  );
 
-	showSetLocationModal$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.SHOW_SET_LOCATION_MODAL),
-				exhaustMap((data) =>
-					this.runModal(
-						SelectLocationPage,
-						'modal-container-full',
-						null,
-						'SelectLocationModal'
-					)
-				)
-			),
-		{ dispatch: false }
-	);
+  showSetLocationModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_SET_LOCATION_MODAL),
+        exhaustMap((data) =>
+          this.runModal(
+            SelectLocationPage,
+            'modal-container-full',
+            null,
+            'SelectLocationModal'
+          )
+        )
+      ),
+    { dispatch: false }
+  );
 
-	dismissSetLocationModal$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.CLOSE_SET_LOCATION_MODAL),
-				exhaustMap((data) => this.closeModal('SelectLocationModal'))
-			),
-		{ dispatch: false }
-	);
+  dismissSetLocationModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.CLOSE_SET_LOCATION_MODAL),
+        exhaustMap((data) => this.closeModal('SelectLocationModal'))
+      ),
+    { dispatch: false }
+  );
 
-	closeNewCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseNewCallModal>(
-				callActions.CallsActionTypes.CLOSE_NEW_CALL_MODAL
-			),
-			exhaustMap((data) => this.closeModal('CallsFeatureModal')),
-			map((action) => ({
-				type: callActions.CallsActionTypes.DONE,
-			}))
-		)
-	);
+  closeNewCallModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.CloseNewCallModal>(
+        callActions.CallsActionTypes.CLOSE_NEW_CALL_MODAL
+      ),
+      exhaustMap((data) => this.closeModal('CallsFeatureModal')),
+      map((action) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	showCloseCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType(callActions.CallsActionTypes.SHOW_CLOSE_CALL_MODAL),
-			switchMap(() =>
-				this.runModal(
-					CloseCallPage,
-					'modal-container-full',
-					null,
-					'CallsFeatureCloseCallModal'
-				)
-			),
-			switchMap(() => this.loadingProvider.hide())
-		),
-		{ dispatch: false }
-	);
+  showCloseCallModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_CLOSE_CALL_MODAL),
+        switchMap(() =>
+          this.runModal(
+            CloseCallPage,
+            'modal-container-full',
+            null,
+            'CallsFeatureCloseCallModal'
+          )
+        ),
+        switchMap(() => this.loadingProvider.hide())
+      ),
+    { dispatch: false }
+  );
 
-	closeCloseCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseCloseCallModal>(
-				callActions.CallsActionTypes.CLOSE_CLOSE_CALL_MODAL
-			),
-			exhaustMap((data) => this.closeModal('CallsFeatureCloseCallModal')),
-			map((action) => ({
-				type: callActions.CallsActionTypes.DONE,
-			}))
-		)
-	);
+  closeCloseCallModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.CloseCloseCallModal>(
+        callActions.CallsActionTypes.CLOSE_CLOSE_CALL_MODAL
+      ),
+      exhaustMap((data) => this.closeModal('CallsFeatureCloseCallModal')),
+      map((action) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	dispatchCall$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.DispatchCall>(
-				callActions.CallsActionTypes.DISPATCH_CALL
-			),
-			mergeMap((action) =>
-				this.callsProvider
-					.saveCall(
-						action.name,
-						action.priority,
-						action.callType,
-						action.contactName,
-						action.contactInfo,
-						action.externalId,
-						action.incidentId,
-						action.referenceId,
-						action.nature,
-						action.notes,
-						action.address,
-						action.w3w,
-						action.latitude,
-						action.longitude,
-						action.dispatchList,
-						action.dispatchOn,
-						action.callFormData
-					)
-					.pipe(
-						// If successful, dispatch success action with result
-						map((data) => ({
-							type: callActions.CallsActionTypes.DISPATCH_CALL_SUCCESS,
-						})),
-						// If request fails, dispatch failed action
-						catchError(() =>
-							of({ type: callActions.CallsActionTypes.DISPATCH_CALL_FAIL })
-						)
-					)
-			)
-		)
-	);
+  dispatchCall$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.DispatchCall>(
+        callActions.CallsActionTypes.DISPATCH_CALL
+      ),
+      mergeMap((action) =>
+        this.callsProvider
+          .saveCall(
+            action.name,
+            action.priority,
+            action.callType,
+            action.contactName,
+            action.contactInfo,
+            action.externalId,
+            action.incidentId,
+            action.referenceId,
+            action.nature,
+            action.notes,
+            action.address,
+            action.w3w,
+            action.latitude,
+            action.longitude,
+            action.dispatchList,
+            action.dispatchOn,
+            action.callFormData
+          )
+          .pipe(
+            // If successful, dispatch success action with result
+            map((data) => ({
+              type: callActions.CallsActionTypes.DISPATCH_CALL_SUCCESS,
+            })),
+            // If request fails, dispatch failed action
+            catchError(() =>
+              of({ type: callActions.CallsActionTypes.DISPATCH_CALL_FAIL })
+            )
+          )
+      )
+    )
+  );
 
-	showSelectDispatches$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.ShowSelectDispatches>(
-				callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS
-			),
-			switchMap((action) => this.messagesService.getRecipients(true, true).pipe(
-					map((data) => ({
-							type: callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_SUCCESS,
-							dispatches: data.Data,
-						})),
-					catchError(() =>
-						of({
-							type: callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_FAIL,
-						})
-					)
-				))
-		)
-	);
+  showSelectDispatches$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowSelectDispatches>(
+        callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS
+      ),
+      switchMap((action) =>
+        this.messagesService.getRecipients(true, true).pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_SUCCESS,
+            dispatches: data.Data,
+          })),
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
 
-	showSelectDispatchesSuccess$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_SUCCESS),
-				exhaustMap((data) =>
-					this.runModal(
-						SelectDispatchesPage,
-						'modal-container-full',
-						null,
-						'SelectDispatchesModal'
-					)
-				)
-			),
-		{ dispatch: false }
-	);
+  showSelectDispatchesSuccess$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_SELECT_DISPATCHS_SUCCESS),
+        exhaustMap((data) =>
+          this.runModal(
+            SelectDispatchesPage,
+            'modal-container-full',
+            null,
+            'SelectDispatchesModal'
+          )
+        )
+      ),
+    { dispatch: false }
+  );
 
-	dismissSelectDispatchesModal$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.CLOSE_SELECT_DISPATCHS_MODAL),
-				exhaustMap((data) => this.closeModal('SelectDispatchesModal'))
-			),
-		{ dispatch: false }
-	);
+  dismissSelectDispatchesModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.CLOSE_SELECT_DISPATCHS_MODAL),
+        exhaustMap((data) => this.closeModal('SelectDispatchesModal'))
+      ),
+    { dispatch: false }
+  );
 
-	createCallSuccessful$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.ShowSelectDispatches>(
-				callActions.CallsActionTypes.DISPATCH_CALL_SUCCESS
-			),
-			exhaustMap((data) => this.closeModal(null)),
-			exhaustMap((data) => this.closeModal('CallsFeatureModal')),
-			map((data) => ({
-					type: callActions.CallsActionTypes.GET_CALLS,
-				}))
-		)
-	);
+  createCallSuccessful$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowSelectDispatches>(
+        callActions.CallsActionTypes.DISPATCH_CALL_SUCCESS
+      ),
+      exhaustMap((data) => this.closeModal(null)),
+      exhaustMap((data) => this.closeModal('CallsFeatureModal')),
+      map((data) => ({
+        type: callActions.CallsActionTypes.GET_CALLS,
+      }))
+    )
+  );
 
-	closeCall$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseCall>(
-				callActions.CallsActionTypes.CLOSE_CALL
-			),
-			tap(() => this.loadingProvider.show()),
-			mergeMap((action) =>
-				this.callsProvider.closeCall(action.callId, action.closeNote, action.closeType)
-					.pipe(
-						// If successful, dispatch success action with result
-						map((data) => ({
-							type: callActions.CallsActionTypes.CLOSE_CALL_SUCCESS
-						})),
-						// If request fails, dispatch failed action
-						catchError(() =>
-							of({ type: callActions.CallsActionTypes.CLOSE_CALL_FAIL })
-						)
-					)
-			)
-		)
-	);
+  closeCall$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.CloseCall>(callActions.CallsActionTypes.CLOSE_CALL),
+      tap(() => this.loadingProvider.show()),
+      mergeMap((action) =>
+        this.callsProvider
+          .closeCall(action.callId, action.closeNote, action.closeType)
+          .pipe(
+            // If successful, dispatch success action with result
+            map((data) => ({
+              type: callActions.CallsActionTypes.CLOSE_CALL_SUCCESS,
+            })),
+            // If request fails, dispatch failed action
+            catchError(() =>
+              of({ type: callActions.CallsActionTypes.CLOSE_CALL_FAIL })
+            )
+          )
+      )
+    )
+  );
 
-	closeCallSuccessful$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseCallSuccess>(
-				callActions.CallsActionTypes.CLOSE_CALL_SUCCESS
-			),
-			switchMap((data) => this.closeModal('CallsFeatureModal')),
-			switchMap((data) => this.closeModal('CallsFeatureCloseCallModal')),
-			switchMap(() => this.loadingProvider.hide()),
-			map((data) => ({
-					type: callActions.CallsActionTypes.GET_CALLS,
-				}))
-		)
-	);
+  closeCallSuccessful$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.CloseCallSuccess>(
+        callActions.CallsActionTypes.CLOSE_CALL_SUCCESS
+      ),
+      switchMap((data) => this.closeModal('CallsFeatureModal')),
+      switchMap((data) => this.closeModal('CallsFeatureCloseCallModal')),
+      switchMap(() => this.loadingProvider.hide()),
+      map((data) => ({
+        type: callActions.CallsActionTypes.GET_CALLS,
+      }))
+    )
+  );
 
-	closeCallFail$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.CLOSE_CALL_FAIL),
-				switchMap(() => this.loadingProvider.hide()),
-				switchMap((action) => this.alertProvider.showErrorAlert(
-					'Unable to Close Call',
-					'',
-					'There was an issue trying to close the call, please try again.'
-				  )),
-			),
-		{ dispatch: false }
-	);
+  closeCallFail$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.CLOSE_CALL_FAIL),
+        switchMap(() => this.loadingProvider.hide()),
+        switchMap((action) =>
+          this.alertProvider.showErrorAlert(
+            'Unable to Close Call',
+            '',
+            'There was an issue trying to close the call, please try again.'
+          )
+        )
+      ),
+    { dispatch: false }
+  );
 
-	dismissEditCallSelectDispatchesModal$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType(callActions.CallsActionTypes.CLOSE_SELECT_DISPATCHS_MODAL),
-				exhaustMap((data) => this.closeModal('SelectDispatchesModal'))
-			),
-		{ dispatch: false }
-	);
+  dismissEditCallSelectDispatchesModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.CLOSE_SELECT_DISPATCHS_MODAL),
+        exhaustMap((data) => this.closeModal('SelectDispatchesModal'))
+      ),
+    { dispatch: false }
+  );
 
-	getEditCallDispatches$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.GetEditCallDispatches>(
-				callActions.CallsActionTypes.GET_EDIT_CALL_DISPATCHES
-			),
-			switchMap((action) => this.messagesService.getRecipients(true, true).pipe(
-					map((data) => ({
-							type: callActions.CallsActionTypes.GET_EDIT_CALL_DISPATCHES_SUCCESS,
-							dispatches: data.Data,
-						})),
-					catchError(() =>
-						of({
-							type: callActions.CallsActionTypes.DONE,
-						})
-					)
-				))
-		)
-	);
+  getEditCallDispatches$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetEditCallDispatches>(
+        callActions.CallsActionTypes.GET_EDIT_CALL_DISPATCHES
+      ),
+      switchMap((action) =>
+        this.messagesService.getRecipients(true, true).pipe(
+          map((data) => ({
+            type: callActions.CallsActionTypes.GET_EDIT_CALL_DISPATCHES_SUCCESS,
+            dispatches: data.Data,
+          })),
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.DONE,
+            })
+          )
+        )
+      )
+    )
+  );
 
-	showEditCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType(callActions.CallsActionTypes.SHOW_EDIT_CALL_MODAL),
-			switchMap(() =>
-				this.runModal(
-					EditCallPage,
-					'modal-container-full',
-					null,
-					'CallsFeatureEditCallModal'
-				)
-			),
-			switchMap(() => this.loadingProvider.hide())
-		),
-		{ dispatch: false }
-	);
+  showEditCallModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_EDIT_CALL_MODAL),
+        switchMap(() =>
+          this.runModal(
+            EditCallPage,
+            'modal-container-full',
+            null,
+            'CallsFeatureEditCallModal'
+          )
+        ),
+        switchMap(() => this.loadingProvider.hide())
+      ),
+    { dispatch: false }
+  );
 
-	closeEditCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseEditCallModal>(
-				callActions.CallsActionTypes.CLOSE_EDIT_CALL_MODAL
-			),
-			switchMap((data) => this.closeModal('CallsFeatureEditCallModal'))
-		),
-		{ dispatch: false }
-	);
+  closeEditCallModal$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType<callActions.CloseEditCallModal>(
+          callActions.CallsActionTypes.CLOSE_EDIT_CALL_MODAL
+        ),
+        switchMap((data) => this.closeModal('CallsFeatureEditCallModal'))
+      ),
+    { dispatch: false }
+  );
 
-	closeViewCallModal$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.CloseViewCallModal>(
-				callActions.CallsActionTypes.CLOSE_VIEW_CALL_MODAL
-			),
-			switchMap((data) => this.closeModal(null)),
-			map((data) => ({
-				type: callActions.CallsActionTypes.DONE,
-			}))
-		)
-	);
+  closeViewCallModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.CloseViewCallModal>(
+        callActions.CallsActionTypes.CLOSE_VIEW_CALL_MODAL
+      ),
+      switchMap((data) => this.closeModal(null)),
+      map((data) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
+  );
 
-	showSelectEditCallDispatches$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType(callActions.CallsActionTypes.SHOW_EDIT_CALL_SELECT_DISPATCHS),
-			switchMap(() =>
-				this.runModal(
-					SelectDispatchesEditPage,
-					'modal-container-full',
-					null,
-					'SelectDispatchesModal'
-				)
-			),
-			switchMap(() => this.loadingProvider.hide())
-		),
-		{ dispatch: false }
-	);
+  showSelectEditCallDispatches$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.SHOW_EDIT_CALL_SELECT_DISPATCHS),
+        switchMap(() =>
+          this.runModal(
+            SelectDispatchesEditPage,
+            'modal-container-full',
+            null,
+            'SelectDispatchesModal'
+          )
+        ),
+        switchMap(() => this.loadingProvider.hide())
+      ),
+    { dispatch: false }
+  );
 
-	updateCall$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.UpdateCall>(
-				callActions.CallsActionTypes.UPDATE_CALL
-			),
-			mergeMap((action) =>
-				this.callsProvider
-					.updateCall(
-						action.callId,
-						action.name,
-						action.priority,
-						action.callType,
-						action.contactName,
-						action.contactInfo,
-						action.externalId,
-						action.incidentId,
-						action.referenceId,
-						action.nature,
-						action.notes,
-						action.address,
-						action.w3w,
-						action.latitude,
-						action.longitude,
-						action.dispatchList,
-						action.dispatchOn,
-						action.callFormData,
-						action.redispatch
-					)
-					.pipe(
-						// If successful, dispatch success action with result
-						map((data) => ({
-							type: callActions.CallsActionTypes.UPDATE_CALL_SUCCESS,
-						})),
-						// If request fails, dispatch failed action
-						catchError(() =>
-							of({ type: callActions.CallsActionTypes.UPDATE_CALL_FAIL })
-						)
-					)
-			)
-		)
-	);
+  updateCall$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.UpdateCall>(callActions.CallsActionTypes.UPDATE_CALL),
+      mergeMap((action) =>
+        this.callsProvider
+          .updateCall(
+            action.callId,
+            action.name,
+            action.priority,
+            action.callType,
+            action.contactName,
+            action.contactInfo,
+            action.externalId,
+            action.incidentId,
+            action.referenceId,
+            action.nature,
+            action.notes,
+            action.address,
+            action.w3w,
+            action.latitude,
+            action.longitude,
+            action.dispatchList,
+            action.dispatchOn,
+            action.callFormData,
+            action.redispatch
+          )
+          .pipe(
+            // If successful, dispatch success action with result
+            map((data) => ({
+              type: callActions.CallsActionTypes.UPDATE_CALL_SUCCESS,
+            })),
+            // If request fails, dispatch failed action
+            catchError(() =>
+              of({ type: callActions.CallsActionTypes.UPDATE_CALL_FAIL })
+            )
+          )
+      )
+    )
+  );
 
-	updateCallSuccessful$ = createEffect(() =>
-		this.actions$.pipe(
-			ofType<callActions.UpdateCallSuccess>(
-				callActions.CallsActionTypes.UPDATE_CALL_SUCCESS
-			),
-			exhaustMap((data) => this.closeModal('CallsFeatureEditCallModal')),
-			map((data) => ({
-					type: callActions.CallsActionTypes.GET_CALLS,
-				}))
-		)
-	);
+  updateCallSuccessful$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.UpdateCallSuccess>(
+        callActions.CallsActionTypes.UPDATE_CALL_SUCCESS
+      ),
+      exhaustMap((data) => this.closeModal('CallsFeatureEditCallModal')),
+      map((data) => ({
+        type: callActions.CallsActionTypes.GET_CALLS,
+      }))
+    )
+  );
 
-	done$ = createEffect(
-		() =>
-			this.actions$.pipe(
-				ofType<callActions.SetViewCallModal>(callActions.CallsActionTypes.DONE)
-			),
-		{ dispatch: false }
-	);
+  getCoordinatesForAddress$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetCoordinatesForAddress>(
+        callActions.CallsActionTypes.GET_COORDINATESFORADDRESS
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getLocationFromAddress(action.address).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.GET_COORDINATESFORADDRESS_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GET_COORDINATESFORADDRESS_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
 
-	constructor(
-		private actions$: Actions,
-		private modalController: ModalController,
-		private unitStatusService: UnitStatusService,
-		private homeStore: Store<HomeState>,
-		private callsStore: Store<CallsState>,
-		private loadingProvider: LoadingProvider,
-		private callsProvider: CallsService,
-		private callNotesProvider: CallNotesService,
-		private callFilesProvider: CallFilesService,
-		private menuCtrl: MenuController,
-		private messagesService: MessagesService,
-		private alertProvider: AlertProvider,
-	) {}
+  done$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType<callActions.SetViewCallModal>(callActions.CallsActionTypes.DONE)
+      ),
+    { dispatch: false }
+  );
 
-	runModal = async (component, cssClass, properties, id, opts = {}) => {
-		await this.menuCtrl.close();
+  constructor(
+    private actions$: Actions,
+    private modalController: ModalController,
+    private unitStatusService: UnitStatusService,
+    private homeStore: Store<HomeState>,
+    private callsStore: Store<CallsState>,
+    private loadingProvider: LoadingProvider,
+    private callsProvider: CallsService,
+    private callNotesProvider: CallNotesService,
+    private callFilesProvider: CallFilesService,
+    private menuCtrl: MenuController,
+    private messagesService: MessagesService,
+    private alertProvider: AlertProvider,
+	private geocodingProvider: GeolocationProvider
+  ) {}
 
-		if (!cssClass) {
-			cssClass = 'modal-container';
-		}
+  runModal = async (component, cssClass, properties, id, opts = {}) => {
+    await this.menuCtrl.close();
 
-		if (!id) {
-			id = 'CallsFeatureModal';
-		}
+    if (!cssClass) {
+      cssClass = 'modal-container';
+    }
 
-		this._modalRef = await this.modalController.create({
-			component: component,
-			cssClass: cssClass,
-			componentProps: properties,
-			id: id,
-			...opts,
-		});
+    if (!id) {
+      id = 'CallsFeatureModal';
+    }
 
-		return from(this._modalRef.present());
-	};
+    this._modalRef = await this.modalController.create({
+      component: component,
+      cssClass: cssClass,
+      componentProps: properties,
+      id: id,
+      ...opts,
+    });
 
-	closeModal = async (id) => {
-		if (!id) {
-			id = 'CallsFeatureModal';
-		}
+    return from(this._modalRef.present());
+  };
 
-		try {
-			var activeModal = await this.modalController.getTop();
+  closeModal = async (id) => {
+    if (!id) {
+      id = 'CallsFeatureModal';
+    }
 
-			if (activeModal) {
-				await this.modalController.dismiss(null, null, id);
-			}
-		} catch (error) {}
-	};
+    try {
+      var activeModal = await this.modalController.getTop();
+
+      if (activeModal) {
+        await this.modalController.dismiss(null, null, id);
+      }
+    } catch (error) {}
+  };
 }

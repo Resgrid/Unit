@@ -39,8 +39,8 @@ export class GeolocationProvider {
   watchPositionId: string = null;
   backgroundWatcherId: string = null;
 
-  private configData$: Observable<GetConfigResultData | null>
-  protected readonly geocoder$: Observable<google.maps.Geocoder>;
+  private configData$: Observable<GetConfigResultData | null>;
+  protected geocoder$: Observable<google.maps.Geocoder>;
 
   constructor(
     private loader: LazyGoogleMapsLoader,
@@ -52,19 +52,21 @@ export class GeolocationProvider {
   ) {
     this.configData$ = this.store.select(selectConfigData);
 
-    const connectableGeocoder$ = new Observable((subscriber) => {
-      this.configData$.pipe(take(1)).subscribe((configData) => {
-        loader.load(configData.GoogleMapsKey).then(() => subscriber.next());
-      });
-    }).pipe(
-      map(() => this._createGeocoder()),
-      publishReplay(1)
-    ) as ConnectableObservable<google.maps.Geocoder>;
+    this.configData$.subscribe((configData) => {
+      if (configData && configData.GoogleMapsKey && !this.geocoder$) {
+        const connectableGeocoder$ = new Observable((subscriber) => {
+          loader.load(configData.GoogleMapsKey).then(() => subscriber.next());
+        }).pipe(
+          map(() => this._createGeocoder()),
+          publishReplay(1)
+        ) as ConnectableObservable<google.maps.Geocoder>;
 
-    connectableGeocoder$.connect(); // ignore the subscription
-    // since we will remain subscribed till application exits
+        connectableGeocoder$.connect(); // ignore the subscription
+        // since we will remain subscribed till application exits
 
-    this.geocoder$ = connectableGeocoder$;
+        this.geocoder$ = connectableGeocoder$;
+      }
+    });
   }
 
   private _createGeocoder() {
@@ -270,7 +272,7 @@ export class GeolocationProvider {
     return this.geocode({ address: address }).pipe(
       map((data) => {
         if (data && data.length > 0) {
-          return new GpsLocation(
+          return new GeoLocation(
             data[0].geometry.location.lat(),
             data[0].geometry.location.lng()
           );
