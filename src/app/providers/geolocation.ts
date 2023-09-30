@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { Platform } from '@ionic/angular';
 import {
   DeviceService,
+  GetConfigResultData,
+  GpsLocation,
   SaveUnitLocationInput,
   UnitLocationService,
 } from '@resgrid/ngx-resgridlib';
@@ -16,7 +18,8 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
   'BackgroundGeolocation'
 );
 import * as HomeActions from '../features/home/actions/home.actions';
-import { ConnectableObservable, Observable, bindCallback, map, of, publishReplay, switchMap, throwError } from 'rxjs';
+import { ConnectableObservable, Observable, bindCallback, map, of, publishReplay, switchMap, take, throwError } from 'rxjs';
+import { selectConfigData } from '../store';
 @Injectable({
   providedIn: 'root',
 })
@@ -33,10 +36,15 @@ export class GeolocationProvider {
     private storageProvider: StorageProvider,
     private deviceService: DeviceService,
     private unitLocationService: UnitLocationService,
-    private store: Store<HomeState>
+    private store: Store<HomeState>,
+    public configData$: Observable<GetConfigResultData | null>
   ) {
+    this.configData$ = this.store.select(selectConfigData);
+
     const connectableGeocoder$ = new Observable((subscriber) => {
-      loader.load().then(() => subscriber.next());
+      this.configData$.pipe(take(1)).subscribe((configData) => {
+        loader.load(configData.GoogleMapsKey).then(() => subscriber.next());
+      });
     }).pipe(
       map(() => this._createGeocoder()),
       publishReplay(1)
@@ -271,9 +279,9 @@ export class LazyGoogleMapsLoader {
   protected readonly _SCRIPT_ID: string = 'googleMapsApiScript';
   protected readonly callbackName: string = `lazyMapsAPILoader`;
 
-  constructor(private config: ResgridConfig) {}
+  constructor() {}
 
-  load(): Promise<void> {
+  load(googleMapsKey: string): Promise<void> {
     //const window = this._windowRef.nativeWindow() as any;
     if (window.google && window.google.maps) {
       // Google maps already loaded on the page.
@@ -296,7 +304,7 @@ export class LazyGoogleMapsLoader {
     script.async = true;
     script.defer = true;
     script.id = this._SCRIPT_ID;
-    script.src = this._getScriptSrc(this.callbackName);
+    script.src = this._getScriptSrc(this.callbackName, googleMapsKey);
     this._assignScriptLoadingPromise(script);
     document.body.appendChild(script);
     return this._scriptLoadingPromise;
@@ -314,12 +322,12 @@ export class LazyGoogleMapsLoader {
     });
   }
 
-  protected _getScriptSrc(callbackName: string): string {
+  protected _getScriptSrc(callbackName: string, googleMapsKey: string): string {
     const hostAndPath: string = 'maps.googleapis.com/maps/api/js';
     const queryParams: { [key: string]: string | string[] } = {
       v: 'quarterly',
       callback: callbackName,
-      key: this.config.googleApiKey,
+      key: googleMapsKey,
       //client: this._config.clientId,
       //channel: this._config.channel,
       //libraries: this._config.libraries,
