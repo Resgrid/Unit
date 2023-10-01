@@ -24,6 +24,7 @@ import { CallsState } from '../../store/calls.store';
 import * as CallsActions from '../../actions/calls.actions';
 import { GeoLocation } from 'src/app/models/geoLocation';
 import { HomeState } from 'src/app/features/home/store/home.store';
+import { LoadingProvider } from 'src/app/providers/loading';
 
 @Component({
   selector: 'app-page-calls-edit-call',
@@ -68,7 +69,8 @@ export class EditCallPage {
     private homeStore: Store<HomeState>,
     private utilsProvider: UtilsService,
     private alertProvider: AlertProvider,
-    private geolocationProvider: GeolocationProvider
+    private geolocationProvider: GeolocationProvider,
+    private loadingProvider: LoadingProvider
   ) {
     this.callsState$ = this.callsStore.select(selectCallsState);
     this.homeState$ = this.homeStore.select(selectHomeState);
@@ -80,14 +82,12 @@ export class EditCallPage {
   }
 
   async ionViewDidEnter() {
-    this.callsStore.dispatch(new CallsActions.GetEditCallDispatches());
+	this.callsStore.dispatch(new CallsActions.GetEditCallDispatches());
 
     this.recipientList = 'Select Recipients...';
     this.type = '0';
     this.subject = '';
     this.body = '';
-
-    await this.initMap();
 
     this.subs.sink = this.editCallLocation$.subscribe((editCallLocation) => {
       if (editCallLocation && this.map && this.marker) {
@@ -95,11 +95,14 @@ export class EditCallPage {
           this.map.removeLayer(this.marker);
         }
 
+        this.lat = editCallLocation.Latitude.toString();
+        this.lon = editCallLocation.Longitude.toString();
+
         this.marker = leaflet.marker(
           [editCallLocation.Latitude, editCallLocation.Longitude],
           {
             icon: new leaflet.icon({
-              iconUrl: '/assets/images/mapping/Call.png',
+              iconUrl: '/assets/mapping/Call.png',
               iconSize: [32, 37],
               iconAnchor: [16, 37],
             }),
@@ -137,7 +140,7 @@ export class EditCallPage {
       }
     });
 
-    this.callsState$.pipe(take(1)).subscribe((callsState) => {
+    this.callsState$.pipe(take(1)).subscribe(async (callsState) => {
       if (callsState && callsState.callToView) {
         this.type = callsState.callToView.Type;
         this.priority = callsState.callToView.Priority.toString();
@@ -148,6 +151,14 @@ export class EditCallPage {
         this.contactNumber = callsState.callToView.ContactInfo;
         this.address = callsState.callToView.Address;
         this.w3w = callsState.callToView.What3Words;
+
+        if (callsState.callToView.Latitude && callsState.callToView.Longitude) {
+          this.lat = callsState.callToView.Latitude;
+          this.lon = callsState.callToView.Longitude;
+        }
+
+		await this.initMap();
+		await this.loadingProvider.hide();
       }
 
       if (
@@ -180,7 +191,11 @@ export class EditCallPage {
         this.lon.includes("'") ||
         this.lon.includes('"')
       ) {
-		this.alertProvider.showOkAlert('Coordinates Error', '', 'It looks like you entered your coorinates in DMS (Degrees, Minutes, Seconds) format. Please enter coordinates in decimal format.');
+        this.alertProvider.showOkAlert(
+          'Coordinates Error',
+          '',
+          'It looks like you entered your coordinates in DMS (Degrees, Minutes, Seconds) format. Please enter coordinates in decimal format.'
+        );
       } else {
         this.callsStore.dispatch(
           new CallsActions.SetNewCallLocation(
@@ -193,21 +208,17 @@ export class EditCallPage {
   }
 
   public findCoordinatesForAddress() {
-	this.callsStore.dispatch(
-		new CallsActions.GetCoordinatesForAddress(this.address)
-	  );
+    this.callsStore.dispatch(
+      new CallsActions.GetCoordinatesForAddress(this.address)
+    );
   }
 
   public findCoordinatesForW3W() {
-	this.callsStore.dispatch(
-		new CallsActions.GetCoordinatesForW3W(this.w3w)
-	  );
+    this.callsStore.dispatch(new CallsActions.GetCoordinatesForW3W(this.w3w));
   }
 
   public findCoordinatesForPlus() {
-	this.callsStore.dispatch(
-		new CallsActions.GetCoordinatesForPlus(this.plus)
-	  );
+    this.callsStore.dispatch(new CallsActions.GetCoordinatesForPlus(this.plus));
   }
 
   public closeModal() {
@@ -320,18 +331,22 @@ export class EditCallPage {
         this.map = null;
       }
 
-      if (!position) {
-        position = new GeoLocation(0, 0);
-      } //TODO: Stop gap, should get a location from the department info somewhere
+      if (!this.lat && !this.lon) {
+        if (!position) {
+          position = new GeoLocation(0, 0);
+        } //TODO: Stop gap, should get a location from the department info somewhere
 
-      if (position) {
-        this.callsStore.dispatch(
-          new CallsActions.SetNewCallLocation(
-            position.Latitude,
-            position.Longitude
-          )
-        );
-      }
+        if (position) {
+          this.callsStore.dispatch(
+            new CallsActions.SetNewCallLocation(
+              position.Latitude,
+              position.Longitude
+            )
+          );
+        }
+      } else {
+		position = new GeoLocation(parseInt(this.lat), parseInt(this.lon));
+	  }
 
       this.map = leaflet.map(this.mapContainer.nativeElement, {
         dragging: false,
@@ -340,14 +355,12 @@ export class EditCallPage {
       });
 
       leaflet
-        .tileLayer(configData.MapUrl,
-          {
-            minZoom: 16,
-            maxZoom: 16,
-            crossOrigin: true,
-			attribution: configData.MapAttribution,
-          }
-        )
+        .tileLayer(configData.MapUrl, {
+          minZoom: 16,
+          maxZoom: 16,
+          crossOrigin: true,
+          attribution: configData.MapAttribution,
+        })
         .addTo(this.map);
 
       if (position) {

@@ -510,6 +510,7 @@ export class CallsEffects {
     () =>
       this.actions$.pipe(
         ofType(callActions.CallsActionTypes.SHOW_EDIT_CALL_MODAL),
+		switchMap(() => this.loadingProvider.show()),
         switchMap(() =>
           this.runModal(
             EditCallPage,
@@ -518,7 +519,6 @@ export class CallsEffects {
             'CallsFeatureEditCallModal'
           )
         ),
-        switchMap(() => this.loadingProvider.hide())
       ),
     { dispatch: false }
   );
