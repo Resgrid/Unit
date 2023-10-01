@@ -74,6 +74,9 @@ export enum CallsActionTypes {
   GET_COORDINATES_FORW3W = '[CALLS] GET_COORDINATES_FORW3W',
   GET_COORDINATES_FORW3W_SUCCESS = '[CALLS] GET_COORDINATES_FORW3W_SUCCESS',
   GET_COORDINATES_FORW3W_FAIL = '[CALLS] GET_COORDINATES_FORW3W_FAIL',
+  GET_COORDINATES_FOR_PLUS = '[CALLS] GET_COORDINATES_FOR_PLUS',
+  GET_COORDINATES_FOR_PLUS_SUCCESS = '[CALLS] GET_COORDINATES_FOR_PLUS_SUCCESS',
+  GGET_COORDINATES_FOR_PLUS_FAIL = '[CALLS] GGET_COORDINATES_FOR_PLUS_FAIL',
 }
 
 export class GetCalls implements Action {
@@ -397,6 +400,21 @@ export class GetCoordinatesForW3WFail implements Action {
   constructor(public payload: string) {}
 }
 
+export class GetCoordinatesForPlus implements Action {
+  readonly type = CallsActionTypes.GET_COORDINATES_FOR_PLUS;
+  constructor(public plusCode: string) {}
+}
+
+export class GetCoordinatesForPlusSuccess implements Action {
+  readonly type = CallsActionTypes.GET_COORDINATES_FOR_PLUS_SUCCESS;
+  constructor(public payload: GeoLocation) {}
+}
+
+export class GetCoordinatesForPlusFail implements Action {
+  readonly type = CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL;
+  constructor(public payload: string) {}
+}
+
 export type CallActionsUnion =
   | GetCalls
   | GetCallsDone
@@ -459,4 +477,7 @@ export type CallActionsUnion =
   | GetCoordinatesForW3W
   | GetCoordinatesForW3WSuccess
   | GetCoordinatesForW3WFail
+  | GetCoordinatesForPlus
+  | GetCoordinatesForPlusSuccess
+  | GetCoordinatesForPlusFail
   ;

@@ -32,6 +32,8 @@ import {
 import { selectConfigData } from '../store';
 import { HttpClient } from '@angular/common/http';
 
+declare var OpenLocationCode: any;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -289,14 +291,31 @@ export class GeolocationProvider {
   }
 
   public getCoordinatesFromW3W(w3w: string): Observable<GeoLocation> {
-      return this.http.get(`https://api.what3words.com/v3/convert-to-coordinates?words=${w3w}&key=${this.w3wKey}`)
-        .pipe(map((data: any) => {
+    return this.http
+      .get(
+        `https://api.what3words.com/v3/convert-to-coordinates?words=${w3w}&key=${this.w3wKey}`
+      )
+      .pipe(
+        map((data: any) => {
           if (data && data.coordinates) {
             return new GeoLocation(data.coordinates.lat, data.coordinates.lng);
           }
 
           return null;
-      }));
+        })
+      );
+  }
+
+  public getCoordinatesFromPlusCode(plusCode: string): Observable<GeoLocation> {
+    return new Observable((observer) => {
+      try {
+        const decoded =  OpenLocationCode.decode(plusCode);
+        observer.next(new GeoLocation(decoded.latitudeCenter, decoded.longitudeCenter));
+        observer.complete();
+      } catch (error) {
+        observer.error(error);
+      }
+    })
   }
 }
 

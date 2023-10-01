@@ -286,6 +286,11 @@ export function reducer(
         ...state,
         newCallLocation: action.payload,
       };
+    case CallsActionTypes.GET_COORDINATES_FOR_PLUS_SUCCESS:
+      return {
+        ...state,
+        newCallLocation: action.payload,
+      };
     default:
       return state;
   }

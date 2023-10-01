@@ -663,6 +663,46 @@ export class CallsEffects {
     )
   );
 
+  getCoordinatesForPlus$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.GetCoordinatesForPlus>(
+        callActions.CallsActionTypes.GET_COORDINATES_FOR_PLUS
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getCoordinatesFromPlusCode(action.plusCode).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.GET_COORDINATES_FOR_PLUS_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
+
+  getCoordinatesForPlusFail$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(callActions.CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL),
+        switchMap(() => this.loadingProvider.hide()),
+        switchMap((action) =>
+          this.alertProvider.showErrorAlert(
+            'Plus Code Error',
+            '',
+            'Unable to get coordinates from the plus code. Make sure its full and in the correct format and try again.'
+          )
+        )
+      ),
+    { dispatch: false }
+  );
+
   done$ = createEffect(
     () =>
       this.actions$.pipe(

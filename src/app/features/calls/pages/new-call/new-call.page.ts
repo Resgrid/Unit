@@ -193,6 +193,12 @@ export class NewCallPage {
 	  );
   }
 
+  public findCoordinatesForPlus() {
+	this.callsStore.dispatch(
+		new CallsActions.GetCoordinatesForPlus(this.plus)
+	  );
+  }
+
   public send() {
     if (this.subject.length === 0) {
       this.alertProvider.showErrorAlert(

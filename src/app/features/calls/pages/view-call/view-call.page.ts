@@ -1,10 +1,16 @@
-import { AfterViewInit, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
-import { ModalController, Platform, ToastController } from '@ionic/angular';
+import {
+  AfterViewInit,
+  ChangeDetectorRef,
+  Component,
+  ViewChild,
+} from '@angular/core';
+import { Platform, ToastController } from '@ionic/angular';
 import { Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
 import {
   selectCallImagesState,
   selectCallsState,
+  selectConfigData,
   selectHomeState,
   selectSettingsState,
 } from 'src/app/store';
@@ -13,18 +19,17 @@ import { CallsState } from '../../store/calls.store';
 import {
   CallFileResultData,
   CallFilesService,
+  GetConfigResultData,
   ResgridConfig,
   SecurityService,
   UtilsService,
 } from '@resgrid/ngx-resgridlib';
 import leaflet from 'leaflet';
-import { environment } from 'src/environments/environment';
-import { delay, take } from 'rxjs/operators';
+import { take } from 'rxjs/operators';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import * as CallsActions from '../../actions/calls.actions';
 import { SettingsState } from 'src/app/features/settings/store/settings.store';
 import { GalleryItem, ImageItem } from 'ng-gallery';
-import { encode } from 'base64-arraybuffer';
 import { HomeState } from 'src/app/features/home/store/home.store';
 import { CameraProvider } from 'src/app/providers/camera';
 import { ActionSheetController } from '@ionic/angular';
@@ -39,6 +44,7 @@ export class ModalViewCallPage implements AfterViewInit {
   public callsState$: Observable<CallsState | null>;
   public homeState$: Observable<HomeState | null>;
   public settingsState$: Observable<SettingsState | null>;
+  public configData$: Observable<GetConfigResultData | null>;
   public selectOptions: any;
   public tabType: string = 'data';
   public viewType: string = 'call';
@@ -63,7 +69,7 @@ export class ModalViewCallPage implements AfterViewInit {
 
   private storeSub$: Subscription;
   private callImagesSub$: Subscription;
-  private actionSheet: HTMLIonActionSheetElement
+  private actionSheet: HTMLIonActionSheetElement;
 
   constructor(
     private store: Store<CallsState>,
@@ -85,6 +91,7 @@ export class ModalViewCallPage implements AfterViewInit {
     this.settingsState$ = this.settingsStore.select(selectSettingsState);
     this.homeState$ = this.homeStore.select(selectHomeState);
     this.callImages$ = this.store.select(selectCallImagesState);
+    this.configData$ = this.homeStore.select(selectConfigData);
 
     this.callNotesFormData = this.formBuilder.group({
       message: ['', [Validators.required]],
@@ -93,14 +100,14 @@ export class ModalViewCallPage implements AfterViewInit {
     this.isDevice = this.platform.is('mobile');
 
     this.callImagesSub$ = this.callImages$.subscribe((callImages) => {
-        this.images = [];
-        if (callImages && callImages.length > 0) {
-          callImages.forEach((image) => {
-            this.images.push(new ImageItem({ src: image.Url }));
-          });
+      this.images = [];
+      if (callImages && callImages.length > 0) {
+        callImages.forEach((image) => {
+          this.images.push(new ImageItem({ src: image.Url }));
+        });
 
-          this.changeDetection.detectChanges();
-        }
+        this.changeDetection.detectChanges();
+      }
     });
 
     this.storeSub$ = this.callsState$.subscribe((state) => {
@@ -229,72 +236,53 @@ export class ModalViewCallPage implements AfterViewInit {
 
   private initMap() {
     if (this.mapEnabled) {
-      //if (!this.map) {
+      this.configData$.pipe(take(1)).subscribe((configData) => {
+        if (this.map) {
+          this.map.off();
+          this.map.remove();
+          this.map = null;
+        }
 
-      if (this.map) {
-        this.map.off();
-        this.map.remove();
-        this.map = null;
-      }
+        this.map = leaflet.map(this.mapContainer.nativeElement, {
+          dragging: false,
+          doubleClickZoom: false,
+          zoomControl: false,
+        });
 
-      this.map = leaflet.map(this.mapContainer.nativeElement, {
-        dragging: false,
-        doubleClickZoom: false,
-        zoomControl: false,
+        leaflet
+          .tileLayer(
+            configData.MapUrl,
+            {
+              minZoom: 16,
+              maxZoom: 16,
+              crossOrigin: true,
+              attribution: configData.MapAttribution,
+            }
+          )
+          .addTo(this.map);
+
+        this.map.setView([this.lat, this.lng], 16);
+
+        this.marker = leaflet.marker([this.lat, this.lng], {
+          icon: new leaflet.icon({
+            iconUrl: 'assets/mapping/Call.png',
+            iconSize: [32, 37],
+            iconAnchor: [16, 37],
+          }),
+          draggable: false, //,
+          //title: markerInfo.Title,
+          //tooltip: markerInfo.Title
+        });
+
+        this.marker.addTo(this.map);
+
+        let that = this;
+        setTimeout(function () {
+          //window.dispatchEvent(new Event('resize'));
+          //that.map.invalidateSize.bind(that.map)
+          that.map.invalidateSize();
+        }, 500);
       });
-
-      // leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      leaflet
-        .tileLayer(
-          'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=' +
-            environment.mapTilerKey,
-          {
-            minZoom: 16,
-            maxZoom: 16,
-            crossOrigin: true,
-          }
-        )
-        .addTo(this.map);
-
-      this.map.setView([this.lat, this.lng], 16);
-
-      this.marker = leaflet.marker([this.lat, this.lng], {
-        icon: new leaflet.icon({
-          iconUrl: 'assets/images/mapping/Call.png',
-          iconSize: [32, 37],
-          iconAnchor: [16, 37],
-        }),
-        draggable: false, //,
-        //title: markerInfo.Title,
-        //tooltip: markerInfo.Title
-      });
-
-      this.marker.addTo(this.map);
-      //} else {
-      // if (this.marker) {
-      //    this.map.removeLayer(this.marker); // remove
-      //  }
-
-      //  this.marker = leaflet.marker([this.lat, this.lng], {
-      //    icon: new leaflet.icon({
-      //      iconUrl: 'assets/mapping/Call.png',
-      //      iconSize: [32, 37],
-      //      iconAnchor: [16, 37],
-      //    }),
-      //    draggable: false, //,
-      //    //title: markerInfo.Title,
-      //    //tooltip: markerInfo.Title
-      // });
-
-      //  this.marker.addTo(this.map);
-      //}
-
-      let that = this;
-      setTimeout(function () {
-        //window.dispatchEvent(new Event('resize'));
-        //that.map.invalidateSize.bind(that.map)
-        that.map.invalidateSize();
-      }, 500);
     }
   }
 
@@ -353,12 +341,11 @@ export class ModalViewCallPage implements AfterViewInit {
       this.settingsState$.pipe(take(1)).subscribe((settingsState) => {
         this.callsState$.pipe(take(1)).subscribe((state) => {
           if (state && state.callToView) {
-
             let currentPosition = null;
             //if (homeState && homeState.currentPosition) {
             //  currentPosition = homeState.currentPosition.Latitude + ',' + homeState.currentPosition.Longitude;
             //}
-            
+
             //debugger;
             this.callFilesService
               .saveCallImage(
@@ -366,9 +353,10 @@ export class ModalViewCallPage implements AfterViewInit {
                 settingsState.user.userId,
                 this.imageNote,
                 fileName,
-                currentPosition,//homeState.currentPosition,
+                currentPosition, //homeState.currentPosition,
                 base64Data
-              ).subscribe(
+              )
+              .subscribe(
                 async (result) => {
                   const toast = await this.toastCtrl.create({
                     message:
@@ -382,17 +370,17 @@ export class ModalViewCallPage implements AfterViewInit {
                   this.store.dispatch(
                     new CallsActions.GetCallById(state.callToView.CallId)
                   );
-              },
+                },
                 async (err) => {
                   const toast = await this.toastCtrl.create({
-                    message:
-                      'Unable to upload photo. Please try again later.',
+                    message: 'Unable to upload photo. Please try again later.',
                     duration: 3000,
                     position: 'top',
                     cssClass: 'toast-error',
                   });
                   toast.present();
-              });
+                }
+              );
           }
         });
       });
@@ -406,39 +394,39 @@ export class ModalViewCallPage implements AfterViewInit {
   public uploadFile() {}
 
   public async showOptions() {
-      if (this.securityService.canUserCreateCalls()) {
-        this.actionSheet = await this.actionSheetCtrl.create({
-          header: 'Call Options',
-          subHeader: '',
-          buttons: [
-            {
-              text: 'Edit Call',
-              handler:()=>{
-                this.store.dispatch(
-                  new CallsActions.ShowEditCallModal(this.callId)
-                );
-              },
+    if (this.securityService.canUserCreateCalls()) {
+      this.actionSheet = await this.actionSheetCtrl.create({
+        header: 'Call Options',
+        subHeader: '',
+        buttons: [
+          {
+            text: 'Edit Call',
+            handler: () => {
+              this.store.dispatch(
+                new CallsActions.ShowEditCallModal(this.callId)
+              );
             },
-            {
-              text: 'Close Call',
-              role: 'destructive',
-              handler:()=>{
-                this.store.dispatch(
-                  new CallsActions.ShowCloseCallModal(this.callId)
-                );
-              },
+          },
+          {
+            text: 'Close Call',
+            role: 'destructive',
+            handler: () => {
+              this.store.dispatch(
+                new CallsActions.ShowCloseCallModal(this.callId)
+              );
             },
-            {
-              text: 'Cancel',
-              role: 'cancel',
-              data: {
-                action: 'cancel',
-              },
+          },
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            data: {
+              action: 'cancel',
             },
-          ],
-        });
-      }
+          },
+        ],
+      });
+    }
 
-      await this.actionSheet.present();
+    await this.actionSheet.present();
   }
 }
