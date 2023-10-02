@@ -76,7 +76,13 @@ export enum CallsActionTypes {
   GET_COORDINATES_FORW3W_FAIL = '[CALLS] GET_COORDINATES_FORW3W_FAIL',
   GET_COORDINATES_FOR_PLUS = '[CALLS] GET_COORDINATES_FOR_PLUS',
   GET_COORDINATES_FOR_PLUS_SUCCESS = '[CALLS] GET_COORDINATES_FOR_PLUS_SUCCESS',
-  GGET_COORDINATES_FOR_PLUS_FAIL = '[CALLS] GGET_COORDINATES_FOR_PLUS_FAIL',
+  GET_COORDINATES_FOR_PLUS_FAIL = '[CALLS] GET_COORDINATES_FOR_PLUS_FAIL',
+  EDIT_GET_COORDINATES_FOR_ADDRESS = '[CALLS] EDIT_GET_COORDINATES_FOR_ADDRESS',
+  EDIT_GET_COORDINATES_FOR_ADDRESS_SUCCESS = '[CALLS] EDIT_GET_COORDINATES_FOR_ADDRESS_SUCCESS',
+  EDIT_GET_COORDINATES_FOR_W3W = '[CALLS] EDIT_GET_COORDINATES_FOR_W3W',
+  EDIT_GET_COORDINATES_FOR_W3W_SUCCESS = '[CALLS] EDIT_GET_COORDINATES_FOR_W3W_SUCCESS',
+  EDIT_GET_COORDINATES_FOR_PLUS = '[CALLS] EDIT_GET_COORDINATES_FOR_PLUS',
+  EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS = '[CALLS] EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS',
 }
 
 export class GetCalls implements Action {
@@ -411,8 +417,38 @@ export class GetCoordinatesForPlusSuccess implements Action {
 }
 
 export class GetCoordinatesForPlusFail implements Action {
-  readonly type = CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL;
+  readonly type = CallsActionTypes.GET_COORDINATES_FOR_PLUS_FAIL;
   constructor(public payload: string) {}
+}
+
+export class EditGetCoordinatesForAddress implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_ADDRESS;
+  constructor(public address: string) {}
+}
+
+export class EditGetCoordinatesForAddressSuccess implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_ADDRESS_SUCCESS;
+  constructor(public payload: GeoLocation) {}
+}
+
+export class EditGetCoordinatesForW3W implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_W3W;
+  constructor(public w3w: string) {}
+}
+
+export class EditGetCoordinatesForW3WSuccess implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_W3W_SUCCESS;
+  constructor(public payload: GeoLocation) {}
+}
+
+export class EditGetCoordinatesForPlus implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_PLUS;
+  constructor(public plusCode: string) {}
+}
+
+export class EditGetCoordinatesForPlusSuccess implements Action {
+  readonly type = CallsActionTypes.EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS;
+  constructor(public payload: GeoLocation) {}
 }
 
 export type CallActionsUnion =
@@ -480,4 +516,10 @@ export type CallActionsUnion =
   | GetCoordinatesForPlus
   | GetCoordinatesForPlusSuccess
   | GetCoordinatesForPlusFail
+  | EditGetCoordinatesForAddress
+  | EditGetCoordinatesForAddressSuccess
+  | EditGetCoordinatesForW3W
+  | EditGetCoordinatesForW3WSuccess
+  | EditGetCoordinatesForPlus
+  | EditGetCoordinatesForPlusSuccess
   ;

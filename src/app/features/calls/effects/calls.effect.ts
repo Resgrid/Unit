@@ -679,7 +679,7 @@ export class CallsEffects {
           // If request fails, dispatch failed action
           catchError(() =>
             of({
-              type: callActions.CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL,
+              type: callActions.CallsActionTypes.GET_COORDINATES_FOR_PLUS_FAIL,
             })
           )
         )
@@ -690,7 +690,7 @@ export class CallsEffects {
   getCoordinatesForPlusFail$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(callActions.CallsActionTypes.GGET_COORDINATES_FOR_PLUS_FAIL),
+        ofType(callActions.CallsActionTypes.GET_COORDINATES_FOR_PLUS_FAIL),
         switchMap(() => this.loadingProvider.hide()),
         switchMap((action) =>
           this.alertProvider.showErrorAlert(
@@ -701,6 +701,78 @@ export class CallsEffects {
         )
       ),
     { dispatch: false }
+  );
+
+  editGetCoordinatesForAddress$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.EditGetCoordinatesForAddress>(
+        callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_ADDRESS
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getLocationFromAddress(action.address).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_ADDRESS_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GET_COORDINATESFORADDRESS_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
+
+  editGetCoordinatesForW3W$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.EditGetCoordinatesForW3W>(
+        callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_W3W
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getCoordinatesFromW3W(action.w3w).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_W3W_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GET_COORDINATES_FORW3W_FAIL,
+            })
+          )
+        )
+      )
+    )
+  );
+
+  editGetCoordinatesForPlus$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.EditGetCoordinatesForPlus>(
+        callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_PLUS
+      ),
+      mergeMap((action) =>
+        //this.locationProvider.getCoordinatesForAddressFromGoogle(action.address).pipe(
+        this.geocodingProvider.getCoordinatesFromPlusCode(action.plusCode).pipe(
+          // If successful, dispatch success action with result
+          map((data) => ({
+            type: callActions.CallsActionTypes.EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS,
+            payload: data,
+          })),
+          // If request fails, dispatch failed action
+          catchError(() =>
+            of({
+              type: callActions.CallsActionTypes.GET_COORDINATES_FOR_PLUS_FAIL,
+            })
+          )
+        )
+      )
+    )
   );
 
   done$ = createEffect(

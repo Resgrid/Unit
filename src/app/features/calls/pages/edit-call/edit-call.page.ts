@@ -82,7 +82,7 @@ export class EditCallPage {
   }
 
   async ionViewDidEnter() {
-	this.callsStore.dispatch(new CallsActions.GetEditCallDispatches());
+    this.callsStore.dispatch(new CallsActions.GetEditCallDispatches());
 
     this.recipientList = 'Select Recipients...';
     this.type = '0';
@@ -157,8 +157,8 @@ export class EditCallPage {
           this.lon = callsState.callToView.Longitude;
         }
 
-		await this.initMap();
-		await this.loadingProvider.hide();
+        await this.initMap();
+        await this.loadingProvider.hide();
       }
 
       if (
@@ -209,16 +209,16 @@ export class EditCallPage {
 
   public findCoordinatesForAddress() {
     this.callsStore.dispatch(
-      new CallsActions.GetCoordinatesForAddress(this.address)
+      new CallsActions.EditGetCoordinatesForAddress(this.address)
     );
   }
 
   public findCoordinatesForW3W() {
-    this.callsStore.dispatch(new CallsActions.GetCoordinatesForW3W(this.w3w));
+    this.callsStore.dispatch(new CallsActions.EditGetCoordinatesForW3W(this.w3w));
   }
 
   public findCoordinatesForPlus() {
-    this.callsStore.dispatch(new CallsActions.GetCoordinatesForPlus(this.plus));
+    this.callsStore.dispatch(new CallsActions.EditGetCoordinatesForPlus(this.plus));
   }
 
   public closeModal() {
@@ -345,8 +345,8 @@ export class EditCallPage {
           );
         }
       } else {
-		position = new GeoLocation(parseInt(this.lat), parseInt(this.lon));
-	  }
+        position = new GeoLocation(parseInt(this.lat), parseInt(this.lon));
+      }
 
       this.map = leaflet.map(this.mapContainer.nativeElement, {
         dragging: false,
