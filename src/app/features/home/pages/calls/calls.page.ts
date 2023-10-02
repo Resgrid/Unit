@@ -1,7 +1,7 @@
 import { ChangeDetectorRef, Component } from '@angular/core';
 import { MenuController } from '@ionic/angular';
 import { Store } from '@ngrx/store';
-import { CallPriorityResultData, CallResultData } from '@resgrid/ngx-resgridlib';
+import { CallPriorityResultData, CallResultData, SecurityService } from '@resgrid/ngx-resgridlib';
 import { Observable } from 'rxjs';
 import { CallsState } from 'src/app/features/calls/store/calls.store';
 import { selectCallsState } from 'src/app/store';
@@ -17,7 +17,10 @@ export class CallsPage {
   private searchTerm: string = '';
   public callsState$: Observable<CallsState | null>;
 
-  constructor(public menuCtrl: MenuController, private callsStore: Store<CallsState>, private cdr: ChangeDetectorRef) {
+  constructor(public menuCtrl: MenuController, 
+              private callsStore: Store<CallsState>, 
+              private cdr: ChangeDetectorRef,
+              private securityService: SecurityService) {
     this.callsState$ = this.callsStore.select(selectCallsState);
   }
 
@@ -69,6 +72,16 @@ export class CallsPage {
 
   private load() {
     this.callsStore.dispatch(new CallsActions.GetCalls());
+  }
+
+  public newCall() {
+    this.callsStore.dispatch(
+      new CallsActions.ShowNewCallModal()
+    );
+  }
+
+  public canCreateCall() {
+    return this.securityService.canUserCreateCalls();
   }
 
   public viewCall(callId) {

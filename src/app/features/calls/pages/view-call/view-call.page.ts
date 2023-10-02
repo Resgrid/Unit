@@ -2,10 +2,9 @@ import {
   AfterViewInit,
   ChangeDetectorRef,
   Component,
-  OnInit,
   ViewChild,
 } from '@angular/core';
-import { ModalController, Platform, ToastController } from '@ionic/angular';
+import { Platform, ToastController } from '@ionic/angular';
 import { Store } from '@ngrx/store';
 import { Observable, Subscription } from 'rxjs';
 import {
@@ -20,28 +19,24 @@ import { CallsState } from '../../store/calls.store';
 import {
   CallFileResultData,
   CallFilesService,
-  CallResultData,
   GetConfigResultData,
   ResgridConfig,
+  SecurityService,
   UtilsService,
 } from '@resgrid/ngx-resgridlib';
 import leaflet from 'leaflet';
-import { environment } from 'src/environments/environment';
-import { delay, take } from 'rxjs/operators';
-import {
-  UntypedFormBuilder,
-  UntypedFormGroup,
-  Validators,
-} from '@angular/forms';
+import { take } from 'rxjs/operators';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import * as CallsActions from '../../actions/calls.actions';
 import { SettingsState } from 'src/app/features/settings/store/settings.store';
 import { GalleryItem, ImageItem } from 'ng-gallery';
-import { encode } from 'base64-arraybuffer';
 import { HomeState } from 'src/app/features/home/store/home.store';
 import { CameraProvider } from 'src/app/providers/camera';
+import { ActionSheetController } from '@ionic/angular';
+import { FileProvider } from 'src/app/providers/file';
 
 @Component({
-  selector: 'app-page-view-call',
+  selector: 'app-page-calls-view-call',
   templateUrl: './view-call.page.html',
   styleUrls: ['./view-call.page.scss'],
 })
@@ -53,7 +48,8 @@ export class ModalViewCallPage implements AfterViewInit {
   public selectOptions: any;
   public tabType: string = 'data';
   public viewType: string = 'call';
-
+  public isDevice: boolean = false;
+  private callId: string;
   private mapEnabled: boolean = false;
   private lat: string;
   private lng: string;
@@ -65,7 +61,7 @@ export class ModalViewCallPage implements AfterViewInit {
   @ViewChild('viewCallMap') mapContainer;
 
   public isSavingNote: boolean = false;
-  public callNotesFormData: UntypedFormGroup;
+  public callNotesFormData: FormGroup;
   public imageNote: string = '';
 
   public images: GalleryItem[] = [];
@@ -73,30 +69,35 @@ export class ModalViewCallPage implements AfterViewInit {
 
   private storeSub$: Subscription;
   private callImagesSub$: Subscription;
+  private actionSheet: HTMLIonActionSheetElement;
 
   constructor(
-    private modal: ModalController,
     private store: Store<CallsState>,
     private config: ResgridConfig,
     private utilsService: UtilsService,
-    public formBuilder: UntypedFormBuilder,
+    public formBuilder: FormBuilder,
     private settingsStore: Store<SettingsState>,
     private homeStore: Store<HomeState>,
     private platform: Platform,
     private callFilesService: CallFilesService,
     private camera: CameraProvider,
     private toastCtrl: ToastController,
-    private changeDetection: ChangeDetectorRef
+    private changeDetection: ChangeDetectorRef,
+    private actionSheetCtrl: ActionSheetController,
+    private securityService: SecurityService,
+    private fileProvider: FileProvider
   ) {
     this.callsState$ = this.store.select(selectCallsState);
     this.settingsState$ = this.settingsStore.select(selectSettingsState);
     this.homeState$ = this.homeStore.select(selectHomeState);
     this.callImages$ = this.store.select(selectCallImagesState);
-    this.configData$ = this.store.select(selectConfigData);
+    this.configData$ = this.homeStore.select(selectConfigData);
 
     this.callNotesFormData = this.formBuilder.group({
       message: ['', [Validators.required]],
     });
+
+    this.isDevice = this.platform.is('mobile');
 
     this.callImagesSub$ = this.callImages$.subscribe((callImages) => {
       this.images = [];
@@ -111,6 +112,8 @@ export class ModalViewCallPage implements AfterViewInit {
 
     this.storeSub$ = this.callsState$.subscribe((state) => {
       if (state && state.callToView && state.viewCallType === 'call') {
+        this.callId = state.callToView.CallId;
+
         if (
           state.callToView.Geolocation &&
           state.callToView.Geolocation.length > 0
@@ -155,7 +158,7 @@ export class ModalViewCallPage implements AfterViewInit {
             this.callImagesSub$.unsubscribe();
             this.callImagesSub$ = null;
           }
-          this.modal.dismiss();
+          this.store.dispatch(new CallsActions.CloseViewCallModal());
         } else {
           this.store.dispatch(new CallsActions.SetViewCallModal());
         }
@@ -232,10 +235,8 @@ export class ModalViewCallPage implements AfterViewInit {
   }
 
   private initMap() {
-    this.configData$.pipe(take(1)).subscribe((configData) => {
-      if (this.mapEnabled) {
-        //if (!this.map) {
-
+    if (this.mapEnabled) {
+      this.configData$.pipe(take(1)).subscribe((configData) => {
         if (this.map) {
           this.map.off();
           this.map.remove();
@@ -249,11 +250,13 @@ export class ModalViewCallPage implements AfterViewInit {
         });
 
         leaflet
-          .tileLayer(configData.MapUrl,
+          .tileLayer(
+            configData.MapUrl,
             {
               minZoom: 16,
               maxZoom: 16,
               crossOrigin: true,
+              attribution: configData.MapAttribution,
             }
           )
           .addTo(this.map);
@@ -272,24 +275,6 @@ export class ModalViewCallPage implements AfterViewInit {
         });
 
         this.marker.addTo(this.map);
-        //} else {
-        // if (this.marker) {
-        //    this.map.removeLayer(this.marker); // remove
-        //  }
-
-        //  this.marker = leaflet.marker([this.lat, this.lng], {
-        //    icon: new leaflet.icon({
-        //      iconUrl: 'assets/mapping/Call.png',
-        //      iconSize: [32, 37],
-        //      iconAnchor: [16, 37],
-        //    }),
-        //    draggable: false, //,
-        //    //title: markerInfo.Title,
-        //    //tooltip: markerInfo.Title
-        // });
-
-        //  this.marker.addTo(this.map);
-        //}
 
         let that = this;
         setTimeout(function () {
@@ -297,8 +282,8 @@ export class ModalViewCallPage implements AfterViewInit {
           //that.map.invalidateSize.bind(that.map)
           that.map.invalidateSize();
         }, 500);
-      }
-    });
+      });
+    }
   }
 
   public getDispatchUrl(fileId) {
@@ -357,12 +342,10 @@ export class ModalViewCallPage implements AfterViewInit {
         this.callsState$.pipe(take(1)).subscribe((state) => {
           if (state && state.callToView) {
             let currentPosition = null;
-            if (homeState && homeState.currentPosition) {
-              currentPosition =
-                homeState.currentPosition.Latitude +
-                ',' +
-                homeState.currentPosition.Longitude;
-            }
+            //if (homeState && homeState.currentPosition) {
+            //  currentPosition = homeState.currentPosition.Latitude + ',' + homeState.currentPosition.Longitude;
+            //}
+
             //debugger;
             this.callFilesService
               .saveCallImage(
@@ -370,7 +353,7 @@ export class ModalViewCallPage implements AfterViewInit {
                 settingsState.user.userId,
                 this.imageNote,
                 fileName,
-                homeState.currentPosition,
+                currentPosition, //homeState.currentPosition,
                 base64Data
               )
               .subscribe(
@@ -404,31 +387,46 @@ export class ModalViewCallPage implements AfterViewInit {
     });
   }
 
-  public openFile(file: CallFileResultData) {}
+  public async openFile(file: CallFileResultData) {
+    await this.fileProvider.openCallFile(file.FileName, file.Url);
+  }
 
   public uploadFile() {}
 
-  public getNoteCount(call: CallResultData) {
-    if (call && call.NotesCount && call.NotesCount > 0) {
-      return call.NotesCount;
-    } else {
-      return 0;
+  public async showOptions() {
+    if (this.securityService.canUserCreateCalls()) {
+      this.actionSheet = await this.actionSheetCtrl.create({
+        header: 'Call Options',
+        subHeader: '',
+        buttons: [
+          {
+            text: 'Edit Call',
+            handler: () => {
+              this.store.dispatch(
+                new CallsActions.ShowEditCallModal(this.callId)
+              );
+            },
+          },
+          {
+            text: 'Close Call',
+            role: 'destructive',
+            handler: () => {
+              this.store.dispatch(
+                new CallsActions.ShowCloseCallModal(this.callId)
+              );
+            },
+          },
+          {
+            text: 'Cancel',
+            role: 'cancel',
+            data: {
+              action: 'cancel',
+            },
+          },
+        ],
+      });
     }
-  }
 
-  public getImagesCount(call: CallResultData) {
-    if (call && call.ImgagesCount && call.ImgagesCount > 0) {
-      return call.ImgagesCount;
-    } else {
-      return 0;
-    }
-  }
-
-  public getFilesCount(call: CallResultData) {
-    if (call && call.FileCount && call.FileCount > 0) {
-      return call.FileCount;
-    } else {
-      return 0;
-    }
+    await this.actionSheet.present();
   }
 }

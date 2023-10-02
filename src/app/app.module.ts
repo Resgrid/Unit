@@ -1,5 +1,5 @@
 import { NgModule } from '@angular/core';
-import { BrowserModule, HammerModule, HAMMER_GESTURE_CONFIG } from '@angular/platform-browser';
+import { BrowserModule, HammerModule } from '@angular/platform-browser';
 import { RouteReuseStrategy } from '@angular/router';
 import { IonicModule, IonicRouteStrategy } from '@ionic/angular';
 import { environment } from 'src/environments/environment';
@@ -16,7 +16,7 @@ import { EffectsModule } from '@ngrx/effects';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
 import { IonicStorageModule } from '@ionic/storage-angular';
 import { CommonModule } from '@angular/common';
-import { Drivers, Storage } from '@ionic/storage';
+import { Drivers } from '@ionic/storage';
 import { UnitCardComponent } from './features/home/components/units-card/unit-card.component';
 import { VoiceModule } from './features/voice/voice.module';
 import { StatusesModule } from './features/statuses/statuses.module';
@@ -25,7 +25,6 @@ import { CallsModule } from './features/calls/calls.module';
 import { ComponentsModule } from './components/components.module';
 import { SettingsModule } from './features/settings/settings.module';
 import { HomeModule } from './features/home/home.module';
-import { IonicGestureConfig } from './config/gesture.config';
 import { CacheProvider } from './providers/cache';
 import { RolesCardComponent } from './features/home/components/roles-card/roles-card.component';
 import { VgCoreModule } from '@videogular/ngx-videogular/core';
@@ -36,6 +35,8 @@ import { NotesModule } from './features/notes/notes.module';
 import { ShellModule } from './shell/shell.module';
 import { ProtocolsModule } from './features/protocols/protocols.module';
 import { RolesModule } from './features/roles/roles.module';
+import { ScrollDirective } from './directives/scroll.directive';
+import { MessagesModule } from './features/messages/messages.module';
 
 //import adapter from 'webrtc-adapter';
 
@@ -56,7 +57,8 @@ let getBaseUrl = (): string => {
     declarations: [AppComponent,
         UnitCardComponent,
         StatusCardComponent,
-        RolesCardComponent],
+        RolesCardComponent,
+        ScrollDirective],
     imports: [
         BrowserModule,
         CommonModule,
@@ -111,10 +113,12 @@ let getBaseUrl = (): string => {
         ShellModule,
         NotesModule,
         ProtocolsModule,
-        RolesModule
+        RolesModule,
+        MessagesModule
     ],
     providers: [
-        { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }
+        { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+        ScrollDirective
     ],
     bootstrap: [AppComponent]
 })

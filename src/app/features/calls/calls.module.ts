@@ -16,6 +16,13 @@ import { GalleryModule } from  'ng-gallery';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ComponentsModule } from 'src/app/components/components.module';
 import { TranslateModule } from '@ngx-translate/core';
+import { NewCallPage } from './pages/new-call/new-call.page';
+import { SelectLocationPage } from './pages/select-location/select-location.page';
+import { SelectDispatchesPage } from './pages/select-dispatches/select-dispatches.page';
+import { ScrollingModule } from '@angular/cdk/scrolling';
+import { CloseCallPage } from './pages/close-call/close-call.page';
+import { EditCallPage } from './pages/edit-call/edit-call.page';
+import { SelectDispatchesEditPage } from './pages/select-dispatches-edit/select-dispatches-edit.page';
 
 @NgModule({
     imports: [
@@ -31,10 +38,17 @@ import { TranslateModule } from '@ngx-translate/core';
         PerfectScrollbarModule,
         GalleryModule,
         ComponentsModule,
-        TranslateModule
+        TranslateModule,
+        ScrollingModule
     ],
     declarations: [
-        ModalViewCallPage
+        ModalViewCallPage,
+        NewCallPage,
+        SelectLocationPage,
+        SelectDispatchesPage,
+        CloseCallPage,
+        EditCallPage,
+        SelectDispatchesEditPage
     ]
 })
 export class CallsModule {}
