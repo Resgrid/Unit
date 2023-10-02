@@ -260,20 +260,23 @@ export class CallsEffects {
     { dispatch: false }
   );
 
-  showSetLocationModal$ = createEffect(
-    () =>
-      this.actions$.pipe(
-        ofType(callActions.CallsActionTypes.SHOW_SET_LOCATION_MODAL),
-        exhaustMap((data) =>
+  showSetLocationModal$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<callActions.ShowSetLocationModal>(
+        callActions.CallsActionTypes.SHOW_SET_LOCATION_MODAL
+      ),
+      exhaustMap((data) =>
           this.runModal(
             SelectLocationPage,
             'modal-container-full',
             null,
             'SelectLocationModal'
           )
-        )
-      ),
-    { dispatch: false }
+        ),
+      map((action) => ({
+        type: callActions.CallsActionTypes.DONE,
+      }))
+    )
   );
 
   dismissSetLocationModal$ = createEffect(

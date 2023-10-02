@@ -306,6 +306,17 @@ export function reducer(
         ...state,
         editCallLocation: action.payload,
       };
+    case CallsActionTypes.SET_EDIT_CALL_LOCATION:
+      return {
+        ...state,
+        editCallLocation: new GeoLocation(action.latitude, action.longitude),
+      };
+    case CallsActionTypes.SHOW_SET_LOCATION_MODAL:
+      return {
+        ...state,
+        setLocationModalForNewCall: action.forNewCall,
+        setLocationModalLocation: new GeoLocation(action.latitude, action.longitude),
+      };
     default:
       return state;
   }

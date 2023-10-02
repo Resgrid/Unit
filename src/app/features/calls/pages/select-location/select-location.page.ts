@@ -1,29 +1,16 @@
 import { Component, ViewChild } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { Observable, Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 import {
-	selectCallsState,
-	selectMessagesState,
-	selectNewCallLocationState,
-	selectRecipientsState,
-	selectSettingsState,
+  selectCallsState,
+  selectConfigData,
+  selectEditCallLocationState,
+  selectNewCallLocationState,
 } from 'src/app/store';
-import { MessagesState } from '../../../messages/store/messages.store';
-import { CalendarEvent, CalendarView } from 'angular-calendar';
-import {
-	MessageRecipientInput,
-	MessageResultData,
-	RecipientsResultData,
-	UtilsService,
-} from '@resgrid/ngx-resgridlib';
+import { GetConfigResultData } from '@resgrid/ngx-resgridlib';
 import { SubSink } from 'subsink';
 import * as _ from 'lodash';
-import { environment } from 'src/environments/environment';
-import * as MessagesActions from '../../../messages/actions/messages.actions';
-import { SettingsState } from 'src/app/features/settings/store/settings.store';
 import { take } from 'rxjs/operators';
-import { ModalController } from '@ionic/angular';
-import { AlertProvider } from 'src/app/providers/alert';
 import leaflet from 'leaflet';
 import { GeolocationProvider } from 'src/app/providers/geolocation';
 import * as CallsActions from '../../../../features/calls/actions/calls.actions';
@@ -31,118 +18,145 @@ import { CallsState } from '../../store/calls.store';
 import { GeoLocation } from 'src/app/models/geoLocation';
 
 @Component({
-	selector: 'app-select-location',
-	templateUrl: './select-location.page.html',
-	styleUrls: ['./select-location.page.scss'],
+  selector: 'app-select-location',
+  templateUrl: './select-location.page.html',
+  styleUrls: ['./select-location.page.scss'],
 })
 export class SelectLocationPage {
-	public callsState$: Observable<CallsState | null>;
-	public newCallLocation$: Observable<GeoLocation | null>;
-	private subs = new SubSink();
+  public callsState$: Observable<CallsState | null>;
+  public newCallLocation$: Observable<GeoLocation | null>;
+  public editCallLocation$: Observable<GeoLocation | null>;
+  public configData$: Observable<GetConfigResultData | null>;
+  private subs = new SubSink();
 
-	public map: any;
-	public marker: any;
-	@ViewChild('callMap') mapContainer;
+  private forNewCall: boolean = false;
+  public map: any;
+  public marker: any;
+  @ViewChild('callMap') mapContainer;
 
-	constructor(
-		private callsStore: Store<CallsState>,
-		private geolocationProvider: GeolocationProvider
-	) {
-		this.callsState$ = this.callsStore.select(selectCallsState);
-		this.newCallLocation$ = this.callsStore.select(selectNewCallLocationState);
-	}
+  constructor(
+    private callsStore: Store<CallsState>,
+    private geolocationProvider: GeolocationProvider
+  ) {
+    this.callsState$ = this.callsStore.select(selectCallsState);
+    this.newCallLocation$ = this.callsStore.select(selectNewCallLocationState);
+    this.editCallLocation$ = this.callsStore.select(
+      selectEditCallLocationState
+    );
+    this.configData$ = this.callsStore.select(selectConfigData);
+  }
 
-	async ionViewDidEnter() {
-		await this.initMap();
-	}
+  async ionViewDidEnter() {
+    await this.initMap();
+  }
 
-	ionViewDidLeave() {
-		if (this.subs) {
-			this.subs.unsubscribe();
-		}
-	}
+  ionViewDidLeave() {
+    if (this.subs) {
+      this.subs.unsubscribe();
+    }
+  }
 
-	public closeModal() {
-		this.callsStore.dispatch(new CallsActions.CloseSetLocationModal());
-	}
+  public closeModal() {
+    this.callsStore.dispatch(new CallsActions.CloseSetLocationModal());
+  }
 
-	private async initMap() {
-		this.newCallLocation$.pipe(take(1)).subscribe((position) => {
-			if (this.map) {
-				this.map.off();
-				this.map.remove();
-				this.map = null;
-			}
+  private async initMap() {
+    this.configData$.pipe(take(1)).subscribe((configData) => {
+      this.callsState$.pipe(take(1)).subscribe((state) => {
+		this.forNewCall = state.setLocationModalForNewCall;
+        if (state.setLocationModalForNewCall) {
+          this.newCallLocation$.pipe(take(1)).subscribe((position) => {
+            this.setMap(position, configData);
+          });
+        } else {
+          this.editCallLocation$.pipe(take(1)).subscribe((position) => {
+            this.setMap(position, configData);
+          });
+        }
+      });
+    });
+  }
 
-			this.map = leaflet.map(this.mapContainer.nativeElement, {
-				dragging: true,
-				doubleClickZoom: false,
-				zoomControl: true,
-			});
+  private setMap(position: GeoLocation, configData: GetConfigResultData) {
+    if (this.map) {
+      this.map.off();
+      this.map.remove();
+      this.map = null;
+    }
 
-			leaflet
-				.tileLayer(
-					'https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=' + environment.mapTilerKey,
-					{
-						crossOrigin: true,
-					}
-				)
-				.addTo(this.map);
+    this.map = leaflet.map(this.mapContainer.nativeElement, {
+      dragging: true,
+      doubleClickZoom: false,
+      zoomControl: true,
+    });
 
-			this.map.setView([position.Latitude, position.Longitude], 16);
-			const that = this;
+    leaflet
+      .tileLayer(configData.MapUrl, {
+        crossOrigin: true,
+        attribution: configData.MapAttribution,
+      })
+      .addTo(this.map);
 
-			this.marker = leaflet
-				.marker([position.Latitude, position.Longitude], {
-					icon: new leaflet.icon({
-						iconUrl: '/assets/images/mapping/Call.png',
-						iconSize: [32, 37],
-						iconAnchor: [16, 37],
-					}),
-					draggable: true,
-				})
-				.on('dragend', function (ev) {
-					var chagedPos = ev.target.getLatLng();
+    this.map.setView([position.Latitude, position.Longitude], 16);
+    const that = this;
 
-					that.callsStore.dispatch(
-						new CallsActions.SetNewCallLocation(chagedPos.lat, chagedPos.lng)
-					);
-				});
+    this.marker = leaflet
+      .marker([position.Latitude, position.Longitude], {
+        icon: new leaflet.icon({
+          iconUrl: '/assets/mapping/Call.png',
+          iconSize: [32, 37],
+          iconAnchor: [16, 37],
+        }),
+        draggable: true,
+      })
+      .on('dragend', function (ev) {
+        var chagedPos = ev.target.getLatLng();
 
-			this.marker.addTo(this.map);
-
-			this.map.on('click', function(e) {        
-				if (that.marker) {
-					that.marker.setLatLng(e.latlng);
-				}
 		
-				that.callsStore.dispatch(
-					new CallsActions.SetNewCallLocation(e.latlng.lat, e.latlng.lng)
-				);       
-			});
+        that.callsStore.dispatch(
+          new CallsActions.SetNewCallLocation(chagedPos.lat, chagedPos.lng)
+        );
+      });
 
-			setTimeout(function () {
-				//window.dispatchEvent(new Event('resize'));
-				//that.map.invalidateSize.bind(that.map)
-				that.map.invalidateSize();
-			}, 500);
-		});
-	}
+    this.marker.addTo(this.map);
 
-	private addMarker(e) {
-		// Add marker to map at click location; add popup window
-		//var newMarker = new L.marker(e.latlng).addTo(map);
+    this.map.on('click', function (e) {
+      if (that.marker) {
+        that.marker.setLatLng(e.latlng);
+      }
 
-		if (this.marker) {
-			this.marker.setLatLng(e.latlng);
-		}
-
-		this.callsStore.dispatch(
+	  if (that.forNewCall) {
+		that.callsStore.dispatch(
 			new CallsActions.SetNewCallLocation(e.latlng.lat, e.latlng.lng)
 		);
-	}
+	  } else {
+		that.callsStore.dispatch(
+			new CallsActions.SetEditCallLocation(e.latlng.lat, e.latlng.lng)
+		);
+	  }
+    });
 
-	public setLocation() {
-		this.callsStore.dispatch(new CallsActions.CloseSetLocationModal());
-	}
+    setTimeout(function () {
+      //window.dispatchEvent(new Event('resize'));
+      //that.map.invalidateSize.bind(that.map)
+      that.map.invalidateSize();
+    }, 500);
+  }
+
+  private addMarker(e) {
+    // Add marker to map at click location; add popup window
+    //var newMarker = new L.marker(e.latlng).addTo(map);
+
+    if (this.marker) {
+      this.marker.setLatLng(e.latlng);
+    }
+
+    this.callsStore.dispatch(
+      new CallsActions.SetNewCallLocation(e.latlng.lat, e.latlng.lng)
+    );
+  }
+
+  public setLocation() {
+    this.callsStore.dispatch(new CallsActions.CloseSetLocationModal());
+  }
 }

@@ -152,10 +152,24 @@ export class EditCallPage {
         this.address = callsState.callToView.Address;
         this.w3w = callsState.callToView.What3Words;
 
-        if (callsState.callToView.Latitude && callsState.callToView.Longitude) {
+        if (callsState.callToView.Geolocation && callsState.callToView.Geolocation.length > 0) {
+          const myArray = callsState.callToView.Geolocation.split(",");
+
+          if (myArray.length === 2) {
+            this.lat = myArray[0].toString();
+            this.lon = myArray[1].toString();
+
+            this.callsStore.dispatch(
+              new CallsActions.SetEditCallLocation(
+                parseInt(this.lat),
+                parseInt(this.lon)
+              )
+            );
+          }
+        } else if (callsState.callToView.Latitude && callsState.callToView.Longitude) {
           this.lat = callsState.callToView.Latitude;
           this.lon = callsState.callToView.Longitude;
-        }
+        } 
 
         await this.initMap();
         await this.loadingProvider.hide();
@@ -198,7 +212,7 @@ export class EditCallPage {
         );
       } else {
         this.callsStore.dispatch(
-          new CallsActions.SetNewCallLocation(
+          new CallsActions.SetEditCallLocation(
             parseInt(this.lat),
             parseInt(this.lon)
           )
@@ -214,11 +228,15 @@ export class EditCallPage {
   }
 
   public findCoordinatesForW3W() {
-    this.callsStore.dispatch(new CallsActions.EditGetCoordinatesForW3W(this.w3w));
+    this.callsStore.dispatch(
+      new CallsActions.EditGetCoordinatesForW3W(this.w3w)
+    );
   }
 
   public findCoordinatesForPlus() {
-    this.callsStore.dispatch(new CallsActions.EditGetCoordinatesForPlus(this.plus));
+    this.callsStore.dispatch(
+      new CallsActions.EditGetCoordinatesForPlus(this.plus)
+    );
   }
 
   public closeModal() {
@@ -338,7 +356,7 @@ export class EditCallPage {
 
         if (position) {
           this.callsStore.dispatch(
-            new CallsActions.SetNewCallLocation(
+            new CallsActions.SetEditCallLocation(
               position.Latitude,
               position.Longitude
             )
@@ -384,6 +402,12 @@ export class EditCallPage {
   }
 
   public showSetLocationModal() {
-    this.callsStore.dispatch(new CallsActions.ShowSetLocationModal());
+    this.editCallLocation$.pipe(take(1)).subscribe((editCallLocation) => {
+      if (editCallLocation) {
+        this.callsStore.dispatch(new CallsActions.ShowSetLocationModal(false, editCallLocation.Latitude, editCallLocation.Longitude));
+      } else {
+        this.callsStore.dispatch(new CallsActions.ShowSetLocationModal(false, 0, 0));
+      }
+    });
   }
 }

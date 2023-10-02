@@ -329,6 +329,8 @@ export class NewCallPage {
   }
 
   public showSetLocationModal() {
-    this.callsStore.dispatch(new CallsActions.ShowSetLocationModal());
+    this.newCallLocation$.pipe(take(1)).subscribe((newCallLocation) => {
+      this.callsStore.dispatch(new CallsActions.ShowSetLocationModal(true, newCallLocation.Latitude, newCallLocation.Longitude));
+    });
   }
 }

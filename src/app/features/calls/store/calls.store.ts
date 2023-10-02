@@ -19,6 +19,9 @@ export interface CallsState {
 
     editCallLocation: GeoLocation;
     editCallWhoDispatch: RecipientsResultData[];
+
+    setLocationModalForNewCall: boolean;
+    setLocationModalLocation: GeoLocation;
 }
 
 export const initialState: CallsState = {
@@ -34,4 +37,6 @@ export const initialState: CallsState = {
     newCallWhoDispatch: null,
     editCallLocation: null,
     editCallWhoDispatch: null,
+    setLocationModalForNewCall: false,
+    setLocationModalLocation: null
 };

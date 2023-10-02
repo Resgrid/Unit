@@ -83,6 +83,7 @@ export enum CallsActionTypes {
   EDIT_GET_COORDINATES_FOR_W3W_SUCCESS = '[CALLS] EDIT_GET_COORDINATES_FOR_W3W_SUCCESS',
   EDIT_GET_COORDINATES_FOR_PLUS = '[CALLS] EDIT_GET_COORDINATES_FOR_PLUS',
   EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS = '[CALLS] EDIT_GET_COORDINATES_FOR_PLUS_SUCCESS',
+  SET_EDIT_CALL_LOCATION = '[CALLS] SET_EDIT_CALL_LOCATION',
 }
 
 export class GetCalls implements Action {
@@ -213,7 +214,7 @@ export class ShowNewCallModal implements Action {
 
 export class ShowSetLocationModal implements Action {
   readonly type = CallsActionTypes.SHOW_SET_LOCATION_MODAL;
-  constructor() {}
+  constructor(public forNewCall: boolean, public latitude: number, public longitude: number) {}
 }
 
 export class CloseSetLocationModal implements Action {
@@ -228,6 +229,11 @@ export class CloseNewCallModal implements Action {
 
 export class SetNewCallLocation implements Action {
   readonly type = CallsActionTypes.SET_NEW_CALL_LOCATION;
+  constructor(public latitude: number, public longitude: number) {}
+}
+
+export class SetEditCallLocation implements Action {
+  readonly type = CallsActionTypes.SET_EDIT_CALL_LOCATION;
   constructor(public latitude: number, public longitude: number) {}
 }
 
@@ -522,4 +528,5 @@ export type CallActionsUnion =
   | EditGetCoordinatesForW3WSuccess
   | EditGetCoordinatesForPlus
   | EditGetCoordinatesForPlusSuccess
+  | SetEditCallLocation
   ;
