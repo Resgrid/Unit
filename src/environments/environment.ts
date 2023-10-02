@@ -10,13 +10,9 @@ export const environment = {
   channelHubName: window["env"]["channelHubName"] || 'eventingHub',
   realtimeGeolocationHubName: window["env"]["realtimeGeolocationHubName"] || 'geolocationHub',
   logLevel: window["env"]["logLevel"] || 0,
-  what3WordsKey: window["env"]["what3WordsKey"] || 'W3WKEY',
   isDemo: window["env"]["isDemo"] || false,
   demoToken: window["env"]["demoToken"] || 'DEMOTOKEN',
   version: '99.99.99',
-  osmMapKey: window["env"]["osmMapKey"] || 'OSMKEY',
-  mapTilerKey: window["env"]["mapTilerKey"] || 'MTKEY',
-  googleMapsKey: window["env"]["googleMapsKey"] || 'GOOGLEMAPKEY',
   loggingKey: window["env"]["loggingKey"] || 'LOGGINGKEY',
   appKey: window["env"]["appKey"] || 'APPKEY',
   appShellConfig: {

@@ -8,12 +8,8 @@
     window['env']['channelHubName'] = '${CHANNEL_HUB_NAME}';
     window['env']['realtimeGeolocationHubName'] = '${GEOLOCATION_HUB_NAME}';
     window['env']['logLevel'] = '${LOG_LEVEL}';
-    window['env']['what3WordsKey'] = '${W3W_KEY}';
     window['env']['isDemo'] = '${IS_DEMO}';
     window['env']['demoToken'] = '${DEMO_TOKEN}';
-    window['env']['osmMapKey'] = '${OSM_MAP_KEY}';
-    window['env']['mapTilerKey'] = '${MAPTILER_KEY}';
-    window['env']['googleMapsKey'] = '${GOOGLE_MAPS_KEY}';
     window['env']['loggingKey'] = '${LOGGING_KEY}';
     window['env']['appKey'] = '${APP_KEY}';
   })(this);
