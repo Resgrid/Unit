@@ -68,7 +68,7 @@ let getBaseUrl = (): string => {
             baseApiUrl: getBaseUrl,
             apiVersion: 'v4',
             clientId: 'RgUnitApp',
-            googleApiKey: environment.googleMapsKey,
+            googleApiKey: '',
             channelUrl: environment.channelUrl,
             channelHubName: environment.channelHubName,
             realtimeGeolocationHubName: environment.realtimeGeolocationHubName,
