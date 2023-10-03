@@ -56,7 +56,6 @@ export class MapPage {
   ionViewWillEnter() {
     this.isInitialLoad = true;
     this.menu.enable(true);
-    this.loadMap();
   }
 
   ionViewDidEnter() {
@@ -113,9 +112,16 @@ export class MapPage {
     this.subs.sink = this.configData$.subscribe((config) => {
       if (config) {
         this.configData = config;
+
+        if (this.configData && this.configData.NavigationMapKey) {
+          if (!this.map && !this.creatingMap) {
+            this.loadMap();
+          }
+        }
       }
     });
 
+    this.loadMap();
     this.store.dispatch(new HomeActions.GeolocationStartTracking());
     this.store.dispatch(new HomeActions.StartSignalR());
   }
