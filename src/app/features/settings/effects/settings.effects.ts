@@ -41,6 +41,7 @@ import { BluetoothProvider } from 'src/app/providers/bluetooth';
 import * as Sentry from "@sentry/angular";
 import { VoiceState } from '../../voice/store/voice.store';
 import * as VoiceActions from '../../voice/actions/voice.actions';
+import { CacheProvider } from 'src/app/providers/cache';
 
 @Injectable()
 export class SettingsEffects {
@@ -492,6 +493,7 @@ export class SettingsEffects {
     this.actions$.pipe(
       ofType(settingsAction.SettingActionTypes.LOGOUT),
       switchMap(() => this.storageProvider.clear()),
+      switchMap(() => this.cacheProvider.deleteAllCache()),
       tap(() => {
         this.authProvider.logout();
       }),
@@ -608,6 +610,7 @@ export class SettingsEffects {
     private platform: Platform,
     private bluetoothProvider: BluetoothProvider,
     private voiceStore: Store<VoiceState>,
+    private cacheProvider: CacheProvider
   ) {}
 
   runModal = async (component, cssClass, properties, opts = {}) => {
