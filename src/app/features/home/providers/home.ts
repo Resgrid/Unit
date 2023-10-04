@@ -77,7 +77,7 @@ export class HomeProvider {
     const getActiveUnit = this.storageProvider.getActiveUnit();
     const getActiveCall = this.storageProvider.getActiveCall();
     const getGroups = this.groupsProvider.getallGroups();
-    const getConfig = this.configService.getConfig(environment.appKey);
+    const getConfig = this.configService.getConfig(environment.appKey, true);
     const getCurrentUserRights = this.securityProvider.applySecurityRights();
 
     return forkJoin({
