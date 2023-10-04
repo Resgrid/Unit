@@ -9,6 +9,8 @@ PODS:
     - Capacitor
   - CapacitorCommunityBluetoothLe (3.0.0):
     - Capacitor
+  - CapacitorCommunityFileOpener (1.0.5):
+    - Capacitor
   - CapacitorCommunityKeepAwake (4.0.0):
     - Capacitor
   - CapacitorCommunitySqlite (5.0.6):
@@ -30,7 +32,7 @@ PODS:
     - Capacitor
   - CapacitorNetwork (5.0.6):
     - Capacitor
-  - CapacitorPluginResgrid (1.0.11):
+  - CapacitorPluginResgrid (1.0.12):
     - Capacitor
     - KeychainAccess
     - LiveKitClient (= 1.0.8)
@@ -72,6 +74,7 @@ DEPENDENCIES:
   - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
   - "CapacitorCommunityBackgroundGeolocation (from `../../node_modules/@capacitor-community/background-geolocation`)"
   - "CapacitorCommunityBluetoothLe (from `../../node_modules/@capacitor-community/bluetooth-le`)"
+  - "CapacitorCommunityFileOpener (from `../../node_modules/@capacitor-community/file-opener`)"
   - "CapacitorCommunityKeepAwake (from `../../node_modules/@capacitor-community/keep-awake`)"
   - "CapacitorCommunitySqlite (from `../../node_modules/@capacitor-community/sqlite`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
@@ -113,6 +116,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/background-geolocation"
   CapacitorCommunityBluetoothLe:
     :path: "../../node_modules/@capacitor-community/bluetooth-le"
+  CapacitorCommunityFileOpener:
+    :path: "../../node_modules/@capacitor-community/file-opener"
   CapacitorCommunityKeepAwake:
     :path: "../../node_modules/@capacitor-community/keep-awake"
   CapacitorCommunitySqlite:
@@ -152,6 +157,7 @@ SPEC CHECKSUMS:
   CapacitorCamera: 084b0b228bba7d00587910337b1c89e93b1d32ab
   CapacitorCommunityBackgroundGeolocation: 6f26f4290377dbd1d6dec21e62cb66f008f61ec7
   CapacitorCommunityBluetoothLe: f2cab9f83b1ac5568c6450f39ad6c8553c64ef16
+  CapacitorCommunityFileOpener: 8ae87db61961a6166cb929cc16e3cc719ea58da1
   CapacitorCommunityKeepAwake: f3442e3e9b666dd0162522fbd053da1fe81ede20
   CapacitorCommunitySqlite: 4abe6dcff394748ffdcd5b424e411b3f3a301754
   CapacitorCordova: 35def3ebfdef491f0a7b652816eb873ff4b20bbf
@@ -162,7 +168,7 @@ SPEC CHECKSUMS:
   CapacitorKeyboard: b978154b024a5f65e044908e37d15b7de58b9d12
   CapacitorLocalNotifications: c2d8b14794064fd4814b1d6c4ddbac8029afa295
   CapacitorNetwork: d80b3e79bef6ec37640ee2806c19771f07ff2d0c
-  CapacitorPluginResgrid: d3579a6714ffd2e18ca45afecf83d735d783d5af
+  CapacitorPluginResgrid: 7b6d01d588dff067b7b0f9f416de476672874d84
   CapacitorPreferences: f03954bcb0ff09c792909e46bff88e3183c16b10
   CapacitorPushNotifications: 7eb70469f1fcc3dec07126336d4896520e4991db
   CapacitorSplashScreen: 5fa2ab5e46cf5cc530cf16a51c80c7a986579ccd
@@ -179,6 +185,6 @@ SPEC CHECKSUMS:
   WebRTC-SDK: 92784b0db186d259ff0291ed03e5f64983ded224
   ZIPFoundation: ae5b4b813d216d3bf0a148773267fff14bd51d37
 
-PODFILE CHECKSUM: 27c45022eee641c5e9ed7f9145fed629961fdafd
+PODFILE CHECKSUM: 5718011fab189d1b7ff2924510cdea1d618900f1
 
 COCOAPODS: 1.9.0
