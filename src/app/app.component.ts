@@ -23,6 +23,7 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { TranslateService } from '@ngx-translate/core';
 //import { HandsetProvider } from './providers/handset';
 import { SleepProvider } from './providers/sleep';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 declare var cordova: any;
 
@@ -133,6 +134,13 @@ export class AppComponent {
       setTimeout(function () {
         that.store.dispatch(new SettingsActions.PrimeSettings());
       }, 1000);
+
+      try
+      {
+        await PushNotifications.removeAllDeliveredNotifications();
+      } catch (e) {
+        console.log(e);
+      }
     });
   }
 
