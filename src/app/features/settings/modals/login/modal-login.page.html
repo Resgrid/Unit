@@ -16,8 +16,9 @@
         <ion-col>
           <form [formGroup]="loginForm" (ngSubmit)="signIn()">
             <ion-item lines="none" class="ion-no-padding">
-              <ion-label class="input-label" position="stacked">{{'loginModal.usernameLabel' | translate}}</ion-label>
-              <ion-input formControlName="username"></ion-input>
+              <ion-input labelPlacement="stacked" id="username" type="text" formControlName="username">
+                <div slot="label">{{'loginModal.usernameLabel' | translate}} <ion-text color="danger">(Required)</ion-text></div>
+              </ion-input>
             </ion-item>
             <div
               class="errors-container"
@@ -25,11 +26,9 @@
               <ng-container *ngIf="loginForm.get('username').errors.required">{{'loginModal.usernameErrorText' | translate}}</ng-container>
             </div>
             <ion-item lines="none" class="ion-no-padding">
-              <ion-label class="input-label" position="stacked">{{'loginModal.passwordLabel' | translate}}</ion-label>
-              <ion-input
-                type="password"
-                formControlName="password"
-              ></ion-input>
+              <ion-input labelPlacement="stacked" id="password" type="password" formControlName="password">
+                <div slot="label">{{'loginModal.passwordLabel' | translate}} <ion-text color="danger">(Required)</ion-text></div>
+              </ion-input>
             </ion-item>
             <div class="errors-container" *ngIf="loginForm.get('password').invalid && (loginForm.get('password').dirty || loginForm.get('password').touched)">
                 <ng-container *ngIf="loginForm.get('password').errors.required">
