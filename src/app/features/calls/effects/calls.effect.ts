@@ -799,7 +799,7 @@ export class CallsEffects {
     private menuCtrl: MenuController,
     private messagesService: MessagesService,
     private alertProvider: AlertProvider,
-	private geocodingProvider: GeolocationProvider
+	  private geocodingProvider: GeolocationProvider
   ) {}
 
   runModal = async (component, cssClass, properties, id, opts = {}) => {
