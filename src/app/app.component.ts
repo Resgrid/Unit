@@ -87,10 +87,7 @@ export class AppComponent {
 
       if (this.platform.is('ios')) {
       }
-
-      //StatusBar.styleDefault();
-      //this.splashScreen.hide();
-
+      
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
       this.toggleDarkTheme(prefersDark.matches);
       prefersDark.addListener((mediaQuery) =>
