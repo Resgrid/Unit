@@ -280,7 +280,7 @@ export class GeolocationProvider {
           //BackgroundGeolocation.removeWatcher({
           //    id: watcher_id
           //});
-          this.backgroundWatcherId = watcher_id;
+          that.backgroundWatcherId = watcher_id;
         });
       }
     }
