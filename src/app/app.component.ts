@@ -87,7 +87,7 @@ export class AppComponent {
 
       if (this.platform.is('ios')) {
       }
-      
+
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
       this.toggleDarkTheme(prefersDark.matches);
       prefersDark.addListener((mediaQuery) =>
@@ -122,37 +122,42 @@ export class AppComponent {
       }
 
       if (!this.$themePreferenceSub || this.$themePreferenceSub.closed) {
-        this.$themePreferenceSub = this.themePreference$.subscribe((themePref) => {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-            this.toggleDarkTheme(prefersDark)
-        });
+        this.$themePreferenceSub = this.themePreference$.subscribe(
+          (themePref) => {
+            const prefersDark = window.matchMedia(
+              '(prefers-color-scheme: dark)'
+            );
+            this.toggleDarkTheme(prefersDark);
+          }
+        );
       }
 
       setTimeout(function () {
         that.store.dispatch(new SettingsActions.PrimeSettings());
       }, 1000);
 
-      try
-      {
-        await PushNotifications.removeAllDeliveredNotifications();
-      } catch (e) {
-        console.log(e);
+      if (this.platform.is('ios') || this.platform.is('android')) {
+        try {
+          await PushNotifications.removeAllDeliveredNotifications();
+        } catch (e) {
+          console.log(e);
+        }
       }
     });
   }
 
   // Add or remove the "dark" class based on if the media query matches
   private toggleDarkTheme(shouldAdd) {
-		this.themePreference$.pipe(take(1)).subscribe((enableDarkMode) => {
-			if (enableDarkMode === -1) {
-				document.body.classList.toggle('dark', shouldAdd);
-			} else if (enableDarkMode === 0) {
-				document.body.classList.toggle('dark', false);
-			} else if (enableDarkMode === 1) {
-				document.body.classList.toggle('dark', true);
-			}
-		});
-	}
+    this.themePreference$.pipe(take(1)).subscribe((enableDarkMode) => {
+      if (enableDarkMode === -1) {
+        document.body.classList.toggle('dark', shouldAdd);
+      } else if (enableDarkMode === 0) {
+        document.body.classList.toggle('dark', false);
+      } else if (enableDarkMode === 1) {
+        document.body.classList.toggle('dark', true);
+      }
+    });
+  }
 
   public triggerSelectCallModal() {
     this.store.dispatch(new SettingsActions.ShowSetActiveCallModal());

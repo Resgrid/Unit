@@ -65,12 +65,7 @@ export class MapPage {
       if (
         location &&
         location.Latitude &&
-        location.Longitude //&&
-        //(!this.lastMapUpdateTimestamp ||
-        //  this.utilsProvider.getMinutesBetweenDates(
-        //    this.lastMapUpdateTimestamp,
-        //    currentDate
-        //  ) > 1)
+        location.Longitude
       ) {
         if (this.map) {
           if (!this.userMovedMap) {
