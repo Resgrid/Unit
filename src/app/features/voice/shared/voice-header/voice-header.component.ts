@@ -15,7 +15,6 @@ import { Observable, Subscription, timer } from 'rxjs';
 import { AudioProvider } from 'src/app/providers/audio';
 import {
   selectActiveStreamState,
-  selectAvailableChannelsState,
   selectHomeState,
   selectSettingsState,
   selectVoiceState,
@@ -25,7 +24,6 @@ import { VoiceState } from '../../store/voice.store';
 import {
   BitrateOptions,
   VgApiService,
-  VgMediaDirective,
 } from '@videogular/ngx-videogular/core';
 import { ModuloConfig } from '@videogular/ngx-videogular/modulo';
 import * as _ from 'lodash';
