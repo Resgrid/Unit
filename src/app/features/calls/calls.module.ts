@@ -11,7 +11,6 @@ import { CallsEffects } from './effects/calls.effect';
 import { HomeModule } from '../home/home.module';
 import { ModalViewCallPage } from './pages/view-call/view-call.page';
 import { NgxResgridLibModule } from '@resgrid/ngx-resgridlib';
-import { PerfectScrollbarModule } from 'ngx-perfect-scrollbar';
 import { GalleryModule } from  'ng-gallery';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ComponentsModule } from 'src/app/components/components.module';
@@ -35,7 +34,6 @@ import { SelectDispatchesEditPage } from './pages/select-dispatches-edit/select-
         EffectsModule.forFeature([CallsEffects]),
         CallsRoutingModule,
         NgxResgridLibModule,
-        PerfectScrollbarModule,
         GalleryModule,
         ComponentsModule,
         TranslateModule,

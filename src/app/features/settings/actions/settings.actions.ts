@@ -37,6 +37,7 @@ export enum SettingActionTypes {
   SET_IS_APP_ACTIVE = '[SETTINGS] SET_IS_APP_ACTIVE',
   DISMISS_MODAL = '[SETTINGS] DISMISS_MODAL',
   SHOW_BACKGROUND_GEOLOCATION_MSG = '[SETTINGS] SHOW_BACKGROUND_GEOLOCATION_MSG',
+  SAVE_SHOW_ALL_SETTING = '[SETTINGS] SAVE_SHOW_ALL_SETTING',
 }
 
 export class ShowLoginModal implements Action {
@@ -84,7 +85,7 @@ export class SetLoginDataAndNavigateToHome implements Action {
   readonly type = SettingActionTypes.SET_LOGINDATA_NAV_HOME;
   constructor(public user: UserInfo, public enablePushNotifications: boolean,
     public themePreference: number, public keepAlive: boolean, public headsetType: number,
-    public backgroundGeolocationEnabled: boolean) {}
+    public backgroundGeolocationEnabled: boolean, public showAll: boolean) {}
 }
 
 export class ShowSetActiveModal implements Action {
@@ -140,6 +141,11 @@ export class SavePerferDarkModeSetting implements Action {
 export class SaveKeepAliveSetting implements Action {
   readonly type = SettingActionTypes.SAVE_KEEP_ALIVE_SETTING;
   constructor(public keepAlive: boolean) {}
+}
+
+export class SaveMapShowAllSetting implements Action {
+  readonly type = SettingActionTypes.SAVE_SHOW_ALL_SETTING;
+  constructor(public showAll: boolean) {}
 }
 
 export class GetApplicationSettings implements Action {

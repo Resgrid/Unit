@@ -77,7 +77,6 @@
     "ng-gallery": "^7.1.2",
     "ngrx-store-freeze": "^0.2.4",
     "ngrx-store-localstorage": "^17.0.0",
-    "ngx-perfect-scrollbar": "10.1.1",
     "rxjs": "^7.5.0",
     "subsink": "1.0.2",
     "tsgeo": "1.2.2",

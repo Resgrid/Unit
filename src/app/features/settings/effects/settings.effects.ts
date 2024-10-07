@@ -169,25 +169,6 @@ export class SettingsEffects {
                 data[0].loginData &&
                 data[0].loginData.Rights
               ) {
-                if (data[0].headsetType >= 0) {
-                  if (this.platform.is('ios')) {
-                    //this.bluetoothProvider
-                    //  .init(data[0].headsetType)
-                    //  .then((success) => console.log(`bluetooth success`))
-                    //  .catch((err) => console.error(err));
-
-                    //this.bluetoothProvider
-                    //  .start()
-                    //  .then((success) => console.log(`bluetooth success`))
-                    //  .catch((err) => console.error(err));
-                  } else if (this.platform.is('android')) {
-                    //this.handsetProvider
-                    //  .start()
-                    //  .then((success) => console.log(`handset success`))
-                    //  .catch((err) => console.error(err));
-                  }
-                }
-
                 Sentry.setUser({ 
                   username: data[0].loginData.sub, 
                   email: data[0].loginData.Rights.EmailAddress,
@@ -209,7 +190,8 @@ export class SettingsEffects {
                   themePreference: data[0].themePreference,
                   keepAlive: data[0].keepAlive,
                   headsetType: data[0].headsetType,
-                  backgroundGeolocationEnabled: data[0].backgroundGeolocationEnabled
+                  backgroundGeolocationEnabled: data[0].backgroundGeolocationEnabled,
+                  showAll: data[0].showAll
                 };
               } else {
                 return {
@@ -428,6 +410,22 @@ export class SettingsEffects {
       ),
       switchMap(async (action) =>
         this.storageProvider.setKeepAlive(action.keepAlive)
+      ),
+      map((data) => {
+        return {
+          type: settingsAction.SettingActionTypes.DONE,
+        };
+      })
+    )
+  );
+
+  saveShowAllSetting$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType<settingsAction.SaveMapShowAllSetting>(
+        settingsAction.SettingActionTypes.SAVE_SHOW_ALL_SETTING
+      ),
+      switchMap(async (action) =>
+        this.storageProvider.setShowAll(action.showAll)
       ),
       map((data) => {
         return {

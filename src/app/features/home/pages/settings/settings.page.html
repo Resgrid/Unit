@@ -76,8 +76,18 @@
             <ion-toggle item-end color="primary" [checked]="keepAlive$ | async" (ionChange)="setKeepAlive($event)"></ion-toggle>
           </ion-item>
           <ion-item lines="none" *ngIf="(homeState$ | async).isMobileApp">
+            <ion-avatar slot="start" class="blue-bg">
+              <ion-icon name="tv-outline"></ion-icon>
+            </ion-avatar>
+            <ion-label>
+              <h2>{{'settingsPage.showAllOnMapLabel' | translate}}</h2>
+              <p>{{'settingsPage.showAllOnMapLabelText' | translate}}</p>
+            </ion-label>
+            <ion-toggle item-end color="primary" [checked]="showAll$ | async" (ionChange)="setShowAll($event)"></ion-toggle>
+          </ion-item>
+          <ion-item lines="none" *ngIf="(homeState$ | async).isMobileApp">
             <ion-avatar slot="start" class="gray-bg">
-              <ion-icon name="notifications-outline"></ion-icon>
+              <ion-icon name="pin-outline"></ion-icon>
             </ion-avatar>
             <ion-label>
               <h2>{{'settingsPage.backgroundGeolocationLabel' | translate}}</h2>

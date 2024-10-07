@@ -120,3 +120,4 @@ export const getBackgroundGeolocationState = (state: SettingsState) =>
   export const getUserState = (state: SettingsState) => state.user;
   export const getThemePreferenceState = (state: SettingsState) =>
   state.themePreference;
+  export const getShowAllState = (state: SettingsState) => state.showAll;
