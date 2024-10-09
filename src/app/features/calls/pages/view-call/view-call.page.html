@@ -18,7 +18,7 @@
         </div>
       </div>
       <div style="height: 200px !important; width: 100% !important; overflow: hidden;"
-        [hidden]="(callsState$ | async)?.callToView?.Geolocation == null || (callsState$ | async)?.callToView?.Geolocation.length <= 0">
+        *ngIf="(callsState$ | async)?.callToView?.Geolocation && (callsState$ | async)?.callToView?.Geolocation.length > 0">
         <div #viewCallMap id="viewCallMap" name="viewCallMap" data-tap-disabled="true"
           style="height: 200px !important; width: 100% !important; overflow: hidden; pointer-events: none; touch-action: none;"></div>
       </div>
@@ -40,12 +40,12 @@
             </ion-button>
           </ion-col>
           <ion-col style="padding-left: 0px; padding-right: 0px; margin-left: 0px; margin-right: 0px;"
-            [hidden]="(callsState$ | async)?.callToView?.Geolocation == null || (callsState$ | async)?.callToView?.Geolocation.length <= 0">
+            *ngIf="(callsState$ | async)?.callToView?.Geolocation && (callsState$ | async)?.callToView?.Geolocation.length > 0">
             <ion-button expand="full" color="secondary" (click)="route()">Route</ion-button>
           </ion-col>
         </ion-row>
       </ion-grid>
-      <div [hidden]="(callsState$ | async)?.callToView?.AudioFileId?.length <= 0" style="width: 100%; text-align: center;">
+      <div *ngIf="(callsState$ | async)?.callToView?.AudioFileId?.length > 0" style="width: 100%; text-align: center;">
         <audio controls src="{{getDispatchUrl((callsState$ | async)?.callToView?.AudioFileId)}}" type="audio/mpeg">
         </audio>
       </div>
@@ -132,9 +132,15 @@
 
         <ion-list *ngSwitchCase="'protocols'">
           <ion-item *ngFor="let protocol of (callsState$ | async)?.callViewData?.Protocols">
-            <h4>{{protocol.Name}} ({{protocol.Code}})</h4>
-            <p>{{protocol.Description}}</p>
-            <p>{{protocol.ProtocolText}}</p>
+            <ion-label class="ion-text-wrap">
+              <ion-text color="primary">
+                <h3>{{protocol.Name}} ({{protocol.Code}})</h3>
+              </ion-text>
+              <p [innerHTML]="protocol.Description"></p>
+              <ion-text color="secondary" [innerHTML]="protocol.ProtocolText">
+
+              </ion-text>
+            </ion-label>
           </ion-item>
         </ion-list>
 
@@ -164,46 +170,6 @@
         </div>
       </div>
     </article>
-  </div>
-  <div style="margin-top: 5px; height: 84vh;" *ngIf="(callsState$ | async)?.viewCallType === 'notes'">
-    <span>
-      <h3 style="padding-left: 10px;">Call Notes</h3>
-    </span>
-    <div class="ion-padding" style="height: 94%;">
-      <perfect-scrollbar>
-        <div *ngIf="!(callsState$ | async).callNotes || (callsState$ | async).callNotes.length <= 0">
-          <cta-panel [topIcon]="'information-circle'" [title]="'callNotesPage.ctaPanel.title' | translate" [details]="'callNotesPage.ctaPanel.details' | translate"
-            [extraDetails]="'callNotesPage.ctaPanel.extraDetails' | translate" [btnLabel]="'callNotesPage.ctaPanel.buttonLabel' | translate" [hideButton]="true"></cta-panel>
-        </div>
-        <div class="list_div" *ngFor="let note of (callsState$ | async).callNotes;">
-          <div class="user_image bg_image" [style.background-image]="'url(' + (getAvatarUrl(note.UserId)) + ')'"></div>
-          <div class="detail">
-            <ion-label class="username">{{note.FullName}}</ion-label>
-            <span>
-              <ion-label class="light">{{note.Note}}</ion-label>
-              <ion-label class="time">{{note.TimestampFormatted}}</ion-label>
-            </span>
-          </div>
-        </div>
-      </perfect-scrollbar>
-    </div>
-    <div style="display: inherit;" class="footer_div">
-      <form (ngSubmit)="saveNote()" [formGroup]="callNotesFormData">
-        <ion-grid>
-          <ion-row>
-            <ion-col size="10" size-lg>
-              <ion-input type="text" placeholder="Enter Note..." formControlName="message" [ngClass]="{'is-invalid': isSavingNote && callNotesFormData.errors}">
-              </ion-input>
-            </ion-col>
-            <ion-col size="2" size-sm>
-              <ion-button type="submit">
-                <ion-icon name="save-outline"></ion-icon>
-              </ion-button>
-            </ion-col>
-          </ion-row>
-        </ion-grid>
-      </form>
-    </div>
   </div>
   <div style="margin-top: 5px; height: 84vh;" *ngIf="(callsState$ | async)?.viewCallType === 'images'">
     <span>
@@ -240,7 +206,6 @@
         [extraDetails]="'callFilesPage.ctaPanel.extraDetails' | translate" [btnLabel]="'callFilesPage.ctaPanel.buttonLabel' | translate" [hideButton]="true"></cta-panel>
     </div>
     <div class="ion-padding" style="height: 94%;" *ngIf="(callsState$ | async).callFiles && (callsState$ | async).callFiles.length > 0">
-      <perfect-scrollbar>
         <ion-list>
           <ion-item *ngFor="let file of (callsState$ | async).callFiles;" (click)="openFile(file)">
             <ion-label>
@@ -249,7 +214,6 @@
             </ion-label>
           </ion-item>
         </ion-list>
-      </perfect-scrollbar>
     </div>
     <div style="display: inherit;" class="footer_div">
       <form (ngSubmit)="uploadFile()" [formGroup]="callNotesFormData">

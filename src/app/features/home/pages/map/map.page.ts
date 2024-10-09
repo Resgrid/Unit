@@ -10,13 +10,15 @@ import {
   selectConfigData,
   selectCurrentPositionState,
   selectLastMapUpdateDate,
+  selectSettingsState,
 } from 'src/app/store';
 import * as HomeActions from '../../actions/home.actions';
-import { GetConfigResultData, UtilsService } from '@resgrid/ngx-resgridlib';
+import { GetConfigResultData, SignalRService, UtilsService } from '@resgrid/ngx-resgridlib';
 import { MapProvider } from 'src/app/providers/map';
 import { MenuController } from '@ionic/angular';
 import { GeolocationProvider } from 'src/app/providers/geolocation';
 import { SubSink } from 'subsink';
+import { SettingsState } from 'src/app/features/settings/store/settings.store';
 
 @Component({
   selector: 'app-home-map',
@@ -27,6 +29,7 @@ export class MapPage {
   public currentPosition$: Observable<GeoLocation | null>;
   public mapUpdatedTimestamp$: Observable<string | null>;
   public configData$: Observable<GetConfigResultData | null>;
+  public settingsState$: Observable<SettingsState | null>;
 
   private subs = new SubSink();
 
@@ -39,6 +42,7 @@ export class MapPage {
   public vehicleMarker: any;
   public userMovedMap: boolean = false;
   public isInitialLoad: boolean = true;
+  public showAll: boolean = false;
   @ViewChild('vehicleMap') mapContainer;
 
   constructor(
@@ -46,11 +50,13 @@ export class MapPage {
     private store: Store<HomeState>,
     private utilsProvider: UtilsService,
     private mapProvider: MapProvider,
-    public menu: MenuController
+    public menu: MenuController,
+    private signalRProvider: SignalRService
   ) {
     this.currentPosition$ = this.store.select(selectCurrentPositionState);
     this.mapUpdatedTimestamp$ = this.store.select(selectLastMapUpdateDate);
     this.configData$ = this.store.select(selectConfigData);
+    this.settingsState$ = this.store.select(selectSettingsState);
   }
 
   ionViewWillEnter() {
@@ -59,6 +65,12 @@ export class MapPage {
   }
 
   ionViewDidEnter() {
+    this.settingsState$.pipe(take(1)).subscribe((settingsState) => {
+      if (settingsState) {
+        this.showAll = settingsState.showAll;
+      }
+    });
+
     this.subs.sink = this.currentPosition$.subscribe((location) => {
       this.position = location;
 
@@ -110,6 +122,9 @@ export class MapPage {
 
         if (this.configData && this.configData.NavigationMapKey) {
           if (!this.map && !this.creatingMap) {
+            this.store.dispatch(new HomeActions.GeolocationStartTracking());
+            this.store.dispatch(new HomeActions.StartSignalR());
+
             this.loadMap();
           }
         }
@@ -117,8 +132,6 @@ export class MapPage {
     });
 
     this.loadMap();
-    this.store.dispatch(new HomeActions.GeolocationStartTracking());
-    this.store.dispatch(new HomeActions.StartSignalR());
   }
 
   ionViewWillLeave() {
@@ -167,7 +180,8 @@ export class MapPage {
           that.mapProvider.setMarkersForMap(
             that.map,
             that.position,
-            that.userMovedMap
+            that.userMovedMap,
+            that.showAll
           );
 
           if (that.map) {
@@ -206,7 +220,8 @@ export class MapPage {
     this.mapProvider.setMarkersForMap(
       this.map,
       this.position,
-      this.userMovedMap
+      this.userMovedMap,
+      this.showAll
     );
 
     this.lastMapUpdateTimestamp = new Date();

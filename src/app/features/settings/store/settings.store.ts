@@ -13,6 +13,7 @@ export interface SettingsState {
     selectedMic: string;
     isAppActive: boolean;
     enableBackgroundGeolocation: boolean;
+    showAll: boolean;
 }
 
 export const initialState: SettingsState = {
@@ -26,5 +27,6 @@ export const initialState: SettingsState = {
     headsetType: -1,
     selectedMic: "",
     isAppActive: true,
-    enableBackgroundGeolocation: false
+    enableBackgroundGeolocation: false,
+    showAll: false
 };

@@ -42,6 +42,11 @@ export const selectThemePreferenceState = createSelector(
   settingsReducers.getThemePreferenceState
 );
 
+export const selectShowAllState = createSelector(
+  selectSettingsState,
+  settingsReducers.getShowAllState
+);
+
 export const selectKeepAliveState = createSelector(
   selectSettingsState,
   settingsReducers.getKeepAliveState

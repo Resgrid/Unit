@@ -13,6 +13,7 @@ import {
   selectPushNotificationState,
   selectSelectedMic,
   selectSettingsState,
+  selectShowAllState,
   selectThemePreferenceState,
 } from 'src/app/store';
 import { BluetoothProvider } from 'src/app/providers/bluetooth';
@@ -34,6 +35,7 @@ export class SettingsPage implements OnInit {
   public keepAlive$: Observable<boolean | null>;
   public backgroundGeolocationEnabled$: Observable<boolean | null>;
   public themePreference$: Observable<number | null>;
+  public showAll$: Observable<boolean | null>;
 
   public pushNotificationEnabled: boolean = false;
   public keepAliveEnabled: boolean = false;
@@ -65,6 +67,7 @@ export class SettingsPage implements OnInit {
     this.keepAlive$ = this.store.select(selectKeepAliveState);
     this.backgroundGeolocationEnabled$ = this.store.select(selectBackgroundGeolocationState);
     this.themePreference$ = this.store.select(selectThemePreferenceState);
+    this.showAll$ = this.store.select(selectShowAllState);
   }
 
   ngOnInit() {
@@ -172,6 +175,14 @@ export class SettingsPage implements OnInit {
       this.sleepProvider.enable();
     } else {
       this.sleepProvider.disable();
+    }
+  }
+
+  public setShowAll(event) {
+    if (event && event.detail) {
+      this.store.dispatch(
+        new SettingsActions.SaveMapShowAllSetting(event.detail.checked)
+      );
     }
   }
 

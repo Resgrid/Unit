@@ -4,7 +4,6 @@ import {
   Actions,
   concatLatestFrom,
   createEffect,
-  Effect,
   ofType,
 } from '@ngrx/effects';
 import { catchError, concatMap, exhaustMap, map, mergeMap, switchMap, tap } from 'rxjs/operators';
@@ -12,7 +11,6 @@ import { Injectable } from '@angular/core';
 import { from, Observable, of } from 'rxjs';
 import { VoiceState } from '../store/voice.store';
 import {
-  KazooVoiceService,
   VoiceService,
 } from '@resgrid/ngx-resgridlib';
 import { HomeState } from '../../home/store/home.store';
@@ -23,6 +21,7 @@ import { MenuController, ModalController, ToastController } from '@ionic/angular
 import { Resgrid, ResgridPluginStartOptions } from 'capacitor-plugin-resgrid';
 import { ModalAudioStreams } from '../modal/audio-streams/modal-audioStreams.page';
 import { environment } from 'src/environments/environment';
+import { Capacitor } from '@capacitor/core';
 
 @Injectable()
 export class VoiceEffects {
@@ -38,18 +37,8 @@ export class VoiceEffects {
         this.voiceService.getDepartmentVoiceSettings().pipe(
           map((data) => {
             if (data && data.Data && data.Data.VoiceEnabled && homeState.isMobileApp) {
-              //await this.audioProvider.requestMicrophonePermissions();
-              //this.openViduService.mute();
-
-              //if (voiceState.currentActiveVoipChannel && voiceState.currentActiveVoipChannel.Id !== '') {
-                if (homeState.activeUnit && homeState.activeUnit.Name) {
-                  let channel = voiceState.currentActiveVoipChannel;
-
-                  //let name = settingsState.user.fullName;
-                  let name = homeState.activeUnit.Name;
-
-                  //if (homeState.activeUnit && homeState.activeUnit.Name)
-                  //  name = name + ` (${homeState.activeUnit.Name})`;
+                if (settingsState && settingsState.user) {
+                  let name = settingsState.user.fullName;
 
                   let options = {
                     token: '',
@@ -69,16 +58,15 @@ export class VoiceEffects {
                     });
                   }
 
-                  Resgrid.start(options);
+                  if ((Capacitor.getPlatform() === 'android' || Capacitor.getPlatform() === 'ios') && Capacitor.isPluginAvailable('Resgrid')) {
+                    Resgrid.start(options).then(function after_resgrid_plugin_start(data) {
+                      
+                    });
+                  }
 
                   // Disabling this for now. Need to figure out how to get the permissions to work.
                   //Resgrid.requestPermissions();
-
-
-                  //this.openViduService.leaveSession();
-                  //this.openViduService.joinChannel(channel, name);
                 }
-              //}
             }
 
             if (!homeState.isMobileApp && data.Data.VoiceEnabled) {
@@ -151,23 +139,21 @@ export class VoiceEffects {
     { dispatch: false }
   );
 
-  @Effect({ dispatch: false })
-  setActiveChannel$: Observable<Action> = this.actions$.pipe(
-    ofType<voiceAction.SetActiveChannel>(
-      voiceAction.VoiceActionTypes.SET_ACTIVECHANNEL
-    ),
+  setActiveChannel$ = createEffect(() => this.actions$.pipe(
+    ofType<voiceAction.SetActiveChannel>(voiceAction.VoiceActionTypes.SET_ACTIVECHANNEL),
     concatLatestFrom(() => [
       this.homeStore.select(selectHomeState),
       this.settingsStore.select(selectSettingsState),
     ]),
-    exhaustMap(([action, homeState, settingsState], index) =>
+    mergeMap(([action, homeState, settingsState], index) =>
       of(action).pipe(
         concatMap((data) => {
-            Resgrid.showModal();
-            return of(data);
-        })
+          Resgrid.showModal();
+          return of(data);
+      })
       )
-    )
+    )),
+    { dispatch: false }
   );
 
   voipCallStartTransmitting$ = createEffect(() =>

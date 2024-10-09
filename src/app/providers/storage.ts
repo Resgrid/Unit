@@ -124,6 +124,10 @@ export class StorageProvider {
     return this.set('RGUnitKeepAlive', keepAlive?.toString());
   }
 
+  public setShowAll(showAll: boolean): Promise<any> {
+    return this.set('RGUnitShowAll', showAll?.toString());
+  }
+
   public setHeadsetType(headsetType: number): Promise<any> {
     return this.set('RGUnitHeadsetType', headsetType?.toString());
   }
@@ -160,6 +164,16 @@ export class StorageProvider {
     return false;
   }
 
+  public async getShowAll(): Promise<boolean> {
+    let data = await this.get('RGUnitShowAll');
+    if (data) {
+      let isSet = (data === 'true');
+      return isSet;
+    }
+
+    return false;
+  }
+
   public async getHeadsetType(): Promise<number> {
     let data = await this.get('RGUnitHeadsetType');
     if (data) {
@@ -179,6 +193,7 @@ export class StorageProvider {
     const keepAlive = await this.getKeepAlive();
     const headsetType = await this.getHeadsetType();
     const enableBackgroundGeolocation = await this.getEnableBackgroundGeolocation();
+    const showAll = await this.getShowAll();
 
     return {
       loginData: loginData,
@@ -188,7 +203,8 @@ export class StorageProvider {
       themePreference: themePreference,
       keepAlive: keepAlive,
       headsetType: headsetType,
-      backgroundGeolocationEnabled: enableBackgroundGeolocation
+      backgroundGeolocationEnabled: enableBackgroundGeolocation,
+      showAll: showAll
     };
   }
 }

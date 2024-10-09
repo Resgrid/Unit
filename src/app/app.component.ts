@@ -23,7 +23,7 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { TranslateService } from '@ngx-translate/core';
 //import { HandsetProvider } from './providers/handset';
 import { SleepProvider } from './providers/sleep';
-import { PushNotifications } from '@capacitor/push-notifications';
+import { PushNotifications } from '@resgrid/push-notifications';
 
 declare var cordova: any;
 

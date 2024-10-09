@@ -1,7 +1,7 @@
 <ion-card [ngStyle]="{'background-color': getColor() }">
   <ion-item lines="none" class="user_data" [ngStyle]="{'background-color': getColor() }">
     <ion-label>
-     <p [style.color]="invertColor(getColor(), true)">{{ call?.Name }}</p> 
+     <p [style.color]="invertColor(getColor(), true)"><b>{{ call?.Name }}</b></p> 
     </ion-label>
     <ion-label slot="end" class="ion-no-margin ion-text-right">
       <span [style.color]="invertColor(getColor(), true)">{{ call?.LoggedOnUtc | rgTimeAgoUtc }}</span>
@@ -11,19 +11,17 @@
     <ion-card-subtitle [style.color]="invertColor(getColor(), true)" [innerHtml]="call?.Nature"></ion-card-subtitle>
   </ion-card-header>
   <ion-card-content>
-    <div class="icon-container ion-text-left">
-      <ul>
-        <li>
+      <ul style="width: 100%;">
+        <li style="width: 100%;">
           <ion-item lines="none" [ngStyle]="{'background-color': getColor() }">
             <ion-label [style.color]="invertColor(getColor(), true)">{{ call?.Address }}</ion-label>
           </ion-item>
         </li>
-        <li>
+        <li style="width: 100%;">
           <ion-item lines="none" [ngStyle]="{'background-color': getColor() }">
             <ion-label [style.color]="invertColor(getColor(), true)">{{ call?.Number }}</ion-label>
           </ion-item>
         </li>
       </ul>
-    </div>
   </ion-card-content>
 </ion-card>

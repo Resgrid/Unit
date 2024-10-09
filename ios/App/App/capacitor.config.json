@@ -28,5 +28,27 @@
 		"CapacitorHttp": {
 			"enabled": true
 		}
-	}
+	},
+	"packageClassList": [
+		"BackgroundGeolocation",
+		"BluetoothLe",
+		"FileOpenerPlugin",
+		"KeepAwakePlugin",
+		"CapacitorSQLitePlugin",
+		"AppPlugin",
+		"CAPCameraPlugin",
+		"DevicePlugin",
+		"FilesystemPlugin",
+		"GeolocationPlugin",
+		"HapticsPlugin",
+		"KeyboardPlugin",
+		"CAPNetworkPlugin",
+		"PreferencesPlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin",
+		"BadgePlugin",
+		"LocalNotificationsPlugin",
+		"PushNotificationsPlugin",
+		"ResgridPlugin"
+	]
 }

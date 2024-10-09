@@ -37,6 +37,7 @@ import { ProtocolsModule } from './features/protocols/protocols.module';
 import { RolesModule } from './features/roles/roles.module';
 import { ScrollDirective } from './directives/scroll.directive';
 import { MessagesModule } from './features/messages/messages.module';
+import { ModuleStorageProvider } from './providers/moduleStorage';
 
 //import adapter from 'webrtc-adapter';
 
@@ -74,7 +75,8 @@ let getBaseUrl = (): string => {
             realtimeGeolocationHubName: environment.realtimeGeolocationHubName,
             logLevel: environment.logLevel,
             isMobileApp: true,
-            cacheProvider: new CacheProvider()
+            cacheProvider: new CacheProvider(),
+			storageProvider: new ModuleStorageProvider()
         }),
         StoreModule.forRoot(reducers, { metaReducers }),
         EffectsModule.forRoot([]),

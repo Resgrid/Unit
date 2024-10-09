@@ -7,6 +7,7 @@ import { NgxResgridLibModule } from '@resgrid/ngx-resgridlib';
 import { CTAPanelComponent } from './cta-panel/cta-panel';
 import { NoteCardComponent } from './note-card/note-card.component';
 import { ProtocolCardComponent } from './protocol-card/protocol-card.component';
+import { CallInfoComponent } from './call-info/call-info.component';
 
 @NgModule({
     imports: [
@@ -20,13 +21,15 @@ import { ProtocolCardComponent } from './protocol-card/protocol-card.component';
         CallCardComponent,
         CTAPanelComponent,
         NoteCardComponent,
-        ProtocolCardComponent
+        ProtocolCardComponent,
+        CallInfoComponent
     ],
     exports: [
         CallCardComponent,
         CTAPanelComponent,
         NoteCardComponent,
-        ProtocolCardComponent
+        ProtocolCardComponent,
+        CallInfoComponent
     ]
 })
 export class ComponentsModule {}

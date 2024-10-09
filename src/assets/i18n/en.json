@@ -32,7 +32,9 @@
     "aboutLabel": "About",
     "aboutText": "Shows application information",
     "requestPermissionsLabel": "Request Permissions",
-    "requestPermissionsText": "Requests the require app permissions (audio, microphone, gps)"
+    "requestPermissionsText": "Requests the require app permissions (audio, microphone, gps)",
+    "showAllOnMapLabel": "Show All On Map",
+    "showAllOnMapLabelText": "Always zoom the map out to show all pins on the map"
   },
   "personnelPage": {
     "title": "Personnel",

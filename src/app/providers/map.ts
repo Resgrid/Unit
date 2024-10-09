@@ -168,10 +168,13 @@ export class MapProvider {
         mapElement.addImage('Earthquake-marker', image);
       });
 
-      mapElement.loadImage('assets/mapping/EmergencyPhone.png', (error, image) => {
-        if (error) throw error;
-        mapElement.addImage('EmergencyPhone-marker', image);
-      });
+      mapElement.loadImage(
+        'assets/mapping/EmergencyPhone.png',
+        (error, image) => {
+          if (error) throw error;
+          mapElement.addImage('EmergencyPhone-marker', image);
+        }
+      );
 
       mapElement.loadImage('assets/mapping/Fire.png', (error, image) => {
         if (error) throw error;
@@ -318,95 +321,124 @@ export class MapProvider {
   public setMarkersForMap(
     mapElement: any,
     position: GeoLocation,
-    userMovedMap: boolean
+    userMovedMap: boolean,
+    showAll: boolean
   ): void {
     if (mapElement) {
-      this.mappingService.getMapDataAndMarkers().pipe(take(1)).subscribe(
-        (data: any) => {
-          if (data && data.Data && data.Data.MapMakerInfos) {
-            this.coordinates = [];
+      this.mappingService
+        .getMapDataAndMarkers()
+        .pipe(take(1))
+        .subscribe(
+          (data: any) => {
+            if (data && data.Data && data.Data.MapMakerInfos) {
+              this.coordinates = [];
 
-            const places = {
-              type: 'FeatureCollection',
-              features: [],
-            };
-
-            data.Data.MapMakerInfos.forEach((markerInfo: MapMakerInfoData) => {
-              const feature = {
-                type: 'Feature',
-                properties: {
-                  description: `${markerInfo.Title}`,
-                  icon: `${markerInfo.ImagePath}-marker`,
-                },
-                geometry: {
-                  type: 'Point',
-                  coordinates: [markerInfo.Longitude, markerInfo.Latitude],
-                },
+              const places = {
+                type: 'FeatureCollection',
+                features: [],
               };
 
-              this.coordinates.push(feature.geometry.coordinates);
+              data.Data.MapMakerInfos.forEach(
+                (markerInfo: MapMakerInfoData) => {
+                  const feature = {
+                    type: 'Feature',
+                    properties: {
+                      description: `${markerInfo.Title}`,
+                      icon: `${markerInfo.ImagePath}-marker`,
+                    },
+                    geometry: {
+                      type: 'Point',
+                      coordinates: [markerInfo.Longitude, markerInfo.Latitude],
+                    },
+                  };
 
-              places.features.push(feature);
-            });
+                  this.coordinates.push(feature.geometry.coordinates);
 
-            try {
-              let mpLayer = mapElement.getLayer('poi-labels');
+                  places.features.push(feature);
+                }
+              );
 
-              //if (mapElement.isSourceLoaded('places') === true) {
-              if (typeof mpLayer != 'undefined') {
-                mapElement.removeLayer('poi-labels');
-                mapElement.removeSource('places');
-              }
-            } catch (error) {}
+              try {
+                let mpLayer = mapElement.getLayer('poi-labels');
 
-            mapElement.addSource('places', {
-              type: 'geojson',
-              data: places,
-            });
+                //if (mapElement.isSourceLoaded('places') === true) {
+                if (typeof mpLayer != 'undefined') {
+                  mapElement.removeLayer('poi-labels');
+                  mapElement.removeSource('places');
+                }
+              } catch (error) {}
 
-            mapElement.addLayer({
-              id: 'poi-labels',
-              type: 'symbol',
-              source: 'places',
-              layout: {
-                'text-field': ['get', 'description'],
-                'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-                'text-radial-offset': 0.5,
-                'text-justify': 'auto',
-                'icon-image': ['get', 'icon'],
-              },
-            });
+              mapElement.addSource('places', {
+                type: 'geojson',
+                data: places,
+              });
 
-            if (!userMovedMap) {
-              if (!position &&  this.coordinates.length > 1) {
-                let bounds = this.coordinates.reduce(function (bounds, coord) {
-                  return bounds.extend(coord);
-                }, new mapboxgl.LngLatBounds(
-                 this.coordinates[0], 
-                 this.coordinates[1]
-                ));
+              mapElement.addLayer({
+                id: 'poi-labels',
+                type: 'symbol',
+                source: 'places',
+                layout: {
+                  'text-field': ['get', 'description'],
+                  'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                  'text-radial-offset': 0.5,
+                  'text-justify': 'auto',
+                  'icon-image': ['get', 'icon'],
+                },
+              });
 
-                mapElement.fitBounds(bounds, {
-                  padding: 40,
-                });
-              } else {
-                if (position && position.Latitude && position.Longitude) {
-                  mapElement.jumpTo({
-                    center: new mapboxgl.LngLat(
-                      position.Longitude,
-                      position.Latitude
-                    ),
-                    essential: true,
+              if (!userMovedMap) {
+                if (!position && this.coordinates.length > 1) {
+                  let bounds = this.coordinates.reduce(function (
+                    bounds,
+                    coord
+                  ) {
+                    return bounds.extend(coord);
+                  },
+                  new mapboxgl.LngLatBounds(this.coordinates[0], this.coordinates[1]));
+
+                  mapElement.fitBounds(bounds, {
+                    padding: 40,
                   });
-                  
-                  mapElement.setZoom(13);
+                } else {
+                  if (position && position.Latitude && position.Longitude) {
+                    if (showAll && this.coordinates.length > 1) {
+                      let bounds = this.coordinates.reduce(function (
+                        bounds,
+                        coord
+                      ) {
+                        return bounds.extend(coord);
+                      },
+                      new mapboxgl.LngLatBounds(this.coordinates[0], this.coordinates[1]));
+
+                      mapElement.fitBounds(bounds, {
+                        padding: 40,
+                      });
+
+                      mapElement.jumpTo({
+                        center: new mapboxgl.LngLat(
+                          position.Longitude,
+                          position.Latitude
+                        ),
+                        essential: true,
+                      });
+                    } else {
+                      mapElement.jumpTo({
+                        center: new mapboxgl.LngLat(
+                          position.Longitude,
+                          position.Latitude
+                        ),
+                        essential: true,
+                      });
+
+                      mapElement.setZoom(13);
+                    }
+                  }
                 }
               }
             }
-          }
-        },
-        (err: any) => {}
-      );
+          },
+          (err: any) => {}
+        );
     }
   }
 }

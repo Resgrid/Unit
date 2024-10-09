@@ -145,12 +145,6 @@ export class HomeProvider {
       }
     );
     this.events.subscribe(
-      this.consts.SIGNALR_EVENTS.PERSONNEL_STAFFING_UPDATED,
-      (data: any) => {
-        //this.homeStore.dispatch(new HomeActions.RefreshMapData());
-      }
-    );
-    this.events.subscribe(
       this.consts.SIGNALR_EVENTS.UNIT_STATUS_UPDATED,
       (data: any) => {
         this.homeStore.dispatch(new HomeActions.RefreshMapData());
@@ -158,6 +152,30 @@ export class HomeProvider {
     );
     this.events.subscribe(
       this.consts.SIGNALR_EVENTS.CALLS_UPDATED,
+      (data: any) => {
+        this.homeStore.dispatch(new HomeActions.RefreshMapData());
+      }
+    );
+    this.events.subscribe(
+      this.consts.SIGNALR_EVENTS.CALL_ADDED,
+      (data: any) => {
+        this.homeStore.dispatch(new HomeActions.RefreshMapData());
+      }
+    );
+    this.events.subscribe(
+      this.consts.SIGNALR_EVENTS.CALL_CLOSED,
+      (data: any) => {
+        this.homeStore.dispatch(new HomeActions.RefreshMapData());
+      }
+    );
+    this.events.subscribe(
+      this.consts.SIGNALR_EVENTS.PERSONNEL_LOCATION_UPDATED,
+      (data: any) => {
+        this.homeStore.dispatch(new HomeActions.RefreshMapData());
+      }
+    );
+    this.events.subscribe(
+      this.consts.SIGNALR_EVENTS.UNIT_LOCATION_UPDATED,
       (data: any) => {
         this.homeStore.dispatch(new HomeActions.RefreshMapData());
       }
