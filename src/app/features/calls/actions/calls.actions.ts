@@ -24,6 +24,7 @@ export enum CallsActionTypes {
   SAVE_CALLNOTE = '[CALLS] SAVE_CALLNOTE',
   SAVE_CALLNOTE_SUCCESS = '[CALLS] SAVE_CALLNOTE_SUCCESS',
   SAVE_CALLNOTE_FAIL = '[CALLS] SAVE_CALLNOTE_FAIL',
+  CLOSE_CALLNOTES = '[CALLS] CLOSE_CALLNOTES',
   SET_VIEW_CALL_MODAL = '[CALLS] SET_VIEW_CALL_MODAL',
   DONE = '[CALLS] DONE',
   SHOW_CALLIMAGES = '[CALLS] SHOW_CALLIMAGES',
@@ -130,6 +131,11 @@ export class ShowCallNotesModal implements Action {
 export class OpenCallNotesModal implements Action {
   readonly type = CallsActionTypes.OPEN_CALLNOTES;
   constructor(public payload: CallNoteResultData[]) {}
+}
+
+export class CloseCallNotesModal implements Action {
+  readonly type = CallsActionTypes.CLOSE_CALLNOTES;
+  constructor() {}
 }
 
 export class SaveCallNote implements Action {
