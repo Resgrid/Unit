@@ -24,7 +24,9 @@ if (environment.loggingKey && environment.loggingKey !== 'LOGGINGKEY' && environ
     environment: environment.production ? 'prod' : 'dev',
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
+      Sentry.replayIntegration({
+        maskAllText: false
+      }),
     ],
     ignoreErrors: [serverErrorsRegex],
     tracesSampleRate: environment.production ? 0.4 : 1.0,
@@ -39,7 +41,5 @@ if (environment.loggingKey && environment.loggingKey !== 'LOGGINGKEY' && environ
   });
 }
 
-platformBrowserDynamic()
-  .bootstrapModule(AppModule)
-  .then((success) => console.log(`Bootstrap success`))
-  .catch((err) => console.error(err));
+platformBrowserDynamic().bootstrapModule(AppModule)
+  .catch(err => console.log(err));
