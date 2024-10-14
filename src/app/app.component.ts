@@ -94,9 +94,9 @@ export class AppComponent {
         this.toggleDarkTheme(mediaQuery.matches)
       );
 
+      await SplashScreen.hide();
       this.wireupAppEvents();
       await this.sleepProvider.init();
-      await SplashScreen.hide();
 
       if (!this.$activeUnitSub || this.$activeUnitSub.closed) {
         this.$activeUnitSub = this.activeUnit$.subscribe((unit) => {
