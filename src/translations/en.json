@@ -26,7 +26,8 @@
     "view_details": "View Details",
     "directions": "Directions",
     "deselect": "Deselect",
-    "no_open_calls": "No open calls available"
+    "no_open_calls": "No open calls available",
+    "no_calls_description": "No active calls found. Select an active call to view details."
   },
   "settings": {
     "general": "General",
@@ -105,7 +106,8 @@
     "loading": "Loading...",
     "done": "Done",
     "close": "Close",
-    "go_back": "Go Back"
+    "go_back": "Go Back",
+    "search": "Search..."
   },
   "notes": {
     "title": "Notes",
@@ -139,11 +141,20 @@
     "no_protocols": "No protocols attached to this call",
     "no_dispatched": "No units dispatched to this call",
     "no_timeline": "No timeline events available",
-    "contact_name": "Name",
+    "contact_name": "Contact Name",
     "contact_phone": "Phone",
     "contact_email": "Email",
     "unit": "Unit",
     "status": "Status",
+    "reference_id": "Reference ID",
+    "external_id": "External ID",
+    "address": "Address",
+    "note": "Note",
+    "type": "Type",
+    "timestamp": "Timestamp",
+    "nature": "Nature",
+    "contact_info": "Contact Info",
+    "priority": "Priority",
     "tabs": {
       "info": "Info",
       "contact": "Contact",

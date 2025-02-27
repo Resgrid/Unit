@@ -8,9 +8,10 @@ import { HStack } from '@/components/ui/hstack';
 import { VStack } from '@/components/ui/vstack';
 import { Button, ButtonText, ButtonIcon } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
-
+import RenderHtml from 'react-native-render-html';
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { format } from 'date-fns';
 import {
   MapIcon,
   FileTextIcon,
@@ -28,6 +29,7 @@ import StaticMap from '@/components/maps/static-map';
 import { SharedTabs, TabItem } from '@/components/ui/shared-tabs';
 import { Loading } from '@/components/ui/loading';
 import ZeroState from '@/components/common/zero-state';
+import { styles } from '@gorhom/bottom-sheet/lib/typescript/components/bottomSheetScrollable/BottomSheetFlashList';
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
   const callId = Array.isArray(id) ? id[0] : id;
@@ -64,7 +66,7 @@ export default function CallDetail() {
       <>
         <Stack.Screen
           options={{
-            title: call?.CallNumber || t('call_detail.title'),
+            title: t('call_detail.title'),
             headerShown: true,
           }}
         />
@@ -81,7 +83,7 @@ export default function CallDetail() {
       <>
         <Stack.Screen
           options={{
-            title: call?.CallNumber || t('call_detail.title'),
+            title: t('call_detail.title'),
             headerShown: true,
           }}
         />
@@ -131,22 +133,38 @@ export default function CallDetail() {
         icon: <InfoIcon size={16} />,
         content: (
           <Box className="p-4">
-            {callExtraData ? (
               <VStack className="space-y-3">
-                {Object.entries(callExtraData.AdditionalInfo || {}).map(
-                  ([key, value]) => (
-                    <Box key={key} className="border-b border-gray-100 pb-2">
-                      <Text className="text-gray-500 text-sm">{key}</Text>
-                      <Text className="font-medium">
-                        {value || t('call_detail.not_available')}
-                      </Text>
-                    </Box>
-                  )
-                )}
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">{t('call_detail.priority')}</Text>
+                  <Text className="font-medium">
+                    
+                   </Text>
+                </Box>
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">{t('call_detail.timestamp')}</Text>
+                  <Text className="font-medium">
+                    {format(new Date(call.LoggedOn), 'MMM d, h:mm a')}
+                   </Text>
+                </Box>
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">{t('call_detail.type')}</Text>
+                  <Text className="font-medium">
+                    {call.Type}
+                   </Text>
+                </Box>
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">{t('call_detail.address')}</Text>
+                  <Text className="font-medium">
+                    {call.Address}
+                   </Text>
+                </Box>
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">{t('call_detail.note')}</Text>
+                  <Text className="font-medium">
+                    {call.Note}
+                   </Text>
+                </Box>
               </VStack>
-            ) : (
-              <Text>{t('call_detail.no_additional_info')}</Text>
-            )}
           </Box>
         ),
       },
@@ -156,39 +174,40 @@ export default function CallDetail() {
         icon: <UserIcon size={16} />,
         content: (
           <Box className="p-4">
-            {callExtraData?.ContactInfo ? (
               <VStack className="space-y-3">
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">
+                    {t('call_detail.reference_id')}
+                  </Text>
+                  <Text className="font-medium">
+                    {call.ReferenceId}
+                  </Text>
+                </Box>
+                <Box className="border-b border-gray-100 pb-2">
+                  <Text className="text-gray-500 text-sm">
+                    {t('call_detail.external_id')}
+                  </Text>
+                  <Text className="font-medium">
+                    {call.ExternalId}
+                  </Text>
+                </Box>
                 <Box className="border-b border-gray-100 pb-2">
                   <Text className="text-gray-500 text-sm">
                     {t('call_detail.contact_name')}
                   </Text>
                   <Text className="font-medium">
-                    {callExtraData.ContactInfo.Name ||
-                      t('call_detail.not_available')}
+                    {call.ContactName}
                   </Text>
                 </Box>
                 <Box className="border-b border-gray-100 pb-2">
                   <Text className="text-gray-500 text-sm">
-                    {t('call_detail.contact_phone')}
+                    {t('call_detail.contact_info')}
                   </Text>
                   <Text className="font-medium">
-                    {callExtraData.ContactInfo.Phone ||
-                      t('call_detail.not_available')}
-                  </Text>
-                </Box>
-                <Box className="border-b border-gray-100 pb-2">
-                  <Text className="text-gray-500 text-sm">
-                    {t('call_detail.contact_email')}
-                  </Text>
-                  <Text className="font-medium">
-                    {callExtraData.ContactInfo.Email ||
-                      t('call_detail.not_available')}
+                    {call.ContactInfo}
                   </Text>
                 </Box>
               </VStack>
-            ) : (
-              <Text>{t('call_detail.no_contact_info')}</Text>
-            )}
           </Box>
         ),
       },
@@ -283,37 +302,31 @@ export default function CallDetail() {
     <>
       <Stack.Screen
         options={{
-          title: call?.CallNumber || t('call_detail.title'),
+          title: t('call_detail.title'),
           headerShown: true,
         }}
       />
-      <SafeAreaView className="size-full flex-1">
+      <View className="size-full flex-1">
         <FocusAwareStatusBar />
         <ScrollView className="flex-1 bg-gray-50">
           {/* Header */}
           <Box className="p-4 bg-white shadow-sm">
             <HStack className="items-center mb-2">
-              <Button
-                variant="link"
-                onPress={handleBack}
-                className="mr-2"
-                size="sm"
-              >
-                <ButtonIcon as={ArrowLeftIcon} />
-              </Button>
-              <Heading size="md">{call.CallNumber}</Heading>
+              <Heading size="md">{call.Name} ({call.Number})</Heading>
             </HStack>
             <VStack className="space-y-1">
-              <Text className="text-lg font-semibold">{call.CallType}</Text>
-              <Text className="text-gray-600">{call.Address}</Text>
-              <HStack className="space-x-2">
-                <Text className="text-sm bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                  {call.Priority}
-                </Text>
-                <Text className="text-sm bg-gray-100 text-gray-800 px-2 py-0.5 rounded-full">
-                  {call.Status}
-                </Text>
-              </HStack>
+              <RenderHtml
+              source={{ html: call.Nature }}
+              tagsStyles={{
+                body: {
+                  fontSize: 16,
+                },
+                p: {
+                  margin: 0,
+                  padding: 0,
+                },
+              }}
+            />
             </VStack>
           </Box>
 
@@ -358,11 +371,11 @@ export default function CallDetail() {
           </HStack>
 
           {/* Tabs */}
-          <Box className="bg-white mt-4 pb-8">
+          <Box className="bg-white mt-4 pb-8 flex-1">
             <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
           </Box>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </>
   );
 }

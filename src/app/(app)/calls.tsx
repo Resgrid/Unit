@@ -54,9 +54,7 @@ export default function Calls() {
         <Box className="px-4 py-2">
           <Input className="bg-white">
             <InputSlot>
-              <InputIcon>
-                <SearchIcon size={20} className="text-gray-500" />
-              </InputIcon>
+              <SearchIcon size={20} className="text-gray-500" />
             </InputSlot>
             <InputField
               placeholder={t('common.search')}

@@ -8,8 +8,8 @@ import Mapbox from '@rnmapbox/maps';
 // Mapbox.setAccessToken('YOUR_MAPBOX_ACCESS_TOKEN');
 
 interface StaticMapProps {
-  latitude: number;
-  longitude: number;
+  latitude: string;
+  longitude: string;
   address?: string;
   zoom?: number;
   height?: number;
@@ -47,14 +47,14 @@ const StaticMap: React.FC<StaticMapProps> = ({
       >
         <Mapbox.Camera
           zoomLevel={zoom}
-          centerCoordinate={[longitude, latitude]}
+          centerCoordinate={[parseFloat(longitude), parseFloat(latitude)]}
           animationMode="flyTo"
           animationDuration={1000}
         />
         {/* Marker for the location */}
         <Mapbox.PointAnnotation
           id="destinationPoint"
-          coordinate={[longitude, latitude]}
+          coordinate={[parseFloat(longitude), parseFloat(latitude)]}
           title={address || 'Location'}
         >
           <Box />

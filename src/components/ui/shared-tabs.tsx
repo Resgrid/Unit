@@ -74,7 +74,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   const getTabStyles = (index: number) => {
     const isActive = index === currentIndex;
 
-    const baseStyles = 'flex items-center justify-center';
+    const baseStyles = 'flex-1 flex items-center justify-center';
     const sizeStyles = {
       sm: 'px-3 py-1.5 text-xs',
       md: 'px-4 py-2 text-sm',
@@ -101,7 +101,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
 
   // Container styles based on variant
   const getContainerStyles = () => {
-    const baseStyles = 'flex flex-row';
+    const baseStyles = 'flex flex-row flex-1';
 
     const variantStyles = {
       default: 'border-b border-gray-200',
