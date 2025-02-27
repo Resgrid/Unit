@@ -1,0 +1,221 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { CallResultData } from '@/models/v4/calls/callResultData';
+import { UnitResultData } from '@/models/v4/units/unitResultData';
+import { UnitStatusResultData } from '@/models/v4/unitStatus/unitStatusResultData';
+import {
+  getActiveCallId,
+  getActiveUnitId,
+  setActiveCallId,
+  setActiveUnitId,
+} from '@/lib/storage/app';
+import { useUnitsStore } from '../units/store';
+import { getUnitStatus } from '@/api/units/unitStatuses';
+import { logger } from '@/lib/logging';
+import { StatusesResultData } from '@/models/v4/statuses/statusesResultData';
+import { zustandStorage } from '@/lib/storage';
+import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import { useCallsStore } from '../calls/store';
+import { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
+import { getAllUnitStatuses } from '@/api/satuses/statuses';
+import _ from 'lodash';
+
+interface CoreState {
+  activeUnitId: string | null;
+  activeUnit: UnitResultData | null;
+  activeUnitStatus: UnitStatusResultData | null;
+  activeUnitStatusType: StatusesResultData | null;
+  activeStatuses: UnitTypeStatusResultData | null;
+
+  activeCallId: string | null;
+  activeCall: CallResultData | null;
+  activePriority: CallPriorityResultData | null;
+
+  isLoading: boolean;
+  error: string | null;
+  init: () => Promise<void>;
+  setActiveUnit: (unitId: string) => void;
+  setActiveUnitWithFetch: (unitId: string) => Promise<void>;
+  setActiveCall: (callId: string | null) => Promise<void>;
+}
+
+export const useCoreStore = create<CoreState>()(
+  persist(
+    (set, get) => ({
+      activeUnitId: null,
+      activeUnit: null,
+      activeUnitStatus: null,
+      activeUnitStatusType: null,
+      activeCallId: null,
+      activeCall: null,
+      activePriority: null,
+      isLoading: false,
+      error: null,
+      activeStatuses: null,
+      init: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const activeUnitId = getActiveUnitId();
+          const activeCallId = getActiveCallId();
+
+          if (activeUnitId) {
+            const unitsStore = useUnitsStore();
+            await unitsStore.fetchUnits();
+            const activeUnit = unitsStore.units.find(
+              (unit) => unit.UnitId === activeUnitId
+            );
+            set({ activeUnit: activeUnit, isLoading: false });
+          }
+
+          if (activeCallId) {
+            const callStore = useCallsStore();
+            await callStore.fetchCalls();
+            await callStore.fetchCallPriorities();
+            const activeCall = callStore.calls.find(
+              (call) => call.CallId === activeCallId
+            );
+            const activePriority = callStore.callPriorities.find(
+              (priority) => priority.Id === activeCall?.Priority
+            );
+            set({
+              activeCall: activeCall,
+              activePriority: activePriority,
+              isLoading: false,
+            });
+          }
+        } catch (error) {
+          set({ error: 'Failed to init core app data', isLoading: false });
+          logger.error({
+            message: `Failed to init core app data: ${JSON.stringify(error)}`,
+            context: { error },
+          });
+        }
+      },
+      setActiveUnit: async (unitId: string) => {
+        set({ isLoading: true, error: null, activeUnitId: unitId });
+        try {
+          await setActiveUnitId(unitId);
+          const units = useUnitsStore.getState().units;
+          const unitStatuses = useUnitsStore.getState().unitStatuses;
+          const activeUnit = units.find((unit) => unit.UnitId === unitId);
+          if (activeUnit) {
+            let activeStatuses: UnitTypeStatusResultData | undefined =
+              undefined;
+            const allStatuses = await getAllUnitStatuses();
+            const defaultStatuses = _.find(allStatuses.Data, ['UnitType', '0']);
+
+            if (activeUnit.Type) {
+              const statusesForType = _.find(allStatuses.Data, [
+                'UnitType',
+                activeUnit.Type.toString(),
+              ]);
+
+              if (statusesForType) {
+                activeStatuses = statusesForType;
+              } else {
+                activeStatuses = defaultStatuses;
+              }
+            } else {
+              activeStatuses = defaultStatuses;
+            }
+
+            set({
+              activeUnit: activeUnit,
+              activeStatuses: activeStatuses,
+              isLoading: false,
+            });
+          }
+
+          const unitStatus = await getUnitStatus(unitId);
+
+          if (unitStatus) {
+            const unitStatusType = unitStatuses.find(
+              (status) => status.UnitType === activeUnit?.Type
+            );
+            if (unitStatusType) {
+              const unitStatusInfo = unitStatusType.Statuses.find(
+                (status) => status.Text === unitStatus.Data.State
+              );
+              set({
+                activeUnitStatus: unitStatus.Data,
+                activeUnitStatusType: unitStatusInfo,
+              });
+            }
+          }
+        } catch (error) {
+          set({ error: 'Failed to set active unit', isLoading: false });
+          logger.error({
+            message: `Failed to set active unit: ${JSON.stringify(error)}`,
+            context: { error },
+          });
+        }
+      },
+      setActiveUnitWithFetch: async (unitId: string) => {
+        set({ isLoading: true, error: null, activeUnitId: unitId });
+        try {
+          await useUnitsStore.getState().fetchUnits();
+
+          const units = useUnitsStore.getState().units;
+          const activeUnit = units.find((unit) => unit.UnitId === unitId);
+
+          const unitStatus = await getUnitStatus(unitId);
+
+          set({
+            activeUnit: activeUnit,
+            activeUnitStatus: unitStatus.Data,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({
+            error: 'Failed to fetch and set active unit',
+            isLoading: false,
+          });
+          logger.error({
+            message: `Failed to fetch and set active unit: ${JSON.stringify(error)}`,
+            context: { error },
+          });
+        }
+      },
+      setActiveCall: async (callId: string | null) => {
+        if (!callId) {
+          // Deselect the call
+          set({
+            activeCall: null,
+            activePriority: null,
+            activeCallId: null,
+          });
+          return;
+        }
+
+        set({ isLoading: true, error: null, activeCallId: callId });
+        try {
+          await setActiveCallId(callId);
+          const callStore = useCallsStore.getState();
+          await callStore.fetchCalls();
+          await callStore.fetchCallPriorities();
+          const activeCall = callStore.calls.find(
+            (call) => call.CallId === callId
+          );
+          const activePriority = callStore.callPriorities.find(
+            (priority) => priority.Id === activeCall?.Priority
+          );
+          set({
+            activeCall: activeCall,
+            activePriority: activePriority,
+            isLoading: false,
+          });
+        } catch (error) {
+          set({ error: 'Failed to set active call', isLoading: false });
+          logger.error({
+            message: `Failed to set active call: ${JSON.stringify(error)}`,
+            context: { error },
+          });
+        }
+      },
+    }),
+    {
+      name: 'core-storage',
+      storage: createJSONStorage(() => zustandStorage),
+    }
+  )
+);
