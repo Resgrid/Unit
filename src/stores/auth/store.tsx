@@ -1,9 +1,7 @@
-import jwt from 'expo-jwt';
 import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { setItem, zustandStorage } from '../../lib/storage';
 import { loginRequest, refreshTokenRequest } from '../../lib/auth/api';
 import type {
   AuthResponse,
@@ -12,6 +10,7 @@ import type {
 } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
+import { setItem, zustandStorage } from '../../lib/storage';
 
 const useAuthStore = create<AuthState>()(
   persist(

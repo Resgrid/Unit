@@ -1,24 +1,26 @@
+import _ from 'lodash';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { CallResultData } from '@/models/v4/calls/callResultData';
-import { UnitResultData } from '@/models/v4/units/unitResultData';
-import { UnitStatusResultData } from '@/models/v4/unitStatus/unitStatusResultData';
+
+import { getAllUnitStatuses } from '@/api/satuses/statuses';
+import { getUnitStatus } from '@/api/units/unitStatuses';
+import { logger } from '@/lib/logging';
+import { zustandStorage } from '@/lib/storage';
 import {
   getActiveCallId,
   getActiveUnitId,
   setActiveCallId,
   setActiveUnitId,
 } from '@/lib/storage/app';
-import { useUnitsStore } from '../units/store';
-import { getUnitStatus } from '@/api/units/unitStatuses';
-import { logger } from '@/lib/logging';
-import { StatusesResultData } from '@/models/v4/statuses/statusesResultData';
-import { zustandStorage } from '@/lib/storage';
-import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import { type CallResultData } from '@/models/v4/calls/callResultData';
+import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
+import { type UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
+import { type UnitResultData } from '@/models/v4/units/unitResultData';
+import { type UnitStatusResultData } from '@/models/v4/unitStatus/unitStatusResultData';
+
 import { useCallsStore } from '../calls/store';
-import { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
-import { getAllUnitStatuses } from '@/api/satuses/statuses';
-import _ from 'lodash';
+import { useUnitsStore } from '../units/store';
 
 interface CoreState {
   activeUnitId: string | null;
