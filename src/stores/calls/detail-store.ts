@@ -6,6 +6,14 @@ import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityR
 import { useCallsStore } from './store';
 import { CallNoteResultData } from '@/models/v4/callNotes/callNoteResultData';
 import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
+
+interface CallImage {
+  id: string;
+  url: string;
+  name: string;
+  timestamp: string;
+}
+
 interface CallDetailState {
   call: CallResultData | null;
   callExtraData: CallExtraDataResultData | null;
@@ -19,6 +27,11 @@ interface CallDetailState {
   fetchCallNotes: (callId: string) => Promise<void>;
   addNote: (callId: string, note: string, userId: string, latitude: number | null, longitude: number | null) => Promise<void>;
   searchNotes: (query: string) => CallNoteResultData[];
+  callImages: CallImage[] | null;
+  isLoadingImages: boolean;
+  errorImages: string | null;
+  fetchCallImages: (callId: string) => Promise<void>;
+  uploadCallImage: (callId: string, imageUri: string, name: string) => Promise<void>;
 }
 
 export const useCallDetailStore = create<CallDetailState>((set) => ({
@@ -29,6 +42,9 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
   isLoading: false,
   error: null,
   isNotesLoading: false,
+  callImages: null,
+  isLoadingImages: false,
+  errorImages: null,
   reset: () =>
     set({ call: null, callExtraData: null, callPriority: null, isLoading: false, isNotesLoading: false, error: null }),
   fetchCallDetail: async (callId: string) => {
@@ -107,5 +123,61 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
       note.Note.toLowerCase().includes(query.toLowerCase()) ||
       note.FullName.toLowerCase().includes(query.toLowerCase())
     );
+  },
+  fetchCallImages: async (callId: string) => {
+    set({ isLoadingImages: true, errorImages: null });
+    try {
+      // Replace with your actual API call
+      // This is a mock implementation
+      const response = await new Promise<CallImage[]>((resolve) => {
+        setTimeout(() => {
+          resolve([
+            {
+              id: '1',
+              url: 'https://picsum.photos/id/237/500/500',
+              name: 'Scene photo 1',
+              timestamp: new Date().toISOString(),
+            },
+            {
+              id: '2',
+              url: 'https://picsum.photos/id/238/500/500',
+              name: 'Evidence photo',
+              timestamp: new Date().toISOString(),
+            },
+            {
+              id: '3',
+              url: 'https://picsum.photos/id/239/500/500',
+              name: 'Location overview',
+              timestamp: new Date().toISOString(),
+            },
+          ]);
+        }, 1000);
+      });
+      
+      set({ callImages: response, isLoadingImages: false });
+    } catch (error) {
+      console.error('Error fetching call images:', error);
+      set({ 
+        errorImages: error instanceof Error ? error.message : 'Failed to load images', 
+        isLoadingImages: false 
+      });
+    }
+  },
+  uploadCallImage: async (callId: string, imageUri: string, name: string) => {
+    try {
+      // Replace with your actual API call
+      // This is a mock implementation
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 1500);
+      });
+      
+      // After successful upload, refresh the images list
+      useCallDetailStore.getState().fetchCallImages(callId);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
   },
 }));

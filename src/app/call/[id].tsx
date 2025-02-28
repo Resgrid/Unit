@@ -30,6 +30,7 @@ import { SharedTabs, TabItem } from '@/components/ui/shared-tabs';
 import { Loading } from '@/components/ui/loading';
 import ZeroState from '@/components/common/zero-state';
 import CallNotesModal from '../../components/calls/call-notes-modal';
+import CallImagesModal from '../../components/calls/call-images-modal';
 
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
@@ -44,6 +45,7 @@ export default function CallDetail() {
   const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } =
     useCallDetailStore();
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
 
   useEffect(() => {
     reset();
@@ -79,7 +81,7 @@ export default function CallDetail() {
   };
 
   const openImagesModal = () => {
-    // TODO: Implement images modal
+    setIsImagesModalOpen(true);
   };
 
   const openFilesModal = () => {
@@ -467,6 +469,11 @@ export default function CallDetail() {
         isOpen={isNotesModalOpen} 
         onClose={() => setIsNotesModalOpen(false)} 
         callId={callId} 
+      />
+      <CallImagesModal
+        isOpen={isImagesModalOpen}
+        onClose={() => setIsImagesModalOpen(false)}
+        callId={callId}
       />
     </>
   );

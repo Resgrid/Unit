@@ -2,11 +2,6 @@
 import '../../global.css';
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
@@ -23,6 +18,8 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { APIProvider } from '@/api';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ThemeProvider } from '@/theme/ThemeProvider';
+import { darkTheme, lightTheme } from '@/theme/theme';
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
@@ -61,7 +58,7 @@ function Providers({ children }: { children: React.ReactNode }) {
             mode={(colorScheme ?? 'light') as 'light' | 'dark'}
           >
             <ThemeProvider
-              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+              theme={colorScheme === 'dark' ? darkTheme : lightTheme}
             >
               <APIProvider>
                 <BottomSheetModalProvider>
