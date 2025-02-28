@@ -27,7 +27,8 @@
     "directions": "Directions",
     "deselect": "Deselect",
     "no_open_calls": "No open calls available",
-    "no_calls_description": "No active calls found. Select an active call to view details."
+    "no_calls_description": "No active calls found. Select an active call to view details.",
+    "viewNotes": "Notes"
   },
   "settings": {
     "general": "General",
@@ -135,6 +136,7 @@
     "images": "Images",
     "files": "Files",
     "title": "Call Details",
+    "group": "Group",
     "not_available": "N/A",
     "no_additional_info": "No additional information available",
     "no_contact_info": "No contact information available",
@@ -160,7 +162,7 @@
       "contact": "Contact",
       "protocols": "Protocols",
       "dispatched": "Dispatched",
-      "timeline": "Timeline"
+      "timeline": "Activity"
     }
   },
   "contacts": {
@@ -172,5 +174,13 @@
     "loadingData": "Loading data...",
     "pleaseWait": "Please wait",
     "processingRequest": "Processing your request..."
+  },
+  "callNotes": {
+    "title": "Call Notes",
+    "searchPlaceholder": "Search notes...",
+    "addNotePlaceholder": "Add a new note...",
+    "addNote": "Add Note",
+    "noNotes": "No notes available for this call",
+    "noSearchResults": "No notes match your search"
   }
 }

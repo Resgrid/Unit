@@ -132,7 +132,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
               {typeof tab.title === 'string' ? (
                 <Text>{t(tab.title)}</Text>
               ) : (
-                tab.title
+                <Text className="text-gray-800">{tab.title}</Text>
               )}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className="ml-1.5 bg-red-500 rounded-full px-1.5 py-0.5 min-w-[20px] items-center">
@@ -154,9 +154,9 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
             >
               {tab.icon && <Box className="mr-1.5">{tab.icon}</Box>}
               {typeof tab.title === 'string' ? (
-                <Text>{t(tab.title)}</Text>
+                <Text className="text-gray-800">{t(tab.title)}</Text>
               ) : (
-                tab.title
+                <Text className="text-gray-800">{tab.title}</Text>
               )}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className="ml-1.5 bg-red-500 rounded-full px-1.5 py-0.5 min-w-[20px] items-center">

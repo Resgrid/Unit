@@ -3,13 +3,14 @@ import { StyleSheet } from 'react-native';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import Mapbox from '@rnmapbox/maps';
+import { useTranslation } from 'react-i18next';
 
 // Initialize Mapbox - this should be done in your app's entry point
 // Mapbox.setAccessToken('YOUR_MAPBOX_ACCESS_TOKEN');
 
 interface StaticMapProps {
-  latitude: string;
-  longitude: string;
+  latitude: number;
+  longitude: number;
   address?: string;
   zoom?: number;
   height?: number;
@@ -24,13 +25,14 @@ const StaticMap: React.FC<StaticMapProps> = ({
   height = 200,
   showUserLocation = false,
 }) => {
+  const { t } = useTranslation();
   if (!latitude || !longitude) {
     return (
       <Box
         style={[styles.container, { height }]}
         className="items-center justify-center bg-gray-200"
       >
-        <Text className="text-gray-500">No location data available</Text>
+        <Text className="text-gray-500">{t('call_detail.no_location')}</Text>
       </Box>
     );
   }
@@ -47,14 +49,14 @@ const StaticMap: React.FC<StaticMapProps> = ({
       >
         <Mapbox.Camera
           zoomLevel={zoom}
-          centerCoordinate={[parseFloat(longitude), parseFloat(latitude)]}
+          centerCoordinate={[longitude, latitude]}
           animationMode="flyTo"
           animationDuration={1000}
         />
         {/* Marker for the location */}
         <Mapbox.PointAnnotation
           id="destinationPoint"
-          coordinate={[parseFloat(longitude), parseFloat(latitude)]}
+          coordinate={[longitude, latitude]}
           title={address || 'Location'}
         >
           <Box />

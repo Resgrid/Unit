@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
@@ -29,14 +29,21 @@ import StaticMap from '@/components/maps/static-map';
 import { SharedTabs, TabItem } from '@/components/ui/shared-tabs';
 import { Loading } from '@/components/ui/loading';
 import ZeroState from '@/components/common/zero-state';
-import { styles } from '@gorhom/bottom-sheet/lib/typescript/components/bottomSheetScrollable/BottomSheetFlashList';
+import CallNotesModal from '../../components/calls/call-notes-modal';
+
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
   const callId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { t } = useTranslation();
-  const { call, callExtraData, isLoading, error, fetchCallDetail, reset } =
+  const { width } = useWindowDimensions();
+  const [coordinates, setCoordinates] = useState<{ latitude: number | null; longitude: number | null }>({
+    latitude: null,
+    longitude: null
+  });
+  const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } =
     useCallDetailStore();
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
 
   useEffect(() => {
     reset();
@@ -45,12 +52,30 @@ export default function CallDetail() {
     }
   }, [callId, fetchCallDetail]);
 
+  useEffect(() => {
+    if (call) {
+      if (call.Latitude && call.Longitude) {
+        setCoordinates({
+          latitude: parseFloat(call.Latitude),
+          longitude: parseFloat(call.Longitude)
+        });
+      } else if (call.Geolocation) {
+        const [lat, lng] = call.Geolocation.split(',');
+        setCoordinates({
+          latitude: parseFloat(lat),
+          longitude: parseFloat(lng)
+        });
+      }
+    }
+  }, [call]);
+
   const handleBack = () => {
     router.back();
   };
 
   const openNotesModal = () => {
-    // TODO: Implement notes modal
+    useCallDetailStore.getState().fetchCallNotes(callId);
+    setIsNotesModalOpen(true);
   };
 
   const openImagesModal = () => {
@@ -136,8 +161,8 @@ export default function CallDetail() {
               <VStack className="space-y-3">
                 <Box className="border-b border-gray-100 pb-2">
                   <Text className="text-gray-500 text-sm">{t('call_detail.priority')}</Text>
-                  <Text className="font-medium">
-                    
+                  <Text className="font-medium" style={{ color: callPriority?.Color }}>
+                    {callPriority?.Name}
                    </Text>
                 </Box>
                 <Box className="border-b border-gray-100 pb-2">
@@ -160,9 +185,23 @@ export default function CallDetail() {
                 </Box>
                 <Box className="border-b border-gray-100 pb-2">
                   <Text className="text-gray-500 text-sm">{t('call_detail.note')}</Text>
-                  <Text className="font-medium">
-                    {call.Note}
-                   </Text>
+                  <Box>
+                    <Text className="text-gray-800">
+                      <RenderHtml
+                        contentWidth={width}
+                        source={{ html: call.Note }}
+                        tagsStyles={{
+                          body: {
+                            fontSize: 16,
+                          },
+                          p: {
+                            margin: 0,
+                            padding: 0,
+                          },
+                        }}
+                      />
+                    </Text>
+                  </Box>
                 </Box>
               </VStack>
           </Box>
@@ -225,6 +264,23 @@ export default function CallDetail() {
                     <Text className="text-sm text-gray-600">
                       {protocol.Description}
                     </Text>
+                    <Box>
+                      <Text className="text-gray-800">
+                        <RenderHtml
+                          contentWidth={width}
+                          source={{ html: protocol.ProtocolText }}
+                          tagsStyles={{
+                            body: {
+                              fontSize: 16,
+                            },
+                            p: {
+                              margin: 0,
+                              padding: 0,
+                            },
+                          }}
+                        />
+                      </Text>
+                    </Box>
                   </Box>
                 ))}
               </VStack>
@@ -240,18 +296,18 @@ export default function CallDetail() {
         icon: <UsersIcon size={16} />,
         content: (
           <Box className="p-4">
-            {callExtraData?.Dispatched &&
-            callExtraData.Dispatched.length > 0 ? (
+            {callExtraData?.Dispatches &&
+            callExtraData.Dispatches.length > 0 ? (
               <VStack className="space-y-3">
-                {callExtraData.Dispatched.map((dispatched, index) => (
+                {callExtraData.Dispatches.map((dispatched, index) => (
                   <Box key={index} className="bg-gray-50 p-3 rounded-lg">
                     <Text className="font-semibold">{dispatched.Name}</Text>
                     <HStack className="mt-1">
                       <Text className="text-sm text-gray-600 mr-2">
-                        {t('call_detail.unit')}: {dispatched.Unit}
+                        {t('call_detail.group')}: {dispatched.Group}
                       </Text>
                       <Text className="text-sm text-gray-600">
-                        {t('call_detail.status')}: {dispatched.Status}
+                        {t('call_detail.type')}: {dispatched.Type}
                       </Text>
                     </HStack>
                   </Box>
@@ -267,22 +323,25 @@ export default function CallDetail() {
         key: 'timeline',
         title: t('call_detail.tabs.timeline'),
         icon: <ClockIcon size={16} />,
-        badge: callExtraData?.Timeline?.length || 0,
+        badge: callExtraData?.Activity?.length || 0,
         content: (
           <Box className="p-4">
-            {callExtraData?.Timeline && callExtraData.Timeline.length > 0 ? (
+            {callExtraData?.Activity && callExtraData.Activity.length > 0 ? (
               <VStack className="space-y-3">
-                {callExtraData.Timeline.map((event, index) => (
+                {callExtraData.Activity.map((event, index) => (
                   <Box
                     key={index}
                     className="border-l-4 border-blue-500 pl-3 py-1"
                   >
-                    <Text className="font-semibold">{event.Status}</Text>
+                    <Text className="font-semibold" style={{ color: event.StatusColor }}>{event.StatusText}</Text>
                     <Text className="text-sm text-gray-600">
-                      {event.User} - {event.Unit}
+                      {event.Name} - {event.Group}
                     </Text>
                     <Text className="text-xs text-gray-500">
                       {new Date(event.Timestamp).toLocaleString()}
+                    </Text>
+                    <Text className="text-xs text-gray-500">
+                      {event.Note}
                     </Text>
                   </Box>
                 ))}
@@ -315,42 +374,56 @@ export default function CallDetail() {
               <Heading size="md">{call.Name} ({call.Number})</Heading>
             </HStack>
             <VStack className="space-y-1">
-              <RenderHtml
-              source={{ html: call.Nature }}
-              tagsStyles={{
-                body: {
-                  fontSize: 16,
-                },
-                p: {
-                  margin: 0,
-                  padding: 0,
-                },
-              }}
-            />
+              <Box>
+                <Text className="text-gray-800">
+                  <RenderHtml
+                    contentWidth={width}
+                    source={{ html: call.Nature }}
+                    tagsStyles={{
+                      body: {
+                        fontSize: 16,
+                      },
+                      p: {
+                        margin: 0,
+                        padding: 0,
+                      },
+                    }}
+                  />
+                </Text>
+              </Box>
             </VStack>
           </Box>
 
           {/* Map */}
           <Box className="w-full">
-            <StaticMap
-              latitude={call.Latitude}
-              longitude={call.Longitude}
-              address={call.Address}
-              zoom={15}
-              height={200}
-              showUserLocation={true}
-            />
+            {coordinates.latitude && coordinates.longitude ? (
+              <StaticMap
+                latitude={coordinates.latitude}
+                longitude={coordinates.longitude}
+                address={call.Address}
+                zoom={15}
+                height={200}
+                showUserLocation={true}
+              />
+            ) : null}
           </Box>
 
           {/* Action Buttons */}
           <HStack className="p-4 justify-around bg-white">
             <Button
-              onPress={openNotesModal}
+              onPress={() => openNotesModal()}
               variant="outline"
               className="flex-1 mx-1"
             >
               <ButtonIcon as={FileTextIcon} />
               <ButtonText>{t('call_detail.notes')}</ButtonText>
+              {call?.NotesCount ? (
+                <Box className="ml-1 px-1.5 py-0.5 bg-primary rounded-full">
+                  <Text className="text-xs text-white font-medium">
+                    {call.NotesCount}
+                  </Text>
+                </Box>
+              ) : null}
             </Button>
             <Button
               onPress={openImagesModal}
@@ -359,6 +432,13 @@ export default function CallDetail() {
             >
               <ButtonIcon as={ImageIcon} />
               <ButtonText>{t('call_detail.images')}</ButtonText>
+              {call?.ImgagesCount ? (
+                <Box className="ml-1 px-1.5 py-0.5 bg-primary rounded-full">
+                  <Text className="text-xs text-white font-medium">
+                    {call.ImgagesCount}
+                  </Text>
+                </Box>
+              ) : null}
             </Button>
             <Button
               onPress={openFilesModal}
@@ -367,6 +447,13 @@ export default function CallDetail() {
             >
               <ButtonIcon as={PaperclipIcon} />
               <ButtonText>{t('call_detail.files')}</ButtonText>
+              {call?.FileCount ? (
+                <Box className="ml-1 px-1.5 py-0.5 bg-primary rounded-full">
+                  <Text className="text-xs text-white font-medium">
+                    {call.FileCount}
+                  </Text>
+                </Box>
+              ) : null}
             </Button>
           </HStack>
 
@@ -376,6 +463,11 @@ export default function CallDetail() {
           </Box>
         </ScrollView>
       </View>
+      <CallNotesModal 
+        isOpen={isNotesModalOpen} 
+        onClose={() => setIsNotesModalOpen(false)} 
+        callId={callId} 
+      />
     </>
   );
 }
