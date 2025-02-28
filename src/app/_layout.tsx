@@ -5,21 +5,14 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
-import {
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  useColorScheme,
-} from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ThemeProvider } from '@/theme/ThemeProvider';
-import { darkTheme, lightTheme } from '@/theme/theme';
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
@@ -57,16 +50,12 @@ function Providers({ children }: { children: React.ReactNode }) {
           <GluestackUIProvider
             mode={(colorScheme ?? 'light') as 'light' | 'dark'}
           >
-            <ThemeProvider
-              theme={colorScheme === 'dark' ? darkTheme : lightTheme}
-            >
-              <APIProvider>
-                <BottomSheetModalProvider>
-                  {children}
-                  <FlashMessage position="top" />
-                </BottomSheetModalProvider>
-              </APIProvider>
-            </ThemeProvider>
+            <APIProvider>
+              <BottomSheetModalProvider>
+                {children}
+                <FlashMessage position="top" />
+              </BottomSheetModalProvider>
+            </APIProvider>
           </GluestackUIProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
