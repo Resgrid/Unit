@@ -1,30 +1,31 @@
-import React from 'react';
-import { Pressable, useWindowDimensions } from 'react-native';
-import { Box } from '@/components/ui/box';
-import { VStack } from '@/components/ui/vstack';
-import { HStack } from '@/components/ui/hstack';
-import { Text } from '@/components/ui/text';
-import { format } from 'date-fns';
-import type { CallResultData } from '@/models/v4/calls/callResultData';
-import { Icon } from '@/components/ui/icon';
-import { MapPin, Phone, Calendar, AlertTriangle } from 'lucide-react-native';
-import RenderHtml from 'react-native-render-html';
-import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
-import { invertColor } from '@/lib/utils';
+import { format } from "date-fns";
+import { AlertTriangle, Calendar, MapPin, Phone } from "lucide-react-native";
+import React from "react";
+import { useWindowDimensions } from "react-native";
+import RenderHtml from "react-native-render-html";
+
+import { Box } from "@/components/ui/box";
+import { HStack } from "@/components/ui/hstack";
+import { Icon } from "@/components/ui/icon";
+import { Text } from "@/components/ui/text";
+import { VStack } from "@/components/ui/vstack";
+import { invertColor } from "@/lib/utils";
+import { type CallPriorityResultData } from "@/models/v4/callPriorities/callPriorityResultData";
+import type { CallResultData } from "@/models/v4/calls/callResultData";
 
 function getColor(
   call: CallResultData,
-  priority: CallPriorityResultData | undefined
+  priority: CallPriorityResultData | undefined,
 ) {
   if (!call) {
-    return '#808080';
-  } else if (call.CallId === '0') {
-    return '#808080';
+    return "#808080";
+  } else if (call.CallId === "0") {
+    return "#808080";
   } else if (priority && priority.Color) {
     return priority.Color;
   }
 
-  return '#808080';
+  return "#808080";
 }
 
 interface CallCardProps {
@@ -41,17 +42,17 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
       style={{
         backgroundColor: getColor(call, priority),
       }}
-      className={`p-4 rounded-xl shadow-sm mb-4`}
+      className={`mb-4 rounded-xl p-4 shadow-sm`}
     >
       {/* Header with Call Number and Priority */}
-      <HStack className="justify-between items-center mb-4">
+      <HStack className="mb-4 items-center justify-between">
         <HStack className="items-center space-x-2">
           <AlertTriangle size={20} />
           <Text
             style={{
               color: textColor,
             }}
-            className={`font-bold text-lg`}
+            className={`text-lg font-bold`}
           >
             #{call.Number}
           </Text>
@@ -60,9 +61,9 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
           style={{
             color: textColor,
           }}
-          className="text-gray-600 text-sm"
+          className="text-sm text-gray-600"
         >
-          {format(new Date(call.LoggedOn), 'MMM d, h:mm a')}
+          {format(new Date(call.LoggedOn), "MMM d, h:mm a")}
         </Text>
       </HStack>
 
@@ -75,7 +76,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
             style={{
               color: textColor,
             }}
-            className="text-gray-900 font-medium"
+            className="font-medium text-gray-900"
           >
             {call.Name}
           </Text>
@@ -97,15 +98,15 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
         {/* Dispatched Time */}
         <HStack className="items-center space-x-2">
           <Icon as={Calendar} className="text-gray-500" size="md" />
-          <Text className="text-gray-600 text-sm">
-            Dispatched: {format(new Date(call.DispatchedOn), 'PPp')}
+          <Text className="text-sm text-gray-600">
+            Dispatched: {format(new Date(call.DispatchedOn), "PPp")}
           </Text>
         </HStack>
       </VStack>
 
       {/* Nature of Call */}
       {call.Nature && (
-        <Box className="mt-4 p-3 bg-white/50 rounded-lg">
+        <Box className="mt-4 rounded-lg bg-white/50 p-3">
           <Text style={{ color: textColor }} className="text-gray-800">
             <RenderHtml
               contentWidth={width}
