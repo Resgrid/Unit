@@ -5,6 +5,7 @@ import { CallExtraDataResultData } from '@/models/v4/calls/callExtraDataResultDa
 import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { useCallsStore } from './store';
 import { CallNoteResultData } from '@/models/v4/callNotes/callNoteResultData';
+//import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
 
 interface CallImage {
   id: string;
@@ -89,9 +90,31 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
   },
   fetchCallNotes: async (callId: string) => {
     set({ isNotesLoading: true });
+    /*try {
+      const callNotes = await getCallNotes(callId);
+      set({ 
+        callNotes: callNotes.Data || [], 
+        isNotesLoading: false 
+      });
+    } catch (error) {
+      set({ 
+        callNotes: [], 
+        isNotesLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch call notes'
+      });
+    }*/
   },
   addNote: async (callId: string, note: string, userId: string, latitude: number | null, longitude: number | null) => {
     set({ isNotesLoading: true });
+    /*try {
+      await saveCallNote(callId, userId, note, latitude, longitude);
+      await useCallDetailStore.getState().fetchCallNotes(callId);
+    } catch (error) {
+      set({ 
+        isNotesLoading: false,
+        error: error instanceof Error ? error.message : 'Failed to add note'
+      });
+    }*/
   },
   searchNotes: (query: string): CallNoteResultData[] => {
     const callNotes = useCallDetailStore.getState().callNotes;

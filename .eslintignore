@@ -1,0 +1,12 @@
+.eslintignorenode_modules
+__tests__/
+.vscode/
+android/
+coverage/
+ios/
+.expo
+.expo-shared
+docs/
+cli/
+node_modules/
+web/
