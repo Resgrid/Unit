@@ -108,7 +108,9 @@
     "done": "Done",
     "close": "Close",
     "go_back": "Go Back",
-    "search": "Search..."
+    "search": "Search...",
+    "permission_denied": "Permission denied",
+    "uploading": "Uploading..."
   },
   "notes": {
     "title": "Notes",

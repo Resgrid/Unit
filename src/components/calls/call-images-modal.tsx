@@ -1,17 +1,18 @@
-import { CameraIcon, PlusIcon, XIcon } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import * as ImagePicker from "expo-image-picker";
+import { CameraIcon, PlusIcon, XIcon } from "lucide-react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dimensions,
   FlatList,
   Image,
   TouchableOpacity,
   View,
-} from 'react-native';
+} from "react-native";
 
-import ZeroState from '@/components/common/zero-state';
-import { Loading } from '@/components/ui/loading';
-import { useCallDetailStore } from '@/stores/calls/detail-store';
+import ZeroState from "@/components/common/zero-state";
+import { Loading } from "@/components/ui/loading";
+import { useCallDetailStore } from "@/stores/calls/detail-store";
 
 import {
   Actionsheet,
@@ -21,13 +22,13 @@ import {
   ActionsheetDragIndicatorWrapper,
   ActionsheetItem,
   ActionsheetItemText,
-} from '../ui/actionsheet';
-import { Box } from '../ui/box';
-import { Button, ButtonIcon, ButtonText } from '../ui/button';
-import { HStack } from '../ui/hstack';
-import { Input, InputField } from '../ui/input';
-import { Text } from '../ui/text';
-import { VStack } from '../ui/vstack';
+} from "../ui/actionsheet";
+import { Box } from "../ui/box";
+import { Button, ButtonIcon, ButtonText } from "../ui/button";
+import { HStack } from "../ui/hstack";
+import { Input, InputField } from "../ui/input";
+import { Text } from "../ui/text";
+import { VStack } from "../ui/vstack";
 
 interface CallImagesModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ interface CallImage {
   timestamp: string;
 }
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 const CallImagesModal: React.FC<CallImagesModalProps> = ({
   isOpen,
@@ -52,7 +53,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [newImageName, setNewImageName] = useState('');
+  const [newImageName, setNewImageName] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAddingImage, setIsAddingImage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -72,35 +73,35 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   }, [isOpen, callId, fetchCallImages]);
 
   const handleImageSelect = async () => {
-    //const permissionResult =
-    // await ImagePicker.requestMediaLibraryPermissionsAsync();
-    //if (permissionResult.granted === false) {
-    //  alert(t('common.permission_denied'));
-    //   return;
-    //}
-    //const result = await ImagePicker.launchImageLibraryAsync({
-    //  mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    //  allowsEditing: true,
-    //  quality: 0.8,
-    //});
-    //if (!result.canceled) {
-    //  setSelectedImage(result.assets[0].uri);
-    //}
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      alert(t("common.permission_denied"));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
   };
 
   const handleCameraCapture = async () => {
-    //const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    //if (permissionResult.granted === false) {
-    //  alert(t('common.permission_denied'));
-    //  return;
-    //}
-    //const result = await ImagePicker.launchCameraAsync({
-    //  allowsEditing: true,
-    //  quality: 0.8,
-    //});
-    //if (!result.canceled) {
-    //  setSelectedImage(result.assets[0].uri);
-    //}
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (permissionResult.granted === false) {
+      alert(t("common.permission_denied"));
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0].uri);
+    }
   };
 
   const handleUploadImage = async () => {
@@ -111,13 +112,13 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
       await uploadCallImage(
         callId,
         selectedImage,
-        newImageName || t('call_images.default_name')
+        newImageName || t("call_images.default_name"),
       );
       setSelectedImage(null);
-      setNewImageName('');
+      setNewImageName("");
       setIsAddingImage(false);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      console.error("Error uploading image:", error);
     } finally {
       setIsUploading(false);
     }
@@ -156,7 +157,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
           <Box
             key={index}
             className={`size-2 rounded-full ${
-              index === activeIndex ? 'bg-primary' : 'bg-gray-300'
+              index === activeIndex ? "bg-primary" : "bg-gray-300"
             }`}
           />
         ))}
@@ -172,7 +173,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
     if (errorImages) {
       return (
         <ZeroState
-          heading={t('call_images.error')}
+          heading={t("call_images.error")}
           description={errorImages}
           isError={true}
         />
@@ -184,13 +185,13 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
         <VStack className="space-y-4 p-4">
           <HStack className="items-center justify-between">
             <Text className="text-lg font-bold">
-              {t('call_images.add_new')}
+              {t("call_images.add_new")}
             </Text>
             <TouchableOpacity
               onPress={() => {
                 setIsAddingImage(false);
                 setSelectedImage(null);
-                setNewImageName('');
+                setNewImageName("");
               }}
             >
               <XIcon size={24} />
@@ -206,7 +207,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
               />
               <Input className="mt-4 w-full">
                 <InputField
-                  placeholder={t('call_images.image_name')}
+                  placeholder={t("call_images.image_name")}
                   value={newImageName}
                   onChangeText={setNewImageName}
                 />
@@ -218,8 +219,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
               >
                 <ButtonText>
                   {isUploading
-                    ? t('common.uploading')
-                    : t('call_images.upload')}
+                    ? t("common.uploading")
+                    : t("call_images.upload")}
                 </ButtonText>
               </Button>
             </Box>
@@ -229,7 +230,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
                 <HStack className="items-center space-x-2">
                   <PlusIcon size={20} />
                   <ActionsheetItemText>
-                    {t('call_images.select_from_gallery')}
+                    {t("call_images.select_from_gallery")}
                   </ActionsheetItemText>
                 </HStack>
               </ActionsheetItem>
@@ -237,7 +238,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
                 <HStack className="items-center space-x-2">
                   <CameraIcon size={20} />
                   <ActionsheetItemText>
-                    {t('call_images.take_photo')}
+                    {t("call_images.take_photo")}
                   </ActionsheetItemText>
                 </HStack>
               </ActionsheetItem>
@@ -250,8 +251,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
     if (!callImages || callImages.length === 0) {
       return (
         <ZeroState
-          heading={t('call_images.no_images')}
-          description={t('call_images.no_images_description')}
+          heading={t("call_images.no_images")}
+          description={t("call_images.no_images_description")}
         />
       );
     }
@@ -287,7 +288,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
 
         <Box className="w-full p-4">
           <HStack className="mb-4 items-center justify-between">
-            <Text className="text-xl font-bold">{t('call_images.title')}</Text>
+            <Text className="text-xl font-bold">{t("call_images.title")}</Text>
             {!isAddingImage && (
               <Button
                 size="sm"
@@ -295,7 +296,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
                 onPress={() => setIsAddingImage(true)}
               >
                 <ButtonIcon as={PlusIcon} />
-                <ButtonText>{t('call_images.add')}</ButtonText>
+                <ButtonText>{t("call_images.add")}</ButtonText>
               </Button>
             )}
           </HStack>
