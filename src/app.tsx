@@ -1,3 +1,4 @@
+import React from 'react';
 import { ToastContainer } from './components/toast/toast-container';
 
 export default function App() {

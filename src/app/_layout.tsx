@@ -2,11 +2,6 @@
 import '../../global.css';
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
@@ -60,16 +55,12 @@ function Providers({ children }: { children: React.ReactNode }) {
           <GluestackUIProvider
             mode={(colorScheme ?? 'light') as 'light' | 'dark'}
           >
-            <ThemeProvider
-              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-            >
               <APIProvider>
                 <BottomSheetModalProvider>
                   {children}
                   <FlashMessage position="top" />
                 </BottomSheetModalProvider>
               </APIProvider>
-            </ThemeProvider>
           </GluestackUIProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
