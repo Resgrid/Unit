@@ -1,4 +1,3 @@
-import jwt from 'expo-jwt';
 import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -120,9 +119,8 @@ const useAuthStore = create<AuthState>()(
         try {
           const authResponse = getAuth();
           if (authResponse !== null) {
-            const decodedProfile: ProfileModel = jwt.decode(
-              authResponse.id_token!,
-              ''
+            const payload = sanitizeJson(
+              base64.decode(authResponse!.id_token!.split('.')[1])
             );
 
             set({
@@ -130,7 +128,7 @@ const useAuthStore = create<AuthState>()(
               refreshToken: authResponse.refresh_token,
               status: 'signedIn',
               error: null,
-              profile: decodedProfile,
+              profile: JSON.parse(payload) as ProfileModel,
             });
           } else {
             get().logout();
