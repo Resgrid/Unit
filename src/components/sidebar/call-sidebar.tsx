@@ -1,25 +1,20 @@
-import * as React from 'react';
-import { Text } from '@/components/ui/text';
-import { useCoreStore } from '@/stores/app/core-store';
-import { Card } from '../ui/card';
-import { CallCard } from '../calls/call-card';
-import { useTranslation } from 'react-i18next';
-import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
-import {
-  Check,
-  CircleX,
-  Eye,
-  MapPin,
-  PhoneCall,
-  XCircle,
-} from 'lucide-react-native';
-import { Pressable, ScrollView } from 'react-native';
-import { HStack } from '../ui/hstack';
-import { Button, ButtonIcon, ButtonText } from '../ui/button';
-import { useCallsStore } from '@/stores/calls/store';
-import { VStack } from '@/components/ui/vstack';
-import { useColorScheme } from 'nativewind';
 import { useQuery } from '@tanstack/react-query';
+import { Check, CircleX, Eye, MapPin } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
+import * as React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Pressable, ScrollView } from 'react-native';
+
+import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { useCoreStore } from '@/stores/app/core-store';
+import { useCallsStore } from '@/stores/calls/store';
+
+import { CallCard } from '../calls/call-card';
+import { Button, ButtonIcon } from '../ui/button';
+import { Card } from '../ui/card';
+import { HStack } from '../ui/hstack';
 
 export const SidebarCallCard = () => {
   const { colorScheme } = useColorScheme();
@@ -112,7 +107,7 @@ export const SidebarCallCard = () => {
         loadingText={t('common.loading')}
       >
         <ScrollView className="max-h-96 w-full">
-          <VStack space="lg" className="w-full mt-4">
+          <VStack space="lg" className="mt-4 w-full">
             <Text className="text-lg font-bold">
               {t('calls.select_active_call')}
             </Text>
@@ -123,7 +118,7 @@ export const SidebarCallCard = () => {
                   await setActiveCall(call.CallId);
                   setIsBottomSheetOpen(false);
                 }}
-                className={`p-4 rounded-lg border ${
+                className={`rounded-lg border p-4 ${
                   colorScheme === 'dark'
                     ? 'border-neutral-800 bg-neutral-800'
                     : 'border-neutral-200 bg-neutral-50'

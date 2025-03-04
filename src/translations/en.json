@@ -184,5 +184,19 @@
     "addNote": "Add Note",
     "noNotes": "No notes available for this call",
     "noSearchResults": "No notes match your search"
+  },
+  "callImages": {
+    "title": "Call Images",
+    "add": "Add Image",
+    "add_new": "Add New Image",
+    "select_from_gallery": "Select from Gallery",
+    "take_photo": "Take Photo",
+    "image_name": "Image Name",
+    "default_name": "Untitled Image",
+    "upload": "Upload",
+    "loading": "Loading...",
+    "no_images": "No images available",
+    "no_images_description": "Add images to your call to help with documentation and communication",
+    "error": "Error getting images"
   }
 }

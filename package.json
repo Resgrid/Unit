@@ -83,6 +83,7 @@
     "expo": "~52.0.23",
     "expo-constants": "~17.0.3",
     "expo-dev-client": "~5.0.7",
+    "expo-file-system": "^18.0.11",
     "expo-font": "~13.0.2",
     "expo-image": "~2.0.5",
     "expo-image-picker": "~16.0.6",

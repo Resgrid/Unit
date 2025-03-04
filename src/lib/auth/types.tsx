@@ -1,6 +1,3 @@
-import { DepartmentRightsResult } from '@/models/v4/security/departmentRightsResult';
-import { DepartmentRightsResultData } from '@/models/v4/security/departmentRightsResultData';
-
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -53,11 +50,10 @@ export interface AuthState {
   status: AuthStatus;
   error: string | null;
   profile: ProfileModel | null;
+  userId: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   hydrate: () => void;
-  //getRights: () => Promise<void>;
   isFirstTime: boolean;
-  //rights: DepartmentRightsResultData | null;
 }

@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, EyeIcon, EyeOffIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
+import { Image, Keyboard } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
@@ -47,6 +48,7 @@ export const LoginForm = ({
   isLoading = false,
   error = undefined,
 }: LoginFormProps) => {
+  const { colorScheme } = useColorScheme();
   const {
     control,
     handleSubmit,
@@ -79,6 +81,14 @@ export const LoginForm = ({
     >
       <View className="flex-1 justify-center p-4">
         <View className="items-center justify-center">
+          <Image
+            source={
+              colorScheme === 'dark'
+                ? require('@assets/images/Resgrid_JustText_White.png')
+                : require('@assets/images/Resgrid_JustText.png')
+            }
+            resizeMode="contain"
+          />
           <Text className="pb-6 text-center text-4xl font-bold">Sign In</Text>
 
           <Text className="mb-6 max-w-xs text-center text-gray-500">

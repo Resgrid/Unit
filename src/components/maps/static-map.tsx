@@ -1,12 +1,10 @@
-import React from 'react';
-import { StyleSheet } from 'react-native';
-import { Box } from '@/components/ui/box';
-import { Text } from '@/components/ui/text';
-import Mapbox from '@rnmapbox/maps';
-import { useTranslation } from 'react-i18next';
+import Mapbox from "@rnmapbox/maps";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { StyleSheet } from "react-native";
 
-// Initialize Mapbox - this should be done in your app's entry point
-// Mapbox.setAccessToken('YOUR_MAPBOX_ACCESS_TOKEN');
+import { Box } from "@/components/ui/box";
+import { Text } from "@/components/ui/text";
 
 interface StaticMapProps {
   latitude: number;
@@ -32,7 +30,7 @@ const StaticMap: React.FC<StaticMapProps> = ({
         style={[styles.container, { height }]}
         className="items-center justify-center bg-gray-200"
       >
-        <Text className="text-gray-500">{t('call_detail.no_location')}</Text>
+        <Text className="text-gray-500">{t("call_detail.no_location")}</Text>
       </Box>
     );
   }
@@ -57,7 +55,7 @@ const StaticMap: React.FC<StaticMapProps> = ({
         <Mapbox.PointAnnotation
           id="destinationPoint"
           coordinate={[longitude, latitude]}
-          title={address || 'Location'}
+          title={address || "Location"}
         >
           <Box />
         </Mapbox.PointAnnotation>
@@ -83,23 +81,23 @@ const StaticMap: React.FC<StaticMapProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    position: 'relative',
-    overflow: 'hidden',
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
   },
   map: {
     flex: 1,
   },
   addressContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
     padding: 8,
   },
   addressText: {
-    color: 'white',
+    color: "white",
     fontSize: 12,
   },
 });

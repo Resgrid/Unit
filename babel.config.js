@@ -17,6 +17,7 @@ module.exports = function (api) {
             '@unitools/router': '@unitools/router-expo',
             '@unitools/link': '@unitools/link-expo',
             'tailwind.config': './tailwind.config.js',
+            '@assets': './assets',
           },
           extensions: [
             '.ios.ts',

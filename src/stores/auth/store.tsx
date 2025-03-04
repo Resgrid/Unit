@@ -1,16 +1,16 @@
-import base64 from "react-native-base64";
-import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import base64 from 'react-native-base64';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { loginRequest, refreshTokenRequest } from "../../lib/auth/api";
+import { loginRequest, refreshTokenRequest } from '../../lib/auth/api';
 import type {
   AuthResponse,
   AuthState,
   LoginCredentials,
-} from "../../lib/auth/types";
-import { type ProfileModel } from "../../lib/auth/types";
-import { getAuth } from "../../lib/auth/utils";
-import { setItem, zustandStorage } from "../../lib/storage";
+} from '../../lib/auth/types';
+import { type ProfileModel } from '../../lib/auth/types';
+import { getAuth } from '../../lib/auth/utils';
+import { setItem, zustandStorage } from '../../lib/storage';
 
 const useAuthStore = create<AuthState>()(
   persist(
@@ -18,36 +18,39 @@ const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       refreshTokenExpiresOn: null,
-      status: "idle",
+      status: 'idle',
       error: null,
       profile: null,
+      userId: null,
       isFirstTime: true,
-      //rights: null,
       login: async (credentials: LoginCredentials) => {
         try {
-          set({ status: "loading" });
+          set({ status: 'loading' });
           const response = await loginRequest(credentials);
 
           if (response.successful) {
             const payload = sanitizeJson(
-              base64.decode(response.authResponse!.id_token!.split(".")[1]),
+              base64.decode(response.authResponse!.id_token!.split('.')[1])
             );
 
-            setItem<AuthResponse>("authResponse", response.authResponse!);
+            setItem<AuthResponse>('authResponse', response.authResponse!);
             const now = new Date();
             const expiresOn = new Date(
-              now.getTime() + response.authResponse?.expires_in! * 1000,
+              now.getTime() + response.authResponse?.expires_in! * 1000
             )
               .getTime()
               .toString();
+
+            const profileData = JSON.parse(payload) as ProfileModel;
 
             set({
               accessToken: response.authResponse?.access_token,
               refreshToken: response.authResponse?.refresh_token,
               refreshTokenExpiresOn: expiresOn,
-              status: "signedIn",
+              status: 'signedIn',
               error: null,
-              profile: JSON.parse(payload) as ProfileModel,
+              profile: profileData,
+              userId: profileData.sub,
             });
 
             // Set up automatic token refresh
@@ -65,14 +68,14 @@ const useAuthStore = create<AuthState>()(
             //setTimeout(() => get().refreshAccessToken(), expiresIn);
           } else {
             set({
-              status: "error",
+              status: 'error',
               error: response.message,
             });
           }
         } catch (error) {
           set({
-            status: "error",
-            error: error instanceof Error ? error.message : "Login failed",
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Login failed',
           });
         }
       },
@@ -81,7 +84,7 @@ const useAuthStore = create<AuthState>()(
         set({
           accessToken: null,
           refreshToken: null,
-          status: "signedOut",
+          status: 'signedOut',
           error: null,
           profile: null,
           isFirstTime: true,
@@ -92,7 +95,7 @@ const useAuthStore = create<AuthState>()(
         try {
           const { refreshToken } = get();
           if (!refreshToken) {
-            throw new Error("No refresh token available");
+            throw new Error('No refresh token available');
           }
 
           const response = await refreshTokenRequest(refreshToken);
@@ -100,7 +103,7 @@ const useAuthStore = create<AuthState>()(
           set({
             accessToken: response.access_token,
             refreshToken: response.refresh_token,
-            status: "signedIn",
+            status: 'signedIn',
             error: null,
           });
 
@@ -120,15 +123,18 @@ const useAuthStore = create<AuthState>()(
           const authResponse = getAuth();
           if (authResponse !== null) {
             const payload = sanitizeJson(
-              base64.decode(authResponse!.id_token!.split(".")[1]),
+              base64.decode(authResponse!.id_token!.split('.')[1])
             );
+
+            const profileData = JSON.parse(payload) as ProfileModel;
 
             set({
               accessToken: authResponse.access_token,
               refreshToken: authResponse.refresh_token,
-              status: "signedIn",
+              status: 'signedIn',
               error: null,
-              profile: JSON.parse(payload) as ProfileModel,
+              profile: profileData,
+              userId: profileData.sub,
             });
           } else {
             get().logout();
@@ -151,14 +157,14 @@ const useAuthStore = create<AuthState>()(
       //},
     }),
     {
-      name: "auth-storage",
+      name: 'auth-storage',
       storage: createJSONStorage(() => zustandStorage),
-    },
-  ),
+    }
+  )
 );
 
 const sanitizeJson = (json: string) => {
-  return json.replace(/[\u0000]+/g, "");
+  return json.replace(/[\u0000]+/g, '');
 };
 
 export default useAuthStore;

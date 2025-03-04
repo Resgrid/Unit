@@ -68,9 +68,7 @@ export const refreshTokenRequest = async (
     const data = queryString.stringify({
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      scope: Env.IS_MOBILE_APP
-        ? 'openid profile offline_access mobile'
-        : 'openid profile offline_access',
+      scope: '',
     });
 
     const response = await authApi.post<AuthResponse>('/connect/token', data);

@@ -5,9 +5,9 @@ import axios, {
 } from 'axios';
 
 import { refreshTokenRequest } from '@/lib/auth/api';
-import useAuthStore from '@/stores/auth/store';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
+import useAuthStore from '@/stores/auth/store';
 
 // Create axios instance with default config
 const axiosInstance: AxiosInstance = axios.create({
