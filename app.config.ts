@@ -92,12 +92,36 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
+        taskManager: {
+          locationTaskName: 'location-updates',
+          locationTaskOptions: {
+            accuracy: 'balanced',
+            distanceInterval: 10,
+            timeInterval: 5000,
+          },
+        },
+      },
+    ],
+    [
+      'expo-task-manager',
+      {
+        taskManager: {
+          taskName: 'location-updates',
+        },
       },
     ],
     [
       'expo-screen-orientation',
       {
         initialOrientation: 'DEFAULT',
+      },
+    ],
+    [
+      'expo-build-properties',
+      {
+        android: {
+          extraProguardRules: '-keep class expo.modules.location.** { *; }',
+        },
       },
     ],
   ],

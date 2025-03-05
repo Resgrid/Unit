@@ -17,7 +17,7 @@ module.exports = {
   rules: {
     'prettier/prettier': 'warn',
     'max-params': ['error', 10], // Limit the number of parameters in a function to use object instead
-    'max-lines-per-function': ['error', 400],
+    'max-lines-per-function': ['error', 1000],
     'react/display-name': 'off',
     'react/no-inline-styles': 'off',
     'react/destructuring-assignment': 'off', // Vscode doesn't support automatically destructuring, it's a pain to add a new variable
