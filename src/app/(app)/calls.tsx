@@ -1,24 +1,26 @@
+import { router } from 'expo-router';
+import { RefreshCcwDotIcon, SearchIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
-import { RefreshControl, Pressable, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { Pressable, RefreshControl, View } from 'react-native';
+
+import { CallCard } from '@/components/calls/call-card';
+import ZeroState from '@/components/common/zero-state';
 import { Box } from '@/components/ui/box';
 import { FlatList } from '@/components/ui/flat-list';
-import { Text } from '@/components/ui/text';
-import { useCallsStore } from '@/stores/calls/store';
-import { CallCard } from '@/components/calls/call-card';
-import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
-import { CallResultData } from '@/models/v4/calls/callResultData';
-import { useTranslation } from 'react-i18next';
-import { router } from 'expo-router';
+import { Input, InputField, InputSlot } from '@/components/ui/input';
 import { Loading } from '@/components/ui/loading';
-import ZeroState from '@/components/common/zero-state';
-import { Icon, RefreshCcwDotIcon, SearchIcon } from 'lucide-react-native';
-import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { Text } from '@/components/ui/text';
+import { type CallResultData } from '@/models/v4/calls/callResultData';
+import { useCallsStore } from '@/stores/calls/store';
 
 export default function Calls() {
   const { calls, isLoading, error, fetchCalls, fetchCallPriorities } =
     useCallsStore();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const { colorScheme } = useColorScheme();
 
   useEffect(() => {
     fetchCallPriorities();
@@ -40,7 +42,7 @@ export default function Calls() {
   if (error) {
     return (
       <View className="size-full flex-1">
-        <Box className="p-5 rounded-lg m-3 mt-5 bg-background-50 gap-5 min-h-[200px] max-w-[600px] lg:min-w-[700px] w-full self-center">
+        <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
           <Text className="error text-center">{error}</Text>
         </Box>
       </View>
@@ -49,10 +51,14 @@ export default function Calls() {
 
   return (
     <View className="size-full flex-1">
-      <Box className="size-full flex-1 w-full bg-gray-50">
+      <Box
+        className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}
+      >
         {/* Add search input */}
         <Box className="px-4 py-2">
-          <Input className="bg-white">
+          <Input
+            className={`${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-50'}`}
+          >
             <InputSlot>
               <SearchIcon size={20} className="text-gray-500" />
             </InputSlot>

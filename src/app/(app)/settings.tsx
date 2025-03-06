@@ -2,24 +2,24 @@
 import { Env } from '@env';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { Item } from '@/components/settings/item';
 import { LanguageItem } from '@/components/settings/language-item';
+import { LoginInfoBottomSheet } from '@/components/settings/login-info-bottom-sheet';
+import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
 import { ThemeItem } from '@/components/settings/theme-item';
-import { FocusAwareStatusBar, ScrollView } from '@/components/ui';
-import colors from '@/constants/colors';
-import { translate, useAuth, useAuthStore } from '@/lib';
-import { useTranslation } from 'react-i18next';
-import { VStack } from '@/components/ui/vstack';
-import { Heading } from '@/components/ui/heading';
+import { ToggleItem } from '@/components/settings/toggle-item';
+import { UnitSelectionBottomSheet } from '@/components/settings/unit-selection-bottom-sheet';
+import { ScrollView } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Card } from '@/components/ui/card';
-import { getBaseApiUrl } from '@/lib/storage/app';
-import { ToggleItem } from '@/components/settings/toggle-item';
-import { LoginInfoBottomSheet } from '@/components/settings/login-info-bottom-sheet';
+import { Heading } from '@/components/ui/heading';
+import { VStack } from '@/components/ui/vstack';
+import colors from '@/constants/colors';
+import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
-import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
-import { UnitSelectionBottomSheet } from '@/components/settings/unit-selection-bottom-sheet';
+import { getBaseApiUrl } from '@/lib/storage/app';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useUnitsStore } from '@/stores/units/store';
 
@@ -70,13 +70,13 @@ export default function Settings() {
         <VStack className="md p-4">
           {/* App Info Section */}
           <Card
-            className={`p-4 rounded-lg border mb-4 ${
+            className={`mb-4 rounded-lg border p-4 ${
               colorScheme === 'dark'
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200'
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
             }`}
           >
-            <Heading className="text-sm mb2">{t('settings.app_info')}</Heading>
+            <Heading className="mb2 text-sm">{t('settings.app_info')}</Heading>
             <VStack space="sm">
               <Item text={t('settings.app_name')} value={Env.NAME} />
               <Item text={t('settings.version')} value={Env.VERSION} />
@@ -86,13 +86,13 @@ export default function Settings() {
 
           {/* Account Section */}
           <Card
-            className={`p-4 rounded-lg border mb-8 ${
+            className={`mb-8 rounded-lg border p-4 ${
               colorScheme === 'dark'
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200'
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
             }`}
           >
-            <Heading className="text-sm mb2">{t('settings.account')}</Heading>
+            <Heading className="mb2 text-sm">{t('settings.account')}</Heading>
             <VStack space="sm">
               <Item
                 text={t('settings.server')}
@@ -121,13 +121,13 @@ export default function Settings() {
 
           {/* Preferences Section */}
           <Card
-            className={`p-4 rounded-lg border mb-4 ${
+            className={`mb-4 rounded-lg border p-4 ${
               colorScheme === 'dark'
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200'
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
             }`}
           >
-            <Heading className="text-sm mb2">
+            <Heading className="mb2 text-sm">
               {t('settings.preferences')}
             </Heading>
             <VStack space="sm">
@@ -153,13 +153,13 @@ export default function Settings() {
 
           {/* Support Section */}
           <Card
-            className={`p-4 rounded-lg border mb-4 ${
+            className={`mb-4 rounded-lg border p-4 ${
               colorScheme === 'dark'
-                ? 'bg-neutral-900 border-neutral-800'
-                : 'bg-white border-neutral-200'
+                ? 'border-neutral-800 bg-neutral-900'
+                : 'border-neutral-200 bg-white'
             }`}
           >
-            <Heading className="text-sm mb2">{t('settings.support')}</Heading>
+            <Heading className="mb2 text-sm">{t('settings.support')}</Heading>
             <VStack space="sm">
               <Item text={t('settings.help_center')} onPress={() => {}} />
               <Item text={t('settings.contact_us')} onPress={() => {}} />

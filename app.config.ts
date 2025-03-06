@@ -51,6 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
+    enableEdgeToEdge: true,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -122,6 +123,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         android: {
           extraProguardRules: '-keep class expo.modules.location.** { *; }',
         },
+      },
+    ],
+    [
+      'expo-asset',
+      {
+        assets: ['assets/mapping'],
       },
     ],
   ],

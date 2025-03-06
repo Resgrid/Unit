@@ -1,19 +1,14 @@
 import Mapbox from '@rnmapbox/maps';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-interface MapPin {
-  id: string;
-  latitude: number;
-  longitude: number;
-  title: string;
-  imagePath: string;
-  zIndex?: number;
-}
+import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
+
+import PinMarker from './pin-marker';
 
 interface MapPinsProps {
-  pins: MapPin[];
-  onPinPress?: (pin: MapPin) => void;
+  pins: MapMakerInfoData[];
+  onPinPress?: (pin: MapMakerInfoData) => void;
 }
 
 const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress }) => {
@@ -21,14 +16,15 @@ const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress }) => {
     <>
       {pins.map((pin) => (
         <Mapbox.PointAnnotation
-          key={pin.id}
-          id={pin.id}
-          coordinate={[pin.longitude, pin.latitude]}
-          title={pin.title}
+          key={pin.Id}
+          id={pin.Id}
+          coordinate={[pin.Longitude, pin.Latitude]}
+          title={pin.Title}
           onSelected={() => onPinPress?.(pin)}
-          style={[styles.pinContainer, { zIndex: pin.zIndex || 0 }]}
+          //style={[styles.pinContainer, { zIndex: parseInt(pin.zIndex || '0') }]}
+          style={styles.pinContainer}
         >
-          <View style={styles.pinContent} />
+          <PinMarker imagePath={pin.ImagePath} title={pin.Title} size={32} />
         </Mapbox.PointAnnotation>
       ))}
     </>
@@ -39,11 +35,6 @@ const styles = StyleSheet.create({
   pinContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pinContent: {
-    width: 32,
-    height: 32,
-    backgroundColor: 'transparent',
   },
 });
 

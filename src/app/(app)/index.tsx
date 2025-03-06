@@ -4,9 +4,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, View } from 'react-native';
 
+import { getMapDataAndMarkers } from '@/api/mapping/mapping';
+import MapPins from '@/components/maps/map-pins';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { onSortOptions } from '@/lib/utils';
+import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useToastStore } from '@/stores/toast/store';
@@ -18,6 +21,7 @@ export default function Map() {
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
+  const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const location = useLocationStore((state) => ({
     latitude: state.latitude,
     longitude: state.longitude,
@@ -39,6 +43,9 @@ export default function Map() {
     const startLocationTracking = async () => {
       try {
         await locationService.startLocationUpdates();
+        logger.info({
+          message: 'Location tracking started successfully',
+        });
       } catch (error) {
         logger.error({
           message:
@@ -63,14 +70,42 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    if (location.latitude && location.longitude && !hasUserMovedMap) {
-      cameraRef.current?.setCamera({
-        centerCoordinate: [location.longitude, location.latitude],
-        zoomLevel: 12,
-        animationDuration: 1000,
+    if (location.latitude && location.longitude) {
+      logger.info({
+        message: 'Location updated',
+        context: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          heading: location.heading,
+        },
       });
+
+      if (!hasUserMovedMap) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [location.longitude, location.latitude],
+          zoomLevel: 12,
+          animationDuration: 1000,
+        });
+      }
     }
-  }, [location.latitude, location.longitude, hasUserMovedMap]);
+  }, [
+    location.latitude,
+    location.longitude,
+    location.heading,
+    hasUserMovedMap,
+  ]);
+
+  useEffect(() => {
+    const fetchMapDataAndMarkers = async () => {
+      const mapDataAndMarkers = await getMapDataAndMarkers();
+
+      if (mapDataAndMarkers && mapDataAndMarkers.Data) {
+        setMapPins(mapDataAndMarkers.Data.MapMakerInfos);
+      }
+    };
+
+    fetchMapDataAndMarkers();
+  }, [setMapPins]);
 
   const onCameraChanged = (event: any) => {
     if (event.properties.isUserInteraction) {
@@ -105,6 +140,7 @@ export default function Map() {
             <Mapbox.PointAnnotation
               id="userLocation"
               coordinate={[location.longitude, location.latitude]}
+              anchor={{ x: 0.5, y: 0.5 }}
             >
               <View style={styles.markerContainer}>
                 <Image
@@ -119,6 +155,7 @@ export default function Map() {
               </View>
             </Mapbox.PointAnnotation>
           )}
+          <MapPins pins={mapPins} />
         </Mapbox.MapView>
       </View>
     </>
@@ -133,8 +170,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   markerContainer: {
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 40,
+    height: 40,
   },
   markerImage: {
     width: 40,

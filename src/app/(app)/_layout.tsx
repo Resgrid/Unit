@@ -1,8 +1,17 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { Link, Redirect, SplashScreen, Tabs } from 'expo-router';
+import {
+  Contact,
+  ListTree,
+  Map,
+  Megaphone,
+  Menu,
+  Notebook,
+  Settings,
+} from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SafeAreaView, useWindowDimensions, StyleSheet } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 
 import Sidebar from '@/components/sidebar/sidebar';
 import { Pressable, View } from '@/components/ui';
@@ -15,22 +24,13 @@ import {
   DrawerFooter,
   DrawerHeader,
 } from '@/components/ui/drawer';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useAuthStore } from '@/lib/auth';
 import { useIsFirstTime } from '@/lib/storage';
-import {
-  Map,
-  Megaphone,
-  Contact,
-  Notebook,
-  ListTree,
-  Settings,
-  Menu,
-} from 'lucide-react-native';
-import { Icon } from '@/components/ui/icon';
-import { useRolesStore } from '@/stores/roles/store';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
+import { useRolesStore } from '@/stores/roles/store';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -108,16 +108,23 @@ export default function TabLayout() {
             screenOptions={{
               headerShown: true,
               tabBarShowLabel: true,
-              tabBarActiveTintColor: '#0891b2',
-              tabBarInactiveTintColor: '#64748b',
+              tabBarIconStyle: {
+                width: 24,
+                height: 24,
+              },
             }}
           >
             <Tabs.Screen
               name="index"
               options={{
                 title: t('tabs.map'),
-                tabBarIcon: ({ color }) => <Icon as={Map} stroke={color} />,
-                //headerRight: () => <CreateNewPostLink />,
+                tabBarIcon: ({ color }) => (
+                  <Icon
+                    as={Map}
+                    stroke={color}
+                    className="text-primary-500 dark:text-primary-400"
+                  />
+                ),
                 headerLeft: () => (
                   <CreateDrawerMenuButton
                     setIsOpen={setIsOpen}
@@ -134,7 +141,11 @@ export default function TabLayout() {
                 title: t('tabs.calls'),
                 headerShown: true,
                 tabBarIcon: ({ color }) => (
-                  <Icon as={Megaphone} stroke={color} />
+                  <Icon
+                    as={Megaphone}
+                    stroke={color}
+                    className="text-primary-500 dark:text-primary-400"
+                  />
                 ),
                 tabBarButtonTestID: 'calls-tab',
               }}
@@ -145,7 +156,13 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.contacts'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => <Icon as={Contact} stroke={color} />,
+                tabBarIcon: ({ color }) => (
+                  <Icon
+                    as={Contact}
+                    stroke={color}
+                    className="text-primary-500 dark:text-primary-400"
+                  />
+                ),
                 tabBarButtonTestID: 'contacts-tab',
               }}
             />

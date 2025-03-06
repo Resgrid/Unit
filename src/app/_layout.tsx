@@ -2,6 +2,11 @@
 import '../../global.css';
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
@@ -12,6 +17,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
+import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
 export { ErrorBoundary } from 'expo-router';
@@ -33,6 +39,7 @@ SplashScreen.setOptions({
 export default function RootLayout() {
   return (
     <Providers>
+      <FocusAwareStatusBar hidden={true} />
       <Stack>
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
@@ -51,12 +58,16 @@ function Providers({ children }: { children: React.ReactNode }) {
           <GluestackUIProvider
             mode={(colorScheme ?? 'light') as 'light' | 'dark'}
           >
-            <APIProvider>
-              <BottomSheetModalProvider>
-                {children}
-                <FlashMessage position="top" />
-              </BottomSheetModalProvider>
-            </APIProvider>
+            <ThemeProvider
+              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+            >
+              <APIProvider>
+                <BottomSheetModalProvider>
+                  {children}
+                  <FlashMessage position="top" />
+                </BottomSheetModalProvider>
+              </APIProvider>
+            </ThemeProvider>
           </GluestackUIProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>

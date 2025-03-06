@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
+import { logger } from '@/lib/logging';
 import { useLocationStore } from '@/stores/app/location-store';
 
 const LOCATION_TASK_NAME = 'location-updates';
@@ -8,13 +9,24 @@ const LOCATION_TASK_NAME = 'location-updates';
 // Define the task
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   if (error) {
-    console.error('Location task error:', error);
+    logger.error({
+      message: 'Location task error',
+      context: { error },
+    });
     return;
   }
   if (data) {
     const { locations } = data as { locations: Location.LocationObject[] };
     const location = locations[0];
     if (location) {
+      logger.info({
+        message: 'Background location update received',
+        context: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          heading: location.coords.heading,
+        },
+      });
       useLocationStore.getState().setLocation(location);
     }
   }
@@ -40,6 +52,14 @@ class LocationService {
     const { status: backgroundStatus } =
       await Location.requestBackgroundPermissionsAsync();
 
+    logger.info({
+      message: 'Location permissions requested',
+      context: {
+        foregroundStatus,
+        backgroundStatus,
+      },
+    });
+
     return foregroundStatus === 'granted' && backgroundStatus === 'granted';
   }
 
@@ -62,6 +82,9 @@ class LocationService {
           notificationBody: 'Tracking your location in the background',
         },
       });
+      logger.info({
+        message: 'Location task registered',
+      });
     }
 
     // Start foreground updates
@@ -72,6 +95,14 @@ class LocationService {
         distanceInterval: 10,
       },
       (location) => {
+        logger.info({
+          message: 'Foreground location update received',
+          context: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            heading: location.coords.heading,
+          },
+        });
         useLocationStore.getState().setLocation(location);
       }
     );
@@ -94,6 +125,14 @@ class LocationService {
         distanceInterval: 20,
       },
       (location) => {
+        logger.info({
+          message: 'Background location update received',
+          context: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            heading: location.coords.heading,
+          },
+        });
         useLocationStore.getState().setLocation(location);
       }
     );

@@ -1,10 +1,11 @@
+import { type GroupResult } from '@/models/v4/groups/groupResult';
+import { type GroupsResult } from '@/models/v4/groups/groupsResult';
+
 import { createCachedApiEndpoint } from '../common/cached-client';
-import { GroupsResult } from '@/models/v4/groups/groupsResult';
 import { createApiEndpoint } from '../common/client';
-import { GroupResult } from '@/models/v4/groups/groupResult';
 
 const getAllGroupsApi = createCachedApiEndpoint('/Groups/GetAllGroups', {
-  ttl: (60 * 1000) * 2880, // Cache for 2 days
+  ttl: 60 * 1000 * 2880, // Cache for 2 days
   enabled: true,
 });
 
@@ -16,10 +17,10 @@ export const getAllGroups = async () => {
 };
 
 export const getGroup = async (groupId: string) => {
-    const response = await getGroupsApi.get<GroupResult>({
-      params: {
-        groupId: encodeURIComponent(groupId)
-      }
-    });
-    return response.data;
+  const response = await getGroupsApi.get<GroupResult>({
+    params: {
+      groupId: encodeURIComponent(groupId),
+    },
+  });
+  return response.data;
 };
