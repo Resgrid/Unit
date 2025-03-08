@@ -4,20 +4,14 @@ import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { Image, Keyboard } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
 import { View } from '@/components/ui';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
-import {
-  FormControl,
-  FormControlError,
-  FormControlErrorIcon,
-  FormControlErrorText,
-  FormControlLabel,
-  FormControlLabelText,
-} from '@/components/ui/form-control';
+import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
@@ -43,12 +37,9 @@ export type LoginFormProps = {
   error?: string;
 };
 
-export const LoginForm = ({
-  onSubmit = () => {},
-  isLoading = false,
-  error = undefined,
-}: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
+  const { t } = useTranslation();
   const {
     control,
     handleSubmit,
@@ -74,35 +65,19 @@ export const LoginForm = ({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior="padding"
-      keyboardVerticalOffset={10}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={10}>
       <View className="flex-1 justify-center p-4">
         <View className="items-center justify-center">
-          <Image
-            source={
-              colorScheme === 'dark'
-                ? require('@assets/images/Resgrid_JustText_White.png')
-                : require('@assets/images/Resgrid_JustText.png')
-            }
-            resizeMode="contain"
-          />
+          <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
           <Text className="pb-6 text-center text-4xl font-bold">Sign In</Text>
 
           <Text className="mb-6 max-w-xs text-center text-gray-500">
-            To login in to the Resgrid Unit app, please enter your username and
-            password. Resgrid Unit is an applicated designed to interface
-            between a Unit (apparatus, team, etc) and the Resgrid system.
+            To login in to the Resgrid Unit app, please enter your username and password. Resgrid Unit is an applicated designed to interface between a Unit (apparatus, team, etc) and the Resgrid system.
           </Text>
         </View>
-        <FormControl
-          isInvalid={!!errors?.username || !validated.usernameValid}
-          className="w-full"
-        >
+        <FormControl isInvalid={!!errors?.username || !validated.usernameValid} className="w-full">
           <FormControlLabel>
-            <FormControlLabelText>Username</FormControlLabelText>
+            <FormControlLabelText>{t('login.username')}</FormControlLabelText>
           </FormControlLabel>
           <Controller
             defaultValue=""
@@ -120,32 +95,19 @@ export const LoginForm = ({
             }}
             render={({ field: { onChange, onBlur, value } }) => (
               <Input>
-                <InputField
-                  placeholder="Enter Username"
-                  value={value}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  onSubmitEditing={handleKeyPress}
-                  returnKeyType="done"
-                />
+                <InputField placeholder={t('login.username_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} onSubmitEditing={handleKeyPress} returnKeyType="done" />
               </Input>
             )}
           />
           <FormControlError>
             <FormControlErrorIcon as={AlertTriangle} className="text-red-500" />
-            <FormControlErrorText className="text-red-500">
-              {errors?.username?.message ||
-                (!validated.usernameValid && 'Username not found')}
-            </FormControlErrorText>
+            <FormControlErrorText className="text-red-500">{errors?.username?.message || (!validated.usernameValid && 'Username not found')}</FormControlErrorText>
           </FormControlError>
         </FormControl>
         {/* Label Message */}
-        <FormControl
-          isInvalid={!!errors.password || !validated.passwordValid}
-          className="w-full"
-        >
+        <FormControl isInvalid={!!errors.password || !validated.passwordValid} className="w-full">
           <FormControlLabel>
-            <FormControlLabelText>Password</FormControlLabelText>
+            <FormControlLabelText>{t('login.password')}</FormControlLabelText>
           </FormControlLabel>
           <Controller
             defaultValue=""
@@ -165,7 +127,7 @@ export const LoginForm = ({
               <Input>
                 <InputField
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password"
+                  placeholder={t('login.password_placeholder')}
                   value={value}
                   onChangeText={onChange}
                   onBlur={onBlur}
@@ -180,27 +142,17 @@ export const LoginForm = ({
           />
           <FormControlError>
             <FormControlErrorIcon as={AlertTriangle} className="text-red-500" />
-            <FormControlErrorText className="text-red-500">
-              {errors?.password?.message ||
-                (!validated.passwordValid && 'Password was incorrect')}
-            </FormControlErrorText>
+            <FormControlErrorText className="text-red-500">{errors?.password?.message || (!validated.passwordValid && t('login.password_incorrect'))}</FormControlErrorText>
           </FormControlError>
         </FormControl>
 
         {isLoading ? (
           <Button className="mt-8 w-full">
             <ButtonSpinner color={colors.light.neutral[400]} />
-            <ButtonText className="ml-2 text-sm font-medium">
-              Please wait...
-            </ButtonText>
+            <ButtonText className="ml-2 text-sm font-medium">{t('login.login_button_loading')}</ButtonText>
           </Button>
         ) : (
-          <Button
-            className="mt-8 w-full"
-            variant="solid"
-            action="primary"
-            onPress={handleSubmit(onSubmit)}
-          >
+          <Button className="mt-8 w-full" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
             <ButtonText>Log in</ButtonText>
           </Button>
         )}

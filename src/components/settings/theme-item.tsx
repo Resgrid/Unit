@@ -1,24 +1,13 @@
+import { ChevronDownIcon } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+
 import type { ColorSchemeType } from '@/lib';
 import { translate, useSelectedTheme } from '@/lib';
 
-import { Item } from './item';
-import {
-  Select,
-  SelectBackdrop,
-  SelectContent,
-  SelectDragIndicator,
-  SelectDragIndicatorWrapper,
-  SelectIcon,
-  SelectInput,
-  SelectItem,
-  SelectPortal,
-  SelectTrigger,
-} from '../ui/select';
-import { ChevronDownIcon } from 'lucide-react-native';
-import { useTranslation } from 'react-i18next';
-import { View } from '../ui/view';
+import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '../ui/select';
 import { Text } from '../ui/text';
+import { View } from '../ui/view';
 export const ThemeItem = () => {
   const { selectedTheme, setSelectedTheme } = useSelectedTheme();
   const { t } = useTranslation();
@@ -39,10 +28,7 @@ export const ThemeItem = () => {
     []
   );
 
-  const theme = React.useMemo(
-    () => themes.find((t) => t.value === selectedTheme),
-    [selectedTheme, themes]
-  );
+  const theme = React.useMemo(() => themes.find((t) => t.value === selectedTheme), [selectedTheme, themes]);
 
   return (
     <View className="flex-1 flex-row items-center justify-between px-4 py-2">
@@ -62,11 +48,7 @@ export const ThemeItem = () => {
                 <SelectDragIndicator />
               </SelectDragIndicatorWrapper>
               {themes.map((theme) => (
-                <SelectItem
-                  key={theme.value}
-                  label={theme.label}
-                  value={theme.value}
-                />
+                <SelectItem key={theme.value} label={theme.label} value={theme.value} />
               ))}
             </SelectContent>
           </SelectPortal>

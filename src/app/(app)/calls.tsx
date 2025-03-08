@@ -1,17 +1,17 @@
 import { router } from 'expo-router';
-import { RefreshCcwDotIcon, SearchIcon } from 'lucide-react-native';
+import { PlusIcon, RefreshCcwDotIcon, SearchIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
 import { CallCard } from '@/components/calls/call-card';
+import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { Box } from '@/components/ui/box';
+import { Fab, FabIcon } from '@/components/ui/fab';
 import { FlatList } from '@/components/ui/flat-list';
 import { Input, InputField, InputSlot } from '@/components/ui/input';
-import { Loading } from '@/components/common/loading';
-import { Text } from '@/components/ui/text';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';
 
@@ -31,23 +31,43 @@ export default function Calls() {
     fetchCallPriorities();
   };
 
+  const handleNewCall = () => {
+    router.push('/call/new/');
+  };
+
   // Filter calls based on search query
   const filteredCalls = calls.filter((call) => call.CallId.toLowerCase().includes(searchQuery.toLowerCase()) || (call.Nature?.toLowerCase() || '').includes(searchQuery.toLowerCase()));
 
-  if (error) {
+  // Render content based on loading, error, and data states
+  const renderContent = () => {
+    if (isLoading) {
+      return <Loading text={t('calls.loading')} />;
+    }
+
+    if (error) {
+      return <ZeroState heading={t('common.errorOccurred')} description={error} isError={true} />;
+    }
+
     return (
-      <View className="size-full flex-1">
-        <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
-          <Text className="error text-center">{error}</Text>
-        </Box>
-      </View>
+      <FlatList<CallResultData>
+        data={filteredCalls}
+        renderItem={({ item }: { item: CallResultData }) => (
+          <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
+            <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} />
+          </Pressable>
+        )}
+        keyExtractor={(item: CallResultData) => item.CallId}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
+        ListEmptyComponent={<ZeroState heading={t('calls.no_calls')} description={t('calls.no_calls_description')} icon={RefreshCcwDotIcon} />}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      />
     );
-  }
+  };
 
   return (
     <View className="size-full flex-1">
       <Box className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
-        {/* Add search input */}
+        {/* Search input */}
         <Box className="px-4 py-2">
           <Input className={`${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-50'}`}>
             <InputSlot>
@@ -57,20 +77,13 @@ export default function Calls() {
           </Input>
         </Box>
 
-        <Box className="flex-1 px-4">
-          <FlatList<CallResultData>
-            data={filteredCalls}
-            renderItem={({ item }: { item: CallResultData }) => (
-              <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
-                <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} />
-              </Pressable>
-            )}
-            keyExtractor={(item: CallResultData) => item.CallId}
-            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
-            ListEmptyComponent={isLoading ? <Loading /> : <ZeroState heading={t('calls.no_calls')} description={t('calls.no_calls_description')} icon={RefreshCcwDotIcon} />}
-            contentContainerStyle={{ paddingBottom: 20 }}
-          />
-        </Box>
+        {/* Main content */}
+        <Box className="flex-1 px-4">{renderContent()}</Box>
+
+        {/* FAB button for creating new call */}
+        <Fab placement="bottom right" size="lg" onPress={handleNewCall} testID="new-call-fab">
+          <FabIcon as={PlusIcon} size="lg" />
+        </Fab>
       </Box>
     </View>
   );
