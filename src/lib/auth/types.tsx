@@ -56,4 +56,5 @@ export interface AuthState {
   refreshAccessToken: () => Promise<void>;
   hydrate: () => void;
   isFirstTime: boolean;
+  isAuthenticated: () => boolean;
 }

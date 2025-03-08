@@ -1,9 +1,8 @@
-import { Image } from 'expo-image';
+import type Mapbox from '@rnmapbox/maps';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { Text } from '@/components/ui/text';
 import { MAP_ICONS } from '@/constants/map-icons';
 
 type MapIconKey = keyof typeof MAP_ICONS;
@@ -12,13 +11,10 @@ interface PinMarkerProps {
   imagePath?: string;
   title: string;
   size?: number;
+  markerRef?: Mapbox.PointAnnotation | null;
 }
 
-const PinMarker: React.FC<PinMarkerProps> = ({
-  imagePath,
-  title,
-  size = 32,
-}) => {
+const PinMarker: React.FC<PinMarkerProps> = ({ imagePath, title, size = 32, markerRef }) => {
   const { colorScheme } = useColorScheme();
 
   const iconKey = (imagePath?.toLowerCase() ?? 'person') as MapIconKey;
@@ -27,17 +23,8 @@ const PinMarker: React.FC<PinMarkerProps> = ({
   if (icon && icon.uri) {
     return (
       <View style={styles.container}>
-        <Image
-          source={icon.uri}
-          style={[styles.image, { width: size, height: size }]}
-        />
-        <Text
-          style={[
-            styles.title,
-            { color: colorScheme === 'dark' ? '#FFFFFF' : '#000000' },
-          ]}
-          numberOfLines={2}
-        >
+        <Image source={icon.uri} style={[styles.image, { width: size, height: size }]} onLoad={() => markerRef?.refresh()} />
+        <Text style={[styles.title, { color: colorScheme === 'dark' ? '#FFFFFF' : '#000000' }]} numberOfLines={2}>
           {title}
         </Text>
       </View>
@@ -55,20 +42,27 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1,
+    position: 'relative',
+    //minHeight: 40,
     minWidth: 100,
-    maxWidth: 180,
+    //maxWidth: 180,
+    zIndex: 1,
   },
   image: {
-    resizeMode: 'contain',
+    resizeMode: 'cover',
   },
   title: {
+    //position: 'fixed',
+    //top: 34,
+    overflow: 'visible',
     fontSize: 10,
-    fontWeight: '400',
+    fontWeight: '600',
     textAlign: 'center',
-    paddingHorizontal: 4,
-    marginTop: 4,
-    color: '#000000',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
 });
 

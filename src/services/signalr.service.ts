@@ -1,8 +1,4 @@
-import {
-  type HubConnection,
-  HubConnectionBuilder,
-  LogLevel,
-} from '@microsoft/signalr';
+import { type HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
@@ -149,9 +145,7 @@ class SignalRService {
   }
 
   public async disconnectAll(): Promise<void> {
-    const disconnectPromises = Array.from(this.connections.keys()).map(
-      (hubName) => this.disconnectFromHub(hubName)
-    );
+    const disconnectPromises = Array.from(this.connections.keys()).map((hubName) => this.disconnectFromHub(hubName));
     await Promise.all(disconnectPromises);
   }
 

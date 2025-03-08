@@ -144,6 +144,9 @@ const useAuthStore = create<AuthState>()(
           // Maybe sign_out user!
         }
       },
+      isAuthenticated: (): boolean => {
+        return get().status === 'signedIn' && get().accessToken !== null;
+      },
       //getRights: async () => {
       //  try {
       //    const response = await getCurrentUsersRights();

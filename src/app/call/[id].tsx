@@ -1,18 +1,11 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import {
-  ClockIcon,
-  FileTextIcon,
-  ImageIcon,
-  InfoIcon,
-  PaperclipIcon,
-  UserIcon,
-  UsersIcon,
-} from 'lucide-react-native';
+import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, PaperclipIcon, UserIcon, UsersIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, useWindowDimensions, View } from 'react-native';
-import RenderHtml from 'react-native-render-html';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import WebView from 'react-native-webview';
 
 import ZeroState from '@/components/common/zero-state';
 // Import a static map component instead of react-native-maps
@@ -36,7 +29,6 @@ export default function CallDetail() {
   const callId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { t } = useTranslation();
-  const { width } = useWindowDimensions();
   const [coordinates, setCoordinates] = useState<{
     latitude: number | null;
     longitude: number | null;
@@ -44,17 +36,12 @@ export default function CallDetail() {
     latitude: null,
     longitude: null,
   });
-  const {
-    call,
-    callExtraData,
-    callPriority,
-    isLoading,
-    error,
-    fetchCallDetail,
-    reset,
-  } = useCallDetailStore();
+  const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } = useCallDetailStore();
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
+
+  const { colorScheme } = useColorScheme();
+  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   useEffect(() => {
     reset();
@@ -126,11 +113,7 @@ export default function CallDetail() {
         <View className="size-full flex-1">
           <FocusAwareStatusBar />
           <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
-            <ZeroState
-              heading={t('call_detail.not_found')}
-              description={error}
-              isError={true}
-            />
+            <ZeroState heading={t('call_detail.not_found')} description={error} isError={true} />
           </Box>
         </View>
       </>
@@ -166,59 +149,60 @@ export default function CallDetail() {
         title: t('call_detail.tabs.info'),
         icon: <InfoIcon size={16} />,
         content: (
-          <Box className="p-4">
+          <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
             <VStack className="space-y-3">
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.priority')}
-                </Text>
-                <Text
-                  className="font-medium"
-                  style={{ color: callPriority?.Color }}
-                >
+                <Text className="text-sm text-gray-500">{t('call_detail.priority')}</Text>
+                <Text className="font-medium" style={{ color: callPriority?.Color }}>
                   {callPriority?.Name}
                 </Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.timestamp')}
-                </Text>
-                <Text className="font-medium">
-                  {format(new Date(call.LoggedOn), 'MMM d, h:mm a')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.timestamp')}</Text>
+                <Text className="font-medium">{format(new Date(call.LoggedOn), 'MMM d, h:mm a')}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.type')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.type')}</Text>
                 <Text className="font-medium">{call.Type}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.address')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
                 <Text className="font-medium">{call.Address}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.note')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
-                  <Text className="text-gray-800">
-                    <RenderHtml
-                      contentWidth={width}
-                      source={{ html: call.Note }}
-                      tagsStyles={{
-                        body: {
-                          fontSize: 16,
-                        },
-                        p: {
-                          margin: 0,
-                          padding: 0,
-                        },
-                      }}
-                    />
-                  </Text>
+                  <WebView
+                    style={[styles.container, { height: 200 }]}
+                    originWhitelist={['*']}
+                    scrollEnabled={false}
+                    showsVerticalScrollIndicator={false}
+                    source={{
+                      html: `
+                                <!DOCTYPE html>
+                                <html>
+                                  <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                                    <style>
+                                      body {
+                                        color: ${textColor};
+                                        font-family: system-ui, -apple-system, sans-serif;
+                                        margin: 0;
+                                        padding: 0;
+                                        font-size: 16px;
+                                        line-height: 1.5;
+                                      }
+                                      * {
+                                        max-width: 100%;
+                                      }
+                                    </style>
+                                  </head>
+                                  <body>${call.Note}</body>
+                                </html>
+                              `,
+                    }}
+                    androidLayerType="software"
+                  />
                 </Box>
               </Box>
             </VStack>
@@ -233,27 +217,19 @@ export default function CallDetail() {
           <Box className="p-4">
             <VStack className="space-y-3">
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.reference_id')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.reference_id')}</Text>
                 <Text className="font-medium">{call.ReferenceId}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.external_id')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.external_id')}</Text>
                 <Text className="font-medium">{call.ExternalId}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.contact_name')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.contact_name')}</Text>
                 <Text className="font-medium">{call.ContactName}</Text>
               </Box>
               <Box className="border-b border-gray-100 pb-2">
-                <Text className="text-sm text-gray-500">
-                  {t('call_detail.contact_info')}
-                </Text>
+                <Text className="text-sm text-gray-500">{t('call_detail.contact_info')}</Text>
                 <Text className="font-medium">{call.ContactInfo}</Text>
               </Box>
             </VStack>
@@ -271,25 +247,39 @@ export default function CallDetail() {
                 {callExtraData.Protocols.map((protocol, index) => (
                   <Box key={index} className="rounded-lg bg-gray-50 p-3">
                     <Text className="font-semibold">{protocol.Name}</Text>
-                    <Text className="text-sm text-gray-600">
-                      {protocol.Description}
-                    </Text>
+                    <Text className="text-sm text-gray-600">{protocol.Description}</Text>
                     <Box>
-                      <Text className="text-gray-800">
-                        <RenderHtml
-                          contentWidth={width}
-                          source={{ html: protocol.ProtocolText }}
-                          tagsStyles={{
-                            body: {
-                              fontSize: 16,
-                            },
-                            p: {
-                              margin: 0,
-                              padding: 0,
-                            },
-                          }}
-                        />
-                      </Text>
+                      <WebView
+                        style={[styles.container, { height: 200 }]}
+                        originWhitelist={['*']}
+                        scrollEnabled={false}
+                        showsVerticalScrollIndicator={false}
+                        source={{
+                          html: `
+                                <!DOCTYPE html>
+                                <html>
+                                  <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                                    <style>
+                                      body {
+                                        color: ${textColor};
+                                        font-family: system-ui, -apple-system, sans-serif;
+                                        margin: 0;
+                                        padding: 0;
+                                        font-size: 16px;
+                                        line-height: 1.5;
+                                      }
+                                      * {
+                                        max-width: 100%;
+                                      }
+                                    </style>
+                                  </head>
+                                  <body>${protocol.ProtocolText}</body>
+                                </html>
+                              `,
+                        }}
+                        androidLayerType="software"
+                      />
                     </Box>
                   </Box>
                 ))}
@@ -306,8 +296,7 @@ export default function CallDetail() {
         icon: <UsersIcon size={16} />,
         content: (
           <Box className="p-4">
-            {callExtraData?.Dispatches &&
-            callExtraData.Dispatches.length > 0 ? (
+            {callExtraData?.Dispatches && callExtraData.Dispatches.length > 0 ? (
               <VStack className="space-y-3">
                 {callExtraData.Dispatches.map((dispatched, index) => (
                   <Box key={index} className="rounded-lg bg-gray-50 p-3">
@@ -339,22 +328,14 @@ export default function CallDetail() {
             {callExtraData?.Activity && callExtraData.Activity.length > 0 ? (
               <VStack className="space-y-3">
                 {callExtraData.Activity.map((event, index) => (
-                  <Box
-                    key={index}
-                    className="border-l-4 border-blue-500 py-1 pl-3"
-                  >
-                    <Text
-                      className="font-semibold"
-                      style={{ color: event.StatusColor }}
-                    >
+                  <Box key={index} className="border-l-4 border-blue-500 py-1 pl-3">
+                    <Text className="font-semibold" style={{ color: event.StatusColor }}>
                       {event.StatusText}
                     </Text>
                     <Text className="text-sm text-gray-600">
                       {event.Name} - {event.Group}
                     </Text>
-                    <Text className="text-xs text-gray-500">
-                      {new Date(event.Timestamp).toLocaleString()}
-                    </Text>
+                    <Text className="text-xs text-gray-500">{new Date(event.Timestamp).toLocaleString()}</Text>
                     <Text className="text-xs text-gray-500">{event.Note}</Text>
                   </Box>
                 ))}
@@ -380,56 +361,59 @@ export default function CallDetail() {
       />
       <View className="size-full flex-1">
         <FocusAwareStatusBar />
-        <ScrollView className="flex-1 bg-gray-50">
+        <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
           {/* Header */}
-          <Box className="bg-white p-4 shadow-sm">
+          <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
             <HStack className="mb-2 items-center">
               <Heading size="md">
                 {call.Name} ({call.Number})
               </Heading>
             </HStack>
             <VStack className="space-y-1">
-              <Box>
-                <Text className="text-gray-800">
-                  <RenderHtml
-                    contentWidth={width}
-                    source={{ html: call.Nature }}
-                    tagsStyles={{
-                      body: {
-                        fontSize: 16,
-                      },
-                      p: {
-                        margin: 0,
-                        padding: 0,
-                      },
-                    }}
-                  />
-                </Text>
+              <Box style={{ height: 80 }}>
+                <WebView
+                  style={[styles.container, { height: 80 }]}
+                  originWhitelist={['*']}
+                  scrollEnabled={false}
+                  showsVerticalScrollIndicator={false}
+                  source={{
+                    html: `
+                                <!DOCTYPE html>
+                                <html>
+                                  <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                                    <style>
+                                      body {
+                                        color: ${textColor};
+                                        font-family: system-ui, -apple-system, sans-serif;
+                                        margin: 0;
+                                        padding: 0;
+                                        font-size: 16px;
+                                        line-height: 1.5;
+                                      }
+                                      * {
+                                        max-width: 100%;
+                                      }
+                                    </style>
+                                  </head>
+                                  <body>${call.Nature}</body>
+                                </html>
+                              `,
+                  }}
+                  androidLayerType="software"
+                />
               </Box>
             </VStack>
           </Box>
 
           {/* Map */}
           <Box className="w-full">
-            {coordinates.latitude && coordinates.longitude ? (
-              <StaticMap
-                latitude={coordinates.latitude}
-                longitude={coordinates.longitude}
-                address={call.Address}
-                zoom={15}
-                height={200}
-                showUserLocation={true}
-              />
-            ) : null}
+            {coordinates.latitude && coordinates.longitude ? <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} /> : null}
           </Box>
 
           {/* Action Buttons */}
-          <HStack className="justify-around bg-white p-4">
-            <Button
-              onPress={() => openNotesModal()}
-              variant="outline"
-              className="mx-1 flex-1"
-            >
+          <HStack className={`justify-around p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
+            <Button onPress={() => openNotesModal()} variant="outline" className="mx-1 flex-1">
               <ButtonIcon as={FileTextIcon} />
               <ButtonText>{t('call_detail.notes')}</ButtonText>
               {call?.NotesCount ? (
@@ -438,26 +422,16 @@ export default function CallDetail() {
                 </Box>
               ) : null}
             </Button>
-            <Button
-              onPress={openImagesModal}
-              variant="outline"
-              className="mx-1 flex-1"
-            >
+            <Button onPress={openImagesModal} variant="outline" className="mx-1 flex-1">
               <ButtonIcon as={ImageIcon} />
               <ButtonText>{t('call_detail.images')}</ButtonText>
               {call?.ImgagesCount ? (
                 <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                  <Text className="text-xs font-medium">
-                    {call.ImgagesCount}
-                  </Text>
+                  <Text className="text-xs font-medium">{call.ImgagesCount}</Text>
                 </Box>
               ) : null}
             </Button>
-            <Button
-              onPress={openFilesModal}
-              variant="outline"
-              className="mx-1 flex-1"
-            >
+            <Button onPress={openFilesModal} variant="outline" className="mx-1 flex-1">
               <ButtonIcon as={PaperclipIcon} />
               <ButtonText>{t('call_detail.files')}</ButtonText>
               {call?.FileCount ? (
@@ -469,21 +443,20 @@ export default function CallDetail() {
           </HStack>
 
           {/* Tabs */}
-          <Box className="mt-4 flex-1 bg-white pb-8">
+          <Box className={`mt-4 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
             <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
           </Box>
         </ScrollView>
       </View>
-      <CallNotesModal
-        isOpen={isNotesModalOpen}
-        onClose={() => setIsNotesModalOpen(false)}
-        callId={callId}
-      />
-      <CallImagesModal
-        isOpen={isImagesModalOpen}
-        onClose={() => setIsImagesModalOpen(false)}
-        callId={callId}
-      />
+      <CallNotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} callId={callId} />
+      <CallImagesModal isOpen={isImagesModalOpen} onClose={() => setIsImagesModalOpen(false)} callId={callId} />
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+});

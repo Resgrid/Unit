@@ -8,11 +8,9 @@ interface SignalRProviderProps {
   children: React.ReactNode;
 }
 
-export const SignalRProvider: React.FC<SignalRProviderProps> = ({
-  children,
-}) => {
+export const SignalRProvider: React.FC<SignalRProviderProps> = ({ children }) => {
   const { connect, disconnect, isConnected, error } = useSignalRStore();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   useEffect(() => {
     if (isAuthenticated && !isConnected) {

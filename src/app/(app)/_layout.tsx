@@ -1,14 +1,6 @@
 /* eslint-disable react/no-unstable-nested-components */
 import { Link, Redirect, SplashScreen, Tabs } from 'expo-router';
-import {
-  Contact,
-  ListTree,
-  Map,
-  Megaphone,
-  Menu,
-  Notebook,
-  Settings,
-} from 'lucide-react-native';
+import { Contact, ListTree, Map, Megaphone, Menu, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, useWindowDimensions } from 'react-native';
@@ -16,14 +8,7 @@ import { StyleSheet, useWindowDimensions } from 'react-native';
 import Sidebar from '@/components/sidebar/sidebar';
 import { Pressable, View } from '@/components/ui';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
-import {
-  Drawer,
-  DrawerBackdrop,
-  DrawerBody,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-} from '@/components/ui/drawer';
+import { Drawer, DrawerBackdrop, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@/components/ui/drawer';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useAuthStore } from '@/lib/auth';
@@ -91,10 +76,7 @@ export default function TabLayout() {
                 <Sidebar />
               </DrawerBody>
               <DrawerFooter>
-                <Button
-                  onPress={() => setIsOpen(false)}
-                  className="w-full bg-primary-600"
-                >
+                <Button onPress={() => setIsOpen(false)} className="w-full bg-primary-600">
                   <ButtonText>Close</ButtonText>
                 </Button>
               </DrawerFooter>
@@ -118,19 +100,8 @@ export default function TabLayout() {
               name="index"
               options={{
                 title: t('tabs.map'),
-                tabBarIcon: ({ color }) => (
-                  <Icon
-                    as={Map}
-                    stroke={color}
-                    className="text-primary-500 dark:text-primary-400"
-                  />
-                ),
-                headerLeft: () => (
-                  <CreateDrawerMenuButton
-                    setIsOpen={setIsOpen}
-                    isLandscape={isLandscape}
-                  />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={Map} stroke={color} className="text-primary-500 dark:text-primary-400" />,
+                headerLeft: () => <CreateDrawerMenuButton setIsOpen={setIsOpen} isLandscape={isLandscape} />,
                 tabBarButtonTestID: 'map-tab',
               }}
             />
@@ -140,13 +111,7 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.calls'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => (
-                  <Icon
-                    as={Megaphone}
-                    stroke={color}
-                    className="text-primary-500 dark:text-primary-400"
-                  />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={Megaphone} stroke={color} className="text-primary-500 dark:text-primary-400" />,
                 tabBarButtonTestID: 'calls-tab',
               }}
             />
@@ -156,13 +121,7 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.contacts'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => (
-                  <Icon
-                    as={Contact}
-                    stroke={color}
-                    className="text-primary-500 dark:text-primary-400"
-                  />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={Contact} stroke={color} className="text-primary-500 dark:text-primary-400" />,
                 tabBarButtonTestID: 'contacts-tab',
               }}
             />
@@ -172,9 +131,7 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.notes'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => (
-                  <Icon as={Notebook} stroke={color} />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={Notebook} stroke={color} />,
                 tabBarButtonTestID: 'notes-tab',
               }}
             />
@@ -184,9 +141,7 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.protocols'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => (
-                  <Icon as={ListTree} stroke={color} />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={ListTree} stroke={color} />,
                 tabBarButtonTestID: 'protocols-tab',
               }}
             />
@@ -196,9 +151,7 @@ export default function TabLayout() {
               options={{
                 title: t('tabs.settings'),
                 headerShown: true,
-                tabBarIcon: ({ color }) => (
-                  <Icon as={Settings} stroke={color} />
-                ),
+                tabBarIcon: ({ color }) => <Icon as={Settings} stroke={color} />,
                 tabBarButtonTestID: 'settings-tab',
               }}
             />
@@ -224,10 +177,7 @@ interface CreateDrawerMenuButtonProps {
   isLandscape: boolean;
 }
 
-const CreateDrawerMenuButton = ({
-  setIsOpen,
-  isLandscape,
-}: CreateDrawerMenuButtonProps) => {
+const CreateDrawerMenuButton = ({ setIsOpen, isLandscape }: CreateDrawerMenuButtonProps) => {
   if (isLandscape) {
     return null;
   }

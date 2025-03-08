@@ -16,8 +16,7 @@ import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';
 
 export default function Calls() {
-  const { calls, isLoading, error, fetchCalls, fetchCallPriorities } =
-    useCallsStore();
+  const { calls, isLoading, error, fetchCalls, fetchCallPriorities } = useCallsStore();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const { colorScheme } = useColorScheme();
@@ -33,11 +32,7 @@ export default function Calls() {
   };
 
   // Filter calls based on search query
-  const filteredCalls = calls.filter(
-    (call) =>
-      call.CallId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (call.Nature?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-  );
+  const filteredCalls = calls.filter((call) => call.CallId.toLowerCase().includes(searchQuery.toLowerCase()) || (call.Nature?.toLowerCase() || '').includes(searchQuery.toLowerCase()));
 
   if (error) {
     return (
@@ -51,22 +46,14 @@ export default function Calls() {
 
   return (
     <View className="size-full flex-1">
-      <Box
-        className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}
-      >
+      <Box className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
         {/* Add search input */}
         <Box className="px-4 py-2">
-          <Input
-            className={`${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-50'}`}
-          >
+          <Input className={`${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-50'}`}>
             <InputSlot>
               <SearchIcon size={20} className="text-gray-500" />
             </InputSlot>
-            <InputField
-              placeholder={t('common.search')}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            <InputField placeholder={t('common.search')} value={searchQuery} onChangeText={setSearchQuery} />
           </Input>
         </Box>
 
@@ -75,34 +62,12 @@ export default function Calls() {
             data={filteredCalls}
             renderItem={({ item }: { item: CallResultData }) => (
               <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
-                <CallCard
-                  call={item}
-                  priority={useCallsStore
-                    .getState()
-                    .callPriorities.find(
-                      (p: { Id: number }) => p.Id === item.Priority
-                    )}
-                />
+                <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} />
               </Pressable>
             )}
             keyExtractor={(item: CallResultData) => item.CallId}
-            refreshControl={
-              <RefreshControl
-                refreshing={isLoading}
-                onRefresh={handleRefresh}
-              />
-            }
-            ListEmptyComponent={
-              isLoading ? (
-                <Loading />
-              ) : (
-                <ZeroState
-                  heading={t('calls.no_calls')}
-                  description={t('calls.no_calls_description')}
-                  icon={RefreshCcwDotIcon}
-                />
-              )
-            }
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
+            ListEmptyComponent={isLoading ? <Loading /> : <ZeroState heading={t('calls.no_calls')} description={t('calls.no_calls_description')} icon={RefreshCcwDotIcon} />}
             contentContainerStyle={{ paddingBottom: 20 }}
           />
         </Box>

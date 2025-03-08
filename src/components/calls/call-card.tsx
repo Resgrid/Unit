@@ -1,31 +1,28 @@
-import { format } from "date-fns";
-import { AlertTriangle, Calendar, MapPin, Phone } from "lucide-react-native";
-import React from "react";
-import { useWindowDimensions } from "react-native";
-import RenderHtml from "react-native-render-html";
+import { format } from 'date-fns';
+import { AlertTriangle, Calendar, MapPin, Phone } from 'lucide-react-native';
+import React from 'react';
+import { StyleSheet } from 'react-native';
+import WebView from 'react-native-webview';
 
-import { Box } from "@/components/ui/box";
-import { HStack } from "@/components/ui/hstack";
-import { Icon } from "@/components/ui/icon";
-import { Text } from "@/components/ui/text";
-import { VStack } from "@/components/ui/vstack";
-import { invertColor } from "@/lib/utils";
-import { type CallPriorityResultData } from "@/models/v4/callPriorities/callPriorityResultData";
-import type { CallResultData } from "@/models/v4/calls/callResultData";
+import { Box } from '@/components/ui/box';
+import { HStack } from '@/components/ui/hstack';
+import { Icon } from '@/components/ui/icon';
+import { Text } from '@/components/ui/text';
+import { VStack } from '@/components/ui/vstack';
+import { invertColor } from '@/lib/utils';
+import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import type { CallResultData } from '@/models/v4/calls/callResultData';
 
-function getColor(
-  call: CallResultData,
-  priority: CallPriorityResultData | undefined,
-) {
+function getColor(call: CallResultData, priority: CallPriorityResultData | undefined) {
   if (!call) {
-    return "#808080";
-  } else if (call.CallId === "0") {
-    return "#808080";
+    return '#808080';
+  } else if (call.CallId === '0') {
+    return '#808080';
   } else if (priority && priority.Color) {
     return priority.Color;
   }
 
-  return "#808080";
+  return '#808080';
 }
 
 interface CallCardProps {
@@ -34,7 +31,6 @@ interface CallCardProps {
 }
 
 export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
-  const { width } = useWindowDimensions();
   const textColor = invertColor(getColor(call, priority), true);
 
   return (
@@ -63,7 +59,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
           }}
           className="text-sm text-gray-600"
         >
-          {format(new Date(call.LoggedOn), "MMM d, h:mm a")}
+          {format(new Date(call.LoggedOn), 'MMM d, h:mm a')}
         </Text>
       </HStack>
 
@@ -98,33 +94,53 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
         {/* Dispatched Time */}
         <HStack className="items-center space-x-2">
           <Icon as={Calendar} className="text-gray-500" size="md" />
-          <Text className="text-sm text-gray-600">
-            Dispatched: {format(new Date(call.DispatchedOn), "PPp")}
-          </Text>
+          <Text className="text-sm text-gray-600">Dispatched: {format(new Date(call.DispatchedOn), 'PPp')}</Text>
         </HStack>
       </VStack>
 
       {/* Nature of Call */}
       {call.Nature && (
         <Box className="mt-4 rounded-lg bg-white/50 p-3">
-          <Text style={{ color: textColor }} className="text-gray-800">
-            <RenderHtml
-              contentWidth={width}
-              source={{ html: call.Nature }}
-              tagsStyles={{
-                body: {
-                  color: textColor,
-                  fontSize: 16,
-                },
-                p: {
-                  margin: 0,
-                  padding: 0,
-                },
-              }}
-            />
-          </Text>
+          <WebView
+            style={[styles.container, { height: 80 }]}
+            originWhitelist={['*']}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+            source={{
+              html: `
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                    <style>
+                      body {
+                        color: ${textColor};
+                        font-family: system-ui, -apple-system, sans-serif;
+                        margin: 0;
+                        padding: 0;
+                        font-size: 16px;
+                        line-height: 1.5;
+                      }
+                      * {
+                        max-width: 100%;
+                      }
+                    </style>
+                  </head>
+                  <body>${call.Nature}</body>
+                </html>
+              `,
+            }}
+            androidLayerType="software"
+          />
         </Box>
       )}
     </Box>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+});

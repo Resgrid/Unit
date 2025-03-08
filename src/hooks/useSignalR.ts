@@ -1,10 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { logger } from '@/lib/logging';
-import {
-  type SignalRHubConfig,
-  signalRService,
-} from '@/services/signalr.service';
+import { type SignalRHubConfig, signalRService } from '@/services/signalr.service';
 
 export const useSignalR = (config: SignalRHubConfig) => {
   const connect = useCallback(async () => {
