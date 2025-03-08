@@ -1,4 +1,4 @@
-import { Search, X } from 'lucide-react-native';
+import { Search, SearchIcon, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, useWindowDimensions } from 'react-native';
@@ -18,7 +18,7 @@ import { HStack } from '../ui/hstack';
 import { Input } from '../ui/input';
 import { InputSlot } from '../ui/input';
 import { InputField } from '../ui/input';
-import { Loading } from '../ui/loading';
+import { Loading } from '../common/loading';
 import { Text } from '../ui/text';
 import { Textarea } from '../ui/textarea';
 import { TextareaInput } from '../ui/textarea';
@@ -77,8 +77,8 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
               <VStack space="md" className="size-full">
                 {/* Search Bar */}
                 <Input className="w-full rounded-lg bg-gray-100 dark:bg-gray-700">
-                  <InputSlot className="pl-3">
-                    <Search size={20} />
+                  <InputSlot>
+                    <SearchIcon size={20} className="text-gray-500" />
                   </InputSlot>
                   <InputField placeholder={t('callNotes.searchPlaceholder')} value={searchQuery} onChangeText={setSearchQuery} />
                 </Input>

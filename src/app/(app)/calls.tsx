@@ -10,7 +10,7 @@ import ZeroState from '@/components/common/zero-state';
 import { Box } from '@/components/ui/box';
 import { FlatList } from '@/components/ui/flat-list';
 import { Input, InputField, InputSlot } from '@/components/ui/input';
-import { Loading } from '@/components/ui/loading';
+import { Loading } from '@/components/common/loading';
 import { Text } from '@/components/ui/text';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';

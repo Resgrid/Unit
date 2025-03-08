@@ -1,11 +1,12 @@
-import React from 'react';
-import { View } from 'react-native';
 import { Box, Loader2 } from 'lucide-react-native';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { HStack } from './hstack';
-import { Spinner } from './spinner';
-import { VStack } from './vstack';
-import { Text } from './text';
+import { View } from 'react-native';
+
+import { HStack } from '../ui/hstack';
+import { Spinner } from '../ui/spinner';
+import { Text } from '../ui/text';
+import { VStack } from '../ui/vstack';
 interface LoadingProps {
   /**
    * Text to display below the spinner
@@ -38,19 +39,11 @@ interface LoadingProps {
   transparent?: boolean;
 }
 
-export const Loading: React.FC<LoadingProps> = ({
-  text,
-  fullscreen = false,
-  size = 'large',
-  type = 'spinner',
-  transparent = false,
-}) => {
+export const Loading: React.FC<LoadingProps> = ({ text, fullscreen = false, size = 'large', type = 'spinner', transparent = false }) => {
   const { t } = useTranslation();
   const loadingText = text || t('common:loading');
 
-  const containerClasses = `items-center justify-center ${
-    fullscreen ? 'absolute inset-0 z-50' : ''
-  } ${transparent ? 'bg-transparent' : 'bg-background/80'}`;
+  const containerClasses = `items-center justify-center ${fullscreen ? 'absolute inset-0 z-50' : ''} ${transparent ? 'bg-transparent' : 'bg-background/80'}`;
 
   const renderLoadingIndicator = () => {
     switch (type) {
@@ -60,13 +53,7 @@ export const Loading: React.FC<LoadingProps> = ({
             {[1, 2, 3].map((i) => (
               <Box
                 key={i}
-                className={`rounded-full bg-primary ${
-                  size === 'small'
-                    ? 'h-2 w-2'
-                    : size === 'large'
-                      ? 'h-3 w-3'
-                      : 'h-4 w-4'
-                } animate-pulse`}
+                className={`bg-primary rounded-full ${size === 'small' ? 'size-2' : size === 'large' ? 'size-3' : 'size-4'} animate-pulse`}
                 style={{
                   animationDelay: `${i * 0.15}s`,
                 }}
@@ -75,12 +62,7 @@ export const Loading: React.FC<LoadingProps> = ({
           </HStack>
         );
       case 'icon':
-        return (
-          <Loader2
-            size={size === 'small' ? 24 : size === 'large' ? 32 : 40}
-            className="text-primary animate-spin"
-          />
-        );
+        return <Loader2 size={size === 'small' ? 24 : size === 'large' ? 32 : 40} className="text-primary animate-spin" />;
       case 'spinner':
       default:
         return <Spinner size={size} className="text-primary" />;
@@ -89,21 +71,9 @@ export const Loading: React.FC<LoadingProps> = ({
 
   return (
     <View className={containerClasses}>
-      <VStack space="sm" className="items-center p-4 rounded-xl">
+      <VStack space="sm" className="items-center rounded-xl p-4">
         {renderLoadingIndicator()}
-        {loadingText && (
-          <Text
-            className={`text-foreground font-medium mt-2 ${
-              size === 'small'
-                ? 'text-xs'
-                : size === 'large'
-                  ? 'text-sm'
-                  : 'text-base'
-            }`}
-          >
-            {loadingText}
-          </Text>
-        )}
+        {loadingText && <Text className={`text-foreground mt-2 font-medium text-blue-400 ${size === 'small' ? 'text-xs' : size === 'large' ? 'text-sm' : 'text-base'}`}>{loadingText}</Text>}
       </VStack>
     </View>
   );
@@ -143,13 +113,7 @@ interface SkeletonProps {
   children?: React.ReactNode;
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({
-  width = '100%',
-  height = 20,
-  borderRadius = 'md',
-  isLoading = true,
-  children,
-}) => {
+export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 20, borderRadius = 'md', isLoading = true, children }) => {
   if (!isLoading) {
     return <>{children}</>;
   }
@@ -162,12 +126,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     full: 'rounded-full',
   };
 
-  return (
-    <Box
-      className={`bg-muted/30 animate-pulse ${radiusMap[borderRadius]}`}
-      style={{ width: width as number, height: height as number }}
-    />
-  );
+  return <Box className={`bg-muted/30 animate-pulse ${radiusMap[borderRadius]}`} style={{ width: width as number, height: height as number }} />;
 };
 
 /**
@@ -195,7 +154,7 @@ export const CardSkeleton: React.FC<{
   hasFooter?: boolean;
 }> = ({ hasImage = true, hasFooter = true }) => {
   return (
-    <Box className="w-full rounded-lg bg-card p-4 border border-border">
+    <Box className="bg-card border-border w-full rounded-lg border p-4">
       {hasImage && <Skeleton height={200} borderRadius="md" />}
       <VStack space="sm" className="mt-4">
         <Skeleton width="60%" height={24} />
@@ -218,7 +177,7 @@ export const CardSkeleton: React.FC<{
  */
 export const ProfileSkeleton: React.FC = () => {
   return (
-    <VStack className="items-center w-full p-4">
+    <VStack className="w-full items-center p-4">
       <Skeleton width={100} height={100} borderRadius="full" />
       <VStack space="sm" className="mt-4 w-full items-center">
         <Skeleton width="50%" height={24} />

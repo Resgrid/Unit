@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, PaperclipIcon, UserIcon, UsersIcon } from 'lucide-react-native';
+import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, PaperclipIcon, RouteIcon, UserIcon, UsersIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,11 +15,15 @@ import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
-import { Loading } from '@/components/ui/loading';
+import { Loading } from '@/components/common/loading';
 import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { openMapsWithDirections } from '@/lib/navigation';
+import { logger } from '@/lib/logging';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useLocationStore } from '@/stores/app/location-store';
+import { useToastStore } from '@/stores/toast/store';
 
 import CallFilesModal from '../../components/calls/call-files-modal';
 import CallImagesModal from '../../components/calls/call-images-modal';
@@ -41,9 +45,16 @@ export default function CallDetail() {
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
+  const showToast = useToastStore((state) => state.showToast);
 
   const { colorScheme } = useColorScheme();
   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+
+  // Get current user location from the location store
+  const userLocation = useLocationStore((state) => ({
+    latitude: state.latitude,
+    longitude: state.longitude,
+  }));
 
   useEffect(() => {
     reset();
@@ -84,6 +95,31 @@ export default function CallDetail() {
 
   const openFilesModal = () => {
     setIsFilesModalOpen(true);
+  };
+
+  /**
+   * Opens the device's native maps application with directions to the call location
+   */
+  const handleRoute = async () => {
+    if (!coordinates.latitude || !coordinates.longitude) {
+      showToast('error', t('call_detail.no_location_for_routing'));
+      return;
+    }
+
+    try {
+      const destinationName = call?.Address || t('call_detail.call_location');
+      const success = await openMapsWithDirections(coordinates.latitude, coordinates.longitude, destinationName, userLocation.latitude || undefined, userLocation.longitude || undefined);
+
+      if (!success) {
+        showToast('error', t('call_detail.failed_to_open_maps'));
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to open maps for routing',
+        context: { error, callId, coordinates },
+      });
+      showToast('error', t('call_detail.failed_to_open_maps'));
+    }
   };
 
   if (isLoading) {
@@ -435,12 +471,16 @@ export default function CallDetail() {
             </Button>
             <Button onPress={openFilesModal} variant="outline" className="mx-1 flex-1">
               <ButtonIcon as={PaperclipIcon} />
-              <ButtonText>{t('call_detail.files')}</ButtonText>
+              <ButtonText>{t('call_detail.files.button')}</ButtonText>
               {call?.FileCount ? (
                 <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
                   <Text className="text-xs font-medium">{call.FileCount}</Text>
                 </Box>
               ) : null}
+            </Button>
+            <Button onPress={handleRoute} variant="outline" className="mx-1 flex-1">
+              <ButtonIcon as={RouteIcon} />
+              <ButtonText>{t('common.route')}</ButtonText>
             </Button>
           </HStack>
 

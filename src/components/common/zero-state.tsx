@@ -1,12 +1,13 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { LucideIcon } from 'lucide-react-native';
-import { useTranslation } from 'react-i18next';
+import { type LucideIcon } from 'lucide-react-native';
 import { FileQuestion } from 'lucide-react-native';
-import { Center } from '../ui/center';
-import { VStack } from '../ui/vstack';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { Text, View } from 'react-native';
+
 import { Box } from '../ui/box';
+import { Center } from '../ui/center';
 import { Heading } from '../ui/heading';
+import { VStack } from '../ui/vstack';
 
 interface ZeroStateProps {
   /**
@@ -72,35 +73,28 @@ const ZeroState: React.FC<ZeroStateProps> = ({
   const { t } = useTranslation();
 
   // Default texts with translations
-  const defaultHeading = isError
-    ? t('common.errorOccurred', 'An error occurred')
-    : t('common.noDataAvailable', 'No data available');
+  const defaultHeading = isError ? t('common.errorOccurred', 'An error occurred') : t('common.noDataAvailable', 'No data available');
 
-  const defaultDescription = isError
-    ? t('common.tryAgainLater', 'Please try again later')
-    : t('common.nothingToDisplay', "There's nothing to display at the moment");
+  const defaultDescription = isError ? t('common.tryAgainLater', 'Please try again later') : t('common.nothingToDisplay', "There's nothing to display at the moment");
 
   return (
-    <Center className={`flex-1 p-6 ${className}`} testID="zero-state">
-      <VStack space="md" className="items-center">
-        <Box className="mb-4">
-          <Icon size={iconSize} color={isError ? '#ef4444' : iconColor} />
-        </Box>
+    <View className="size-full p-6">
+      <Center className={`flex-1 p-6 ${className}`} testID="zero-state">
+        <VStack space="md" className="items-center">
+          <Box className="mb-4">
+            <Icon size={iconSize} color={isError ? '#ef4444' : iconColor} />
+          </Box>
 
-        <Heading
-          size="lg"
-          className={`text-center mb-2 ${isError ? 'text-red-500' : 'text-slate-700'}`}
-        >
-          {heading || defaultHeading}
-        </Heading>
+          <Heading size="lg" className={`mb-2 text-center ${isError ? 'text-red-500' : 'text-info-500'}`}>
+            {heading || defaultHeading}
+          </Heading>
 
-        <Text className="text-center text-slate-500 mb-6">
-          {description || defaultDescription}
-        </Text>
+          <Text className="mb-6 text-center text-info-400">{description || defaultDescription}</Text>
 
-        {children}
-      </VStack>
-    </Center>
+          {children}
+        </VStack>
+      </Center>
+    </View>
   );
 };
 

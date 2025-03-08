@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { FileIcon, PlusIcon, ShareIcon, XIcon } from 'lucide-react-native';
+import { FileIcon, PlusIcon, ShareIcon, X, XIcon } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Platform, TouchableOpacity, useWindowDimensions } from 'react-native';
@@ -17,7 +17,7 @@ import { Button, ButtonIcon, ButtonText } from '../ui/button';
 import { Heading } from '../ui/heading';
 import { HStack } from '../ui/hstack';
 import { Input, InputField } from '../ui/input';
-import { Loading } from '../ui/loading';
+import { Loading } from '../common/loading';
 import { Text } from '../ui/text';
 import { VStack } from '../ui/vstack';
 
@@ -36,64 +36,15 @@ const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
 
-  // We need to add these to the store
+  // Get data from stores
   const { profile } = useAuthStore();
-  const { call } = useCallDetailStore();
-
-  // Mock data for now - will be replaced with actual store data
-  const [callFiles, setCallFiles] = useState<CallFileResultData[]>([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
-  const [errorFiles, setErrorFiles] = useState<string | null>(null);
+  const { call, callFiles, isLoadingFiles, errorFiles, fetchCallFiles } = useCallDetailStore();
 
   useEffect(() => {
     if (isOpen && callId) {
-      fetchCallFiles();
+      fetchCallFiles(callId);
     }
-  }, [isOpen, callId]);
-
-  const fetchCallFiles = async () => {
-    setIsLoadingFiles(true);
-    try {
-      // This will need to be replaced with the actual store function once implemented
-      // const files = await useCallDetailStore.getState().fetchCallFiles(callId);
-      // For now, we'll use mock data
-      setTimeout(() => {
-        const mockFiles: CallFileResultData[] = [
-          {
-            Id: '1',
-            CallId: callId,
-            Type: 3,
-            FileName: 'report.pdf',
-            Data: '',
-            Name: 'Incident Report',
-            Size: 1024000,
-            Url: 'https://example.com/files/report.pdf',
-            UserId: '123',
-            Timestamp: new Date().toISOString(),
-            Mime: 'application/pdf',
-          },
-          {
-            Id: '2',
-            CallId: callId,
-            Type: 3,
-            FileName: 'checklist.docx',
-            Data: '',
-            Name: 'Safety Checklist',
-            Size: 512000,
-            Url: 'https://example.com/files/checklist.docx',
-            UserId: '123',
-            Timestamp: new Date().toISOString(),
-            Mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          },
-        ];
-        setCallFiles(mockFiles);
-        setIsLoadingFiles(false);
-      }, 1000);
-    } catch (error) {
-      setErrorFiles(error instanceof Error ? error.message : 'Failed to fetch files');
-      setIsLoadingFiles(false);
-    }
-  };
+  }, [isOpen, callId, fetchCallFiles]);
 
   const handleFileSelect = async () => {
     try {
@@ -139,7 +90,7 @@ const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId
         setIsUploading(false);
         setIsAddingFile(false);
         setNewFileName('');
-        fetchCallFiles();
+        fetchCallFiles(callId);
       }, 1500);
     } catch (error) {
       console.error('Error uploading file:', error);
@@ -274,32 +225,37 @@ const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId
 
   const renderFilesList = () => {
     return (
-      <Box className="p-4">
-        <HStack className="mb-4 items-center justify-between">
-          <Heading size="sm">{t('call_detail.files.title')}</Heading>
-          <Button size="sm" variant="outline" onPress={() => setIsAddingFile(true)} className="h-8">
+      <>
+        <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
+          <Heading size="lg">{t('call_detail.files.title')}</Heading>
+          <Button variant="link" onPress={onClose} className="p-1">
+            <X size={24} />
+          </Button>
+          {/* <Button size="sm" variant="outline" onPress={() => setIsAddingFile(true)} className="h-8">
             <ButtonIcon as={PlusIcon} />
             <ButtonText>{t('common.add')}</ButtonText>
-          </Button>
-        </HStack>
+          </Button> */}
+        </Box>
 
-        {isLoadingFiles ? (
-          <Loading />
-        ) : errorFiles ? (
-          <ZeroState heading={t('call_detail.files.error')} description={errorFiles} isError={true} />
-        ) : callFiles.length === 0 ? (
-          <ZeroState heading={t('call_detail.files.empty')} description={t('call_detail.files.empty_description')} icon={FileIcon} />
-        ) : (
-          <FlatList data={callFiles} renderItem={renderFileItem} keyExtractor={(item) => item.Id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} />
-        )}
-      </Box>
+        <Box className="w-full p-4">
+          {isLoadingFiles ? (
+            <Loading />
+          ) : errorFiles ? (
+            <ZeroState heading={t('call_detail.files.error')} description={errorFiles} isError={true} />
+          ) : callFiles?.length === 0 ? (
+            <ZeroState heading={t('call_detail.files.empty')} description={t('call_detail.files.empty_description')} icon={FileIcon} />
+          ) : (
+            <FlatList data={callFiles || []} renderItem={renderFileItem} keyExtractor={(item) => item.Id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} />
+          )}
+        </Box>
+      </>
     );
   };
 
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose} snapPoints={[66]}>
       <ActionsheetBackdrop />
-      <ActionsheetContent>
+      <ActionsheetContent className="rounded-t-3x bg-white dark:bg-gray-800">
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>

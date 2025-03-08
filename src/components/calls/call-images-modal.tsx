@@ -7,7 +7,7 @@ import { Dimensions, FlatList, Image, Platform, TouchableOpacity, View } from 'r
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import ZeroState from '@/components/common/zero-state';
-import { Loading } from '@/components/ui/loading';
+import { Loading } from '@/components/common/loading';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';

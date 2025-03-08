@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { getCallImages, saveCallImage } from '@/api/calls/callFiles';
+import { getCallFiles, getCallImages, saveCallImage } from '@/api/calls/callFiles';
 import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
 import { getCall, getCallExtraData } from '@/api/calls/calls';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
@@ -22,27 +22,17 @@ interface CallDetailState {
   fetchCallDetail: (callId: string) => Promise<void>;
   reset: () => void;
   fetchCallNotes: (callId: string) => Promise<void>;
-  addNote: (
-    callId: string,
-    note: string,
-    userId: string,
-    latitude: number | null,
-    longitude: number | null
-  ) => Promise<void>;
+  addNote: (callId: string, note: string, userId: string, latitude: number | null, longitude: number | null) => Promise<void>;
   searchNotes: (query: string) => CallNoteResultData[];
   callImages: CallFileResultData[] | null;
+  callFiles: CallFileResultData[] | null;
+  isLoadingFiles: boolean;
+  errorFiles: string | null;
+  fetchCallFiles: (callId: string) => Promise<void>;
   isLoadingImages: boolean;
   errorImages: string | null;
   fetchCallImages: (callId: string) => Promise<void>;
-  uploadCallImage: (
-    callId: string,
-    userId: string,
-    note: string,
-    name: string,
-    latitude: number | null,
-    longitude: number | null,
-    file: string
-  ) => Promise<void>;
+  uploadCallImage: (callId: string, userId: string, note: string, name: string, latitude: number | null, longitude: number | null, file: string) => Promise<void>;
 }
 
 export const useCallDetailStore = create<CallDetailState>((set) => ({
@@ -56,6 +46,9 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
   callImages: null,
   isLoadingImages: false,
   errorImages: null,
+  callFiles: null,
+  isLoadingFiles: false,
+  errorFiles: null,
   reset: () =>
     set({
       call: null,
@@ -68,22 +61,10 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
   fetchCallDetail: async (callId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const [callResult, callExtraDataResult] = await Promise.all([
-        getCall(callId),
-        getCallExtraData(callId),
-      ]);
+      const [callResult, callExtraDataResult] = await Promise.all([getCall(callId), getCallExtraData(callId)]);
 
-      if (
-        callResult &&
-        callResult.Data &&
-        callExtraDataResult &&
-        callExtraDataResult.Data
-      ) {
-        const callPriority = useCallsStore
-          .getState()
-          .callPriorities.find(
-            (priority) => priority.Id === callResult.Data.Priority
-          );
+      if (callResult && callResult.Data && callExtraDataResult && callExtraDataResult.Data) {
+        const callPriority = useCallsStore.getState().callPriorities.find((priority) => priority.Id === callResult.Data.Priority);
 
         set({
           call: callResult.Data,
@@ -93,17 +74,13 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
         });
       } else {
         set({
-          error:
-            callResult.Message ||
-            callExtraDataResult.Message ||
-            'Failed to fetch call details',
+          error: callResult.Message || callExtraDataResult.Message || 'Failed to fetch call details',
           isLoading: false,
         });
       }
     } catch (error) {
       set({
-        error:
-          error instanceof Error ? error.message : 'An unknown error occurred',
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
         isLoading: false,
       });
     }
@@ -120,18 +97,11 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
       set({
         callNotes: [],
         isNotesLoading: false,
-        error:
-          error instanceof Error ? error.message : 'Failed to fetch call notes',
+        error: error instanceof Error ? error.message : 'Failed to fetch call notes',
       });
     }
   },
-  addNote: async (
-    callId: string,
-    note: string,
-    userId: string,
-    latitude: number | null,
-    longitude: number | null
-  ) => {
+  addNote: async (callId: string, note: string, userId: string, latitude: number | null, longitude: number | null) => {
     set({ isNotesLoading: true });
     try {
       await saveCallNote(callId, userId, note, latitude, longitude);
@@ -146,11 +116,7 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
   searchNotes: (query: string): CallNoteResultData[] => {
     const callNotes = useCallDetailStore.getState().callNotes;
     if (!query) return callNotes;
-    return callNotes?.filter(
-      (note: CallNoteResultData) =>
-        note.Note.toLowerCase().includes(query.toLowerCase()) ||
-        note.FullName.toLowerCase().includes(query.toLowerCase())
-    );
+    return callNotes?.filter((note: CallNoteResultData) => note.Note.toLowerCase().includes(query.toLowerCase()) || note.FullName.toLowerCase().includes(query.toLowerCase()));
   },
   fetchCallImages: async (callId: string) => {
     set({ isLoadingImages: true, errorImages: null });
@@ -164,38 +130,35 @@ export const useCallDetailStore = create<CallDetailState>((set) => ({
       set({
         callImages: [],
         isNotesLoading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to fetch call images',
+        error: error instanceof Error ? error.message : 'Failed to fetch call images',
       });
     }
   },
-  uploadCallImage: async (
-    callId: string,
-    userId: string,
-    note: string,
-    name: string,
-    latitude: number | null,
-    longitude: number | null,
-    file: string
-  ) => {
+  uploadCallImage: async (callId: string, userId: string, note: string, name: string, latitude: number | null, longitude: number | null, file: string) => {
     try {
-      await saveCallImage(
-        callId,
-        userId,
-        note,
-        name,
-        latitude,
-        longitude,
-        file
-      );
+      await saveCallImage(callId, userId, note, name, latitude, longitude, file);
 
       // After successful upload, refresh the images list
       useCallDetailStore.getState().fetchCallImages(callId);
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
+    }
+  },
+  fetchCallFiles: async (callId: string) => {
+    set({ isLoadingFiles: true, errorFiles: null });
+    try {
+      const callFiles = await getCallFiles(callId, false);
+      set({
+        callFiles: callFiles.Data || [],
+        isLoadingFiles: false,
+      });
+    } catch (error) {
+      set({
+        callFiles: [],
+        isLoadingFiles: false,
+        errorFiles: error instanceof Error ? error.message : 'Failed to fetch call files',
+      });
     }
   },
 }));

@@ -27,10 +27,7 @@ export default function Settings() {
   const { t } = useTranslation();
   const signOut = useAuthStore.getState().logout;
   const { colorScheme } = useColorScheme();
-  const iconColor =
-    colorScheme === 'dark'
-      ? colors.dark.neutral[400]
-      : colors.light.neutral[500];
+  const iconColor = colorScheme === 'dark' ? colors.dark.neutral[400] : colors.light.neutral[500];
   const [showLoginInfo, setShowLoginInfo] = React.useState(false);
   const { login, status, error, isAuthenticated } = useAuth();
   const [showServerUrl, setShowServerUrl] = React.useState(false);
@@ -44,10 +41,7 @@ export default function Settings() {
     return unit?.Name || t('common.unknown');
   }, [activeUnit, units]);
 
-  const handleLoginInfoSubmit = async (data: {
-    username: string;
-    password: string;
-  }) => {
+  const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {
     logger.info({
       message: 'Updating login info',
     });
@@ -63,19 +57,11 @@ export default function Settings() {
   }, [status, isAuthenticated]);
 
   return (
-    <Box
-      className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}
-    >
+    <Box className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
       <ScrollView>
         <VStack className="md p-4">
           {/* App Info Section */}
-          <Card
-            className={`mb-4 rounded-lg border p-4 ${
-              colorScheme === 'dark'
-                ? 'border-neutral-800 bg-neutral-900'
-                : 'border-neutral-200 bg-white'
-            }`}
-          >
+          <Card className={`mb-4 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
             <Heading className="mb2 text-sm">{t('settings.app_info')}</Heading>
             <VStack space="sm">
               <Item text={t('settings.app_name')} value={Env.NAME} />
@@ -85,80 +71,30 @@ export default function Settings() {
           </Card>
 
           {/* Account Section */}
-          <Card
-            className={`mb-8 rounded-lg border p-4 ${
-              colorScheme === 'dark'
-                ? 'border-neutral-800 bg-neutral-900'
-                : 'border-neutral-200 bg-white'
-            }`}
-          >
+          <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
             <Heading className="mb2 text-sm">{t('settings.account')}</Heading>
             <VStack space="sm">
-              <Item
-                text={t('settings.server')}
-                value={getBaseApiUrl()}
-                onPress={() => setShowServerUrl(true)}
-                textStyle="text-info-600"
-              />
-              <Item
-                text={t('settings.login_info')}
-                onPress={() => setShowLoginInfo(true)}
-                textStyle="text-info-600"
-              />
-              <Item
-                text={t('settings.active_unit')}
-                value={activeUnitName}
-                onPress={() => setShowUnitSelection(true)}
-                textStyle="text-info-600"
-              />
-              <Item
-                text={t('settings.logout')}
-                onPress={signOut}
-                textStyle="text-error-600"
-              />
+              <Item text={t('settings.server')} value={getBaseApiUrl()} onPress={() => setShowServerUrl(true)} textStyle="text-info-600" />
+              <Item text={t('settings.login_info')} onPress={() => setShowLoginInfo(true)} textStyle="text-info-600" />
+              <Item text={t('settings.active_unit')} value={activeUnitName} onPress={() => setShowUnitSelection(true)} textStyle="text-info-600" />
+              <Item text={t('settings.logout')} onPress={signOut} textStyle="text-error-600" />
             </VStack>
           </Card>
 
           {/* Preferences Section */}
-          <Card
-            className={`mb-4 rounded-lg border p-4 ${
-              colorScheme === 'dark'
-                ? 'border-neutral-800 bg-neutral-900'
-                : 'border-neutral-200 bg-white'
-            }`}
-          >
-            <Heading className="mb2 text-sm">
-              {t('settings.preferences')}
-            </Heading>
+          <Card className={`mb-4 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+            <Heading className="mb2 text-sm">{t('settings.preferences')}</Heading>
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
-              <ToggleItem
-                text={t('settings.notifications')}
-                value={false}
-                onValueChange={() => {}}
-              />
-              <ToggleItem
-                text={t('settings.keep_screen_on')}
-                value={false}
-                onValueChange={() => {}}
-              />
-              <ToggleItem
-                text={t('settings.background_location')}
-                value={false}
-                onValueChange={() => {}}
-              />
+              <ToggleItem text={t('settings.notifications')} value={false} onValueChange={() => {}} />
+              <ToggleItem text={t('settings.keep_screen_on')} value={false} onValueChange={() => {}} />
+              <ToggleItem text={t('settings.background_location')} value={false} onValueChange={() => {}} />
             </VStack>
           </Card>
 
           {/* Support Section */}
-          <Card
-            className={`mb-4 rounded-lg border p-4 ${
-              colorScheme === 'dark'
-                ? 'border-neutral-800 bg-neutral-900'
-                : 'border-neutral-200 bg-white'
-            }`}
-          >
+          <Card className={`mb-4 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
             <Heading className="mb2 text-sm">{t('settings.support')}</Heading>
             <VStack space="sm">
               <Item text={t('settings.help_center')} onPress={() => {}} />
@@ -170,19 +106,9 @@ export default function Settings() {
         </VStack>
       </ScrollView>
 
-      <LoginInfoBottomSheet
-        isOpen={showLoginInfo}
-        onClose={() => setShowLoginInfo(false)}
-        onSubmit={handleLoginInfoSubmit}
-      />
-      <ServerUrlBottomSheet
-        isOpen={showServerUrl}
-        onClose={() => setShowServerUrl(false)}
-      />
-      <UnitSelectionBottomSheet
-        isOpen={showUnitSelection}
-        onClose={() => setShowUnitSelection(false)}
-      />
+      <LoginInfoBottomSheet isOpen={showLoginInfo} onClose={() => setShowLoginInfo(false)} onSubmit={handleLoginInfoSubmit} />
+      <ServerUrlBottomSheet isOpen={showServerUrl} onClose={() => setShowServerUrl(false)} />
+      <UnitSelectionBottomSheet isOpen={showUnitSelection} onClose={() => setShowUnitSelection(false)} />
     </Box>
   );
 }
