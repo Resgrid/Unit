@@ -21,6 +21,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
+import CallFilesModal from '../../components/calls/call-files-modal';
 import CallImagesModal from '../../components/calls/call-images-modal';
 import CallNotesModal from '../../components/calls/call-notes-modal';
 
@@ -39,6 +40,7 @@ export default function CallDetail() {
   const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } = useCallDetailStore();
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
+  const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
 
   const { colorScheme } = useColorScheme();
   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
@@ -81,7 +83,7 @@ export default function CallDetail() {
   };
 
   const openFilesModal = () => {
-    // TODO: Implement files modal
+    setIsFilesModalOpen(true);
   };
 
   if (isLoading) {
@@ -94,7 +96,7 @@ export default function CallDetail() {
           }}
         />
         <View className="size-full flex-1">
-          <FocusAwareStatusBar />
+          <FocusAwareStatusBar hidden={true} />
           <Loading />
         </View>
       </>
@@ -111,7 +113,7 @@ export default function CallDetail() {
           }}
         />
         <View className="size-full flex-1">
-          <FocusAwareStatusBar />
+          <FocusAwareStatusBar hidden={true} />
           <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
             <ZeroState heading={t('call_detail.not_found')} description={error} isError={true} />
           </Box>
@@ -130,7 +132,7 @@ export default function CallDetail() {
           }}
         />
         <SafeAreaView className="size-full flex-1">
-          <FocusAwareStatusBar />
+          <FocusAwareStatusBar hidden={true} />
           <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
             <Text className="text-center">{t('call_detail.not_found')}</Text>
             <Button onPress={handleBack} className="self-center">
@@ -151,25 +153,25 @@ export default function CallDetail() {
         content: (
           <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
             <VStack className="space-y-3">
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.priority')}</Text>
                 <Text className="font-medium" style={{ color: callPriority?.Color }}>
                   {callPriority?.Name}
                 </Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.timestamp')}</Text>
                 <Text className="font-medium">{format(new Date(call.LoggedOn), 'MMM d, h:mm a')}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.type')}</Text>
                 <Text className="font-medium">{call.Type}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
                 <Text className="font-medium">{call.Address}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
                   <WebView
@@ -216,19 +218,19 @@ export default function CallDetail() {
         content: (
           <Box className="p-4">
             <VStack className="space-y-3">
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.reference_id')}</Text>
                 <Text className="font-medium">{call.ReferenceId}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.external_id')}</Text>
                 <Text className="font-medium">{call.ExternalId}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.contact_name')}</Text>
                 <Text className="font-medium">{call.ContactName}</Text>
               </Box>
-              <Box className="border-b border-gray-100 pb-2">
+              <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.contact_info')}</Text>
                 <Text className="font-medium">{call.ContactInfo}</Text>
               </Box>
@@ -299,7 +301,7 @@ export default function CallDetail() {
             {callExtraData?.Dispatches && callExtraData.Dispatches.length > 0 ? (
               <VStack className="space-y-3">
                 {callExtraData.Dispatches.map((dispatched, index) => (
-                  <Box key={index} className="rounded-lg bg-gray-50 p-3">
+                  <Box key={index} className={`rounded-lg p-3 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
                     <Text className="font-semibold">{dispatched.Name}</Text>
                     <HStack className="mt-1">
                       <Text className="mr-2 text-sm text-gray-600">
@@ -359,8 +361,8 @@ export default function CallDetail() {
           headerShown: true,
         }}
       />
-      <View className="size-full flex-1">
-        <FocusAwareStatusBar />
+      <SafeAreaView className="size-full flex-1">
+        <FocusAwareStatusBar hidden={true} />
         <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
           {/* Header */}
           <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
@@ -447,9 +449,10 @@ export default function CallDetail() {
             <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
           </Box>
         </ScrollView>
-      </View>
+      </SafeAreaView>
       <CallNotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} callId={callId} />
       <CallImagesModal isOpen={isImagesModalOpen} onClose={() => setIsImagesModalOpen(false)} callId={callId} />
+      <CallFilesModal isOpen={isFilesModalOpen} onClose={() => setIsFilesModalOpen(false)} callId={callId} />
     </>
   );
 }

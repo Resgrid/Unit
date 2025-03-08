@@ -2,15 +2,11 @@
 import '../../global.css';
 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React from 'react';
-import { useColorScheme } from 'react-native';
+import { LogBox, useColorScheme } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -36,6 +32,11 @@ SplashScreen.setOptions({
   fade: true,
 });
 
+LogBox.ignoreLogs([
+  //Mapbox errors
+  'Mapbox [error] ViewTagResolver | view:',
+]);
+
 export default function RootLayout() {
   return (
     <Providers>
@@ -55,12 +56,8 @@ function Providers({ children }: { children: React.ReactNode }) {
     <SafeAreaProvider>
       <GestureHandlerRootView>
         <KeyboardProvider>
-          <GluestackUIProvider
-            mode={(colorScheme ?? 'light') as 'light' | 'dark'}
-          >
-            <ThemeProvider
-              value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
-            >
+          <GluestackUIProvider mode={(colorScheme ?? 'light') as 'light' | 'dark'}>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
               <APIProvider>
                 <BottomSheetModalProvider>
                   {children}

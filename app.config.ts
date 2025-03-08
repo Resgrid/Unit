@@ -51,7 +51,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
-    enableEdgeToEdge: true,
   },
   web: {
     favicon: './assets/favicon.png',
@@ -85,10 +84,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-location',
       {
-        locationWhenInUsePermission:
-          'Allow Resgird Unit to show current location on map.',
-        locationAlwaysAndWhenInUsePermission:
-          'Allow Resgrid Unit to use your location.',
+        locationWhenInUsePermission: 'Allow Resgird Unit to show current location on map.',
+        locationAlwaysAndWhenInUsePermission: 'Allow Resgrid Unit to use your location.',
         locationAlwaysPermission: 'Resgrid Unit needs to track your location',
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
@@ -129,6 +126,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-asset',
       {
         assets: ['assets/mapping'],
+      },
+    ],
+    [
+      'expo-document-picker',
+      {
+        iCloudContainerEnvironment: 'Production',
       },
     ],
   ],

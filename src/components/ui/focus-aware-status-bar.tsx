@@ -11,10 +11,22 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
 
   React.useEffect(() => {
     if (Platform.OS === 'android') {
+      // Make both status bar and navigation bar transparent
       StatusBar.setBackgroundColor('transparent');
       StatusBar.setTranslucent(true);
+
+      // Set the system UI flags to hide navigation bar
+      if (hidden) {
+        StatusBar.setHidden(true, 'slide');
+        // Set light status bar content for better visibility
+        StatusBar.setBarStyle('light-content');
+      } else {
+        StatusBar.setHidden(false, 'slide');
+        // Adapt status bar content based on theme
+        StatusBar.setBarStyle(colorScheme === 'dark' ? 'light-content' : 'dark-content');
+      }
     }
-  }, []);
+  }, [hidden, colorScheme]);
 
   if (Platform.OS === 'web') return null;
 

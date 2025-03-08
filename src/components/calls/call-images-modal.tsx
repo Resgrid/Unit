@@ -1,22 +1,10 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  CameraIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ImageIcon,
-  PlusIcon,
-  XIcon,
-} from 'lucide-react-native';
+import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Dimensions,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Dimensions, FlatList, Image, Platform, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import ZeroState from '@/components/common/zero-state';
 import { Loading } from '@/components/ui/loading';
@@ -24,15 +12,7 @@ import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
-import {
-  Actionsheet,
-  ActionsheetBackdrop,
-  ActionsheetContent,
-  ActionsheetDragIndicator,
-  ActionsheetDragIndicatorWrapper,
-  ActionsheetItem,
-  ActionsheetItemText,
-} from '../ui/actionsheet';
+import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper, ActionsheetItem, ActionsheetItemText } from '../ui/actionsheet';
 import { Box } from '../ui/box';
 import { Button, ButtonIcon, ButtonText } from '../ui/button';
 import { HStack } from '../ui/hstack';
@@ -48,11 +28,7 @@ interface CallImagesModalProps {
 
 const { width } = Dimensions.get('window');
 
-const CallImagesModal: React.FC<CallImagesModalProps> = ({
-  isOpen,
-  onClose,
-  callId,
-}) => {
+const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -61,13 +37,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   const [isAddingImage, setIsAddingImage] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  const {
-    callImages,
-    isLoadingImages,
-    errorImages,
-    fetchCallImages,
-    uploadCallImage,
-  } = useCallDetailStore();
+  const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage } = useCallDetailStore();
 
   useEffect(() => {
     if (isOpen && callId) {
@@ -76,8 +46,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   }, [isOpen, callId, fetchCallImages]);
 
   const handleImageSelect = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
       alert(t('common.permission_denied'));
       return;
@@ -135,21 +104,12 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
     }
   };
 
-  const renderImageItem = ({
-    item,
-  }: {
-    item: CallFileResultData;
-    index: number;
-  }) => {
+  const renderImageItem = ({ item }: { item: CallFileResultData; index: number }) => {
     if (!item || !item.Url) return null;
 
     return (
       <Box className="w-full items-center justify-center px-4">
-        <Image
-          source={{ uri: item.Url }}
-          className="h-64 w-full rounded-lg"
-          resizeMode="contain"
-        />
+        <Image source={{ uri: item.Url }} className="h-64 w-full rounded-lg" resizeMode="contain" />
         <Text className="mt-2 text-center font-medium">{item.Name || ''}</Text>
         <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
       </Box>
@@ -182,12 +142,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
 
         <HStack className="items-center space-x-2 rounded-full bg-white/80 px-4 py-2">
           {callImages.map((_, index) => (
-            <Box
-              key={index}
-              className={`mx-1 size-2.5 rounded-full ${
-                index === activeIndex ? 'bg-primary' : 'bg-gray-400'
-              }`}
-            />
+            <Box key={index} className={`mx-1 size-2.5 rounded-full ${index === activeIndex ? 'bg-primary' : 'bg-gray-400'}`} />
           ))}
         </HStack>
 
@@ -208,65 +163,49 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   };
 
   const renderAddImageContent = () => (
-    <VStack className="space-y-4 p-4">
-      <HStack className="items-center justify-between">
-        <Text className="text-lg font-bold">{t('callImages.add_new')}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            setIsAddingImage(false);
-            setSelectedImage(null);
-            setNewImageName('');
-          }}
-        >
-          <XIcon size={24} />
-        </TouchableOpacity>
-      </HStack>
-
-      {selectedImage ? (
-        <Box className="items-center">
-          <Image
-            source={{ uri: selectedImage }}
-            className="h-64 w-full rounded-lg"
-            resizeMode="contain"
-          />
-          <Input className="mt-4 w-full">
-            <InputField
-              placeholder={t('callImages.image_name')}
-              value={newImageName}
-              onChangeText={setNewImageName}
-            />
-          </Input>
-          <Button
-            className="mt-4 w-full"
-            onPress={handleUploadImage}
-            isDisabled={isUploading}
+    <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS == 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <VStack className="space-y-4 p-4">
+        <HStack className="items-center justify-between">
+          <Text className="text-lg font-bold">{t('callImages.add_new')}</Text>
+          <TouchableOpacity
+            onPress={() => {
+              setIsAddingImage(false);
+              setSelectedImage(null);
+              setNewImageName('');
+            }}
           >
-            <ButtonText>
-              {isUploading ? t('common.uploading') : t('callImages.upload')}
-            </ButtonText>
-          </Button>
-        </Box>
-      ) : (
-        <VStack className="space-y-4">
-          <ActionsheetItem onPress={handleImageSelect}>
-            <HStack className="items-center space-x-2">
-              <PlusIcon size={20} />
-              <ActionsheetItemText>
-                {t('callImages.select_from_gallery')}
-              </ActionsheetItemText>
-            </HStack>
-          </ActionsheetItem>
-          <ActionsheetItem onPress={handleCameraCapture}>
-            <HStack className="items-center space-x-2">
-              <CameraIcon size={20} />
-              <ActionsheetItemText>
-                {t('callImages.take_photo')}
-              </ActionsheetItemText>
-            </HStack>
-          </ActionsheetItem>
-        </VStack>
-      )}
-    </VStack>
+            <XIcon size={24} />
+          </TouchableOpacity>
+        </HStack>
+
+        {selectedImage ? (
+          <Box className="items-center">
+            <Image source={{ uri: selectedImage }} className="h-64 w-full rounded-lg" resizeMode="contain" />
+            <Input className="mt-4 w-full">
+              <InputField placeholder={t('callImages.image_name')} value={newImageName} onChangeText={setNewImageName} />
+            </Input>
+            <Button className="mt-4 w-full" onPress={handleUploadImage} isDisabled={isUploading}>
+              <ButtonText>{isUploading ? t('common.uploading') : t('callImages.upload')}</ButtonText>
+            </Button>
+          </Box>
+        ) : (
+          <VStack className="space-y-4">
+            <ActionsheetItem onPress={handleImageSelect}>
+              <HStack className="items-center space-x-2">
+                <PlusIcon size={20} />
+                <ActionsheetItemText>{t('callImages.select_from_gallery')}</ActionsheetItemText>
+              </HStack>
+            </ActionsheetItem>
+            <ActionsheetItem onPress={handleCameraCapture}>
+              <HStack className="items-center space-x-2">
+                <CameraIcon size={20} />
+                <ActionsheetItemText>{t('callImages.take_photo')}</ActionsheetItemText>
+              </HStack>
+            </ActionsheetItem>
+          </VStack>
+        )}
+      </VStack>
+    </KeyboardAwareScrollView>
   );
 
   const renderImageGallery = () => {
@@ -305,9 +244,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
             }}
             ListEmptyComponent={() => (
               <Box className="w-full items-center justify-center p-4">
-                <Text className="text-center text-gray-500">
-                  {t('callImages.no_images')}
-                </Text>
+                <Text className="text-center text-gray-500">{t('callImages.no_images')}</Text>
               </Box>
             )}
           />
@@ -323,13 +260,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
     }
 
     if (errorImages) {
-      return (
-        <ZeroState
-          heading={t('callImages.error')}
-          description={errorImages}
-          isError={true}
-        />
-      );
+      return <ZeroState heading={t('callImages.error')} description={errorImages} isError={true} />;
     }
 
     if (isAddingImage) {
@@ -337,13 +268,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
     }
 
     if (!callImages || callImages.length === 0) {
-      return (
-        <ZeroState
-          icon={ImageIcon}
-          heading={t('callImages.no_images')}
-          description={t('callImages.no_images_description')}
-        />
-      );
+      return <ZeroState icon={ImageIcon} heading={t('callImages.no_images')} description={t('callImages.no_images_description')} />;
     }
 
     return renderImageGallery();
@@ -352,20 +277,15 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose} snapPoints={[67]}>
       <ActionsheetBackdrop />
-      <ActionsheetContent className="rounded-t-3xl bg-white">
+      <ActionsheetContent className="rounded-t-3x bg-white dark:bg-gray-800">
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
-
         <Box className="w-full p-4">
           <HStack className="mb-4 items-center justify-between">
             <Text className="text-xl font-bold">{t('callImages.title')}</Text>
             {!isAddingImage && !isLoadingImages && (
-              <Button
-                size="sm"
-                variant="outline"
-                onPress={() => setIsAddingImage(true)}
-              >
+              <Button size="sm" variant="outline" onPress={() => setIsAddingImage(true)}>
                 <ButtonIcon as={PlusIcon} />
                 <ButtonText>{t('callImages.add')}</ButtonText>
               </Button>
