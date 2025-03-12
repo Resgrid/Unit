@@ -1,19 +1,17 @@
+import { Env } from '@env';
 import _ from 'lodash';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { getConfig } from '@/api/config/config';
 import { getAllUnitStatuses } from '@/api/satuses/statuses';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
 import { zustandStorage } from '@/lib/storage';
-import {
-  getActiveCallId,
-  getActiveUnitId,
-  setActiveCallId,
-  setActiveUnitId,
-} from '@/lib/storage/app';
+import { getActiveCallId, getActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
+import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
 import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
 import { type UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
@@ -33,12 +31,15 @@ interface CoreState {
   activeCall: CallResultData | null;
   activePriority: CallPriorityResultData | null;
 
+  config: GetConfigResultData | null;
+
   isLoading: boolean;
   error: string | null;
   init: () => Promise<void>;
   setActiveUnit: (unitId: string) => void;
   setActiveUnitWithFetch: (unitId: string) => Promise<void>;
   setActiveCall: (callId: string | null) => Promise<void>;
+  fetchConfig: () => Promise<void>;
 }
 
 export const useCoreStore = create<CoreState>()(
@@ -51,6 +52,7 @@ export const useCoreStore = create<CoreState>()(
       activeCallId: null,
       activeCall: null,
       activePriority: null,
+      config: null,
       isLoading: false,
       error: null,
       activeStatuses: null,
@@ -61,24 +63,18 @@ export const useCoreStore = create<CoreState>()(
           const activeCallId = getActiveCallId();
 
           if (activeUnitId) {
-            const unitsStore = useUnitsStore();
+            const unitsStore = useUnitsStore.getState();
             await unitsStore.fetchUnits();
-            const activeUnit = unitsStore.units.find(
-              (unit) => unit.UnitId === activeUnitId
-            );
+            const activeUnit = unitsStore.units.find((unit) => unit.UnitId === activeUnitId);
             set({ activeUnit: activeUnit, isLoading: false });
           }
 
           if (activeCallId) {
-            const callStore = useCallsStore();
+            const callStore = useCallsStore.getState();
             await callStore.fetchCalls();
             await callStore.fetchCallPriorities();
-            const activeCall = callStore.calls.find(
-              (call) => call.CallId === activeCallId
-            );
-            const activePriority = callStore.callPriorities.find(
-              (priority) => priority.Id === activeCall?.Priority
-            );
+            const activeCall = callStore.calls.find((call) => call.CallId === activeCallId);
+            const activePriority = callStore.callPriorities.find((priority) => priority.Id === activeCall?.Priority);
             set({
               activeCall: activeCall,
               activePriority: activePriority,
@@ -101,16 +97,12 @@ export const useCoreStore = create<CoreState>()(
           const unitStatuses = useUnitsStore.getState().unitStatuses;
           const activeUnit = units.find((unit) => unit.UnitId === unitId);
           if (activeUnit) {
-            let activeStatuses: UnitTypeStatusResultData | undefined =
-              undefined;
+            let activeStatuses: UnitTypeStatusResultData | undefined = undefined;
             const allStatuses = await getAllUnitStatuses();
             const defaultStatuses = _.find(allStatuses.Data, ['UnitType', '0']);
 
             if (activeUnit.Type) {
-              const statusesForType = _.find(allStatuses.Data, [
-                'UnitType',
-                activeUnit.Type.toString(),
-              ]);
+              const statusesForType = _.find(allStatuses.Data, ['UnitType', activeUnit.Type.toString()]);
 
               if (statusesForType) {
                 activeStatuses = statusesForType;
@@ -131,13 +123,9 @@ export const useCoreStore = create<CoreState>()(
           const unitStatus = await getUnitStatus(unitId);
 
           if (unitStatus) {
-            const unitStatusType = unitStatuses.find(
-              (status) => status.UnitType === activeUnit?.Type
-            );
+            const unitStatusType = unitStatuses.find((status) => status.UnitType === activeUnit?.Type);
             if (unitStatusType) {
-              const unitStatusInfo = unitStatusType.Statuses.find(
-                (status) => status.Text === unitStatus.Data.State
-              );
+              const unitStatusInfo = unitStatusType.Statuses.find((status) => status.Text === unitStatus.Data.State);
               set({
                 activeUnitStatus: unitStatus.Data,
                 activeUnitStatusType: unitStatusInfo,
@@ -195,12 +183,8 @@ export const useCoreStore = create<CoreState>()(
           const callStore = useCallsStore.getState();
           await callStore.fetchCalls();
           await callStore.fetchCallPriorities();
-          const activeCall = callStore.calls.find(
-            (call) => call.CallId === callId
-          );
-          const activePriority = callStore.callPriorities.find(
-            (priority) => priority.Id === activeCall?.Priority
-          );
+          const activeCall = callStore.calls.find((call) => call.CallId === callId);
+          const activePriority = callStore.callPriorities.find((priority) => priority.Id === activeCall?.Priority);
           set({
             activeCall: activeCall,
             activePriority: activePriority,
@@ -210,6 +194,18 @@ export const useCoreStore = create<CoreState>()(
           set({ error: 'Failed to set active call', isLoading: false });
           logger.error({
             message: `Failed to set active call: ${JSON.stringify(error)}`,
+            context: { error },
+          });
+        }
+      },
+      fetchConfig: async () => {
+        try {
+          const config = await getConfig(Env.APP_KEY);
+          set({ config: config.Data });
+        } catch (error) {
+          set({ error: 'Failed to fetch config', isLoading: false });
+          logger.error({
+            message: `Failed to fetch config: ${JSON.stringify(error)}`,
             context: { error },
           });
         }

@@ -3,11 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { loginRequest, refreshTokenRequest } from '../../lib/auth/api';
-import type {
-  AuthResponse,
-  AuthState,
-  LoginCredentials,
-} from '../../lib/auth/types';
+import type { AuthResponse, AuthState, LoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
 import { setItem, zustandStorage } from '../../lib/storage';
@@ -29,17 +25,11 @@ const useAuthStore = create<AuthState>()(
           const response = await loginRequest(credentials);
 
           if (response.successful) {
-            const payload = sanitizeJson(
-              base64.decode(response.authResponse!.id_token!.split('.')[1])
-            );
+            const payload = sanitizeJson(base64.decode(response.authResponse!.id_token!.split('.')[1]));
 
             setItem<AuthResponse>('authResponse', response.authResponse!);
             const now = new Date();
-            const expiresOn = new Date(
-              now.getTime() + response.authResponse?.expires_in! * 1000
-            )
-              .getTime()
-              .toString();
+            const expiresOn = new Date(now.getTime() + response.authResponse?.expires_in! * 1000).getTime().toString();
 
             const profileData = JSON.parse(payload) as ProfileModel;
 
@@ -122,9 +112,7 @@ const useAuthStore = create<AuthState>()(
         try {
           const authResponse = getAuth();
           if (authResponse !== null) {
-            const payload = sanitizeJson(
-              base64.decode(authResponse!.id_token!.split('.')[1])
-            );
+            const payload = sanitizeJson(base64.decode(authResponse!.id_token!.split('.')[1]));
 
             const profileData = JSON.parse(payload) as ProfileModel;
 

@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { setItem, zustandStorage } from '../../lib/storage';
-import { DepartmentRightsResultData } from '@/models/v4/security/departmentRightsResultData';
 import { getCurrentUsersRights } from '@/api/security/security';
+import { type DepartmentRightsResultData } from '@/models/v4/security/departmentRightsResultData';
+
+import { zustandStorage } from '../../lib/storage';
 
 export interface SecurityState {
   error: string | null;
@@ -11,7 +12,7 @@ export interface SecurityState {
   rights: DepartmentRightsResultData | null;
 }
 
-const securityStore = create<SecurityState>()(
+export const securityStore = create<SecurityState>()(
   persist(
     (set, get) => ({
       error: null,
@@ -40,13 +41,11 @@ export const useSecurityStore = () => {
   return {
     getRights: store.getRights,
     isUserDepartmentAdmin: store.rights?.IsAdmin,
-    isUserGroupAdmin: (groupId: number) =>
-      store.rights?.Groups.some(
-        (right) => right.GroupId === groupId && right.IsGroupAdmin
-      ),
+    isUserGroupAdmin: (groupId: number) => store.rights?.Groups.some((right) => right.GroupId === groupId && right.IsGroupAdmin),
     canUserCreateCalls: store.rights?.CanCreateCalls,
     canUserCreateNotes: store.rights?.CanAddNote,
     canUserCreateMessages: store.rights?.CanCreateMessage,
     canUserViewPII: store.rights?.CanViewPII,
+    departmentCode: store.rights?.DepartmentCode,
   };
 };

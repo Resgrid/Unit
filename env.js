@@ -113,22 +113,14 @@ const _clientEnv = {
   BASE_API_URL: process.env.UNIT_BASE_API_URL || 'https://qaapi.resgrid.dev',
   API_VERSION: process.env.UNIT_API_VERSION || 'v4',
   RESGRID_API_URL: process.env.UNIT_RESGRID_API_URL || '/api/v4',
-  CHANNEL_API_URL:
-    process.env.UNIT_CHANNEL_API_URL || 'https://qaevents.resgrid.dev/',
+  CHANNEL_API_URL: process.env.UNIT_CHANNEL_API_URL || 'https://qaevents.resgrid.dev/',
   CHANNEL_HUB_NAME: process.env.UNIT_CHANNEL_HUB_NAME || 'eventingHub',
-  REALTIME_GEO_HUB_NAME:
-    process.env.UNIT_REALTIME_GEO_HUB_NAME || 'geolocationHub',
-  LOGGING_KEY:
-    process.env.UNIT_LOGGING_KEY ||
-    '',
+  REALTIME_GEO_HUB_NAME: process.env.UNIT_REALTIME_GEO_HUB_NAME || 'geolocationHub',
+  LOGGING_KEY: process.env.UNIT_LOGGING_KEY || '',
   APP_KEY: process.env.UNIT_APP_KEY || '',
   IS_MOBILE_APP: true, // or whatever default you want
-  UNIT_MAPBOX_PUBKEY:
-    process.env.UNIT_MAPBOX_PUBKEY ||
-    '',
-  UNIT_MAPBOX_DLKEY:
-    process.env.UNIT_MAPBOX_DLKEY ||
-    '',
+  UNIT_MAPBOX_PUBKEY: process.env.UNIT_MAPBOX_PUBKEY || '',
+  UNIT_MAPBOX_DLKEY: process.env.UNIT_MAPBOX_DLKEY || '',
 };
 
 /**
@@ -162,9 +154,7 @@ if (parsed.success === false) {
     `\n❌ Missing variables in .env.${APP_ENV} file, Make sure all required variables are defined in the .env.${APP_ENV} file.`,
     `\n💡 Tip: If you recently updated the .env.${APP_ENV} file and the error still persists, try restarting the server with the -c flag to clear the cache.`
   );
-  throw new Error(
-    'Invalid environment variables, Check terminal for more details '
-  );
+  throw new Error('Invalid environment variables, Check terminal for more details ');
 }
 
 const Env = parsed.data;

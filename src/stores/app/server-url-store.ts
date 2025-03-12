@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+
 import { getBaseApiUrl, setBaseApiUrl } from '@/lib/storage/app';
 
 interface ServerUrlState {
@@ -18,4 +19,4 @@ export const useServerUrlStore = create<ServerUrlState>((set) => ({
     set({ url });
     return url;
   },
-})); 
+}));

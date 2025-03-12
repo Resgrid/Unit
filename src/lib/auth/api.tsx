@@ -14,17 +14,13 @@ const authApi = axios.create({
   },
 });
 
-export const loginRequest = async (
-  credentials: LoginCredentials
-): Promise<LoginResponse> => {
+export const loginRequest = async (credentials: LoginCredentials): Promise<LoginResponse> => {
   try {
     const data = queryString.stringify({
       grant_type: 'password',
       username: credentials.username,
       password: credentials.password,
-      scope: Env.IS_MOBILE_APP
-        ? 'openid profile offline_access mobile'
-        : 'openid profile offline_access',
+      scope: Env.IS_MOBILE_APP ? 'openid profile offline_access mobile' : 'openid profile offline_access',
     });
 
     const response = await authApi.post<AuthResponse>('/connect/token', data);
@@ -61,9 +57,7 @@ export const loginRequest = async (
   }
 };
 
-export const refreshTokenRequest = async (
-  refreshToken: string
-): Promise<AuthResponse> => {
+export const refreshTokenRequest = async (refreshToken: string): Promise<AuthResponse> => {
   try {
     const data = queryString.stringify({
       grant_type: 'refresh_token',
