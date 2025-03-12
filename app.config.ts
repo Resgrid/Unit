@@ -40,6 +40,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
+    infoPlist: {
+      UIBackgroundModes: ['remote-notification'],
+    },
   },
   experiments: {
     typedRoutes: true,
@@ -75,6 +78,27 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-router',
     ['app-icon-badge', appIconBadgeConfig],
     ['react-native-edge-to-edge'],
+    [
+      'expo-notifications',
+      {
+        icon: './assets/icon.png',
+        color: '#2E3C4B',
+        sounds: ['./assets/audio/notification.mp3'],
+        permissions: {
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        },
+        android: {
+          icon: './assets/icon.png',
+          color: '#2E3C4B',
+          sounds: ['./assets/audio/notification.mp3'],
+        },
+        requestPermissions: true,
+      },
+    ],
     [
       '@rnmapbox/maps',
       {

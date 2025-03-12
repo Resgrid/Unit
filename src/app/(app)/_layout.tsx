@@ -18,6 +18,7 @@ import { Text } from '@/components/ui/text';
 import { useAuthStore } from '@/lib/auth';
 import { useIsFirstTime } from '@/lib/storage';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import { usePushNotifications } from '@/services/push-notification';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useRolesStore } from '@/stores/roles/store';
@@ -36,6 +37,9 @@ export default function TabLayout() {
   }, []);
   const parentRef = useRef(null);
 
+  // Initialize push notifications
+  usePushNotifications();
+
   useEffect(() => {
     if (status !== 'idle') {
       setTimeout(() => {
@@ -47,6 +51,7 @@ export default function TabLayout() {
       useCoreStore.getState().init();
       useRolesStore.getState().init();
       useCallsStore.getState().init();
+      securityStore.getState().getRights();
       useCoreStore.getState().fetchConfig();
     }
   }, [hideSplash, status]);
@@ -70,7 +75,6 @@ export default function TabLayout() {
     return <Redirect href="/login" />;
   }
 
-  // Wrap the entire content with NovuProvider if userId and config are available
   const content = (
     <View style={styles.container}>
       <View className="flex-1 flex-row" ref={parentRef}>
@@ -182,7 +186,7 @@ export default function TabLayout() {
 
   return (
     <>
-      {activeUnitId && config ? (
+      {activeUnitId && config && rights?.DepartmentCode ? (
         <NovuProvider subscriberId={`${rights?.DepartmentCode}_Unit_${activeUnitId}`} applicationIdentifier={config.NovuApplicationId} backendUrl={config.NovuBackendApiUrl} socketUrl={config.NovuSocketUrl}>
           {/* NotificationInbox at the root level */}
           <NotificationInbox isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />

@@ -1,6 +1,6 @@
 import { createApiEndpoint } from '@/api/common/client';
-import { StatusesResult } from '@/models/v4/statuses/statusesResult';
-import { UnitTypeStatusesResult } from '@/models/v4/statuses/unitTypeStatusesResult';
+import { type StatusesResult } from '@/models/v4/statuses/statusesResult';
+import { type UnitTypeStatusesResult } from '@/models/v4/statuses/unitTypeStatusesResult';
 
 const getAllPersonnelStatusesApi = createApiEndpoint('/Statuses/GetAllStatusesForPersonnel');
 
