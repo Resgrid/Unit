@@ -54,6 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
+    googleServicesFile: './apps/unit/android/google-services.json',
   },
   web: {
     favicon: './assets/favicon.png',
@@ -65,7 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         backgroundColor: '#2E3C4B',
         image: './assets/adaptive-icon.png',
-        imageWidth: 150,
+        imageWidth: 250,
       },
     ],
     [
@@ -156,6 +157,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-document-picker',
       {
         iCloudContainerEnvironment: 'Production',
+      },
+    ],
+    [
+      '@sentry/react-native/expo',
+      {
+        organization: 'sentry',
+        project: 'unit',
+        url: 'https://sentry.resgrid.net/',
       },
     ],
   ],

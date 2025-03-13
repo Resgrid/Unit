@@ -6,13 +6,9 @@ export function openLinkInBrowser(url: string) {
   Linking.canOpenURL(url).then((canOpen) => canOpen && Linking.openURL(url));
 }
 
-type WithSelectors<S> = S extends { getState: () => infer T }
-  ? S & { use: { [K in keyof T]: () => T[K] } }
-  : never;
+type WithSelectors<S> = S extends { getState: () => infer T } ? S & { use: { [K in keyof T]: () => T[K] } } : never;
 
-export const createSelectors = <S extends UseBoundStore<StoreApi<object>>>(
-  _store: S
-) => {
+export const createSelectors = <S extends UseBoundStore<StoreApi<object>>>(_store: S) => {
   let store = _store as WithSelectors<typeof _store>;
   store.use = {};
   for (let k of Object.keys(store.getState())) {
@@ -62,13 +58,19 @@ export function invertColor(hex: string, bw: boolean): string {
     g2 = (255 - g).toString(16),
     b2 = (255 - b).toString(16);
   // pad each with zeros and return
-  return (
-    '#' + padZero(r2, 2) + padZero(g2, 2) + padZero(b2, 2)
-  );
+  return '#' + padZero(r2, 2) + padZero(g2, 2) + padZero(b2, 2);
 }
 
 export function padZero(str: string, len: number): string {
   len = len || 2;
   var zeros = new Array(len).join('0');
   return (zeros + str).slice(-len);
+}
+
+export function uuidv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    var r = (Math.random() * 16) | 0,
+      v = c == 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }

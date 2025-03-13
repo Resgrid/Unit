@@ -87,7 +87,6 @@ export default function Settings() {
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
-              <ToggleItem text={t('settings.notifications')} value={false} onValueChange={() => {}} />
               <ToggleItem text={t('settings.keep_screen_on')} value={false} onValueChange={() => {}} />
               <ToggleItem text={t('settings.background_location')} value={false} onValueChange={() => {}} />
             </VStack>

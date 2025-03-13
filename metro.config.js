@@ -1,11 +1,16 @@
 /* eslint-env node */
 
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const { withNativeWind } = require('nativewind/metro');
 
 const projectRoot = __dirname;
-const config = getDefaultConfig(projectRoot, {
+//const config = getDefaultConfig(projectRoot, {
+//  isCSSEnabled: true,
+//});
+
+const config = getSentryExpoConfig(__dirname, {
   isCSSEnabled: true,
 });
 

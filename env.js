@@ -90,6 +90,7 @@ const client = z.object({
   UNIT_MAPBOX_PUBKEY: z.string(),
   UNIT_MAPBOX_DLKEY: z.string(),
   IS_MOBILE_APP: z.boolean(),
+  SENTRY_DSN: z.string(),
 });
 
 const buildTime = z.object({
@@ -121,6 +122,7 @@ const _clientEnv = {
   IS_MOBILE_APP: true, // or whatever default you want
   UNIT_MAPBOX_PUBKEY: process.env.UNIT_MAPBOX_PUBKEY || '',
   UNIT_MAPBOX_DLKEY: process.env.UNIT_MAPBOX_DLKEY || '',
+  SENTRY_DSN: process.env.UNIT_SENTRY_DSN || '',
 };
 
 /**

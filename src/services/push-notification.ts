@@ -3,8 +3,11 @@ import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
+import { getDeviceUuid } from '@/lib/storage/app';
 import { useCoreStore } from '@/stores/app/core-store';
+import { securityStore } from '@/stores/security/store';
 
 // Define notification response types
 export interface PushNotificationData {
@@ -76,7 +79,7 @@ class PushNotificationService {
     // This would typically involve using a navigation service or dispatching an action
   };
 
-  public async registerForPushNotifications(unitId: string): Promise<string | null> {
+  public async registerForPushNotifications(unitId: string, departmentCode: string): Promise<string | null> {
     if (!Device.isDevice) {
       logger.warn({
         message: 'Push notifications are not available on simulator/emulator',
@@ -118,8 +121,13 @@ class PushNotificationService {
         },
       });
 
-      // Here you would typically send this token to your backend
-      // await this.sendTokenToBackend(token, unitId);
+      await registerUnitDevice({
+        UnitId: unitId,
+        Token: this.pushToken,
+        Platform: Platform.OS === 'ios' ? 1 : 2,
+        DeviceUuid: getDeviceUuid(),
+        Prefix: departmentCode,
+      });
 
       return this.pushToken;
     } catch (error) {
@@ -203,13 +211,14 @@ export const pushNotificationService = PushNotificationService.getInstance();
 // React hook for component usage
 export const usePushNotifications = () => {
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
+  const rights = securityStore((state) => state.rights);
   const previousUnitIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Only register if we have an active unit ID and it's different from the previous one
-    if (activeUnitId && activeUnitId !== previousUnitIdRef.current) {
+    if (rights && activeUnitId && activeUnitId !== previousUnitIdRef.current) {
       pushNotificationService
-        .registerForPushNotifications(activeUnitId)
+        .registerForPushNotifications(activeUnitId, rights.DepartmentCode)
         .then((token) => {
           if (token) {
             logger.info({
@@ -232,7 +241,7 @@ export const usePushNotifications = () => {
     return () => {
       // No need to clean up here as the service handles its own cleanup
     };
-  }, [activeUnitId]);
+  }, [activeUnitId, rights]);
 
   return {
     pushToken: pushNotificationService.getPushToken(),
