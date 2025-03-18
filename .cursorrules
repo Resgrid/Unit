@@ -39,6 +39,8 @@ Best Practices:
 - Follow React Native's threading model to ensure smooth UI performance.
 - Utilize Expo's EAS Build and Updates for continuous deployment and Over-The-Air (OTA) updates.
 - Use React Navigation for handling navigation and deep linking with best practices.
+- Create and use Jest to test to validate all generated components
+- Write unit tests for all generated logic
 
 Additional Rules:
 
@@ -53,5 +55,5 @@ Additional Rules:
 - Use `axios` for API requests
 - Use `gluestack-ui` for UI
 - Use `@rnmapbox/maps` for maps, mapping or vehicle navigation
-- Use `lucide-react-native` for icons
+- Use `lucide-react-native` for icons and use those components directly in the markup and don't use the gluestack-ui icon component
 - Use ? : for conditional rendering and not &&

@@ -95,7 +95,16 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             }}
             render={({ field: { onChange, onBlur, value } }) => (
               <Input>
-                <InputField placeholder={t('login.username_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} onSubmitEditing={handleKeyPress} returnKeyType="done" />
+                <InputField
+                  placeholder={t('login.username_placeholder')}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  onSubmitEditing={handleKeyPress}
+                  returnKeyType="done"
+                  autoCapitalize="none"
+                  autoComplete="off"
+                />
               </Input>
             )}
           />
@@ -133,6 +142,8 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
                   onBlur={onBlur}
                   onSubmitEditing={handleKeyPress}
                   returnKeyType="done"
+                  autoCapitalize="none"
+                  autoComplete="off"
                 />
                 <InputSlot onPress={handleState} className="pr-3">
                   <InputIcon as={showPassword ? EyeIcon : EyeOffIcon} />

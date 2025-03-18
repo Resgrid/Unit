@@ -98,7 +98,7 @@ export default function Onboarding() {
       <FocusAwareStatusBar hidden={true} />
 
       <View className="w-full items-center justify-center pt-20">
-        <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} contentFit="contain" />
+        <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
       </View>
 
       <FlatList

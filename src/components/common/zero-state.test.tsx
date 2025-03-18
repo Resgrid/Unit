@@ -1,8 +1,9 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react-native';
-import ZeroState from './zero-state';
-import { FileX, AlertCircle } from 'lucide-react-native';
 import { Button } from '@gluestack/ui';
+import { render, screen } from '@testing-library/react-native';
+import { AlertCircle, FileX } from 'lucide-react-native';
+import React from 'react';
+
+import ZeroState from './zero-state';
 
 // Mock the translation hook
 jest.mock('react-i18next', () => ({
@@ -17,34 +18,18 @@ describe('ZeroState', () => {
 
     expect(screen.getByTestId('zero-state')).toBeTruthy();
     expect(screen.getByText('No data available')).toBeTruthy();
-    expect(
-      screen.getByText("There's nothing to display at the moment")
-    ).toBeTruthy();
+    expect(screen.getByText("There's nothing to display at the moment")).toBeTruthy();
   });
 
   it('renders with custom props', () => {
-    render(
-      <ZeroState
-        icon={FileX}
-        heading="No files found"
-        description="Try uploading some files first"
-        iconColor="#3b82f6"
-      />
-    );
+    render(<ZeroState icon={FileX} heading="No files found" description="Try uploading some files first" iconColor="#3b82f6" />);
 
     expect(screen.getByText('No files found')).toBeTruthy();
     expect(screen.getByText('Try uploading some files first')).toBeTruthy();
   });
 
   it('renders in error state', () => {
-    render(
-      <ZeroState
-        isError
-        icon={AlertCircle}
-        heading="Connection failed"
-        description="Check your internet connection"
-      />
-    );
+    render(<ZeroState isError icon={AlertCircle} heading="Connection failed" description="Check your internet connection" />);
 
     expect(screen.getByText('Connection failed')).toBeTruthy();
     expect(screen.getByText('Check your internet connection')).toBeTruthy();

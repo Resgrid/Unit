@@ -42,10 +42,56 @@ class PushNotificationService {
     return PushNotificationService.instance;
   }
 
-  private initialize(): void {
+  private async createNotificationChannel(id: string, name: string, description: string, sound?: string, vibration: boolean = true): Promise<void> {
+    await Notifications.setNotificationChannelAsync(id, {
+      name,
+      description,
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: vibration ? [0, 250, 250, 250] : undefined,
+      sound,
+      lightColor: '#FF231F7C',
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    });
+  }
+
+  private async setupAndroidNotificationChannels(): Promise<void> {
+    if (Platform.OS === 'android') {
+      try {
+        // Standard call channels
+        await this.createNotificationChannel('calls', 'Generic Call', 'Generic Call');
+        await this.createNotificationChannel('0', 'Emergency Call', 'Emergency Call', 'callemergency');
+        await this.createNotificationChannel('1', 'High Call', 'High Call', 'callhigh');
+        await this.createNotificationChannel('2', 'Medium Call', 'Medium Call', 'callmedium');
+        await this.createNotificationChannel('3', 'Low Call', 'Low Call', 'calllow');
+
+        // Message and notification channels
+        await this.createNotificationChannel('notif', 'Notification', 'Notifications', undefined, false);
+        await this.createNotificationChannel('message', 'Message', 'Messages', undefined, false);
+
+        // Custom call channels (c1-c25)
+        for (let i = 1; i <= 25; i++) {
+          const channelId = `c${i}`;
+          await this.createNotificationChannel(channelId, `Custom Call ${i}`, `Custom Call Tone ${i}`, channelId);
+        }
+
+        logger.info({
+          message: 'Android notification channels setup completed',
+        });
+      } catch (error) {
+        logger.error({
+          message: 'Error setting up Android notification channels',
+          context: { error },
+        });
+      }
+    }
+  }
+
+  private async initialize(): Promise<void> {
+    // Set up Android notification channels
+    await this.setupAndroidNotificationChannels();
+
     // Set up notification listeners
     this.notificationListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-
     this.responseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
 
     logger.info({
