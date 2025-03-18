@@ -1,83 +1,69 @@
+import { FileText, Search, X } from 'lucide-react-native';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
-import { Feather } from '@expo/vector-icons';
-import { useNotesStore } from '@/stores/notes/store';
+import { FlatList, RefreshControl, View } from 'react-native';
+
+import { Loading } from '@/components/common/loading';
+import ZeroState from '@/components/common/zero-state';
 import { NoteCard } from '@/components/notes/note-card';
 import { NoteDetailsSheet } from '@/components/notes/note-details-sheet';
 import { Box } from '@/components/ui/box';
-import { FlatList, View } from 'react-native';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
-import { Heading } from '@/components/ui/heading';
-import { Text } from '@/components/ui/text';
-import { Fab, FabIcon } from '@/components/ui/fab';
+import { useNotesStore } from '@/stores/notes/store';
 
 export default function Notes() {
   const { t } = useTranslation();
-  const { notes, searchQuery, setSearchQuery, selectNote } = useNotesStore();
+  const { notes, searchQuery, setSearchQuery, selectNote, isLoading, fetchNotes } = useNotesStore();
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchNotes();
+  }, [fetchNotes]);
+
+  const handleRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchNotes();
+    setRefreshing(false);
+  }, [fetchNotes]);
 
   const filteredNotes = React.useMemo(() => {
     if (!searchQuery.trim()) return notes;
 
     const query = searchQuery.toLowerCase();
-    return notes.filter(
-      (note) =>
-        note.title.toLowerCase().includes(query) ||
-        note.content.toLowerCase().includes(query) ||
-        note.tags?.some((tag) => tag.toLowerCase().includes(query))
-    );
+    return notes.filter((note) => note.Title.toLowerCase().includes(query) || note.Body.toLowerCase().includes(query) || note.Category?.toLowerCase().includes(query));
   }, [notes, searchQuery]);
 
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
         <Box className="flex-1 px-4 pt-4">
-          <Heading size="xl" className="mb-4 text-gray-800 dark:text-gray-100">
-            {t('notes.title')}
-          </Heading>
-
-          <Input
-            className="mb-4 bg-white dark:bg-gray-800 rounded-lg"
-            size="md"
-            variant="outline"
-          >
+          <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
             <InputSlot className="pl-3">
-              <InputIcon as={Feather} />
+              <InputIcon as={Search} />
             </InputSlot>
-            <InputField
-              placeholder={t('notes.search')}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            <InputField placeholder={t('notes.search')} value={searchQuery} onChangeText={setSearchQuery} />
             {searchQuery ? (
               <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
-                <InputIcon as={Feather} />
+                <InputIcon as={X} />
               </InputSlot>
             ) : null}
           </Input>
 
-          {filteredNotes.length > 0 ? (
+          {isLoading && !refreshing ? (
+            <Loading />
+          ) : filteredNotes.length > 0 ? (
             <FlatList
               data={filteredNotes}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <NoteCard note={item} onPress={selectNote} />
-              )}
+              keyExtractor={(item) => item.NoteId}
+              renderItem={({ item }) => <NoteCard note={item} onPress={selectNote} />}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
             />
           ) : (
-            <Box className="flex-1 justify-center items-center">
-              <Text className="text-gray-500 dark:text-gray-400">
-                {t('notes.empty')}
-              </Text>
-            </Box>
+            <ZeroState icon={FileText} heading={t('notes.empty')} description={t('notes.emptyDescription')} />
           )}
-
-          <Fab placement="bottom right" className="bg-blue-500" size="lg">
-            <FabIcon as={Feather} />
-          </Fab>
         </Box>
 
         <NoteDetailsSheet />

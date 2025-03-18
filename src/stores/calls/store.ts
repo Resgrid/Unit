@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { CallResultData } from '@/models/v4/calls/callResultData';
-import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
-import { getCalls } from '@/api/calls/calls';
+
 import { getCallPriorities } from '@/api/calls/callPriorities';
+import { getCalls } from '@/api/calls/calls';
+import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import { type CallResultData } from '@/models/v4/calls/callResultData';
 
 interface CallsState {
   calls: CallResultData[];

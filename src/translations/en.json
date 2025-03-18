@@ -83,7 +83,8 @@
     "plus_code": "Plus Code",
     "plus_code_placeholder": "Enter plus code (e.g., 849VCWC8+R9)",
     "select_location": "Select Location on Map",
-    "call_location": "Call Location"
+    "call_location": "Call Location",
+    "search": "Search calls..."
   },
   "settings": {
     "general": "General",
@@ -190,6 +191,7 @@
     "title": "Notes",
     "search": "Search notes...",
     "empty": "No notes found",
+    "emptyDescription": "No notes have been created for your department yet.",
     "details": {
       "title": "Note Details",
       "created": "Created",

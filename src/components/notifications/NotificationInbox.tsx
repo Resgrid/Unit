@@ -98,9 +98,10 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     };
 
     return (
-      <Pressable onPress={() => handleNotificationPress(notification)} style={[styles.notificationItem, !item.read && styles.unreadNotificationItem]}>
+      <Pressable onPress={() => handleNotificationPress(notification)} style={[styles.notificationItem, !item.read ? styles.unreadNotificationItem : {}]}>
+        {!item.read ? <View style={styles.unreadIndicator} /> : null}
         <View style={styles.notificationContent}>
-          <Text style={[styles.notificationBody, !item.read && styles.unreadNotificationText]}>{notification.body}</Text>
+          <Text style={[styles.notificationBody, !item.read ? styles.unreadNotificationText : {}]}>{notification.body}</Text>
           <Text style={styles.timestamp}>
             {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
           </Text>
@@ -239,10 +240,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colorScheme.get() === 'dark' ? '#333333' : '#eee',
+    position: 'relative',
   },
   unreadNotificationItem: {
-    backgroundColor: colorScheme.get() === 'dark' ? '#262626' : '#f3f4f6',
+    backgroundColor: colorScheme.get() === 'dark' ? '#262626' : '#f0f7ff',
+  },
+  unreadIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 4,
+    height: '100%',
+    backgroundColor: colorScheme.get() === 'dark' ? '#60a5fa' : '#3b82f6',
   },
   notificationContent: {
     flex: 1,
@@ -251,13 +261,15 @@ const styles = StyleSheet.create({
   notificationBody: {
     fontSize: 16,
     marginBottom: 4,
+    color: colorScheme.get() === 'dark' ? '#e5e5e5' : '#333333',
   },
   unreadNotificationText: {
     fontWeight: '600',
+    color: colorScheme.get() === 'dark' ? '#ffffff' : '#000000',
   },
   timestamp: {
     fontSize: 12,
-    color: '#666',
+    color: colorScheme.get() === 'dark' ? '#a3a3a3' : '#666',
   },
   actionButtons: {
     flexDirection: 'row',

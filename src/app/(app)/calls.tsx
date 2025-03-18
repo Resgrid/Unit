@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { PlusIcon, RefreshCcwDotIcon, SearchIcon } from 'lucide-react-native';
+import { PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +11,7 @@ import ZeroState from '@/components/common/zero-state';
 import { Box } from '@/components/ui/box';
 import { Fab, FabIcon } from '@/components/ui/fab';
 import { FlatList } from '@/components/ui/flat-list';
-import { Input, InputField, InputSlot } from '@/components/ui/input';
+import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';
 
@@ -65,17 +65,20 @@ export default function Calls() {
   };
 
   return (
-    <View className="size-full flex-1">
-      <Box className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
+    <View className="size-full flex-1 bg-gray-50 dark:bg-gray-900">
+      <Box className="flex-1 px-4 pt-4">
         {/* Search input */}
-        <Box className="px-4 py-2">
-          <Input className={`${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-50'}`}>
-            <InputSlot>
-              <SearchIcon size={20} className="text-gray-500" />
+        <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
+          <InputSlot className="pl-3">
+            <InputIcon as={Search} />
+          </InputSlot>
+          <InputField placeholder={t('calls.search')} value={searchQuery} onChangeText={setSearchQuery} />
+          {searchQuery ? (
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+              <InputIcon as={X} />
             </InputSlot>
-            <InputField placeholder={t('common.search')} value={searchQuery} onChangeText={setSearchQuery} />
-          </Input>
-        </Box>
+          ) : null}
+        </Input>
 
         {/* Main content */}
         <Box className="flex-1 px-4">{renderContent()}</Box>

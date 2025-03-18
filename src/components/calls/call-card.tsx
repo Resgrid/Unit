@@ -9,7 +9,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { invertColor } from '@/lib/utils';
+import { getTimeAgoUtc, invertColor } from '@/lib/utils';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import type { CallResultData } from '@/models/v4/calls/callResultData';
 
@@ -59,7 +59,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
           }}
           className="text-sm text-gray-600"
         >
-          {format(new Date(call.LoggedOn), 'MMM d, h:mm a')}
+          {getTimeAgoUtc(call.LoggedOnUtc)}
         </Text>
       </HStack>
 

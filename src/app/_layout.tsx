@@ -6,6 +6,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import { isRunningInExpoGo } from 'expo';
+import * as Notifications from 'expo-notifications';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
@@ -18,6 +19,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { APIProvider } from '@/api';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { setDeviceUuid } from '@/lib/storage/app';
 import { uuidv4 } from '@/lib/utils';
@@ -71,6 +73,20 @@ function RootLayout() {
     if (ref?.current) {
       navigationIntegration.registerNavigationContainer(ref);
     }
+
+    // Clear the badge count on app startup
+    Notifications.setBadgeCountAsync(0)
+      .then(() => {
+        logger.info({
+          message: 'Badge count cleared on startup',
+        });
+      })
+      .catch((error) => {
+        logger.error({
+          message: 'Failed to clear badge count on startup',
+          context: { error },
+        });
+      });
   }, [ref]);
 
   return (
