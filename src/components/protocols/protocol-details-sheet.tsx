@@ -4,7 +4,7 @@ import React from 'react';
 import { StyleSheet } from 'react-native';
 import WebView from 'react-native-webview';
 
-import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
+import { formatDateForDisplay, parseDateISOString, stripHtmlTags } from '@/lib/utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
@@ -56,7 +56,7 @@ export const ProtocolDetailsSheet: React.FC = () => {
             {/* Protocol description */}
             {selectedProtocol.Description && (
               <Box className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                <Text className="text-gray-700 dark:text-gray-300">{selectedProtocol.Description}</Text>
+                <Text className="text-gray-700 dark:text-gray-300">{stripHtmlTags(selectedProtocol.Description)}</Text>
               </Box>
             )}
 
