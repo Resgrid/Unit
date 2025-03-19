@@ -206,6 +206,19 @@
       "delete_confirm": "Are you sure you want to delete this note?"
     }
   },
+  "protocols": {
+    "title": "Protocols",
+    "search": "Search protocols...",
+    "empty": "No protocols found",
+    "emptyDescription": "No protocols have been created for your department yet.",
+    "details": {
+      "title": "Protocol Details",
+      "created": "Created",
+      "updated": "Updated",
+      "code": "Code",
+      "close": "Close"
+    }
+  },
   "call_detail": {
     "loading": "Loading call details...",
     "not_found": "Call not found",
