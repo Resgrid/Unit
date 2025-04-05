@@ -18,6 +18,7 @@ import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { type UnitStatusResultData } from '@/models/v4/unitStatus/unitStatusResultData';
 
 import { useCallsStore } from '../calls/store';
+import { useRolesStore } from '../roles/store';
 import { useUnitsStore } from '../units/store';
 
 interface CoreState {
@@ -140,6 +141,8 @@ export const useCoreStore = create<CoreState>()(
               });
             }
           }
+
+          await useRolesStore.getState().fetchRolesForUnit(unitId);
         } catch (error) {
           set({ error: 'Failed to set active unit', isLoading: false });
           logger.error({

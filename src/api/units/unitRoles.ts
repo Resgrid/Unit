@@ -12,7 +12,7 @@ const getRolesForUnitApi = createCachedApiEndpoint('/UnitRoles/GetRolesForUnit',
 });
 
 const getRoleAssignmentsForUnitApi = createApiEndpoint('/UnitRoles/GetRoleAssignmentsForUnit');
-const setRoleAssignmentsForUnitApi = createApiEndpoint('/Units/GetUnitsFilterOptions');
+const setRoleAssignmentsForUnitApi = createApiEndpoint('/UnitRoles/SetRoleAssignmentsForUnit');
 const getAllUnitRolesAndAssignmentsForDepartmentApi = createApiEndpoint('/UnitRoles/GetAllUnitRolesAndAssignmentsForDepartment');
 
 export const getRolesForUnit = async (unitId: string) => {

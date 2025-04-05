@@ -1,15 +1,13 @@
 import { create } from 'zustand';
-import { ActiveUnitRoleResultData } from '@/models/v4/unitRoles/activeUnitRoleResultData';
-import { PersonnelInfoResultData } from '@/models/v4/personnel/personnelInfoResultData';
-import { UnitRoleResultData } from '@/models/v4/unitRoles/unitRoleResultData';
-import {
-  getAllUnitRolesAndAssignmentsForDepartment,
-  getRoleAssignmentsForUnit,
-  setRoleAssignmentsForUnit,
-} from '@/api/units/unitRoles';
+
 import { getAllPersonnelInfos } from '@/api/personnel/personnel';
+import { getAllUnitRolesAndAssignmentsForDepartment, getRoleAssignmentsForUnit, setRoleAssignmentsForUnit } from '@/api/units/unitRoles';
+import { type PersonnelInfoResultData } from '@/models/v4/personnel/personnelInfoResultData';
+import { type ActiveUnitRoleResultData } from '@/models/v4/unitRoles/activeUnitRoleResultData';
+import { type SetUnitRolesInput } from '@/models/v4/unitRoles/setUnitRolesInput';
+import { type UnitRoleResultData } from '@/models/v4/unitRoles/unitRoleResultData';
+
 import { useCoreStore } from '../app/core-store';
-import { SetUnitRolesInput } from '@/models/v4/unitRoles/setUnitRolesInput';
 
 interface RolesState {
   roles: UnitRoleResultData[];
