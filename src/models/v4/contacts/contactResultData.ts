@@ -1,3 +1,5 @@
+import { type ContactCategoryResultData } from './contactCategoryResultData';
+
 export enum ContactType {
   Person = 0,
   Company = 1,
@@ -5,18 +7,48 @@ export enum ContactType {
 
 export interface ContactResultData {
   ContactId: string;
-  Name: string;
-  Type: ContactType;
+  ContactType: ContactType;
+  OtherName?: string;
+  ContactCategoryId?: string;
+  Category?: ContactCategoryResultData;
+  FirstName?: string;
+  MiddleName?: string;
+  LastName?: string;
+  CompanyName?: string;
   Email?: string;
-  Phone?: string;
-  Mobile?: string;
-  Address?: string;
-  City?: string;
-  State?: string;
-  Zip?: string;
-  Notes?: string;
-  ImageUrl?: string;
-  IsImportant: boolean;
-  CreatedOn: Date;
-  UpdatedOn?: Date;
+  PhysicalAddressId?: number;
+  MailingAddressId?: number;
+  Website?: string;
+  Twitter?: string;
+  Facebook?: string;
+  LinkedIn?: string;
+  Instagram?: string;
+  Threads?: string;
+  Bluesky?: string;
+  Mastodon?: string;
+  LocationGpsCoordinates?: string;
+  EntranceGpsCoordinates?: string;
+  ExitGpsCoordinates?: string;
+  LocationGeofence?: string;
+  CountryIssuedIdNumber?: string;
+  CountryIdName?: string;
+  StateIdNumber?: string;
+  StateIdName?: string;
+  StateIdCountryName?: string;
+  Description?: string;
+  OtherInfo?: string;
+  HomePhoneNumber?: string;
+  CellPhoneNumber?: string;
+  FaxPhoneNumber?: string;
+  OfficePhoneNumber?: string;
+  Image?: Uint8Array;
+  IsDeleted: boolean;
+  AddedOnUtc: Date;
+  AddedOn?: string;
+  AddedByUserId?: string;
+  AddedByUserName?: string;
+  EditedOnUtc?: Date;
+  EditedOn?: string;
+  EditedByUserId?: string;
+  EditedByUserName?: string;
 }

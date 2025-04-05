@@ -20,6 +20,7 @@ import colors from '@/constants/colors';
 import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
+import { openLinkInBrowser } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useUnitsStore } from '@/stores/units/store';
 
@@ -96,10 +97,11 @@ export default function Settings() {
           <Card className={`mb-4 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
             <Heading className="mb2 text-sm">{t('settings.support')}</Heading>
             <VStack space="sm">
-              <Item text={t('settings.help_center')} onPress={() => {}} />
-              <Item text={t('settings.contact_us')} onPress={() => {}} />
-              <Item text={t('settings.privacy_policy')} onPress={() => {}} />
-              <Item text={t('settings.terms')} onPress={() => {}} />
+              <Item text={t('settings.help_center')} onPress={() => openLinkInBrowser('https://resgrid.zohodesk.com/portal/en/home')} />
+              <Item text={t('settings.contact_us')} onPress={() => openLinkInBrowser('https://resgrid.com/contact')} />
+              <Item text={t('settings.status_page')} onPress={() => openLinkInBrowser('https://resgrid.freshstatus.io')} />
+              <Item text={t('settings.privacy_policy')} onPress={() => openLinkInBrowser('https://resgrid.com/privacy')} />
+              <Item text={t('settings.terms')} onPress={() => openLinkInBrowser('https://resgrid.com/terms')} />
             </VStack>
           </Card>
         </VStack>

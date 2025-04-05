@@ -1,6 +1,8 @@
 import * as React from 'react';
+
 import { Text } from '@/components/ui/text';
 import { useCoreStore } from '@/stores/app/core-store';
+
 import { Card } from '../ui/card';
 
 type ItemProps = {};
@@ -34,10 +36,7 @@ export const SidebarStatusCard = ({}: ItemProps) => {
   }
 
   return (
-    <Card
-      className="flex-1 bg-background-50"
-      style={{ backgroundColor: displayColor }}
-    >
+    <Card className="flex-1 bg-background-50" style={{ backgroundColor: displayColor }}>
       <Text className="font-medium">{displayStatus}</Text>
     </Card>
   );

@@ -1,5 +1,4 @@
-import { format } from 'date-fns';
-import { AlertTriangle, Calendar, MapPin, Phone } from 'lucide-react-native';
+import { AlertTriangle, MapPin, Phone } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import WebView from 'react-native-webview';
@@ -92,10 +91,11 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
         </HStack>
 
         {/* Dispatched Time */}
+        {/* Disabling this for now, ideally a list of disptched items would be ideal here but there is a perf issue getting that data. -SJ
         <HStack className="items-center space-x-2">
           <Icon as={Calendar} className="text-gray-500" size="md" />
           <Text className="text-sm text-gray-600">Dispatched: {format(new Date(call.DispatchedOn), 'PPp')}</Text>
-        </HStack>
+        </HStack>*/}
       </VStack>
 
       {/* Nature of Call */}

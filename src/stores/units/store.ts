@@ -1,15 +1,9 @@
 import { create } from 'zustand';
-import { createCachedApiEndpoint } from '@/api/common/cached-client';
-import { ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
-import { CallResultData } from '@/models/v4/calls/callResultData';
-import { CallPrioritiesResult } from '@/models/v4/callPriorities/callPrioritiesResult';
-import { CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
-import { UnitTypeStatusesResult } from '@/models/v4/statuses/unitTypeStatusesResult';
-import { UnitResultData } from '@/models/v4/units/unitResultData';
-import { UnitsResult } from '@/models/v4/units/unitsResult';
-import { getUnits } from '@/api/units/units';
+
 import { getAllUnitStatuses } from '@/api/satuses/statuses';
-import { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
+import { getUnits } from '@/api/units/units';
+import { type UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
+import { type UnitResultData } from '@/models/v4/units/unitResultData';
 
 interface UnitsState {
   units: UnitResultData[];
@@ -34,4 +28,4 @@ export const useUnitsStore = create<UnitsState>((set) => ({
       set({ error: 'Failed to fetch calls', isLoading: false });
     }
   },
-})); 
+}));

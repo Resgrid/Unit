@@ -33,10 +33,11 @@ export default function Contacts() {
     const query = searchQuery.toLowerCase();
     return contacts.filter(
       (contact) =>
-        contact.Name.toLowerCase().includes(query) ||
+        (contact.FirstName?.toLowerCase().includes(query) ?? false) ||
+        (contact.LastName?.toLowerCase().includes(query) ?? false) ||
         (contact.Email?.toLowerCase().includes(query) ?? false) ||
-        (contact.Phone?.toLowerCase().includes(query) ?? false) ||
-        (contact.Notes?.toLowerCase().includes(query) ?? false)
+        (contact.CompanyName?.toLowerCase().includes(query) ?? false) ||
+        (contact.OtherName?.toLowerCase().includes(query) ?? false)
     );
   }, [contacts, searchQuery]);
 

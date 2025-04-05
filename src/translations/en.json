@@ -112,6 +112,7 @@
     "login_info": "Login Info",
     "help_center": "Help Center",
     "contact_us": "Contact Us",
+    "status_page": "System Status",
     "privacy_policy": "Privacy Policy",
     "background_location": "Background Location",
     "set_active_unit": "Set Active Unit",
@@ -185,7 +186,8 @@
     "no_address_found": "No address found",
     "get_my_location": "Get My Location",
     "confirm_location": "Confirm Location",
-    "set_location": "Set Location"
+    "set_location": "Set Location",
+    "no_unit_selected": "No Unit Selected"
   },
   "notes": {
     "title": "Notes",
