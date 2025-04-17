@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { Check, CircleX, Eye, MapPin } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView } from 'react-native';
+import { Alert, Pressable, ScrollView } from 'react-native';
 
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/text';
@@ -18,13 +19,11 @@ import { HStack } from '../ui/hstack';
 
 export const SidebarCallCard = () => {
   const { colorScheme } = useColorScheme();
-  const { activeCall, activePriority, setActiveCall } = useCoreStore(
-    (state) => ({
-      activeCall: state.activeCall,
-      activePriority: state.activePriority,
-      setActiveCall: state.setActiveCall,
-    })
-  );
+  const { activeCall, activePriority, setActiveCall } = useCoreStore((state) => ({
+    activeCall: state.activeCall,
+    activePriority: state.activePriority,
+    setActiveCall: state.setActiveCall,
+  }));
 
   const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const { t } = useTranslation();
@@ -42,7 +41,22 @@ export const SidebarCallCard = () => {
   });
 
   const handleDeselect = () => {
-    setActiveCall(null);
+    Alert.alert(
+      t('calls.confirm_deselect_title'),
+      t('calls.confirm_deselect_message'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+        },
+        {
+          text: t('common.confirm'),
+          onPress: () => setActiveCall(null),
+          style: 'destructive',
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
@@ -53,9 +67,7 @@ export const SidebarCallCard = () => {
         ) : (
           <Card className="w-full bg-background-50">
             <Text className="font-medium">{t('calls.no_call_selected')}</Text>
-            <Text className="text-sm text-gray-500">
-              {t('calls.no_call_selected_info')}
-            </Text>
+            <Text className="text-sm text-gray-500">{t('calls.no_call_selected_info')}</Text>
           </Card>
         )}
       </Pressable>
@@ -68,7 +80,7 @@ export const SidebarCallCard = () => {
             size="sm"
             action="primary"
             onPress={() => {
-              // Handle viewing call details
+              router.push(`/call/${activeCall.CallId}`);
             }}
           >
             <ButtonIcon as={Eye} />
@@ -88,29 +100,16 @@ export const SidebarCallCard = () => {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            className="flex-1"
-            size="sm"
-            action="primary"
-            onPress={handleDeselect}
-          >
+          <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDeselect}>
             <ButtonIcon as={CircleX} />
           </Button>
         </HStack>
       )}
 
-      <CustomBottomSheet
-        isOpen={isBottomSheetOpen}
-        onClose={() => setIsBottomSheetOpen(false)}
-        isLoading={isLoading}
-        loadingText={t('common.loading')}
-      >
+      <CustomBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} isLoading={isLoading} loadingText={t('common.loading')}>
         <ScrollView className="max-h-96 w-full">
           <VStack space="lg" className="mt-4 w-full">
-            <Text className="text-lg font-bold">
-              {t('calls.select_active_call')}
-            </Text>
+            <Text className="text-lg font-bold">{t('calls.select_active_call')}</Text>
             {openCallsData?.map((call) => (
               <Pressable
                 key={call.CallId}
@@ -118,58 +117,22 @@ export const SidebarCallCard = () => {
                   await setActiveCall(call.CallId);
                   setIsBottomSheetOpen(false);
                 }}
-                className={`rounded-lg border p-4 ${
-                  colorScheme === 'dark'
-                    ? 'border-neutral-800 bg-neutral-800'
-                    : 'border-neutral-200 bg-neutral-50'
-                } ${
-                  activeCall?.CallId === call.CallId
-                    ? colorScheme === 'dark'
-                      ? 'bg-primary-900'
-                      : 'bg-primary-50'
-                    : ''
+                className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
+                  activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
                 }`}
               >
                 <HStack space="md" className="items-center justify-between">
                   <VStack>
-                    <Text
-                      className={`font-medium ${
-                        colorScheme === 'dark'
-                          ? 'text-neutral-200'
-                          : 'text-neutral-700'
-                      }`}
-                    >
-                      {call.Name}
-                    </Text>
-                    <Text
-                      size="sm"
-                      className={
-                        colorScheme === 'dark'
-                          ? 'text-neutral-400'
-                          : 'text-neutral-500'
-                      }
-                    >
+                    <Text className={`font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{call.Name}</Text>
+                    <Text size="sm" className={colorScheme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'}>
                       {call.Type}
                     </Text>
                   </VStack>
-                  {activeCall?.CallId === call.CallId && (
-                    <Check
-                      size={20}
-                      className={
-                        colorScheme === 'dark'
-                          ? 'text-primary-400'
-                          : 'text-primary-600'
-                      }
-                    />
-                  )}
+                  {activeCall?.CallId === call.CallId && <Check size={20} className={colorScheme === 'dark' ? 'text-primary-400' : 'text-primary-600'} />}
                 </HStack>
               </Pressable>
             ))}
-            {!isLoading && openCallsData?.length === 0 && (
-              <Text className="text-center text-gray-500">
-                {t('calls.no_open_calls')}
-              </Text>
-            )}
+            {!isLoading && openCallsData?.length === 0 && <Text className="text-center text-gray-500">{t('calls.no_open_calls')}</Text>}
           </VStack>
         </ScrollView>
       </CustomBottomSheet>

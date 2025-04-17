@@ -9,6 +9,7 @@ import { isRunningInExpoGo } from 'expo';
 import * as Notifications from 'expo-notifications';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { PostHogProvider } from 'posthog-react-native';
 import React, { useEffect } from 'react';
 import { LogBox, useColorScheme } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
@@ -107,16 +108,18 @@ function Providers({ children }: { children: React.ReactNode }) {
     <SafeAreaProvider>
       <GestureHandlerRootView>
         <KeyboardProvider>
-          <GluestackUIProvider mode={(colorScheme ?? 'light') as 'light' | 'dark'}>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <APIProvider>
-                <BottomSheetModalProvider>
-                  {children}
-                  <FlashMessage position="top" />
-                </BottomSheetModalProvider>
-              </APIProvider>
-            </ThemeProvider>
-          </GluestackUIProvider>
+          <PostHogProvider apiKey={Env.POSTHOG_API_KEY} options={{ host: Env.POSTHOG_HOST }}>
+            <GluestackUIProvider mode={(colorScheme ?? 'light') as 'light' | 'dark'}>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <APIProvider>
+                  <BottomSheetModalProvider>
+                    {children}
+                    <FlashMessage position="top" />
+                  </BottomSheetModalProvider>
+                </APIProvider>
+              </ThemeProvider>
+            </GluestackUIProvider>
+          </PostHogProvider>
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

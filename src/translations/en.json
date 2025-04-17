@@ -84,7 +84,9 @@
     "plus_code_placeholder": "Enter plus code (e.g., 849VCWC8+R9)",
     "select_location": "Select Location on Map",
     "call_location": "Call Location",
-    "search": "Search calls..."
+    "search": "Search calls...",
+    "confirm_deselect_title": "Deselect Active Call",
+    "confirm_deselect_message": "Are you sure you want to deselect the current active call?"
   },
   "settings": {
     "general": "General",
@@ -187,7 +189,8 @@
     "get_my_location": "Get My Location",
     "confirm_location": "Confirm Location",
     "set_location": "Set Location",
-    "no_unit_selected": "No Unit Selected"
+    "no_unit_selected": "No Unit Selected",
+    "confirm": "Confirm"
   },
   "notes": {
     "title": "Notes",

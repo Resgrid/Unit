@@ -16,7 +16,7 @@ import { SidebarStatusCard } from './status-sidebar';
 import { SidebarUnitCard } from './unit-sidebar';
 
 const Sidebar = () => {
-  const { activeUnit, activeStatuses } = useCoreStore();
+  const { activeStatuses } = useCoreStore();
   const { setIsOpen } = useStatusBottomSheetStore();
   const { t } = useTranslation();
 

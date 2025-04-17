@@ -139,7 +139,7 @@ export default function Map() {
           <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation followUserMode={Mapbox.UserTrackingMode.Follow} />
 
           {location.latitude && location.longitude && (
-            <Mapbox.PointAnnotation id="userLocation" key="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }}>
+            <Mapbox.MarkerView id="userLocation" key="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap={true}>
               <Animated.View
                 style={[
                   styles.markerContainer,
@@ -160,7 +160,7 @@ export default function Map() {
                   />
                 </View>
               </Animated.View>
-            </Mapbox.PointAnnotation>
+            </Mapbox.MarkerView>
           )}
           <MapPins pins={mapPins} />
         </Mapbox.MapView>

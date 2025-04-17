@@ -62,5 +62,12 @@
     "invalidEmail": "عنوان بريد إلكتروني غير صالح",
     "formError": "يرجى إصلاح الأخطاء في النموذج"
   },
-  "welcome": "test arabic"
+  "welcome": "test arabic",
+  "calls": {
+    "confirm_deselect_title": "إلغاء تحديد المكالمة النشطة",
+    "confirm_deselect_message": "هل أنت متأكد أنك تريد إلغاء تحديد المكالمة النشطة الحالية؟"
+  },
+  "common": {
+    "confirm": "تأكيد"
+  }
 }
