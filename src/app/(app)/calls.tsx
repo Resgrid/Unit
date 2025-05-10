@@ -1,7 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
@@ -19,12 +19,18 @@ export default function Calls() {
   const { calls, isLoading, error, fetchCalls, fetchCallPriorities } = useCallsStore();
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
-  const { colorScheme } = useColorScheme();
 
-  useEffect(() => {
-    fetchCallPriorities();
-    fetchCalls();
-  }, [fetchCalls, fetchCallPriorities]);
+  // Fetch data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchCallPriorities();
+      fetchCalls();
+
+      return () => {
+        // Clean up if needed when screen loses focus
+      };
+    }, [fetchCalls, fetchCallPriorities])
+  );
 
   const handleRefresh = () => {
     fetchCalls();

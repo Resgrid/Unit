@@ -33,13 +33,12 @@ export default function Settings() {
   const { login, status, error, isAuthenticated } = useAuth();
   const [showServerUrl, setShowServerUrl] = React.useState(false);
   const [showUnitSelection, setShowUnitSelection] = React.useState(false);
-  const { activeUnit } = useCoreStore();
+  const activeUnit = useCoreStore((state) => state.activeUnit);
   const { units } = useUnitsStore();
 
   const activeUnitName = React.useMemo(() => {
     if (!activeUnit) return t('settings.none_selected');
-    const unit = units.find((u) => u.UnitId === activeUnit.UnitId);
-    return unit?.Name || t('common.unknown');
+    return activeUnit?.Name || t('common.unknown');
   }, [activeUnit, units]);
 
   const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {

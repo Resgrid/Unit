@@ -71,7 +71,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
           <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
           <Text className="pb-6 text-center text-4xl font-bold">Sign In</Text>
 
-          <Text className="mb-6 max-w-xs text-center text-gray-500">
+          <Text className="mb-6 max-w-xl text-center text-gray-500">
             To login in to the Resgrid Unit app, please enter your username and password. Resgrid Unit is an applicated designed to interface between a Unit (apparatus, team, etc) and the Resgrid system.
           </Text>
         </View>

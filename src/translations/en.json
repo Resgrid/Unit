@@ -25,7 +25,12 @@
     "login_button_loading": "Logging in...",
     "login_button_error": "Error logging in",
     "login_button_success": "Logged in successfully",
-    "password_incorrect": "Password was incorrect"
+    "password_incorrect": "Password was incorrect",
+    "errorModal": {
+      "title": "Login Failed",
+      "message": "Please check your username and password and try again.",
+      "confirmButton": "OK"
+    }
   },
   "calls": {
     "title": "Calls",
@@ -342,5 +347,16 @@
     "no_images": "No images available",
     "no_images_description": "Add images to your call to help with documentation and communication",
     "error": "Error getting images"
+  },
+  "livekit": {
+    "title": "Voice Channels",
+    "no_rooms_available": "No voice channels available",
+    "join": "Join",
+    "connected_to_room": "Connected to Channel",
+    "speaking": "Speaking",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "disconnect": "Disconnect",
+    "connecting": "Connecting..."
   }
 }

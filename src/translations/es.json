@@ -73,5 +73,24 @@
       "system": "Sistema",
       "title": "Tema"
     }
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "login": "Iniciar sesión",
+    "username_placeholder": "Introduce tu nombre de usuario",
+    "password_placeholder": "Introduce tu contraseña",
+    "login_button": "Iniciar sesión",
+    "login_button_description": "Inicia sesión en tu cuenta para continuar",
+    "login_button_loading": "Iniciando sesión...",
+    "login_button_error": "Error al iniciar sesión",
+    "login_button_success": "Sesión iniciada con éxito",
+    "password_incorrect": "La contraseña era incorrecta",
+    "errorModal": {
+      "title": "Inicio de sesión fallido",
+      "message": "Por favor, comprueba tu nombre de usuario y contraseña e inténtalo de nuevo.",
+      "confirmButton": "Aceptar"
+    }
   }
 }

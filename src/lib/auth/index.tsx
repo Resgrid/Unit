@@ -2,8 +2,8 @@
 
 import useAuthStore from '../../stores/auth/store';
 
-export * from './api';
 export { default as useAuthStore } from '../../stores/auth/store';
+export * from './api';
 export * from './types';
 
 // Utility hooks and selectors

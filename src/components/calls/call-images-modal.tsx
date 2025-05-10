@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { Dimensions, FlatList, Image, Platform, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import ZeroState from '@/components/common/zero-state';
 import { Loading } from '@/components/common/loading';
+import ZeroState from '@/components/common/zero-state';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';

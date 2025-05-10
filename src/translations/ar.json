@@ -1,6 +1,6 @@
 {
   "onboarding": {
-    "message": "مرحبا بكم في موقع تطبيق obytes"
+    "message": "مرحبًا بك في موقع تطبيق obytes"
   },
   "settings": {
     "about": "حول التطبيق ",
@@ -69,5 +69,35 @@
   },
   "common": {
     "confirm": "تأكيد"
+  },
+  "app": {
+    "title": "وحدة ريسغريد"
+  },
+  "tabs": {
+    "map": "خريطة",
+    "calls": "المكالمات",
+    "contacts": "جهات الاتصال",
+    "notes": "ملاحظات",
+    "protocols": "البروتوكولات",
+    "settings": "الإعدادات"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "login": "تسجيل الدخول",
+    "username_placeholder": "أدخل اسم المستخدم الخاص بك",
+    "password_placeholder": "أدخل كلمة المرور الخاصة بك",
+    "login_button": "تسجيل الدخول",
+    "login_button_description": "قم بتسجيل الدخول إلى حسابك للمتابعة",
+    "login_button_loading": "تسجيل الدخول...",
+    "login_button_error": "خطأ في تسجيل الدخول",
+    "login_button_success": "تم تسجيل الدخول بنجاح",
+    "password_incorrect": "كانت كلمة المرور غير صحيحة",
+    "errorModal": {
+      "title": "Login Failed",
+      "message": "Please check your username and password and try again.",
+      "confirmButton": "OK"
+    }
   }
 }

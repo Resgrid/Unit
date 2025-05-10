@@ -40,6 +40,7 @@
     "e2e-test": "maestro test .maestro/ -e APP_ID=com.obytes.development"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^10.0.0",
     "@expo/html-elements": "^0.10.1",
     "@expo/metro-runtime": "^4.0.0",
     "@gluestack-ui/accordion": "^1.0.6",
@@ -74,6 +75,9 @@
     "@gorhom/bottom-sheet": "^5.0.5",
     "@hookform/resolvers": "^3.9.0",
     "@legendapp/motion": "^2.4.0",
+    "@livekit/react-native": "^2.7.4",
+    "@livekit/react-native-expo-plugin": "^1.0.1",
+    "@livekit/react-native-webrtc": "^125.0.9",
     "@microsoft/signalr": "^8.0.7",
     "@novu/react-native": "^2.6.6",
     "@rnmapbox/maps": "^10.1.33",

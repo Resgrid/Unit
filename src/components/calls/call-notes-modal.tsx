@@ -1,4 +1,4 @@
-import { Search, SearchIcon, X } from 'lucide-react-native';
+import { SearchIcon, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, useWindowDimensions } from 'react-native';
@@ -7,6 +7,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useAuthStore } from '@/lib/auth';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
+import { Loading } from '../common/loading';
 import ZeroState from '../common/zero-state';
 import { FocusAwareStatusBar } from '../ui';
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
@@ -18,7 +19,6 @@ import { HStack } from '../ui/hstack';
 import { Input } from '../ui/input';
 import { InputSlot } from '../ui/input';
 import { InputField } from '../ui/input';
-import { Loading } from '../common/loading';
 import { Text } from '../ui/text';
 import { Textarea } from '../ui/textarea';
 import { TextareaInput } from '../ui/textarea';

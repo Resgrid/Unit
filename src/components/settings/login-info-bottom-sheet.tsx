@@ -1,21 +1,11 @@
-import React from 'react';
-
-import { useForm, Controller } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { useColorScheme } from 'nativewind';
-import {
-  Actionsheet,
-  ActionsheetBackdrop,
-  ActionsheetContent,
-  ActionsheetDragIndicatorWrapper,
-  ActionsheetDragIndicator,
-} from '../ui/actionsheet';
-import { ButtonText, ButtonSpinner, Button } from '../ui/button';
-import {
-  FormControl,
-  FormControlLabel,
-  FormControlLabelText,
-} from '../ui/form-control';
+import React from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
+
+import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
+import { Button, ButtonSpinner, ButtonText } from '../ui/button';
+import { FormControl, FormControlLabel, FormControlLabelText } from '../ui/form-control';
 import { HStack } from '../ui/hstack';
 import { Input, InputField } from '../ui/input';
 import { VStack } from '../ui/vstack';
@@ -31,11 +21,7 @@ interface LoginInfoBottomSheetProps {
   onSubmit: (data: LoginInfoForm) => Promise<void>;
 }
 
-export function LoginInfoBottomSheet({
-  isOpen,
-  onClose,
-  onSubmit,
-}: LoginInfoBottomSheetProps) {
+export function LoginInfoBottomSheet({ isOpen, onClose, onSubmit }: LoginInfoBottomSheetProps) {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(false);
@@ -59,45 +45,23 @@ export function LoginInfoBottomSheet({
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose}>
       <ActionsheetBackdrop />
-      <ActionsheetContent
-        className={`rounded-t-3xl px-4 pb-6 ${
-          colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-        }`}
-      >
+      <ActionsheetContent className={`rounded-t-3xl px-4 pb-6 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 
-        <VStack space="lg" className="w-full mt-4">
+        <VStack space="lg" className="mt-4 w-full">
           <FormControl isRequired isInvalid={!!errors.username}>
             <FormControlLabel>
-              <FormControlLabelText
-                className={`text-sm font-medium ${
-                  colorScheme === 'dark'
-                    ? 'text-neutral-200'
-                    : 'text-neutral-700'
-                }`}
-              >
-                {t('settings.username')}
-              </FormControlLabelText>
+              <FormControlLabelText className={`text-sm font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{t('settings.username')}</FormControlLabelText>
             </FormControlLabel>
             <Controller
               control={control}
               name="username"
               rules={{ required: t('form.required') }}
               render={({ field: { onChange, value } }) => (
-                <Input
-                  className={`rounded-lg border ${
-                    colorScheme === 'dark'
-                      ? 'bg-neutral-800 border-neutral-700'
-                      : 'bg-neutral-50 border-neutral-200'
-                  }`}
-                >
-                  <InputField
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder={t('settings.enter_username')}
-                  />
+                <Input className={`rounded-lg border ${colorScheme === 'dark' ? 'border-neutral-700 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'}`}>
+                  <InputField value={value} onChangeText={onChange} placeholder={t('settings.enter_username')} />
                 </Input>
               )}
             />
@@ -105,34 +69,15 @@ export function LoginInfoBottomSheet({
 
           <FormControl isRequired isInvalid={!!errors.password}>
             <FormControlLabel>
-              <FormControlLabelText
-                className={`text-sm font-medium ${
-                  colorScheme === 'dark'
-                    ? 'text-neutral-200'
-                    : 'text-neutral-700'
-                }`}
-              >
-                {t('settings.password')}
-              </FormControlLabelText>
+              <FormControlLabelText className={`text-sm font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{t('settings.password')}</FormControlLabelText>
             </FormControlLabel>
             <Controller
               control={control}
               name="password"
               rules={{ required: t('form.required') }}
               render={({ field: { onChange, value } }) => (
-                <Input
-                  className={`rounded-lg border ${
-                    colorScheme === 'dark'
-                      ? 'bg-neutral-800 border-neutral-700'
-                      : 'bg-neutral-50 border-neutral-200'
-                  }`}
-                >
-                  <InputField
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder={t('settings.enter_password')}
-                    type="password"
-                  />
+                <Input className={`rounded-lg border ${colorScheme === 'dark' ? 'border-neutral-700 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'}`}>
+                  <InputField value={value} onChangeText={onChange} placeholder={t('settings.enter_password')} type="password" />
                 </Input>
               )}
             />
@@ -142,16 +87,8 @@ export function LoginInfoBottomSheet({
             <Button variant="outline" className="flex-1" onPress={onClose}>
               <ButtonText>{t('common.cancel')}</ButtonText>
             </Button>
-            <Button
-              className="flex-1 bg-primary-600"
-              onPress={handleSubmit(onFormSubmit)}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ButtonSpinner />
-              ) : (
-                <ButtonText>{t('common.save')}</ButtonText>
-              )}
+            <Button className="flex-1 bg-primary-600" onPress={handleSubmit(onFormSubmit)} disabled={isLoading}>
+              {isLoading ? <ButtonSpinner /> : <ButtonText>{t('common.save')}</ButtonText>}
             </Button>
           </HStack>
         </VStack>

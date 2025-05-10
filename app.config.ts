@@ -369,6 +369,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         url: 'https://sentry.resgrid.net/',
       },
     ],
+    '@livekit/react-native-expo-plugin',
+    '@config-plugins/react-native-webrtc',
   ],
   extra: {
     ...ClientEnv,

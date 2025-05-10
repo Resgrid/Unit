@@ -3,6 +3,7 @@ import '../../global.css';
 
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { registerGlobals } from '@livekit/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import { isRunningInExpoGo } from 'expo';
@@ -18,6 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
+import { LiveKitBottomSheet } from '@/components/livekit';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { logger } from '@/lib/logging';
@@ -45,6 +47,8 @@ Sentry.init({
   ],
   enableNativeFramesTracking: !isRunningInExpoGo(), // Tracks slow and frozen frames in the application
 });
+
+registerGlobals();
 
 //useAuth().hydrate();
 //loadSelectedTheme();
@@ -114,6 +118,7 @@ function Providers({ children }: { children: React.ReactNode }) {
                 <APIProvider>
                   <BottomSheetModalProvider>
                     {children}
+                    <LiveKitBottomSheet />
                     <FlashMessage position="top" />
                   </BottomSheetModalProvider>
                 </APIProvider>

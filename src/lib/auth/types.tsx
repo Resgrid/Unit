@@ -36,12 +36,7 @@ export interface ProfileModel {
   oi_tkn_id: string;
 }
 
-export type AuthStatus =
-  | 'idle'
-  | 'signedIn'
-  | 'signedOut'
-  | 'loading'
-  | 'error';
+export type AuthStatus = 'idle' | 'signedIn' | 'signedOut' | 'loading' | 'error';
 
 export interface AuthState {
   accessToken: string | null;

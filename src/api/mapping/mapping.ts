@@ -5,13 +5,10 @@ import { createApiEndpoint } from '../common/client';
 
 const getMayLayersApi = createApiEndpoint('/Mapping/GetMayLayers');
 
-const getMapDataAndMarkersApi = createApiEndpoint(
-  '/Mapping/GetMapDataAndMarkers'
-);
+const getMapDataAndMarkersApi = createApiEndpoint('/Mapping/GetMapDataAndMarkers');
 
 export const getMapDataAndMarkers = async () => {
-  const response =
-    await getMapDataAndMarkersApi.get<GetMapDataAndMarkersResult>();
+  const response = await getMapDataAndMarkersApi.get<GetMapDataAndMarkersResult>();
   return response.data;
 };
 
