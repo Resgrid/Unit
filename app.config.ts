@@ -26,7 +26,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   description: `${Env.NAME} Resgrid Unit`,
   owner: Env.EXPO_ACCOUNT_OWNER,
   scheme: Env.SCHEME,
-  slug: 'rgunit',
+  slug: 'resgrid-unit',
   version: Env.VERSION.toString(),
   orientation: 'default',
   icon: './assets/icon.png',
