@@ -54,7 +54,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
-    googleServicesFile: './apps/unit/android/google-services.json',
+    googleServicesFile: 'google-services.json',
   },
   web: {
     favicon: './assets/favicon.png',
