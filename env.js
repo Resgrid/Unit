@@ -77,6 +77,7 @@ const client = z.object({
   BUNDLE_ID: z.string(),
   PACKAGE: z.string(),
   VERSION: z.string(),
+  ANDROID_VERSION_CODE: z.number(),
 
   // ADD YOUR CLIENT ENV VARS HERE
   BASE_API_URL: z.string(),
@@ -111,6 +112,7 @@ const _clientEnv = {
   BUNDLE_ID: withEnvSuffix(BUNDLE_ID),
   PACKAGE: withEnvSuffix(PACKAGE),
   VERSION: packageJSON.version,
+  ANDROID_VERSION_CODE: parseInt(packageJSON.versionCode),
 
   // ADD YOUR ENV VARS HERE TOO
   BASE_API_URL: process.env.UNIT_BASE_API_URL || 'https://qaapi.resgrid.dev',

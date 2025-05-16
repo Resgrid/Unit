@@ -43,7 +43,7 @@ export const zustandStorage: StateStorage = {
 
 export const useIsFirstTime = () => {
   const [isFirstTime, setIsFirstTime] = useMMKVBoolean(IS_FIRST_TIME, storage);
-  if (isFirstTime === undefined) {
+  if (isFirstTime === undefined || isFirstTime === null || isFirstTime === true) {
     return [true, setIsFirstTime] as const;
   }
   return [isFirstTime, setIsFirstTime] as const;

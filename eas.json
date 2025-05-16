@@ -35,15 +35,34 @@
         "FLIPPER_DISABLE": "1"
       }
     },
-    "development": {
-      "developmentClient": true,
+    "internal": {
       "distribution": "internal",
+      "credentialsSource": "local",
       "pnpm": "9.12.3",
       "ios": {
         "image": "latest"
       },
       "android": {
+        "buildType": "apk",
         "image": "latest"
+      },
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_NO_DOTENV": "1",
+        "FLIPPER_DISABLE": "1"
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "credentialsSource": "local",
+      "pnpm": "9.12.3",
+      "ios": {
+        "image": "latest"
+      },
+      "android": {
+        "image": "latest",
+        "buildType": "apk"
       },
       "env": {
         "APP_ENV": "development",

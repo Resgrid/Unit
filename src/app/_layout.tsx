@@ -1,5 +1,6 @@
 // Import  global CSS file
 import '../../global.css';
+import '../lib/i18n';
 
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -26,6 +27,7 @@ import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { setDeviceUuid } from '@/lib/storage/app';
 import { uuidv4 } from '@/lib/utils';
+
 export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
