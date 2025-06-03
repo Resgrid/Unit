@@ -19,6 +19,7 @@ yarn-error.log
 /apps
 /fastlane
 /apps
+/build
 /automatic-build
 google-services.json
 credentials.json
