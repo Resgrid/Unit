@@ -42,6 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     requireFullScreen: true,
     infoPlist: {
       UIBackgroundModes: ['remote-notification'],
+      ITSAppUsesNonExemptEncryption: false,
     },
   },
   experiments: {
