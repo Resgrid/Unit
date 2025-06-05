@@ -26,7 +26,7 @@ import { securityStore } from '@/stores/security/store';
 
 export default function TabLayout() {
   const { t } = useTranslation();
-  const status = useAuthStore().status;
+  const { status, setIsOnboarding } = useAuthStore();
   const [isFirstTime, _setIsFirstTime] = useIsFirstTime();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
@@ -69,6 +69,7 @@ export default function TabLayout() {
   const rights = securityStore((state) => state.rights);
 
   if (isFirstTime) {
+    setIsOnboarding();
     return <Redirect href="/onboarding" />;
   }
   if (status === 'signedOut') {

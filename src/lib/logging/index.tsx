@@ -33,7 +33,7 @@ class LogService {
   private globalContext: Record<string, unknown> = {};
 
   private constructor() {
-    this.logger = rnLogger.createLogger(config);
+    this.logger = rnLogger.createLogger(config as any);
   }
 
   public static getInstance(): LogService {

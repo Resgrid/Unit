@@ -36,7 +36,7 @@ export interface ProfileModel {
   oi_tkn_id: string;
 }
 
-export type AuthStatus = 'idle' | 'signedIn' | 'signedOut' | 'loading' | 'error';
+export type AuthStatus = 'idle' | 'signedIn' | 'signedOut' | 'loading' | 'error' | 'onboarding';
 
 export interface AuthState {
   accessToken: string | null;
@@ -52,4 +52,5 @@ export interface AuthState {
   hydrate: () => void;
   isFirstTime: boolean;
   isAuthenticated: () => boolean;
+  setIsOnboarding: () => void;
 }

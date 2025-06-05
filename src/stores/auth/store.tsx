@@ -2,6 +2,8 @@ import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { logger } from '@/lib/logging';
+
 import { loginRequest, refreshTokenRequest } from '../../lib/auth/api';
 import type { AuthResponse, AuthState, LoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
@@ -134,6 +136,15 @@ const useAuthStore = create<AuthState>()(
       },
       isAuthenticated: (): boolean => {
         return get().status === 'signedIn' && get().accessToken !== null;
+      },
+      setIsOnboarding: () => {
+        logger.info({
+          message: 'Setting isOnboarding to true',
+        });
+
+        set({
+          status: 'onboarding',
+        });
       },
       //getRights: async () => {
       //  try {

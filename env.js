@@ -39,7 +39,7 @@ const PACKAGE = 'com.resgrid.unit'; // android package name
 const NAME = 'Resgrid Unit'; // app name
 const EXPO_ACCOUNT_OWNER = 'resgrid'; // expo account owner
 const EAS_PROJECT_ID = '6beb03e6-f639-4f35-bef7-5cfb5f173218'; // eas project id
-const SCHEME = 'Unit'; // app scheme
+const SCHEME = 'ResgridUnit'; // app scheme
 
 /**
  * We declare a function withEnvSuffix that will add a suffix to the variable name based on the APP_ENV
@@ -71,7 +71,7 @@ const withEnvSuffix = (name) => {
  */
 
 const client = z.object({
-  APP_ENV: z.enum(['development', 'staging', 'production']),
+  APP_ENV: z.enum(['development', 'staging', 'internal', 'production']),
   NAME: z.string(),
   SCHEME: z.string(),
   BUNDLE_ID: z.string(),

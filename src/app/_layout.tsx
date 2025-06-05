@@ -55,10 +55,10 @@ registerGlobals();
 //useAuth().hydrate();
 //loadSelectedTheme();
 // Prevent the splash screen from auto-hiding before asset loading is complete.
-SplashScreen.preventAutoHideAsync();
+//SplashScreen.preventAutoHideAsync();
 // Set the animation options. This is optional.
 SplashScreen.setOptions({
-  duration: 500,
+  duration: 1000,
   fade: true,
 });
 
