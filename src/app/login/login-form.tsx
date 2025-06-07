@@ -68,11 +68,11 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
     <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={10}>
       <View className="flex-1 justify-center p-4">
         <View className="items-center justify-center">
-          <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
+          <Image style={{ width: '96%' }} source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
           <Text className="pb-6 text-center text-4xl font-bold">Sign In</Text>
 
           <Text className="mb-6 max-w-xl text-center text-gray-500">
-            To login in to the Resgrid Unit app, please enter your username and password. Resgrid Unit is an applicated designed to interface between a Unit (apparatus, team, etc) and the Resgrid system.
+            To login in to the Resgrid Unit app, please enter your username and password. Resgrid Unit is an app designed to interface between a Unit (apparatus, team, etc) and the Resgrid system.
           </Text>
         </View>
         <FormControl isInvalid={!!errors?.username || !validated.usernameValid} className="w-full">

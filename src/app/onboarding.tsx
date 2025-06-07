@@ -97,8 +97,8 @@ export default function Onboarding() {
     <View className="flex-1">
       <FocusAwareStatusBar hidden={true} />
 
-      <View className="w-full items-center justify-center pt-20">
-        <Image source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
+      <View className="w-full items-center justify-center pt-20 px-10">
+        <Image style={{ width: '96%' }} resizeMode="contain" source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
       </View>
 
       <FlatList
