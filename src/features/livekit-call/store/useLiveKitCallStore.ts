@@ -24,8 +24,7 @@ const fetchLiveKitToken = async (roomId: string, participantIdentity: string): P
   }
   // Prioritize env var for local dev/testing if available
   return (
-    process.env.STORYBOOK_LIVEKIT_TOKEN ||
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTI2NzEwMDgsImlzcyI6IkFQSVRzRE1QNnZyZ1dMaSIsIm5iZiI6MTcxNzM4NTAwOCwic3ViIjoiVGVzdFVzZXIiLCJ2aWRlbyI6eyJyb29tIjoicHJvZHVjdGlvbi10ZXN0LXJvb20iLCJyb29tSm9pbiI6dHJ1ZSwiY2FuUHVibGlzaCI6dHJ1ZSwiY2FuUHVibGlzaERhdGEiOnRydWUsImNhblN1YnNjcmliZSI6dHJ1ZX19.xL6O1X19sC5qjJkQ9f3h2c8gNjZ7YjG3wR8bV2zR0Zk'
+    process.env.STORYBOOK_LIVEKIT_TOKEN || ''
   );
 };
 
