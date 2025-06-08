@@ -1,0 +1,96 @@
+{
+  "app": {
+    "title": "Resgrid Unit"
+  },
+  "onboarding": {
+    "message": "Bienvenido a la aplicación Resgrid"
+  },
+  "tabs": {
+    "map": "Mapa",
+    "calls": "Llamadas",
+    "contacts": "Contactos",
+    "notes": "Notas",
+    "protocols": "Protocolos",
+    "settings": "Configuración"
+  },
+  "calls": {
+    "title": "Llamadas",
+    "no_calls": "No hay llamadas activas",
+    "call_details": "Detalles de la llamada",
+    "call_number": "Número de llamada",
+    "call_priority": "Prioridad de la llamada",
+    "loading_calls": "Cargando llamadas...",
+    "no_call_selected": "Sin llamada activa",
+    "no_call_selected_info": "Esta unidad no está respondiendo a ninguna llamada actualmente",
+    "select_active_call": "Seleccionar llamada activa",
+    "view_details": "Ver detalles",
+    "directions": "Direcciones",
+    "deselect": "Deseleccionar",
+    "no_open_calls": "No hay llamadas abiertas disponibles",
+    "no_calls_description": "No se encontraron llamadas activas. Seleccione una llamada activa para ver los detalles.",
+    "confirm_deselect_title": "Deseleccionar llamada activa",
+    "confirm_deselect_message": "¿Estás seguro de que quieres deseleccionar la llamada activa actual?"
+  },
+  "common": {
+    "back": "Atrás",
+    "route": "Ruta",
+    "upload": "Subir",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "remove": "Eliminar",
+    "close": "Cerrar",
+    "unknown": "Desconocido",
+    "loading": "Cargando...",
+    "loading_address": "Cargando dirección...",
+    "done": "Listo",
+    "go_back": "Volver",
+    "search": "Buscar...",
+    "permission_denied": "Permiso denegado",
+    "uploading": "Subiendo...",
+    "error": "Error",
+    "share": "Compartir",
+    "noDataAvailable": "No hay datos disponibles",
+    "tryAgainLater": "Por favor, inténtelo de nuevo más tarde",
+    "nothingToDisplay": "No hay nada que mostrar en este momento",
+    "errorOccurred": "Ha ocurrido un error",
+    "no_location": "No hay datos de ubicación disponibles",
+    "no_address_found": "No se encontró dirección",
+    "get_my_location": "Obtener mi ubicación",
+    "confirm_location": "Confirmar ubicación",
+    "set_location": "Establecer ubicación",
+    "no_unit_selected": "Ninguna unidad seleccionada",
+    "confirm": "Confirmar"
+  },
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "theme": {
+      "dark": "Oscuro",
+      "light": "Claro",
+      "system": "Sistema",
+      "title": "Tema"
+    }
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "username": "Nombre de usuario",
+    "password": "Contraseña",
+    "login": "Iniciar sesión",
+    "username_placeholder": "Introduce tu nombre de usuario",
+    "password_placeholder": "Introduce tu contraseña",
+    "login_button": "Iniciar sesión",
+    "login_button_description": "Inicia sesión en tu cuenta para continuar",
+    "login_button_loading": "Iniciando sesión...",
+    "login_button_error": "Error al iniciar sesión",
+    "login_button_success": "Sesión iniciada con éxito",
+    "password_incorrect": "La contraseña era incorrecta",
+    "errorModal": {
+      "title": "Inicio de sesión fallido",
+      "message": "Por favor, comprueba tu nombre de usuario y contraseña e inténtalo de nuevo.",
+      "confirmButton": "Aceptar"
+    }
+  }
+}

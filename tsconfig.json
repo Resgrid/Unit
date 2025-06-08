@@ -1,27 +1,55 @@
-/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
-  "compileOnSave": false,
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "baseUrl": "./",
-    "outDir": "./dist/out-tsc",
-    "sourceMap": true,
-    "declaration": false,
-    "downlevelIteration": true,
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "types": [],
     "experimentalDecorators": true,
+    "jsx": "react-native",
+    "module": "es2015",
     "moduleResolution": "node",
-    "importHelpers": true,
-    "target": "ES2022",
-    "module": "es2020",
+    "sourceMap": true,
+    "target": "esnext",
     "lib": [
-      "es2018",
+      "esnext",
       "dom"
     ],
-    "useDefineForClassFields": false
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@env": ["./src/lib/env.js"],
+      "@/assets/*": ["../../packages/shared/assets/*", "./assets/*"],
+      "tailwind.config": ["./tailwind.config.js"]
+    },
+    "esModuleInterop": true,
+    "checkJs": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ]
   },
-  "angularCompilerOptions": {
-    "enableI18nLegacyMessageIdFormat": false,
-    "strictInjectionParameters": true,
-    "strictInputAccessModifiers": true,
-    "strictTemplates": true
-  }
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "docs",
+    "cli",
+    "android",
+    "ios",
+    "lint-staged.config.js"
+  ],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }

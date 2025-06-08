@@ -1,0 +1,103 @@
+{
+  "onboarding": {
+    "message": "مرحبًا بك في موقع تطبيق obytes"
+  },
+  "settings": {
+    "about": "حول التطبيق ",
+    "app_name": "اسم التطبيق",
+    "arabic": "عربي",
+    "english": "إنجليزي",
+    "generale": "عام",
+    "github": "جيثب",
+    "language": "لغة",
+    "links": "الروابط",
+    "logout": "تسجيل خروج",
+    "more": "أكثر",
+    "privacy": "سياسة الخصوصية",
+    "rate": "تقييم",
+    "share": "شارك",
+    "support": "الدعم",
+    "support_us": "ادعمنا",
+    "terms": "شروط الخدمة",
+    "theme": {
+      "dark": "مظلم",
+      "light": "خفيفة",
+      "system": "System",
+      "title": "سمة"
+    },
+    "title": "إعدادات",
+    "version": "إصدار",
+    "website": "موقع الكتروني"
+  },
+  "contacts": {
+    "title": "جهات الاتصال",
+    "description": "إضافة وإدارة جهات الاتصال الخاصة بك",
+    "search": "بحث في جهات الاتصال...",
+    "empty": "لم يتم العثور على جهات اتصال",
+    "emptyDescription": "أضف جهات اتصال لإدارة اتصالاتك الشخصية والتجارية",
+    "add": "إضافة جهة اتصال",
+    "edit": "تعديل جهة الاتصال",
+    "delete": "حذف",
+    "details": "تفاصيل جهة الاتصال",
+    "person": "شخص",
+    "company": "شركة",
+    "contactType": "نوع جهة الاتصال",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "phone": "هاتف",
+    "mobile": "جوال",
+    "address": "العنوان",
+    "cityState": "المدينة والولاية",
+    "city": "المدينة",
+    "state": "الولاية",
+    "zip": "الرمز البريدي",
+    "notes": "ملاحظات",
+    "important": "وضع علامة كمهم",
+    "save": "حفظ جهة الاتصال",
+    "cancel": "إلغاء",
+    "deleteConfirm": "هل أنت متأكد أنك تريد حذف جهة الاتصال هذه؟",
+    "deleteSuccess": "تم حذف جهة الاتصال بنجاح",
+    "saveSuccess": "تم حفظ جهة الاتصال بنجاح",
+    "required": "مطلوب",
+    "invalidEmail": "عنوان بريد إلكتروني غير صالح",
+    "formError": "يرجى إصلاح الأخطاء في النموذج"
+  },
+  "welcome": "test arabic",
+  "calls": {
+    "confirm_deselect_title": "إلغاء تحديد المكالمة النشطة",
+    "confirm_deselect_message": "هل أنت متأكد أنك تريد إلغاء تحديد المكالمة النشطة الحالية؟"
+  },
+  "common": {
+    "confirm": "تأكيد"
+  },
+  "app": {
+    "title": "وحدة ريسغريد"
+  },
+  "tabs": {
+    "map": "خريطة",
+    "calls": "المكالمات",
+    "contacts": "جهات الاتصال",
+    "notes": "ملاحظات",
+    "protocols": "البروتوكولات",
+    "settings": "الإعدادات"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "username": "اسم المستخدم",
+    "password": "كلمة المرور",
+    "login": "تسجيل الدخول",
+    "username_placeholder": "أدخل اسم المستخدم الخاص بك",
+    "password_placeholder": "أدخل كلمة المرور الخاصة بك",
+    "login_button": "تسجيل الدخول",
+    "login_button_description": "قم بتسجيل الدخول إلى حسابك للمتابعة",
+    "login_button_loading": "تسجيل الدخول...",
+    "login_button_error": "خطأ في تسجيل الدخول",
+    "login_button_success": "تم تسجيل الدخول بنجاح",
+    "password_incorrect": "كانت كلمة المرور غير صحيحة",
+    "errorModal": {
+      "title": "Login Failed",
+      "message": "Please check your username and password and try again.",
+      "confirmButton": "OK"
+    }
+  }
+}
