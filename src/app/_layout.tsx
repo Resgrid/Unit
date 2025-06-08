@@ -110,23 +110,32 @@ function RootLayout() {
 
 function Providers({ children }: { children: React.ReactNode }) {
   const colorScheme = useColorScheme();
+
+  const renderContent = () => (
+    <APIProvider>
+      <GluestackUIProvider mode={(colorScheme ?? 'light') as 'light' | 'dark'}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <BottomSheetModalProvider>
+            {children}
+            <LiveKitBottomSheet />
+            <FlashMessage position="top" />
+          </BottomSheetModalProvider>
+        </ThemeProvider>
+      </GluestackUIProvider>
+    </APIProvider>
+  );
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView>
         <KeyboardProvider>
-          <PostHogProvider apiKey={Env.POSTHOG_API_KEY} options={{ host: Env.POSTHOG_HOST }}>
-            <APIProvider>
-              <GluestackUIProvider mode={(colorScheme ?? 'light') as 'light' | 'dark'}>
-                <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-                  <BottomSheetModalProvider>
-                    {children}
-                    <LiveKitBottomSheet />
-                    <FlashMessage position="top" />
-                  </BottomSheetModalProvider>
-                </ThemeProvider>
-              </GluestackUIProvider>
-            </APIProvider>
-          </PostHogProvider>
+          {Env.POSTHOG_API_KEY ? (
+            <PostHogProvider apiKey={Env.POSTHOG_API_KEY} options={{ host: Env.POSTHOG_HOST }}>
+              {renderContent()}
+            </PostHogProvider>
+          ) : (
+            renderContent()
+          )}
         </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>

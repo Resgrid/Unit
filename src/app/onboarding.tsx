@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Bell, ChevronRight, MapPin, Users } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dimensions, FlatList, Image } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -10,6 +10,7 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { useIsFirstTime } from '@/lib/storage';
+import { useAuthStore } from '@/lib/auth';
 
 const { width } = Dimensions.get('window');
 
@@ -59,11 +60,16 @@ const Pagination: React.FC<{ currentIndex: number; length: number }> = ({ curren
 
 export default function Onboarding() {
   const [_, setIsFirstTime] = useIsFirstTime();
+  const { status, setIsOnboarding } = useAuthStore();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const buttonOpacity = useSharedValue(0);
   const { colorScheme } = useColorScheme();
+
+  useEffect(() => {
+    setIsOnboarding();
+  }, []);
 
   const handleScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
