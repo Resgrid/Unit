@@ -52,14 +52,14 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      - name: pnpm-setup
+        uses: pnpm/action-setup@v2
+
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: "pnpm"
-
-      - name: pnpm-setup
-        uses: pnpm/action-setup@v2
 
       - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
@@ -101,14 +101,14 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      - name: pnpm-setup
+        uses: pnpm/action-setup@v2
+
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
-
-      - name: pnpm-setup
-        uses: pnpm/action-setup@v2
 
       - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
