@@ -11,7 +11,7 @@ import { useContactsStore } from '@/stores/contacts/store';
 
 export const ContactDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
-  const { contacts, selectedContactId, isDetailsOpen, closeDetails, removeContact } = useContactsStore();
+  const { contacts, selectedContactId, isDetailsOpen, closeDetails } = useContactsStore();
 
   const selectedContact = React.useMemo(() => {
     if (!selectedContactId) return null;
@@ -20,7 +20,7 @@ export const ContactDetailsSheet: React.FC = () => {
 
   const handleDelete = async () => {
     if (selectedContactId) {
-      await removeContact(selectedContactId);
+      //await removeContact(selectedContactId);
       closeDetails();
     }
   };
@@ -28,7 +28,7 @@ export const ContactDetailsSheet: React.FC = () => {
   if (!selectedContact) return null;
 
   return (
-    <BottomSheet onClose={closeDetails} onOpen={() => {}}>
+    <BottomSheet onClose={closeDetails} onOpen={() => { }}>
       <BottomSheetPortal snapPoints={['60%']} handleComponent={BottomSheetDragIndicator} backdropComponent={BottomSheetBackdrop}>
         <BottomSheetContent>
           <View className="flex-1 px-4 pb-4">

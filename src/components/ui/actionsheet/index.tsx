@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { ComponentType, RefAttributes, useMemo } from 'react';
 import { H4 } from '@expo/html-elements';
 import { Svg } from 'react-native-svg';
 import { createActionsheet } from '@gluestack-ui/actionsheet';
@@ -99,7 +99,7 @@ const AnimatedPressable = createMotionAnimatedComponent(Pressable);
 export const UIActionsheet = createActionsheet({
   Root: View,
   Content: Motion.View,
-  Item: Platform.OS === 'web' ? ItemWrapper : withStates(ItemWrapper),
+  Item: Platform.OS === 'web' ? ItemWrapper : withStates(ItemWrapper) as ComponentType<PressableProps & RefAttributes<View>>,
   ItemText: Text,
   DragIndicator: View,
   IndicatorWrapper: View,

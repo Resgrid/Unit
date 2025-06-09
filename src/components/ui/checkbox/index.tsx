@@ -1,5 +1,5 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { ComponentType, RefAttributes, useMemo } from 'react';
 import { createCheckbox } from '@gluestack-ui/checkbox';
 import { View, Pressable, Text } from 'react-native';
 import type { TextProps, ViewProps } from 'react-native';
@@ -83,11 +83,11 @@ const UICheckbox = createCheckbox({
     Platform.OS === 'web'
       ? withStyleContext(View, SCOPE)
       : withStyleContextAndStates(Pressable, SCOPE),
-  Group: Platform.OS === 'web' ? View : withStates(View),
-  Icon: Platform.OS === 'web' ? IconWrapper : withStates(IconWrapper),
-  Label: Platform.OS === 'web' ? LabelWrapper : withStates(LabelWrapper),
+  Group: Platform.OS === 'web' ? View : withStates(View) as ComponentType<ViewProps & RefAttributes<View>>,
+  Icon: Platform.OS === 'web' ? IconWrapper : withStates(IconWrapper) as ComponentType<IPrimitiveIcon & RefAttributes<Svg>>,
+  Label: Platform.OS === 'web' ? LabelWrapper : withStates(LabelWrapper) as ComponentType<TextProps & RefAttributes<Text>>,
   Indicator:
-    Platform.OS === 'web' ? IndicatorWrapper : withStates(IndicatorWrapper),
+    Platform.OS === 'web' ? IndicatorWrapper : withStates(IndicatorWrapper) as ComponentType<ViewProps & RefAttributes<View>>,
 });
 
 cssInterop(UICheckbox, { className: 'style' });

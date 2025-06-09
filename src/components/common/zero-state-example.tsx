@@ -2,7 +2,8 @@ import React from 'react';
 import { View } from 'react-native';
 import ZeroState from './zero-state';
 import { FileX, WifiOff, Search, AlertCircle } from 'lucide-react-native';
-import { Button, HStack } from '@gluestack/ui';
+import { Button } from '@/components/ui/button';
+import { HStack } from '@/components/ui/hstack';
 
 const ZeroStateExamples: React.FC = () => {
   return (

@@ -1,8 +1,8 @@
 'use client';
 import { createSlider } from '@gluestack-ui/slider';
-import { Pressable } from 'react-native';
+import { Pressable, ViewProps } from 'react-native';
 import { View, Platform } from 'react-native';
-import React from 'react';
+import React, { ComponentType, RefAttributes } from 'react';
 import { tva } from '@gluestack-ui/nativewind-utils/tva';
 import {
   withStyleContext,
@@ -29,9 +29,9 @@ export const UISlider = createSlider({
     Platform.OS === 'web'
       ? withStyleContext(View, SCOPE)
       : withStyleContextAndStates(View, SCOPE),
-  Thumb: Platform.OS === 'web' ? ThumbWrapper : withStates(View),
+  Thumb: Platform.OS === 'web' ? ThumbWrapper : withStates(View) as ComponentType<ViewProps & RefAttributes<View>>,
   Track: Pressable,
-  FilledTrack: Platform.OS === 'web' ? FilledTrackWrapper : withStates(View),
+  FilledTrack: Platform.OS === 'web' ? FilledTrackWrapper : withStates(View) as ComponentType<ViewProps & RefAttributes<View>>,
   ThumbInteraction: View,
 });
 

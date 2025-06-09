@@ -46,7 +46,6 @@ export default function NewCall() {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const { callPriorities, isLoading, error, fetchCallPriorities } = useCallsStore();
-  const { user } = useAuthStore();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{

@@ -42,12 +42,16 @@
     "docs",
     "cli",
     "android",
+    "lib",
     "ios",
-    "lint-staged.config.js"
+    "lint-staged.config.js",
+    "**/*.spec.ts",
+    "**/*.d.ts",
+    "__tests__"
   ],
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"

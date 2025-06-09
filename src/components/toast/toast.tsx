@@ -40,7 +40,6 @@ export const ToastMessage: React.FC<{
     <Toast
       className="mx-4 rounded-lg border"
       style={toastStyles[type]}
-      onCloseComplete={() => removeToast(id)}
       action={type}
     >
       <VStack space="xs">

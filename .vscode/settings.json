@@ -28,6 +28,7 @@
     "Flashlist",
     "Gluestack",
     "Lato",
+    "nativewind",
     "Resgrid"
   ],
   "i18n-ally.localesPaths": ["src/translations/"],
