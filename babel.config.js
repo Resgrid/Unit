@@ -1,10 +1,7 @@
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
-      'nativewind/babel',
-    ],
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
     plugins: [
       [
         'module-resolver',
@@ -16,20 +13,9 @@ module.exports = function (api) {
             '@unitools/image': '@unitools/image-expo',
             '@unitools/router': '@unitools/router-expo',
             '@unitools/link': '@unitools/link-expo',
-            'tailwind.config': './tailwind.config.js',
+            '@tailwind.config': './tailwind.config.js',
             '@assets': './assets',
           },
-          extensions: [
-            '.ios.ts',
-            '.android.ts',
-            '.ts',
-            '.ios.tsx',
-            '.android.tsx',
-            '.tsx',
-            '.jsx',
-            '.js',
-            '.json',
-          ],
         },
       ],
       'react-native-reanimated/plugin',

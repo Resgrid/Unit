@@ -171,7 +171,7 @@ class PushNotificationService {
         UnitId: unitId,
         Token: this.pushToken,
         Platform: Platform.OS === 'ios' ? 1 : 2,
-        DeviceUuid: getDeviceUuid(),
+        DeviceUuid: getDeviceUuid() || '',
         Prefix: departmentCode,
       });
 

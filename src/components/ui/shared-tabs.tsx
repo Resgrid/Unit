@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
-import { ScrollView } from 'react-native';
-import { Box } from '@/components/ui/box';
-import { Text } from '@/components/ui/text';
-import { Pressable } from '@/components/ui/pressable';
+import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ScrollView, StyleSheet } from 'react-native';
 import { create } from 'zustand';
+
+import { Box } from '@/components/ui/box';
+import { Pressable } from '@/components/ui/pressable';
+import { Text } from '@/components/ui/text';
 
 // Tab state management with zustand
 interface TabState {
@@ -82,18 +83,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     }[size];
 
     const variantStyles = {
-      default: isActive
-        ? 'border-b-2 border-primary-500 text-primary-500'
-        : 'border-b-2 border-transparent text-gray-500',
-      pills: isActive
-        ? 'bg-primary-500 text-white rounded-full'
-        : 'bg-transparent text-gray-500',
-      underlined: isActive
-        ? 'border-b-2 border-primary-500 text-primary-500'
-        : 'border-b-2 border-transparent text-gray-500',
-      segmented: isActive
-        ? 'bg-primary-500 text-white'
-        : 'bg-gray-100 text-gray-500',
+      default: isActive ? 'border-b-2 border-primary-500 text-primary-500' : 'border-b-2 border-transparent text-gray-500',
+      pills: isActive ? 'bg-primary-500 text-white rounded-full' : 'bg-transparent text-gray-500',
+      underlined: isActive ? 'border-b-2 border-primary-500 text-primary-500' : 'border-b-2 border-transparent text-gray-500',
+      segmented: isActive ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500',
     }[variant];
 
     return `${baseStyles} ${sizeStyles} ${variantStyles} ${tabClassName}`;
@@ -113,32 +106,33 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     return `${baseStyles} ${variantStyles} ${tabsContainerClassName}`;
   };
 
+  // Convert Tailwind classes to style object
+  const getContainerStyle = () => {
+    const styles = StyleSheet.create({
+      container: {
+        flexDirection: 'row',
+        flex: 1,
+        ...(variant === 'default' && { borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }),
+        ...(variant === 'pills' && { gap: 8, padding: 4 }),
+        ...(variant === 'underlined' && { borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }),
+        ...(variant === 'segmented' && { backgroundColor: '#f3f4f6', padding: 4, borderRadius: 8 }),
+      },
+    });
+    return styles.container;
+  };
+
   return (
     <Box className={`flex-1 ${className}`}>
       {/* Tab Headers */}
       {scrollable ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName={getContainerStyles()}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={getContainerStyle()}>
           {tabs.map((tab, index) => (
-            <Pressable
-              key={tab.key}
-              className={getTabStyles(index)}
-              onPress={() => handleTabPress(index)}
-            >
+            <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
               {tab.icon && <Box className="mr-1.5">{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? (
-                <Text>{t(tab.title)}</Text>
-              ) : (
-                <Text className="text-gray-800">{tab.title}</Text>
-              )}
+              {typeof tab.title === 'string' ? <Text>{t(tab.title)}</Text> : <Text className="text-gray-800">{tab.title}</Text>}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className="ml-1.5 bg-red-500 rounded-full px-1.5 py-0.5 min-w-[20px] items-center">
-                  <Text className="text-white text-xs font-bold">
-                    {tab.badge}
-                  </Text>
+                <Box className="ml-1.5 min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5">
+                  <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}
             </Pressable>
@@ -147,22 +141,12 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       ) : (
         <Box className={getContainerStyles()}>
           {tabs.map((tab, index) => (
-            <Pressable
-              key={tab.key}
-              className={`flex-1 ${getTabStyles(index)}`}
-              onPress={() => handleTabPress(index)}
-            >
+            <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)}`} onPress={() => handleTabPress(index)}>
               {tab.icon && <Box className="mr-1.5">{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? (
-                <Text className="text-gray-800">{t(tab.title)}</Text>
-              ) : (
-                <Text className="text-gray-800">{tab.title}</Text>
-              )}
+              {typeof tab.title === 'string' ? <Text className="text-gray-800">{t(tab.title)}</Text> : <Text className="text-gray-800">{tab.title}</Text>}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className="ml-1.5 bg-red-500 rounded-full px-1.5 py-0.5 min-w-[20px] items-center">
-                  <Text className="text-white text-xs font-bold">
-                    {tab.badge}
-                  </Text>
+                <Box className="ml-1.5 min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5">
+                  <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}
             </Pressable>
@@ -171,9 +155,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       )}
 
       {/* Tab Content */}
-      <Box className={`flex-1 ${contentClassName}`}>
-        {tabs[currentIndex]?.content}
-      </Box>
+      <Box className={`flex-1 ${contentClassName}`}>{tabs[currentIndex]?.content}</Box>
     </Box>
   );
 };
