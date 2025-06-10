@@ -111,6 +111,10 @@ jobs:
           pnpm install
           pnpm add -g eas-cli@latest
 
+      - name: 📋 Create Credentials File
+        run: |
+          echo $CREDENTIALS_JSON_BASE64 | base64 -d > credentials.json
+
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
