@@ -1,6 +1,6 @@
-import { BaseV4Request } from "../baseV4Request";
-import { NoteResultData } from "./noteResultData";
+import { BaseV4Request } from '../baseV4Request';
+import { type NoteResultData } from './noteResultData';
 
-export class NotesResult extends BaseV4Request  {
-    public Data: NoteResultData[] = [];
+export class NotesResult extends BaseV4Request {
+  public Data: NoteResultData[] = [];
 }

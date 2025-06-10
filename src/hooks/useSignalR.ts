@@ -24,7 +24,7 @@ export const useSignalR = (config: SignalRHubConfig) => {
         context: { error, config },
       });
     }
-  }, [config.name]);
+  }, [config]);
 
   useEffect(() => {
     connect();

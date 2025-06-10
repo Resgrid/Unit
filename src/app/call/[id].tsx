@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import WebView from 'react-native-webview';
 
+import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 // Import a static map component instead of react-native-maps
 import StaticMap from '@/components/maps/static-map';
@@ -15,14 +16,13 @@ import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
-import { Loading } from '@/components/common/loading';
 import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { openMapsWithDirections } from '@/lib/navigation';
 import { logger } from '@/lib/logging';
-import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { openMapsWithDirections } from '@/lib/navigation';
 import { useLocationStore } from '@/stores/app/location-store';
+import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useToastStore } from '@/stores/toast/store';
 
 import CallFilesModal from '../../components/calls/call-files-modal';
@@ -61,7 +61,7 @@ export default function CallDetail() {
     if (callId) {
       fetchCallDetail(callId);
     }
-  }, [callId, fetchCallDetail]);
+  }, [callId, fetchCallDetail, reset]);
 
   useEffect(() => {
     if (call) {

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { Box } from '@/components/ui/box';
+
 import Sidebar from './sidebar';
 
 const WebSidebar = () => {

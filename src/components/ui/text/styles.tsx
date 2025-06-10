@@ -1,5 +1,5 @@
-import { tva } from '@gluestack-ui/nativewind-utils/tva';
 import { isWeb } from '@gluestack-ui/nativewind-utils/IsWeb';
+import { tva } from '@gluestack-ui/nativewind-utils/tva';
 
 const baseStyle = isWeb
   ? 'font-sans tracking-sm my-0 bg-transparent border-0 box-border display-inline list-none margin-0 padding-0 position-relative text-start no-underline whitespace-pre-wrap word-wrap-break-word'
@@ -23,11 +23,11 @@ export const textStyle = tva({
     },
     size: {
       '2xs': 'text-2xs',
-      'xs': 'text-xs',
-      'sm': 'text-sm',
-      'md': 'text-base',
-      'lg': 'text-lg',
-      'xl': 'text-xl',
+      xs: 'text-xs',
+      sm: 'text-sm',
+      md: 'text-base',
+      lg: 'text-lg',
+      xl: 'text-xl',
       '2xl': 'text-2xl',
       '3xl': 'text-3xl',
       '4xl': 'text-4xl',

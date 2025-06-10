@@ -14,7 +14,7 @@ export interface SecurityState {
 
 export const securityStore = create<SecurityState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       error: null,
       rights: null,
       getRights: async () => {

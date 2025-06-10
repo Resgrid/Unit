@@ -1,5 +1,5 @@
 export class GroupsForCallGridData {
-    public GroupId: string = "";
-    public Name: string = "";
-    public Count: number = 0;
+  public GroupId: string = '';
+  public Name: string = '';
+  public Count: number = 0;
 }

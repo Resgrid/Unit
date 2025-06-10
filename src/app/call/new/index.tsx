@@ -20,7 +20,6 @@ import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragI
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
-import useAuthStore from '@/stores/auth/store';
 import { useCallsStore } from '@/stores/calls/store';
 
 // Define the form schema using zod
@@ -58,9 +57,7 @@ export default function NewCall() {
     control,
     handleSubmit,
     formState: { errors },
-    reset,
     setValue,
-    watch,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -98,7 +95,7 @@ export default function NewCall() {
       // Show success toast
       toast.show({
         placement: 'top',
-        render: ({ id }) => {
+        render: () => {
           return (
             <Box className="rounded-lg bg-green-500 p-4 shadow-lg">
               <Text className="text-white">{t('calls.create_success')}</Text>
@@ -115,7 +112,7 @@ export default function NewCall() {
       // Show error toast
       toast.show({
         placement: 'top',
-        render: ({ id }) => {
+        render: () => {
           return (
             <Box className="rounded-lg bg-red-500 p-4 shadow-lg">
               <Text className="text-white">{t('calls.create_error')}</Text>

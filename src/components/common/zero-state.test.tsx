@@ -1,10 +1,11 @@
+import { describe, expect, it, jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react-native';
 import { AlertCircle, FileX } from 'lucide-react-native';
 import React from 'react';
 
-import ZeroState from './zero-state';
 import { Button } from '@/components/ui/button';
-import { describe, expect, it, jest } from '@jest/globals';
+
+import ZeroState from './zero-state';
 
 // Mock the translation hook
 jest.mock('react-i18next', () => ({

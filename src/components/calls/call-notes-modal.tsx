@@ -60,7 +60,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
-        <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS == 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
             <Heading size="lg">{t('callNotes.title')}</Heading>

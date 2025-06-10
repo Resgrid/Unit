@@ -11,21 +11,21 @@ export interface CallExtraDataResult {
       Phone: string;
       Email: string;
     };
-    Protocols: Array<{
+    Protocols: {
       Name: string;
       Description: string;
-    }>;
-    Dispatched: Array<{
+    }[];
+    Dispatched: {
       Name: string;
       Unit: string;
       Status: string;
-    }>;
-    Timeline: Array<{
+    }[];
+    Timeline: {
       Timestamp: string;
       User: string;
       Unit: string;
       Status: string;
-    }>;
+    }[];
     // Add other fields as needed
   };
 }

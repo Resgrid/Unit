@@ -1,8 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useToastStore, ToastType } from '../../stores/toast/store';
+
 import { VStack } from '@/components/ui/vstack';
-import { Toast, ToastTitle, ToastDescription } from '../ui/toast';
+
+import { type ToastType, useToastStore } from '../../stores/toast/store';
+import { Toast, ToastDescription, ToastTitle } from '../ui/toast';
 
 const toastStyles = {
   info: {
@@ -28,24 +30,18 @@ const toastStyles = {
 };
 
 export const ToastMessage: React.FC<{
-  id: string;
+  //id: string;
   type: ToastType;
   title?: string;
   message: string;
-}> = ({ id, type, title, message }) => {
-  const { removeToast } = useToastStore();
+}> = ({ /*id,*/ type, title, message }) => {
+  //const { removeToast } = useToastStore();
   const { t } = useTranslation();
 
   return (
-    <Toast
-      className="mx-4 rounded-lg border"
-      style={toastStyles[type]}
-      action={type}
-    >
+    <Toast className="mx-4 rounded-lg border" style={toastStyles[type]} action={type}>
       <VStack space="xs">
-        {title && (
-          <ToastTitle className="text-white font-medium">{t(title)}</ToastTitle>
-        )}
+        {title && <ToastTitle className="font-medium text-white">{t(title)}</ToastTitle>}
         <ToastDescription className="text-white">{t(message)}</ToastDescription>
       </VStack>
     </Toast>

@@ -52,7 +52,7 @@ export const NotificationDetail = ({ notification, onClose, onDelete, onNavigate
         useNativeDriver: true,
       }),
     ]).start();
-  }, [notification, refetch]);
+  }, [notification, refetch, slideAnim, fadeAnim]);
 
   const handleClose = () => {
     // Animate out

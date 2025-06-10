@@ -1,6 +1,5 @@
-import { AuthTokenModel } from "./authTokens";
-import { ProfileModel } from "./profile";
-
+import { type AuthTokenModel } from './authTokens';
+import { type ProfileModel } from './profile';
 
 export interface AuthStateModel {
   tokens?: AuthTokenModel;

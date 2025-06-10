@@ -17,7 +17,7 @@ interface ContactsState {
   closeDetails: () => void;
 }
 
-export const useContactsStore = create<ContactsState>((set, get) => ({
+export const useContactsStore = create<ContactsState>((set, _get) => ({
   contacts: [],
   searchQuery: '',
   selectedContactId: null,

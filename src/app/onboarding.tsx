@@ -9,8 +9,8 @@ import { FocusAwareStatusBar, SafeAreaView, View } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
-import { useIsFirstTime } from '@/lib/storage';
 import { useAuthStore } from '@/lib/auth';
+import { useIsFirstTime } from '@/lib/storage';
 
 const { width } = Dimensions.get('window');
 
@@ -69,7 +69,7 @@ export default function Onboarding() {
 
   useEffect(() => {
     setIsOnboarding();
-  }, []);
+  }, [setIsOnboarding]);
 
   const handleScroll = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
@@ -103,7 +103,7 @@ export default function Onboarding() {
     <View className="flex-1">
       <FocusAwareStatusBar hidden={true} />
 
-      <View className="w-full items-center justify-center pt-20 px-10">
+      <View className="w-full items-center justify-center px-10 pt-20">
         <Image style={{ width: '96%' }} resizeMode="contain" source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
       </View>
 

@@ -32,15 +32,6 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [address, setAddress] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    if (initialLocation) {
-      setCurrentLocation(initialLocation);
-      reverseGeocode(initialLocation.latitude, initialLocation.longitude);
-    } else {
-      getUserLocation();
-    }
-  }, [initialLocation]);
-
   const getUserLocation = async () => {
     setIsLoading(true);
     try {
@@ -104,6 +95,15 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
       setIsReverseGeocoding(false);
     }
   };
+
+  useEffect(() => {
+    if (initialLocation) {
+      setCurrentLocation(initialLocation);
+      reverseGeocode(initialLocation.latitude, initialLocation.longitude);
+    } else {
+      getUserLocation();
+    }
+  }, [initialLocation, setCurrentLocation, reverseGeocode, getUserLocation]);
 
   const handleMapPress = (event: any) => {
     const { coordinates } = event.geometry;

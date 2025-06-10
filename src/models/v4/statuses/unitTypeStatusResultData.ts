@@ -1,7 +1,7 @@
-import { StatusesResultData } from "./statusesResultData";
+import { type StatusesResultData } from './statusesResultData';
 
-export class UnitTypeStatusResultData  {
-    public UnitType: string = '';
-    public StatusId: string = '';
-    public Statuses: StatusesResultData[] = [];
+export class UnitTypeStatusResultData {
+  public UnitType: string = '';
+  public StatusId: string = '';
+  public Statuses: StatusesResultData[] = [];
 }

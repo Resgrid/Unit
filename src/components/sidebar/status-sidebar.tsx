@@ -7,7 +7,7 @@ import { Card } from '../ui/card';
 
 type ItemProps = {};
 
-export const SidebarStatusCard = ({}: ItemProps) => {
+export const SidebarStatusCard = () => {
   const activeUnitStatus = useCoreStore((state) => state.activeUnitStatus);
 
   // Derive the display values from activeUnit when available, otherwise use defaults

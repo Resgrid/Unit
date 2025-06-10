@@ -16,7 +16,6 @@ import { Box } from '@/components/ui/box';
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
 import { VStack } from '@/components/ui/vstack';
-import colors from '@/constants/colors';
 import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
@@ -28,9 +27,8 @@ export default function Settings() {
   const { t } = useTranslation();
   const signOut = useAuthStore.getState().logout;
   const { colorScheme } = useColorScheme();
-  const iconColor = colorScheme === 'dark' ? colors.dark.neutral[400] : colors.light.neutral[500];
   const [showLoginInfo, setShowLoginInfo] = React.useState(false);
-  const { login, status, error, isAuthenticated } = useAuth();
+  const { login, status, isAuthenticated } = useAuth();
   const [showServerUrl, setShowServerUrl] = React.useState(false);
   const [showUnitSelection, setShowUnitSelection] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
@@ -39,7 +37,7 @@ export default function Settings() {
   const activeUnitName = React.useMemo(() => {
     if (!activeUnit) return t('settings.none_selected');
     return activeUnit?.Name || t('common.unknown');
-  }, [activeUnit, units]);
+  }, [activeUnit, units, t]);
 
   const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {
     logger.info({
@@ -87,8 +85,8 @@ export default function Settings() {
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
-              <ToggleItem text={t('settings.keep_screen_on')} value={false} onValueChange={() => {}} />
-              <ToggleItem text={t('settings.background_location')} value={false} onValueChange={() => {}} />
+              <ToggleItem text={t('settings.keep_screen_on')} value={false} onValueChange={() => { }} />
+              <ToggleItem text={t('settings.background_location')} value={false} onValueChange={() => { }} />
             </VStack>
           </Card>
 

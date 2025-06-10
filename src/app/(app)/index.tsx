@@ -117,7 +117,7 @@ export default function Map() {
         }),
       ])
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   const onCameraChanged = (event: any) => {
     if (event.properties.isUserInteraction) {

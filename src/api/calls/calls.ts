@@ -1,8 +1,9 @@
+import { type ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
+import { type CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult';
+import { type CallResult } from '@/models/v4/calls/callResult';
+
 import { createCachedApiEndpoint } from '../common/cached-client';
-import { ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
 import { createApiEndpoint } from '../common/client';
-import { CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult';
-import { CallResult } from '@/models/v4/calls/callResult';
 
 const callsApi = createCachedApiEndpoint('/Calls/GetActiveCalls', {
   ttl: 60 * 1000, // Cache for 60 seconds

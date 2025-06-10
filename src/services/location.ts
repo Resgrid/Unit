@@ -47,10 +47,8 @@ class LocationService {
   }
 
   async requestPermissions(): Promise<boolean> {
-    const { status: foregroundStatus } =
-      await Location.requestForegroundPermissionsAsync();
-    const { status: backgroundStatus } =
-      await Location.requestBackgroundPermissionsAsync();
+    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
 
     logger.info({
       message: 'Location permissions requested',
@@ -70,8 +68,7 @@ class LocationService {
     }
 
     // Check if task is already registered
-    const isTaskRegistered =
-      await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
     if (!isTaskRegistered) {
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.Balanced,
@@ -157,8 +154,7 @@ class LocationService {
     await this.stopBackgroundUpdates();
 
     // Check if task is registered before stopping
-    const isTaskRegistered =
-      await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
     if (isTaskRegistered) {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
     }

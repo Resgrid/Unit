@@ -2,8 +2,7 @@ import { AlertTriangle, CheckCircle, CircleIcon, Mic, MicOff, PhoneMissed } from
 import React, { useEffect, useState } from 'react';
 import { ScrollView } from 'react-native';
 
-import { type RoomInfo, useLiveKitCallStore } from '../store/useLiveKitCallStore';
-import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicatorWrapper, ActionsheetDragIndicator } from '@/components/ui/actionsheet';
+import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '@/components/ui/actionsheet';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -12,6 +11,8 @@ import { Radio, RadioGroup, RadioIndicator, RadioLabel } from '@/components/ui/r
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+
+import { type RoomInfo, useLiveKitCallStore } from '../store/useLiveKitCallStore';
 
 interface LiveKitCallModalProps {
   isOpen: boolean;
@@ -75,12 +76,12 @@ const LiveKitCallModal: React.FC<LiveKitCallModalProps> = ({
         </ActionsheetDragIndicatorWrapper>
 
         {isConnecting ? (
-          <VStack space="md" className="items-center justify-center flex-1 min-h-[150px]">
+          <VStack space="md" className="min-h-[150px] flex-1 items-center justify-center">
             <Spinner size="large" />
             <Text>Connecting to {selectedRoomName || 'room'}...</Text>
           </VStack>
         ) : error ? (
-          <VStack space="md" className="items-center justify-center flex-1 p-4 min-h-[150px]">
+          <VStack space="md" className="min-h-[150px] flex-1 items-center justify-center p-4">
             <AlertTriangle size={48} color="red" />
             <Heading size="md" className="text-red-700">
               Connection Error
@@ -97,9 +98,9 @@ const LiveKitCallModal: React.FC<LiveKitCallModalProps> = ({
             </Button>
           </VStack>
         ) : isConnected && currentRoomId ? (
-          <VStack space="lg" className="py-4 flex-1 justify-between">
+          <VStack space="lg" className="flex-1 justify-between py-4">
             <Box>
-              <HStack className="items-center mb-2" space="sm">
+              <HStack className="mb-2 items-center" space="sm">
                 <CheckCircle color="green" size={24} />
                 <Heading size="lg">Connected</Heading>
               </HStack>
@@ -109,7 +110,7 @@ const LiveKitCallModal: React.FC<LiveKitCallModalProps> = ({
               {localParticipant && <Text size="sm">Your ID: {localParticipant.identity}</Text>}
             </Box>
 
-            <HStack space="md" className="justify-center items-center mt-4">
+            <HStack space="md" className="mt-4 items-center justify-center">
               <Button onPress={handleToggleMicrophone} variant="outline" action={isMicrophoneEnabled ? 'primary' : 'secondary'} size="lg">
                 {isMicrophoneEnabled ? <Mic size={20} color="blue" /> : <MicOff size={20} color="gray" />}
                 <ButtonText className="ml-2">{isMicrophoneEnabled ? 'Mute' : 'Unmute'}</ButtonText>
@@ -121,13 +122,11 @@ const LiveKitCallModal: React.FC<LiveKitCallModalProps> = ({
             </HStack>
           </VStack>
         ) : (
-          <VStack space="md" className="py-2 w-full">
-            <Heading size="xl" className="text-center mb-2">
+          <VStack space="md" className="w-full py-2">
+            <Heading size="xl" className="mb-2 text-center">
               Join a Voice Call
             </Heading>
-            <Text className="mb-3 text-center">
-              Select a room to join:
-            </Text>
+            <Text className="mb-3 text-center">Select a room to join:</Text>
             <ScrollView style={{ maxHeight: 150 }}>
               <RadioGroup value={selectedRoomForJoining || ''} onChange={(nextValue: string) => actions.setSelectedRoomForJoining(nextValue)} accessibilityLabel="Select a room">
                 <VStack space="md">

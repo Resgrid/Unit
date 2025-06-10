@@ -23,9 +23,7 @@ const fetchLiveKitToken = async (roomId: string, participantIdentity: string): P
     // return "INVALID_TOKEN_SETUP_MISSING"; // This will cause connection to fail.
   }
   // Prioritize env var for local dev/testing if available
-  return (
-    process.env.STORYBOOK_LIVEKIT_TOKEN || ''
-  );
+  return process.env.STORYBOOK_LIVEKIT_TOKEN || '';
 };
 
 export interface RoomInfo {

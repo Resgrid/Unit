@@ -163,7 +163,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   };
 
   const renderAddImageContent = () => (
-    <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS == 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+    <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
       <VStack className="space-y-4 p-4">
         <HStack className="items-center justify-between">
           <Text className="text-lg font-bold">{t('callImages.add_new')}</Text>

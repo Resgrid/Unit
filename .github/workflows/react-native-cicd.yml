@@ -72,20 +72,8 @@ jobs:
       - name: 📦 Install dependencies
         run: pnpm install
 
-      - name: 🧪 Run TypeScript check
-        run: pnpm tsc
-
-      - name: 🧹 Run ESLint
-        run: pnpm lint
-
-      - name: 🎨 Run Prettier check
-        run: pnpm format:check
-
-      - name: 🧪 Run Jest Tests
-        run: pnpm test
-
-      - name: 🧪 Run React Native Testing Library Tests
-        run: pnpm test:rntl
+      - name: 🧪 Run Checks and Tests
+        run: pnpm check-all
 
   build-and-deploy:
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
@@ -96,6 +84,7 @@ jobs:
           - platform: ios
             runs-on: macos-latest
     runs-on: ${{ matrix.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    environment: RNBuild
     steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4

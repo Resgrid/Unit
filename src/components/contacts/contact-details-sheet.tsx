@@ -28,7 +28,7 @@ export const ContactDetailsSheet: React.FC = () => {
   if (!selectedContact) return null;
 
   return (
-    <BottomSheet onClose={closeDetails} onOpen={() => { }}>
+    <BottomSheet onClose={closeDetails} onOpen={() => {}}>
       <BottomSheetPortal snapPoints={['60%']} handleComponent={BottomSheetDragIndicator} backdropComponent={BottomSheetBackdrop}>
         <BottomSheetContent>
           <View className="flex-1 px-4 pb-4">
