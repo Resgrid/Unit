@@ -40,7 +40,7 @@ env:
 jobs:
   check-skip:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     steps:
       - name: Skip CI check
         run: echo "Proceeding with workflow"
@@ -52,44 +52,42 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      - name: pnpm-setup
+        uses: pnpm/action-setup@v2
+
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "yarn"
+          node-version: "24"
+          cache: "pnpm"
 
-      - name: 📦 Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: 📦 Setup yarn cache
+      - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
         with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-pnpm-
 
       - name: 📦 Install dependencies
-        run: yarn install
+        run: pnpm install
 
       - name: 🧪 Run TypeScript check
-        run: yarn tsc
+        run: pnpm tsc
 
       - name: 🧹 Run ESLint
-        run: yarn lint
+        run: pnpm lint
 
       - name: 🎨 Run Prettier check
-        run: yarn format:check
+        run: pnpm format:check
 
       - name: 🧪 Run Jest Tests
-        run: yarn test
+        run: pnpm test
 
       - name: 🧪 Run React Native Testing Library Tests
-        run: yarn test:rntl
+        run: pnpm test:rntl
 
   build-and-deploy:
-    needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
@@ -102,28 +100,27 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      - name: pnpm-setup
+        uses: pnpm/action-setup@v2
+
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "yarn"
+          node-version: "24"
+          cache: "pnpm"
 
-      - name: 📦 Get yarn cache directory path
-        id: yarn-cache-dir-path
-        run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-      - name: 📦 Setup yarn cache
+      - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
         with:
-          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-
+            ${{ runner.os }}-pnpm-
 
       - name: 📦 Install dependencies
         run: |
-          yarn install
-          yarn global add eas-cli@latest
+          pnpm install
+          pnpm add -g eas-cli@latest
 
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3

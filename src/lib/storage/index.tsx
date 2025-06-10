@@ -15,9 +15,9 @@ if (Platform.OS === 'web') {
 }
 const IS_FIRST_TIME = 'IS_FIRST_TIME';
 
-export function getItem<T>(key: string): T {
+export function getItem<T>(key: string): T | null {
   const value = storage.getString(key);
-  return value ? JSON.parse(value) || null : null;
+  return value ? JSON.parse(value) : null;
 }
 
 export async function setItem<T>(key: string, value: T) {

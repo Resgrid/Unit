@@ -6,6 +6,17 @@ export enum ContactType {
 }
 
 export interface ContactResultData {
+  Mobile: any;
+  Address: any;
+  City: any;
+  State: any;
+  Zip: any;
+  Notes: any;
+  ImageUrl: any;
+  Name: string | undefined;
+  Type: ContactType;
+  IsImportant: any;
+  Phone: any;
   ContactId: string;
   ContactType: ContactType;
   OtherName?: string;

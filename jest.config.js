@@ -12,8 +12,9 @@ module.exports = {
     '!**/cli/**',
   ],
   moduleFileExtensions: ['js', 'ts', 'tsx'],
+  moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
-    `node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|@sentry/.*|native-base|react-native-svg))`,
+    `node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|@sentry/.*|native-base|react-native-svg|@gluestack-ui/.*|lucide-react-native|@tanstack/.*|moti|nativewind|tailwind-variants|@react-native-aria/.*))`,
   ],
   coverageReporters: ['json-summary', ['text', { file: 'coverage.txt' }]],
   reporters: [

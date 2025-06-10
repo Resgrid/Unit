@@ -1,7 +1,7 @@
 /* eslint-env node */
 
 const { getSentryExpoConfig } = require('@sentry/react-native/metro');
-const { getDefaultConfig } = require('expo/metro-config');
+//const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 const { withNativeWind } = require('nativewind/metro');
 
@@ -25,4 +25,4 @@ config.resolver.extraNodeModules = {
   '@assets': path.resolve(__dirname, 'assets'),
 };
 
-module.exports = withNativeWind(config, { input: './global.css' });
+module.exports = withNativeWind(config, { input: './global.css', inlineRem: 16 });
