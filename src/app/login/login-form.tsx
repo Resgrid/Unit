@@ -47,7 +47,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
   } = useForm<FormType>({
     resolver: zodResolver(loginFormSchema),
   });
-  const [validated, setValidated] = useState({
+  const [validated] = useState({
     usernameValid: true,
     passwordValid: true,
   });

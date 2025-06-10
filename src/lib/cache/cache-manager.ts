@@ -28,12 +28,7 @@ export class CacheManager {
     return Date.now() - timestamp > expiresIn;
   }
 
-  set<T>(
-    endpoint: string,
-    data: T,
-    params?: Record<string, unknown>,
-    ttl: number = this.defaultTTL
-  ): void {
+  set<T>(endpoint: string, data: T, params?: Record<string, unknown>, ttl: number = this.defaultTTL): void {
     const key = this.getCacheKey(endpoint, params);
     const cacheItem: CacheItem<T> = {
       data,
@@ -76,4 +71,4 @@ export class CacheManager {
   }
 }
 
-export const cacheManager = CacheManager.getInstance(); 
+export const cacheManager = CacheManager.getInstance();

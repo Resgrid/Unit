@@ -1,26 +1,19 @@
+import { tva } from '@gluestack-ui/nativewind-utils/tva';
 import GorhomBottomSheet, {
   BottomSheetBackdrop as GorhomBottomSheetBackdrop,
-  BottomSheetView as GorhomBottomSheetView,
-  BottomSheetHandle,
-  BottomSheetTextInput as GorhomBottomSheetInput,
-  BottomSheetScrollView as GorhomBottomSheetScrollView,
   BottomSheetFlatList as GorhomBottomSheetFlatList,
+  BottomSheetHandle,
+  BottomSheetScrollView as GorhomBottomSheetScrollView,
   BottomSheetSectionList as GorhomBottomSheetSectionList,
+  BottomSheetTextInput as GorhomBottomSheetInput,
+  BottomSheetView as GorhomBottomSheetView,
 } from '@gorhom/bottom-sheet';
-import { Platform } from 'react-native';
-import type { PressableProps, TextProps } from 'react-native';
 import { FocusScope } from '@react-native-aria/focus';
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-import { Pressable, Text } from 'react-native';
 import { cssInterop } from 'nativewind';
-import { tva } from '@gluestack-ui/nativewind-utils/tva';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import type { PressableProps, TextProps } from 'react-native';
+import { Platform } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 const bottomSheetBackdropStyle = tva({
   base: 'absolute inset-0 flex-1 touch-none select-none bg-black opacity-0',
@@ -54,17 +47,7 @@ const BottomSheetContext = createContext<{
 });
 
 type IBottomSheetProps = React.ComponentProps<typeof GorhomBottomSheet>;
-export const BottomSheet = ({
-  snapToIndex = 1,
-  onOpen,
-  onClose,
-  ...props
-}: {
-  snapToIndex?: number;
-  children?: React.ReactNode;
-  onOpen?: () => void;
-  onClose?: () => void;
-}) => {
+export const BottomSheet = ({ snapToIndex = 1, onOpen, onClose, ...props }: { snapToIndex?: number; children?: React.ReactNode; onOpen?: () => void; onClose?: () => void }) => {
   const bottomSheetRef = useRef<GorhomBottomSheet>(null);
 
   const [visible, setVisible] = useState(false);
@@ -117,25 +100,13 @@ export const BottomSheetPortal = ({
   );
 
   return (
-    <GorhomBottomSheet
-      ref={bottomSheetRef}
-      snapPoints={snapPoints}
-      index={-1}
-      backdropComponent={BackDrop}
-      onChange={handleSheetChanges}
-      handleComponent={DragIndicator}
-      enablePanDownToClose={true}
-      {...props}
-    >
+    <GorhomBottomSheet ref={bottomSheetRef} snapPoints={snapPoints} index={-1} backdropComponent={BackDrop} onChange={handleSheetChanges} handleComponent={DragIndicator} enablePanDownToClose={true} {...props}>
       {props.children}
     </GorhomBottomSheet>
   );
 };
 
-export const BottomSheetTrigger = ({
-  className,
-  ...props
-}: PressableProps & { className?: string }) => {
+export const BottomSheetTrigger = ({ className, ...props }: PressableProps & { className?: string }) => {
   const { handleOpen } = useContext(BottomSheetContext);
   return (
     <Pressable
@@ -152,16 +123,9 @@ export const BottomSheetTrigger = ({
     </Pressable>
   );
 };
-type IBottomSheetBackdrop = React.ComponentProps<
-  typeof GorhomBottomSheetBackdrop
->;
+type IBottomSheetBackdrop = React.ComponentProps<typeof GorhomBottomSheetBackdrop>;
 
-export const BottomSheetBackdrop = ({
-  disappearsOnIndex = -1,
-  appearsOnIndex = 1,
-  className,
-  ...props
-}: Partial<IBottomSheetBackdrop> & { className?: string }) => {
+export const BottomSheetBackdrop = ({ disappearsOnIndex = -1, appearsOnIndex = 1, className, ...props }: Partial<IBottomSheetBackdrop> & { className?: string }) => {
   return (
     <GorhomBottomSheetBackdrop
       // @ts-ignore
@@ -179,11 +143,7 @@ cssInterop(GorhomBottomSheetBackdrop, { className: 'style' });
 
 type IBottomSheetDragIndicator = React.ComponentProps<typeof BottomSheetHandle>;
 
-export const BottomSheetDragIndicator = ({
-  children,
-  className,
-  ...props
-}: Partial<IBottomSheetDragIndicator> & { className?: string }) => {
+export const BottomSheetDragIndicator = ({ children, className, ...props }: Partial<IBottomSheetDragIndicator> & { className?: string }) => {
   return (
     <BottomSheetHandle
       {...props}

@@ -1,27 +1,14 @@
-import React, { forwardRef, memo } from 'react';
-import { headingStyle } from './styles';
 import type { VariantProps } from '@gluestack-ui/nativewind-utils';
+import React, { forwardRef, memo } from 'react';
+
+import { headingStyle } from './styles';
 type IHeadingProps = VariantProps<typeof headingStyle> &
   React.ComponentPropsWithoutRef<'h1'> & {
     as?: React.ElementType;
   };
 
 const MappedHeading = memo(
-  forwardRef<HTMLHeadingElement, IHeadingProps>(function MappedHeading(
-    {
-      size,
-      className,
-      isTruncated,
-      bold,
-      underline,
-      strikeThrough,
-      sub,
-      italic,
-      highlight,
-      ...props
-    },
-    ref
-  ) {
+  forwardRef<HTMLHeadingElement, IHeadingProps>(function MappedHeading({ size, className, isTruncated, bold, underline, strikeThrough, sub, italic, highlight, ...props }, ref) {
     switch (size) {
       case '5xl':
       case '4xl':
@@ -157,19 +144,8 @@ const MappedHeading = memo(
 );
 
 const Heading = memo(
-  forwardRef<HTMLHeadingElement, IHeadingProps>(function Heading(
-    { className, size = 'lg', as: AsComp, ...props },
-    ref
-  ) {
-    const {
-      isTruncated,
-      bold,
-      underline,
-      strikeThrough,
-      sub,
-      italic,
-      highlight,
-    } = props;
+  forwardRef<HTMLHeadingElement, IHeadingProps>(function Heading({ className, size = 'lg', as: AsComp, ...props }, ref) {
+    const { isTruncated, bold, underline, strikeThrough, sub, italic, highlight } = props;
 
     if (AsComp) {
       return (
@@ -191,9 +167,7 @@ const Heading = memo(
       );
     }
 
-    return (
-      <MappedHeading className={className} size={size} ref={ref} {...props} />
-    );
+    return <MappedHeading className={className} size={size} ref={ref} {...props} />;
   })
 );
 

@@ -1,6 +1,6 @@
-import { BaseV4Request } from "../baseV4Request";
-import { StatusesResultData } from "./statusesResultData";
+import { BaseV4Request } from '../baseV4Request';
+import { type StatusesResultData } from './statusesResultData';
 
-export class StatusesResult extends BaseV4Request  {
-    public Data: StatusesResultData[] = [];
+export class StatusesResult extends BaseV4Request {
+  public Data: StatusesResultData[] = [];
 }

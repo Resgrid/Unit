@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
-import { CallResultData } from '@/models/v4/calls/callResultData';
-import { StatusesResultData } from '@/models/v4/statuses/statusesResultData';
-import { SaveUnitStatusInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
+
 import { saveUnitStatus } from '@/api/units/unitStatuses';
+import { type CallResultData } from '@/models/v4/calls/callResultData';
+import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
+import { SaveUnitStatusInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
+
 import { useCoreStore } from '../app/core-store';
 
 interface StatusBottomSheetStore {
@@ -19,28 +20,25 @@ interface StatusBottomSheetStore {
   reset: () => void;
 }
 
-export const useStatusBottomSheetStore = create<StatusBottomSheetStore>(
-  (set) => ({
-    isOpen: false,
-    currentStep: 'select-call',
-    selectedCall: null,
-    selectedStatus: null,
-    note: '',
-    setIsOpen: (isOpen, status) =>
-      set({ isOpen, selectedStatus: status || null }),
-    setCurrentStep: (step) => set({ currentStep: step }),
-    setSelectedCall: (call) => set({ selectedCall: call }),
-    setNote: (note) => set({ note }),
-    reset: () =>
-      set({
-        isOpen: false,
-        currentStep: 'select-call',
-        selectedCall: null,
-        selectedStatus: null,
-        note: '',
-      }),
-  })
-);
+export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set) => ({
+  isOpen: false,
+  currentStep: 'select-call',
+  selectedCall: null,
+  selectedStatus: null,
+  note: '',
+  setIsOpen: (isOpen, status) => set({ isOpen, selectedStatus: status || null }),
+  setCurrentStep: (step) => set({ currentStep: step }),
+  setSelectedCall: (call) => set({ selectedCall: call }),
+  setNote: (note) => set({ note }),
+  reset: () =>
+    set({
+      isOpen: false,
+      currentStep: 'select-call',
+      selectedCall: null,
+      selectedStatus: null,
+      note: '',
+    }),
+}));
 
 interface StatusesState {
   isLoading: boolean;
@@ -64,7 +62,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         status.Timestamp = date.toISOString();
         status.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
         status.Note = note;
-        const response = await saveUnitStatus(status);
+        await saveUnitStatus(status);
       }
       set({ isLoading: false });
     } catch (error) {

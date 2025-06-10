@@ -29,6 +29,6 @@
       "module": "commonjs"
     }
   },
-  "exclude": ["docs", "cli", "android", "lib", "ios", "node_modules", "storybookDocsComponents", "__tests__"],
-  "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts"]
+  "exclude": ["docs", "cli", "android", "lib", "ios", "node_modules", "storybookDocsComponents"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts", "__mocks__/**/*.ts", "app.config.ts", "jest-setup.ts", "__tests__/**/*.ts", "__tests__/**/*.tsx"]
 }

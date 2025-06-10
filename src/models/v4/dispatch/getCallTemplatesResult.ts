@@ -1,6 +1,6 @@
-import { BaseV4Request } from "../baseV4Request";
-import { GetCallTemplatesResultData } from "./getCallTemplatesResultData";
+import { BaseV4Request } from '../baseV4Request';
+import { type GetCallTemplatesResultData } from './getCallTemplatesResultData';
 
-export class GetCallTemplatesResult extends BaseV4Request  {
-    public Data: GetCallTemplatesResultData[] = [];
+export class GetCallTemplatesResult extends BaseV4Request {
+  public Data: GetCallTemplatesResultData[] = [];
 }

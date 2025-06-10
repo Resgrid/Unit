@@ -1,8 +1,4 @@
-import axios, {
-  type AxiosProgressEvent,
-  type AxiosRequestConfig,
-  type AxiosResponse,
-} from 'axios';
+import axios, { type AxiosProgressEvent, type AxiosRequestConfig, type AxiosResponse } from 'axios';
 
 import { createApiEndpoint } from '@/api/common/client';
 import { type CallFilesResult } from '@/models/v4/callFiles/callFilesResult';
@@ -33,10 +29,7 @@ const getCallFilesApi = createApiEndpoint('/CallFiles/GetFilesForCall');
 const saveCallFileApi = createApiEndpoint('/CallFiles/SaveCallFile');
 
 // Function to download a file with progress reporting
-export const getCallAttachmentFile = async (
-  url: string,
-  options: DownloadOptions = {}
-): Promise<Blob> => {
+export const getCallAttachmentFile = async (url: string, options: DownloadOptions = {}): Promise<Blob> => {
   const { onEvent, headers = {}, timeout = 30000 } = options;
 
   try {
@@ -51,9 +44,7 @@ export const getCallAttachmentFile = async (
       timeout,
       onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
         if (progressEvent.total) {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
 
           // Notify progress event
           onEvent?.({
@@ -79,8 +70,7 @@ export const getCallAttachmentFile = async (
     // Notify error event
     onEvent?.({
       type: 'error',
-      error:
-        error instanceof Error ? error : new Error('Unknown error occurred'),
+      error: error instanceof Error ? error : new Error('Unknown error occurred'),
     });
 
     throw error;
@@ -99,11 +89,7 @@ export const saveBlobAsFile = (blob: Blob, fileName: string): void => {
   window.URL.revokeObjectURL(url);
 };
 
-export const getFiles = async (
-  callId: string,
-  includeData: boolean,
-  type: number
-) => {
+export const getFiles = async (callId: string, includeData: boolean, type: number) => {
   const response = await getCallFilesApi.get<CallFilesResult>({
     callId: callId,
     includeData: includeData,
@@ -139,16 +125,7 @@ export const getCallAudio = async (callId: string, includeData: boolean) => {
   return response.data;
 };
 
-export const saveCallFile = async (
-  callId: string,
-  userId: string,
-  note: string,
-  name: string,
-  latitude: number | null,
-  longitude: number | null,
-  file: string,
-  type: number
-) => {
+export const saveCallFile = async (callId: string, userId: string, note: string, name: string, latitude: number | null, longitude: number | null, file: string, type: number) => {
   let data = {
     CallId: callId,
     UserId: userId,
@@ -171,26 +148,10 @@ export const saveCallFile = async (
   return response.data;
 };
 
-export const saveCallImage = async (
-  callId: string,
-  userId: string,
-  note: string,
-  name: string,
-  latitude: number | null,
-  longitude: number | null,
-  file: string
-) => {
+export const saveCallImage = async (callId: string, userId: string, note: string, name: string, latitude: number | null, longitude: number | null, file: string) => {
   return saveCallFile(callId, userId, note, name, latitude, longitude, file, 2);
 };
 
-export const saveCallFileAttachment = async (
-  callId: string,
-  userId: string,
-  note: string,
-  name: string,
-  latitude: number | null,
-  longitude: number | null,
-  file: string
-) => {
+export const saveCallFileAttachment = async (callId: string, userId: string, note: string, name: string, latitude: number | null, longitude: number | null, file: string) => {
   return saveCallFile(callId, userId, note, name, latitude, longitude, file, 3);
 };

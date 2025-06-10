@@ -1,8 +1,4 @@
-import axios, {
-  type AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
 import { refreshTokenRequest } from '@/lib/auth/api';
 import { logger } from '@/lib/logging';
@@ -59,11 +55,7 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
     // Handle 401 errors
-    if (
-      error.response?.status === 401 &&
-      !(originalRequest as InternalAxiosRequestConfig & { _retry?: boolean })
-        ._retry
-    ) {
+    if (error.response?.status === 401 && !(originalRequest as InternalAxiosRequestConfig & { _retry?: boolean })._retry) {
       if (isRefreshing) {
         // If refreshing, queue the request
         return new Promise((resolve, reject) => {
@@ -78,9 +70,7 @@ axiosInstance.interceptors.response.use(
       }
 
       // Add _retry property to request config type
-      (
-        originalRequest as InternalAxiosRequestConfig & { _retry: boolean }
-      )._retry = true;
+      (originalRequest as InternalAxiosRequestConfig & { _retry: boolean })._retry = true;
       isRefreshing = true;
 
       try {
@@ -130,11 +120,9 @@ export const api = axiosInstance;
 // Helper function to create API endpoints
 export const createApiEndpoint = (endpoint: string) => {
   return {
-    get: <T,>(params?: Record<string, unknown>) =>
-      api.get<T>(endpoint, { params }),
+    get: <T,>(params?: Record<string, unknown>) => api.get<T>(endpoint, { params }),
     post: <T,>(data: Record<string, unknown>) => api.post<T>(endpoint, data),
     put: <T,>(data: Record<string, unknown>) => api.put<T>(endpoint, data),
-    delete: <T,>(params?: Record<string, unknown>) =>
-      api.delete<T>(endpoint, { params }),
+    delete: <T,>(params?: Record<string, unknown>) => api.delete<T>(endpoint, { params }),
   };
 };

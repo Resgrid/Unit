@@ -12,13 +12,7 @@ export const getCallNotes = async (callId: string) => {
   return response.data;
 };
 
-export const saveCallNote = async (
-  callId: string,
-  userId: string,
-  note: string,
-  latitude: number | null,
-  longitude: number | null
-) => {
+export const saveCallNote = async (callId: string, userId: string, note: string, latitude: number | null, longitude: number | null) => {
   let data = {
     CallId: callId,
     UserId: userId,

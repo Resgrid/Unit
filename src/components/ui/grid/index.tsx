@@ -1,33 +1,17 @@
-import React, {
-  useEffect,
-  useState,
-  createContext,
-  useContext,
-  useMemo,
-  forwardRef,
-} from 'react';
 import type { VariantProps } from '@gluestack-ui/nativewind-utils';
-import { View, Dimensions, Platform, ViewProps } from 'react-native';
-import { gridStyle, gridItemStyle } from './styles';
 import { cssInterop } from 'nativewind';
-import {
-  useBreakpointValue,
-  getBreakPointValue,
-} from '@/components/ui/utils/use-break-point-value';
+import React, { createContext, forwardRef, useContext, useEffect, useMemo, useState } from 'react';
+import { Dimensions, Platform, View, type ViewProps } from 'react-native';
+
+import { getBreakPointValue, useBreakpointValue } from '@/components/ui/utils/use-break-point-value';
+
+import { gridItemStyle, gridStyle } from './styles';
 
 const { width: DEVICE_WIDTH } = Dimensions.get('window');
 
 const GridContext = createContext<any>({});
 
-function arrangeChildrenIntoRows({
-  childrenArray,
-  colSpanArr,
-  numColumns,
-}: {
-  childrenArray: React.ReactNode[];
-  colSpanArr: number[];
-  numColumns: number;
-}) {
+function arrangeChildrenIntoRows({ childrenArray, colSpanArr, numColumns }: { childrenArray: React.ReactNode[]; colSpanArr: number[]; numColumns: number }) {
   let currentRow = 1;
   let currentRowTotalColSpan = 0;
 
@@ -48,9 +32,7 @@ function arrangeChildrenIntoRows({
       currentRowTotalColSpan += colSpan;
     }
 
-    rowItemsCount[currentRow] = rowItemsCount[currentRow]
-      ? [...rowItemsCount[currentRow], i]
-      : [i];
+    rowItemsCount[currentRow] = rowItemsCount[currentRow] ? [...rowItemsCount[currentRow], i] : [i];
   }
 
   return rowItemsCount;
@@ -79,11 +61,7 @@ function generateResponsiveNumColumns({ gridClass }: { gridClass: string }) {
   return result;
 }
 
-function generateResponsiveColSpans({
-  gridItemClassName,
-}: {
-  gridItemClassName: string;
-}) {
+function generateResponsiveColSpans({ gridItemClassName }: { gridItemClassName: string }) {
   const gridClassNamePattern = /\b(?:\w+:)?col-span-?\d+\b/g;
 
   const colSpan: any = gridItemClassName?.match(gridClassNamePattern);
@@ -126,100 +104,89 @@ type IGridProps = ViewProps &
     };
   };
 
-const Grid = forwardRef<React.ComponentRef<typeof View>, IGridProps>(
-  function Grid({ className, _extra, children, ...props }, ref) {
-    const [calculatedWidth, setCalculatedWidth] = useState<number | null>(null);
+const Grid = forwardRef<React.ComponentRef<typeof View>, IGridProps>(function Grid({ className, _extra, children, ...props }, ref) {
+  const [calculatedWidth, setCalculatedWidth] = useState<number | null>(null);
 
-    const gridClass = _extra?.className;
-    const obj = generateResponsiveNumColumns({ gridClass });
-    const responsiveNumColumns: any = useBreakpointValue(obj);
+  const gridClass = _extra?.className;
+  const obj = generateResponsiveNumColumns({ gridClass });
+  const responsiveNumColumns: any = useBreakpointValue(obj);
 
-    const itemsPerRow = useMemo(() => {
-      // get the colSpan of each child
-      const colSpanArr = React.Children.map(children, (child: any) => {
-        const gridItemClassName = child?.props?._extra?.className;
+  const itemsPerRow = useMemo(() => {
+    // get the colSpan of each child
+    const colSpanArr = React.Children.map(children, (child: any) => {
+      const gridItemClassName = child?.props?._extra?.className;
 
-        const colSpan2 = getBreakPointValue(
-          generateResponsiveColSpans({ gridItemClassName }),
-          DEVICE_WIDTH
-        );
-        const colSpan = colSpan2 ? colSpan2 : 1;
+      const colSpan2 = getBreakPointValue(generateResponsiveColSpans({ gridItemClassName }), DEVICE_WIDTH);
+      const colSpan = colSpan2 ? colSpan2 : 1;
 
-        if (colSpan > responsiveNumColumns) {
-          return responsiveNumColumns;
-        }
-
-        return colSpan;
-      });
-
-      const childrenArray = React.Children.toArray(children);
-
-      const rowItemsCount = arrangeChildrenIntoRows({
-        childrenArray,
-        colSpanArr,
-        numColumns: responsiveNumColumns,
-      });
-
-      return rowItemsCount;
-    }, [responsiveNumColumns, children]);
-
-    const childrenWithProps = React.Children.map(children, (child, index) => {
-      if (React.isValidElement(child)) {
-        return React.cloneElement(child, { key: index, index: index } as any);
+      if (colSpan > responsiveNumColumns) {
+        return responsiveNumColumns;
       }
 
-      return child;
+      return colSpan;
     });
 
-    const gridClassMerged = `${Platform.select({
-      web: gridClass ?? '',
-    })}`;
+    const childrenArray = React.Children.toArray(children);
 
-    const contextValue = useMemo(() => {
-      return {
-        calculatedWidth,
-        numColumns: responsiveNumColumns,
-        itemsPerRow,
-        flexDirection: props?.flexDirection || 'row',
-        gap: props?.gap || 0,
-        columnGap: props?.columnGap || 0,
-      };
-    }, [calculatedWidth, itemsPerRow, responsiveNumColumns, props]);
+    const rowItemsCount = arrangeChildrenIntoRows({
+      childrenArray,
+      colSpanArr,
+      numColumns: responsiveNumColumns,
+    });
 
-    const borderLeftWidth = props?.borderLeftWidth || props?.borderWidth || 0;
-    const borderRightWidth = props?.borderRightWidth || props?.borderWidth || 0;
-    const borderWidthToSubtract = borderLeftWidth + borderRightWidth;
+    return rowItemsCount;
+  }, [responsiveNumColumns, children]);
 
-    return (
-      <GridContext.Provider value={contextValue}>
-        <View
-          ref={ref}
-          className={gridStyle({
-            class: className + ' ' + gridClassMerged,
-          })}
-          onLayout={(event) => {
-            const paddingLeftToSubtract =
-              props?.paddingStart || props?.paddingLeft || props?.padding || 0;
+  const childrenWithProps = React.Children.map(children, (child, index) => {
+    if (React.isValidElement(child)) {
+      return React.cloneElement(child, { key: index, index: index } as any);
+    }
 
-            const paddingRightToSubtract =
-              props?.paddingEnd || props?.paddingRight || props?.padding || 0;
+    return child;
+  });
 
-            const gridWidth =
-              Math.floor(event.nativeEvent.layout.width) -
-              paddingLeftToSubtract -
-              paddingRightToSubtract -
-              borderWidthToSubtract;
+  const gridClassMerged = `${Platform.select({
+    web: gridClass ?? '',
+  })}`;
 
-            setCalculatedWidth(gridWidth);
-          }}
-          {...props}
-        >
-          {calculatedWidth && childrenWithProps}
-        </View>
-      </GridContext.Provider>
-    );
-  }
-);
+  const contextValue = useMemo(() => {
+    return {
+      calculatedWidth,
+      numColumns: responsiveNumColumns,
+      itemsPerRow,
+      flexDirection: props?.flexDirection || 'row',
+      gap: props?.gap || 0,
+      columnGap: props?.columnGap || 0,
+    };
+  }, [calculatedWidth, itemsPerRow, responsiveNumColumns, props]);
+
+  const borderLeftWidth = props?.borderLeftWidth || props?.borderWidth || 0;
+  const borderRightWidth = props?.borderRightWidth || props?.borderWidth || 0;
+  const borderWidthToSubtract = borderLeftWidth + borderRightWidth;
+
+  return (
+    <GridContext.Provider value={contextValue}>
+      <View
+        ref={ref}
+        className={gridStyle({
+          class: className + ' ' + gridClassMerged,
+        })}
+        onLayout={(event) => {
+          const paddingLeftToSubtract = props?.paddingStart || props?.paddingLeft || props?.padding || 0;
+
+          const paddingRightToSubtract = props?.paddingEnd || props?.paddingRight || props?.padding || 0;
+
+          const gridWidth = Math.floor(event.nativeEvent.layout.width) - paddingLeftToSubtract - paddingRightToSubtract - borderWidthToSubtract;
+
+          setCalculatedWidth(gridWidth);
+        }}
+        {...props}
+      >
+        {calculatedWidth && childrenWithProps}
+      </View>
+    </GridContext.Provider>
+  );
+});
 
 cssInterop(Grid, {
   className: {
@@ -249,89 +216,53 @@ type IGridItemProps = ViewProps &
     };
   };
 
-const GridItem = forwardRef<React.ComponentRef<typeof View>, IGridItemProps>(
-  function GridItem({ className, _extra, ...props }, ref) {
-    const [flexBasisValue, setFlexBasisValue] = useState<
-      number | string | null
-    >('auto');
+const GridItem = forwardRef<React.ComponentRef<typeof View>, IGridItemProps>(function GridItem({ className, _extra, ...props }, ref) {
+  const [flexBasisValue, setFlexBasisValue] = useState<number | string | null>('auto');
 
-    const {
-      calculatedWidth,
-      numColumns,
-      itemsPerRow,
-      flexDirection,
-      gap,
-      columnGap,
-    } = useContext(GridContext);
+  const { calculatedWidth, numColumns, itemsPerRow, flexDirection, gap, columnGap } = useContext(GridContext);
 
-    const gridItemClass = _extra?.className;
-    const responsiveColSpan = (useBreakpointValue(
-      generateResponsiveColSpans({ gridItemClassName: gridItemClass })
-    ) ?? 1) as number;
+  const gridItemClass = _extra?.className;
+  const responsiveColSpan = (useBreakpointValue(generateResponsiveColSpans({ gridItemClassName: gridItemClass })) ?? 1) as number;
 
-    useEffect(() => {
-      if (
-        !flexDirection?.includes('column') &&
-        calculatedWidth &&
-        numColumns > 0 &&
-        responsiveColSpan > 0
-      ) {
-        // find out in which row of itemsPerRow the current item's index is
-        const row = Object.keys(itemsPerRow).find((key) => {
-          return itemsPerRow[key].includes(props?.index);
-        });
+  useEffect(() => {
+    if (!flexDirection?.includes('column') && calculatedWidth && numColumns > 0 && responsiveColSpan > 0) {
+      // find out in which row of itemsPerRow the current item's index is
+      const row = Object.keys(itemsPerRow).find((key) => {
+        return itemsPerRow[key].includes(props?.index);
+      });
 
-        const rowColsCount = itemsPerRow[row as string]?.length;
+      const rowColsCount = itemsPerRow[row as string]?.length;
 
-        const space = columnGap || gap || 0;
+      const space = columnGap || gap || 0;
 
-        const gutterOffset =
-          space *
-          (rowColsCount === 1 && responsiveColSpan < numColumns
-            ? 2
-            : rowColsCount - 1);
+      const gutterOffset = space * (rowColsCount === 1 && responsiveColSpan < numColumns ? 2 : rowColsCount - 1);
 
-        const flexBasisVal =
-          Math.min(
-            (((calculatedWidth - gutterOffset) * responsiveColSpan) /
-              numColumns /
-              calculatedWidth) *
-            100,
-            100
-          ) + '%';
+      const flexBasisVal = Math.min((((calculatedWidth - gutterOffset) * responsiveColSpan) / numColumns / calculatedWidth) * 100, 100) + '%';
 
-        setFlexBasisValue(flexBasisVal);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-      calculatedWidth,
-      responsiveColSpan,
-      numColumns,
-      columnGap,
-      gap,
-      flexDirection,
-    ]);
+      setFlexBasisValue(flexBasisVal);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calculatedWidth, responsiveColSpan, numColumns, columnGap, gap, flexDirection]);
 
-    return (
-      <View
-        ref={ref}
-        // @ts-expect-error : internal implementation for r-19/react-native-web
-        gridItemClass={gridItemClass}
-        className={gridItemStyle({
-          class: className,
-        })}
-        {...props}
-        style={[
-          {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            flexBasis: flexBasisValue as any,
-          },
-          props.style,
-        ]}
-      />
-    );
-  }
-);
+  return (
+    <View
+      ref={ref}
+      // @ts-expect-error : internal implementation for r-19/react-native-web
+      gridItemClass={gridItemClass}
+      className={gridItemStyle({
+        class: className,
+      })}
+      {...props}
+      style={[
+        {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          flexBasis: flexBasisValue as any,
+        },
+        props.style,
+      ]}
+    />
+  );
+});
 
 Grid.displayName = 'Grid';
 GridItem.displayName = 'GridItem';

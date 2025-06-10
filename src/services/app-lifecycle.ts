@@ -19,10 +19,7 @@ class AppLifecycleService {
   }
 
   private initialize(): void {
-    this.subscription = AppState.addEventListener(
-      'change',
-      this.handleAppStateChange
-    );
+    this.subscription = AppState.addEventListener('change', this.handleAppStateChange);
   }
 
   private handleAppStateChange = (nextAppState: AppStateStatus): void => {
