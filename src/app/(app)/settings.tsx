@@ -37,7 +37,7 @@ export default function Settings() {
   const activeUnitName = React.useMemo(() => {
     if (!activeUnit) return t('settings.none_selected');
     return activeUnit?.Name || t('common.unknown');
-  }, [activeUnit, units, t]);
+  }, [activeUnit, t]);
 
   const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {
     logger.info({
@@ -85,8 +85,6 @@ export default function Settings() {
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
-              <ToggleItem text={t('settings.keep_screen_on')} value={false} onValueChange={() => { }} />
-              <ToggleItem text={t('settings.background_location')} value={false} onValueChange={() => { }} />
             </VStack>
           </Card>
 

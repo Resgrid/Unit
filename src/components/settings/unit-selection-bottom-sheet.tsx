@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@/lib/logging';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';
+import { useRolesStore } from '@/stores/roles/store';
 import { useUnitsStore } from '@/stores/units/store';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
@@ -46,6 +47,7 @@ export function UnitSelectionBottomSheet({ isOpen, onClose }: UnitSelectionBotto
       try {
         setIsLoading(true);
         await setActiveUnit(unit.UnitId);
+        await useRolesStore.getState().fetchRolesForUnit(unit.UnitId);
         logger.info({
           message: 'Active unit updated successfully',
           context: { unitId: unit.UnitId },
@@ -92,9 +94,8 @@ export function UnitSelectionBottomSheet({ isOpen, onClose }: UnitSelectionBotto
                     key={unit.UnitId}
                     onPress={() => handleUnitSelection(unit)}
                     disabled={isLoading}
-                    className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                      activeUnit?.UnitId === unit.UnitId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                    }`}
+                    className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${activeUnit?.UnitId === unit.UnitId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                      }`}
                   >
                     <HStack space="md" className="items-center justify-between">
                       <VStack>
