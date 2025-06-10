@@ -19,6 +19,7 @@ on:
           - prod-apk
           - prod-aab
           - ios-dev
+          - ios-adhoc
           - ios-prod
           - all
       platform:
@@ -179,6 +180,14 @@ jobs:
           eas build --platform ios --profile development --local --non-interactive --output=./app-ios-dev.app
         env:
           NODE_ENV: development
+
+      - name: 📱 Build iOS Ad-Hoc
+        if: (github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'ios-adhoc') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
+        run: |
+          export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
+          eas build --platform ios --profile internal --local --non-interactive --output=./app-ios-adhoc.app
+        env:
+          NODE_ENV: production
 
       - name: 📱 Build iOS Production
         if: (github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'ios-prod') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
