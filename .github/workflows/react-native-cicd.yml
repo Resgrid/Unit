@@ -4,16 +4,16 @@ on:
   push:
     branches: [main, master]
     paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - "docs/**"
+      - '**.md'
+      - 'LICENSE'
+      - 'docs/**'
   pull_request:
     branches: [main, master]
   workflow_dispatch:
     inputs:
       buildType:
         type: choice
-        description: "Build type to run"
+        description: 'Build type to run'
         options:
           - dev
           - prod-apk
@@ -23,8 +23,8 @@ on:
           - all
       platform:
         type: choice
-        description: "Platform to build"
-        default: "all"
+        description: 'Platform to build'
+        default: 'all'
         options:
           - android
           - ios
@@ -35,6 +35,15 @@ env:
   EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
   EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
   EXPO_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
+  CREDENTIALS_JSON_BASE64: ${{ secrets.CREDENTIALS_JSON_BASE64 }}
+  POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+  SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+  UNIT_BASE_API_URL: ${{ secrets.UNIT_BASE_API_URL }}
+  UNIT_CHANNEL_API_URL: ${{ secrets.UNIT_CHANNEL_API_URL }}
+  UNIT_LOGGING_KEY: ${{ secrets.UNIT_LOGGING_KEY }}
+  UNIT_MAPBOX_DLKEY: ${{ secrets.UNIT_MAPBOX_DLKEY }}
+  UNIT_MAPBOX_PUBKEY: ${{ secrets.UNIT_MAPBOX_PUBKEY }}
+  UNIT_SENTRY_DSN: ${{ secrets.UNIT_SENTRY_DSN }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -58,8 +67,8 @@ jobs:
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          cache: "pnpm"
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
@@ -95,8 +104,8 @@ jobs:
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
-          cache: "pnpm"
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: 📦 Setup pnpm cache
         uses: actions/cache@v3
