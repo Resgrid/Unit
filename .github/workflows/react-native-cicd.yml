@@ -44,6 +44,7 @@ env:
   UNIT_MAPBOX_DLKEY: ${{ secrets.UNIT_MAPBOX_DLKEY }}
   UNIT_MAPBOX_PUBKEY: ${{ secrets.UNIT_MAPBOX_PUBKEY }}
   UNIT_SENTRY_DSN: ${{ secrets.UNIT_SENTRY_DSN }}
+  UNIT_ANDROID_KS: ${{ secrets.UNIT_ANDROID_KS }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -123,6 +124,10 @@ jobs:
       - name: 📋 Create Credentials File
         run: |
           echo $CREDENTIALS_JSON_BASE64 | base64 -d > credentials.json
+
+      - name: 📋 Create Android Keystore
+        run: |
+          echo $UNIT_ANDROID_KS | base64 -d > keystore.jks
 
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
