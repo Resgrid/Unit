@@ -5,7 +5,7 @@ import React from 'react';
 
 import { Button } from '@/components/ui/button';
 
-import ZeroState from './zero-state';
+import ZeroState from '../common/zero-state';
 
 // Mock the translation hook
 jest.mock('react-i18next', () => ({
