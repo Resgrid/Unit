@@ -4,5 +4,14 @@ version = 1
 name = "javascript"
 enabled = true
 
-[analyzers.meta]
-environment = ["react-native"]
+  [analyzers.meta]
+  plugins = ["react"]
+  environment = ["react-native"]
+
+[[analyzers]]
+name = "test-coverage"
+enabled = true
+
+test_patterns = [
+  "**/__tests__/**"
+]
