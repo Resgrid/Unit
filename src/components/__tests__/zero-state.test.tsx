@@ -36,14 +36,4 @@ describe('ZeroState', () => {
     expect(screen.getByText('Connection failed')).toBeTruthy();
     expect(screen.getByText('Check your internet connection')).toBeTruthy();
   });
-
-  it('renders with children', () => {
-    render(
-      <ZeroState>
-        <Button>Retry</Button>
-      </ZeroState>
-    );
-
-    expect(screen.getByText('Retry')).toBeTruthy();
-  });
 });

@@ -64,28 +64,27 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
-      - name: pnpm-setup
-        uses: pnpm/action-setup@v2
-
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'pnpm'
+          cache: 'yarn'
 
-      - name: 📦 Setup pnpm cache
+      - name: 📦 Setup yarn cache
         uses: actions/cache@v3
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: |
+            ~/.cache/yarn
+            node_modules
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            ${{ runner.os }}-yarn-
 
       - name: 📦 Install dependencies
-        run: pnpm install
+        run: yarn install --frozen-lockfile
 
       - name: 🧪 Run Checks and Tests
-        run: pnpm check-all
+        run: yarn check-all
 
   build-and-deploy:
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
@@ -101,27 +100,26 @@ jobs:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
-      - name: pnpm-setup
-        uses: pnpm/action-setup@v2
-
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'pnpm'
+          cache: 'yarn'
 
-      - name: 📦 Setup pnpm cache
+      - name: 📦 Setup yarn cache
         uses: actions/cache@v3
         with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          path: |
+            ~/.cache/yarn
+            node_modules
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            ${{ runner.os }}-yarn-
 
       - name: 📦 Install dependencies
         run: |
-          pnpm install
-          pnpm add -g eas-cli@latest
+          yarn install --frozen-lockfile
+          yarn global add eas-cli@latest
 
       - name: 📋 Create Credentials File
         run: |
