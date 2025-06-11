@@ -6,7 +6,6 @@ enabled = true
 
   [analyzers.meta]
   plugins = ["react"]
-  environment = ["react-native"]
 
 [[analyzers]]
 name = "test-coverage"
