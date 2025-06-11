@@ -5,7 +5,7 @@
   "build": {
     "production": {
       "distribution": "store",
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "image": "latest"
       },
@@ -20,7 +20,7 @@
     },
     "production-apk": {
       "distribution": "store",
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "image": "latest"
       },
@@ -36,7 +36,7 @@
     },
     "staging": {
       "distribution": "internal",
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "image": "latest"
       },
@@ -53,7 +53,7 @@
     "internal": {
       "distribution": "internal",
       "credentialsSource": "local",
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "image": "latest"
       },
@@ -71,7 +71,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "credentialsSource": "local",
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "image": "latest"
       },
@@ -85,7 +85,7 @@
       }
     },
     "simulator": {
-      "pnpm": "9.12.3",
+      "yarn": "1.22.22",
       "ios": {
         "simulator": true,
         "image": "latest"

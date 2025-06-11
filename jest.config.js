@@ -4,33 +4,10 @@ module.exports = {
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
   collectCoverage: true,
   collectCoverageFrom: ['src/**/*.{ts,tsx}', '!**/coverage/**', '!**/node_modules/**', '!**/babel.config.js', '!**/jest.setup.js', '!**/docs/**', '!**/cli/**', '!**/ios/**', '!**/android/**'],
-  moduleFileExtensions: ['js', 'ts', 'tsx'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
-    'node_modules/(?:\.pnpm|\.store)',
-    'node_modules/(?!jest-react-native)',
-    'node_modules/(?!react-native)',
-    'node_modules/(?!@react-native)',
-    'node_modules/(?!@react-native-community)',
-    'node_modules/(?!expo)',
-    'node_modules/(?!exponent)',
-    'node_modules/(?!@expo)',
-    'node_modules/(?!@exponent)',
-    'node_modules/(?!@expo-google-fonts)',
-    'node_modules/(?!react-navigation)',
-    'node_modules/(?!@react-navigation)',
-    'node_modules/(?!@unimodules)',
-    'node_modules/(?!unimodules)',
-    'node_modules/(?!@sentry)',
-    'node_modules/(?!native-base)',
-    'node_modules/(?!react-native-svg)',
-    'node_modules/(?!lucide-react-native)',
-    'node_modules/(?!@tanstack)',
-    'node_modules/(?!moti)',
-    'node_modules/(?!nativewind)',
-    'node_modules/(?!tailwind-variants)',
-    'node_modules/(?!@react-native-aria)',
-    'node_modules/(?!@gluestack-ui)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@gluestack-ui/.*))'
   ],
   coverageReporters: ['json-summary', ['text', { file: 'coverage.txt' }]],
   reporters: [
@@ -52,6 +29,6 @@ module.exports = {
   ],
   coverageDirectory: '<rootDir>/coverage/',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+     "\\.(css|less|scss|sass)$": "identity-obj-proxy"
   },
 };

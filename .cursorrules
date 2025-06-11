@@ -44,7 +44,7 @@ Best Practices:
 
 Additional Rules:
 
-- Use `pnpm` as the package manager.
+- Use `yarn` as the package manager.
 - Use Expo's secure store for sensitive data
 - Implement proper offline support
 - Use `zustand` for state management
