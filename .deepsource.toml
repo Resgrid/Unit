@@ -5,5 +5,4 @@ name = "javascript"
 enabled = true
 
 [analyzers.meta]
-environment = ["browser"]
-plugins = ["angular"]
+environment = ["react-native"]
