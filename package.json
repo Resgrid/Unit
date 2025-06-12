@@ -88,6 +88,7 @@
     "axios": "~1.7.5",
     "babel-plugin-module-resolver": "^5.0.2",
     "buffer": "~6.0.3",
+    "date-fns": "^4.1.0",
     "expo": "~52.0.46",
     "expo-asset": "~11.0.5",
     "expo-build-properties": "~0.13.3",
