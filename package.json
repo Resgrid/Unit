@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "~10.0.0",
+    "@dev-plugins/react-query": "^0.3.1",
     "@expo/html-elements": "~0.10.1",
     "@expo/metro-runtime": "~4.0.0",
     "@gluestack-ui/accordion": "~1.0.6",
@@ -151,7 +152,6 @@
     "@babel/core": "~7.26.0",
     "@commitlint/cli": "~19.2.2",
     "@commitlint/config-conventional": "~19.2.2",
-    "@dev-plugins/react-query": "^0.3.1",
     "@expo/config": "~10.0.3",
     "@testing-library/jest-dom": "~6.5.0",
     "@testing-library/react-native": "~12.9.0",
