@@ -17,7 +17,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@env": ["./src/lib/env.js"],
-      "@/assets/*": ["./assets/*"],
+      "@assets/*": ["./assets/*"],
       "tailwind.config": ["./tailwind.config.js"]
     },
     "esModuleInterop": true,
