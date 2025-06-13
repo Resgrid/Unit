@@ -87,6 +87,7 @@ jobs:
         run: yarn check-all
 
   build-and-deploy:
+    needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
@@ -172,7 +173,7 @@ jobs:
           NODE_ENV: production
 
       - name: 📱 Build iOS Development
-        if: (github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'ios-dev') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
+        if: (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-dev') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           eas build --platform ios --profile development --local --non-interactive --output=./app-ios-dev.app
@@ -180,7 +181,7 @@ jobs:
           NODE_ENV: development
 
       - name: 📱 Build iOS Ad-Hoc
-        if: (github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'ios-adhoc') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
+        if: (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-adhoc') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           eas build --platform ios --profile internal --local --non-interactive --output=./app-ios-adhoc.app
@@ -188,7 +189,7 @@ jobs:
           NODE_ENV: production
 
       - name: 📱 Build iOS Production
-        if: (github.event.inputs.buildType == 'all' || github.event.inputs.buildType == 'ios-prod') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
+        if: (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-prod') && (matrix.platform == 'ios' || github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios')
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
           eas build --platform ios --profile production --local --non-interactive --output=./app-ios-prod.ipa
