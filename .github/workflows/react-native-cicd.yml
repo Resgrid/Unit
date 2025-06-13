@@ -47,6 +47,7 @@ env:
   UNIT_SENTRY_DSN: ${{ secrets.UNIT_SENTRY_DSN }}
   UNIT_ANDROID_KS: ${{ secrets.UNIT_ANDROID_KS }}
   UNIT_GOOGLE_SERVICES: ${{ secrets.UNIT_GOOGLE_SERVICES }}
+  MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
