@@ -119,7 +119,7 @@ jobs:
 
       - name: 🏗 Install Fastlane
         run: |
-          run: yarn global add fastlane
+          yarn global add fastlane
 
       - name: 📋 Run Fastlane Match
         run: |
