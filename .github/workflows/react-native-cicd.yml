@@ -117,6 +117,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-
 
+      - name: 🏗 Install Fastlane
+        run: |
+          run: yarn global add fastlane
+
+      - name: 📋 Run Fastlane Match
+        run: |
+          fastlane match --type development --bundle_id ${{ secrets.MATCH_UNIT_BUNDLEID }} --git_url ${{ secrets.MATCH_GIT_URL }} --git_basic_authorization  ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          fastlane match --type adhoc --bundle_id ${{ secrets.MATCH_UNIT_BUNDLEID }} --git_url ${{ secrets.MATCH_GIT_URL }} --git_basic_authorization  ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          fastlane match --type appstore --bundle_id ${{ secrets.MATCH_UNIT_BUNDLEID }} --git_url ${{ secrets.MATCH_GIT_URL }} --git_basic_authorization  ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+
       - name: 📦 Install dependencies
         run: |
           yarn install --frozen-lockfile
