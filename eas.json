@@ -52,7 +52,6 @@
     },
     "internal": {
       "distribution": "internal",
-      "credentialsSource": "local",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
@@ -70,7 +69,6 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "credentialsSource": "local",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
