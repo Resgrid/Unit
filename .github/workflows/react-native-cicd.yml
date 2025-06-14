@@ -64,6 +64,7 @@ env:
   EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
   EXPO_APPLE_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
   EXPO_APPLE_TEAM_TYPE: ${{ secrets.EXPO_APPLE_TEAM_TYPE }}
+  GRADLE_USER_HOME: $HOME/.gradle
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -163,7 +164,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p ~/.gradle/
-          echo "::set-env name=GRADLE_USER_HOME::$HOME/.gradle"
           echo ${GRADLE_PROPERTIES} > ~/.gradle/gradle.properties
 
       - name: 📱 Build Development APK
