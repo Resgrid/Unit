@@ -48,7 +48,12 @@ env:
   UNIT_ANDROID_KS: ${{ secrets.UNIT_ANDROID_KS }}
   UNIT_GOOGLE_SERVICES: ${{ secrets.UNIT_GOOGLE_SERVICES }}
   MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-  APP_STORE_CONNECT_API_KEY: ""
+  APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+  APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+  APPLE_APIKEY: ${{ secrets.APPLE_APIKEY }}
+  MATCH_UNIT_BUNDLEID: ${{ secrets.MATCH_UNIT_BUNDLEID }}
+  MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+  MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -123,12 +128,23 @@ jobs:
         run: |
           yarn global add fastlane
 
+      - name: 🏗 Setup Ruby
+        uses: actions/setup-ruby@v1
+        with:
+          ruby-version: '2.6'
+          bundler-cache: true
+
+      - name: 🏗 Install bundler & Fastlane
+        run: |
+          gem install bundler:2.2.27
+          bundle config path vendor/bundle
+          bundle install --jobs 4 --retry 3
+
       - name: 📋 Run Fastlane Match
         run: |
-          echo "APP_STORE_CONNECT_API_KEY=$(fastlane run app_store_connect_api_key key_id:"${{ secrets.APP_STORE_CONNECT_KEY_ID }}" issuer_id:"${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" key_content:"${{ secrets.APPLE_APIKEY }}" is_key_content_base64:true duration:60 in_house:false)" >> $GITHUB_ENV
-          fastlane match development --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
-          fastlane match adhoc --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
-          fastlane match appstore --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
+          bundle exec fastlane ios certificates
+        env:
+          KEYCHAIN_PATH: ~/Library/Keychains/signing_temp.keychain-db
 
       - name: 📦 Install dependencies
         run: |
