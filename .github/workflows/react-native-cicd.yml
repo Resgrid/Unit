@@ -58,6 +58,12 @@ env:
   BUNDLE_ID: ${{ secrets.MATCH_UNIT_BUNDLEID }}
   EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
   SCHEME: ${{ secrets.SCHEME }}
+  UNIT_IOS_CERT: ${{ secrets.UNIT_IOS_CERT }}
+  EXPO_ASC_API_KEY_PATH: ${{ secrets.EXPO_ASC_API_KEY_PATH }}
+  EXPO_ASC_KEY_ID: ${{ secrets.EXPO_ASC_KEY_ID }}
+  EXPO_ASC_ISSUER_ID: ${{ secrets.EXPO_ASC_ISSUER_ID }}
+  EXPO_APPLE_TEAM_ID: ${{ secrets.EXPO_TEAM_ID }}
+  EXPO_APPLE_TEAM_TYPE: ${{ secrets.EXPO_APPLE_TEAM_TYPE }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -146,6 +152,10 @@ jobs:
         run: |
           echo "EAS CLI version:"
           eas --version
+
+      - name: 📋 Create iOS Cert
+        run: |
+          echo $UNIT_IOS_CERT | base64 -d > AuthKey_HRBP5FNJN6.p8
 
       - name: 📱 Build Development APK
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'dev'))
