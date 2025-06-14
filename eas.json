@@ -35,7 +35,6 @@
       }
     },
     "staging": {
-      "distribution": "internal",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
@@ -51,7 +50,6 @@
       }
     },
     "internal": {
-      "distribution": "internal",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
@@ -68,7 +66,6 @@
     },
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
