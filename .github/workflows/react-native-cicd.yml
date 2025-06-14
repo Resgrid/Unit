@@ -124,7 +124,7 @@ jobs:
 
       - name: 📋 Run Fastlane Match
         run: |
-          fastlane run app_store_connect_api_key --key_id "${{ secrets.APP_STORE_CONNECT_KEY_ID }}" --issuer_id "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" --key_content "${{ secrets.APPLE_APIKEY }}" --is_key_content_base64 true --duration 1200 --in_house false
+          fastlane run app_store_connect_api_key key_id:"${{ secrets.APP_STORE_CONNECT_KEY_ID }}" issuer_id:"${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" key_content:"${{ secrets.APPLE_APIKEY }}" is_key_content_base64:true duration:1200 in_house:false
           fastlane match development --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
           fastlane match adhoc --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
           fastlane match appstore --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
