@@ -8,7 +8,7 @@ default_platform :ios
 platform :ios do
 	lane :certificates do
     setup_ci
-    
+
     app_store_connect_api_key(
 			key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
 			issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
@@ -21,5 +21,17 @@ platform :ios do
     match(git_url: ENV["MATCH_GIT_URL"], git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTHORIZATION"], type: "development", app_identifier: ENV["MATCH_UNIT_BUNDLEID"], readonly: true)
 		match(git_url: ENV["MATCH_GIT_URL"], git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTHORIZATION"], type: "adhoc", app_identifier: ENV["MATCH_UNIT_BUNDLEID"], readonly: true)
     match(git_url: ENV["MATCH_GIT_URL"], git_basic_authorization: ENV["MATCH_GIT_BASIC_AUTHORIZATION"], type: "appstore", app_identifier: ENV["MATCH_UNIT_BUNDLEID"], readonly: true)
+	end
+
+  lane :prep_development do
+    sh("cp", ENV["sigh_com.resgrid.unit_development_profile-path"], "./profile.mobileprovision", "-f")
+	end
+
+  lane :prep_adhoc do
+    sh("cp", ENV["sigh_com.resgrid.unit_adhoc_profile-path"], "./profile.mobileprovision", "-f")
+	end
+
+  lane :prep_appstore do
+    sh("cp", ENV["sigh_com.resgrid.unit_appstore_profile-path"], "./profile.mobileprovision", "-f")
 	end
 end
