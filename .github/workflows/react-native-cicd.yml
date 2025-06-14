@@ -126,10 +126,6 @@ jobs:
           yarn install --frozen-lockfile
           yarn global add eas-cli@latest
 
-      - name: 📋 Create Credentials File
-        run: |
-          echo $CREDENTIALS_JSON_BASE64 | base64 -d > credentials.json
-
       - name: 📋 Create Android Keystore
         run: |
           echo $UNIT_ANDROID_KS | base64 -d > keystore.jks
