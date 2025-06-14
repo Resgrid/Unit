@@ -55,6 +55,7 @@ env:
   MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
   MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
   EXPO_ACCOUNT_OWNER: ${{ secrets.EXPO_ACCOUNT_OWNER }}
+  BUNDLE_ID: ${{ secrets.MATCH_UNIT_BUNDLEID }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
