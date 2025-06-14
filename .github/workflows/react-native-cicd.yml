@@ -54,6 +54,7 @@ env:
   MATCH_UNIT_BUNDLEID: ${{ secrets.MATCH_UNIT_BUNDLEID }}
   MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
   MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+  EXPO_ACCOUNT_OWNER: ${{ secrets.EXPO_ACCOUNT_OWNER }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -126,10 +127,6 @@ jobs:
           yarn install --frozen-lockfile
           yarn global add eas-cli@latest
 
-      - name: 📋 Create Android Keystore
-        run: |
-          echo $UNIT_ANDROID_KS | base64 -d > keystore.jks
-
       - name: 📋 Create Google Json File
         run: |
           echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
@@ -176,7 +173,7 @@ jobs:
         if: (matrix.platform == 'ios' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-dev'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile development --local --non-interactive --output=./app-ios-dev.app
+          eas build --platform ios --profile development --local --non-interactive --output=./app-ios-dev.ipa
         env:
           NODE_ENV: development
 
@@ -184,7 +181,7 @@ jobs:
         if: (matrix.platform == 'ios' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-adhoc'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile internal --local --non-interactive --output=./app-ios-adhoc.app
+          eas build --platform ios --profile internal --local --non-interactive --output=./app-ios-adhoc.ipa
         env:
           NODE_ENV: production
 
