@@ -48,6 +48,7 @@ env:
   UNIT_ANDROID_KS: ${{ secrets.UNIT_ANDROID_KS }}
   UNIT_GOOGLE_SERVICES: ${{ secrets.UNIT_GOOGLE_SERVICES }}
   MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+  APP_STORE_CONNECT_API_KEY: ""
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
@@ -124,10 +125,10 @@ jobs:
 
       - name: 📋 Run Fastlane Match
         run: |
-          fastlane run app_store_connect_api_key key_id:"${{ secrets.APP_STORE_CONNECT_KEY_ID }}" issuer_id:"${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" key_content:"${{ secrets.APPLE_APIKEY }}" is_key_content_base64:true duration:1200 in_house:false
-          fastlane match development --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
-          fastlane match adhoc --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
-          fastlane match appstore --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}"
+          echo "APP_STORE_CONNECT_API_KEY=$(fastlane run app_store_connect_api_key key_id:"${{ secrets.APP_STORE_CONNECT_KEY_ID }}" issuer_id:"${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}" key_content:"${{ secrets.APPLE_APIKEY }}" is_key_content_base64:true duration:60 in_house:false)" >> $GITHUB_ENV
+          fastlane match development --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
+          fastlane match adhoc --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
+          fastlane match appstore --app_identifier "${{ secrets.MATCH_UNIT_BUNDLEID }}" --git_url "${{ secrets.MATCH_GIT_URL }}" --git_basic_authorization "${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}" --api_key "$APP_STORE_CONNECT_API_KEY"
 
       - name: 📦 Install dependencies
         run: |
