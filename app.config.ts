@@ -373,6 +373,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
+    './customGradle.plugin.js',
   ],
   extra: {
     ...ClientEnv,
