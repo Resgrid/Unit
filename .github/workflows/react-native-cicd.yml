@@ -146,6 +146,29 @@ jobs:
         run: |
           echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
 
+      - name: 📋 Update package.json Versions
+        run: |
+          # Check if jq is installed, if not install it
+          if ! command -v jq &> /dev/null; then
+            echo "Installing jq..."
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+  
+          # Fix the main entry in package.json
+          if [ -f ./package.json ]; then
+            # Create a backup
+            cp package.json package.json.bak
+            # Update the package.json
+            jq '.version = "7.${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
+            jq '.versionCode = "7${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
+            echo "Updated package.json versions"
+            cat package.json | grep "version"
+            cat package.json | grep "versionCode"
+          else
+            echo "package.json not found"
+            exit 1
+          fi
+
       - name: 📱 Setup EAS build cache
         uses: actions/cache@v3
         with:
@@ -176,7 +199,7 @@ jobs:
         run: |
           # Build with increased memory limit
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile development --local --non-interactive --output=./app-dev.apk
+          eas build --platform android --profile development --local --non-interactive --output=./ResgridUnit-dev.apk
         env:
           NODE_ENV: development
 
@@ -184,7 +207,7 @@ jobs:
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-apk'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production-apk --local --non-interactive --output=./app-prod.apk
+          eas build --platform android --profile production-apk --local --non-interactive --output=./ResgridUnit-prod.apk
         env:
           NODE_ENV: production
 
@@ -192,7 +215,7 @@ jobs:
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-aab'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production --local --non-interactive --output=./app-prod.aab
+          eas build --platform android --profile production --local --non-interactive --output=./ResgridUnit-prod.aab
         env:
           NODE_ENV: production
 
@@ -200,7 +223,7 @@ jobs:
         if: (matrix.platform == 'ios' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-dev'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile development --local --non-interactive --output=./app-ios-dev.ipa
+          eas build --platform ios --profile development --local --non-interactive --output=./ResgridUnit-ios-dev.ipa
         env:
           NODE_ENV: development
 
@@ -208,7 +231,7 @@ jobs:
         if: (matrix.platform == 'ios' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-adhoc'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile internal --local --non-interactive --output=./app-ios-adhoc.ipa
+          eas build --platform ios --profile internal --local --non-interactive --output=./ResgridUnit-ios-adhoc.ipa
         env:
           NODE_ENV: production
 
@@ -216,7 +239,7 @@ jobs:
         if: (matrix.platform == 'ios' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'ios-prod'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform ios --profile production --local --non-interactive --output=./app-ios-prod.ipa
+          eas build --platform ios --profile production --local --non-interactive --output=./ResgridUnit-ios-prod.ipa
         env:
           NODE_ENV: production
 
@@ -225,9 +248,10 @@ jobs:
         with:
           name: app-builds
           path: |
-            ./app-dev.apk
-            ./app-prod.apk
-            ./app-prod.aab
-            ./app-ios-dev.app
-            ./app-ios-prod.ipa
+            ./ResgridUnit-dev.apk
+            ./ResgridUnit-prod.apk
+            ./ResgridUnit-prod.aab
+            ./ResgridUnit-ios-dev.ipa
+            ./ResgridUnit-ios-adhoc.ipa
+            ./ResgridUnit-ios-prod.ipa
           retention-days: 7
