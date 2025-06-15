@@ -42,6 +42,7 @@
   "dependencies": {
     "@config-plugins/react-native-webrtc": "~10.0.0",
     "@dev-plugins/react-query": "^0.3.1",
+    "@expo/config-plugins": "~9.0.0",
     "@expo/html-elements": "~0.10.1",
     "@expo/metro-runtime": "~4.0.0",
     "@gluestack-ui/accordion": "~1.0.6",
