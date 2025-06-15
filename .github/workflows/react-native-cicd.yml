@@ -255,3 +255,19 @@ jobs:
             ./ResgridUnit-ios-adhoc.ipa
             ./ResgridUnit-ios-prod.ipa
           retention-days: 7
+
+      - name: 📦 Upload Android build artifacts to Testfairy
+        uses: alexfu/testfairy-upload-action@main
+        with:
+          api-key: ${{ secrets.TESTFAIRY_API_KEY }}
+          file: ./ResgridUnit-prod.apk
+          groups: Resgrid
+          notify: on
+
+      - name: 📦 Upload iOS build artifacts to Testfairy
+        uses: alexfu/testfairy-upload-action@main
+        with:
+          api-key: ${{ secrets.TESTFAIRY_API_KEY }}
+          file: ./ResgridUnit-ios-adhoc.ipa
+          groups: Resgrid
+          notify: on
