@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 
+import { loadBackgroundGeolocationState } from '@/lib/hooks/use-background-geolocation';
 import { logger } from '@/lib/logging';
 import { useLocationStore } from '@/stores/app/location-store';
 
@@ -104,9 +105,10 @@ class LocationService {
       }
     );
 
-    // Start background updates if enabled
-    if (useLocationStore.getState().isBackgroundEnabled) {
-      this.startBackgroundUpdates();
+    // Start background updates if enabled in settings
+    const isBackgroundEnabled = await loadBackgroundGeolocationState();
+    if (isBackgroundEnabled) {
+      await this.startBackgroundUpdates();
     }
   }
 

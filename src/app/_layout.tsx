@@ -23,6 +23,8 @@ import { APIProvider } from '@/api';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
+import { loadBackgroundGeolocationState } from '@/lib/hooks/use-background-geolocation';
+import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { setDeviceUuid } from '@/lib/storage/app';
@@ -91,6 +93,34 @@ function RootLayout() {
       .catch((error) => {
         logger.error({
           message: 'Failed to clear badge count on startup',
+          context: { error },
+        });
+      });
+
+    // Load keep alive state on app startup
+    loadKeepAliveState()
+      .then(() => {
+        logger.info({
+          message: 'Keep alive state loaded on startup',
+        });
+      })
+      .catch((error) => {
+        logger.error({
+          message: 'Failed to load keep alive state on startup',
+          context: { error },
+        });
+      });
+
+    // Load background geolocation state on app startup
+    loadBackgroundGeolocationState()
+      .then(() => {
+        logger.info({
+          message: 'Background geolocation state loaded on startup',
+        });
+      })
+      .catch((error) => {
+        logger.error({
+          message: 'Failed to load background geolocation state on startup',
           context: { error },
         });
       });

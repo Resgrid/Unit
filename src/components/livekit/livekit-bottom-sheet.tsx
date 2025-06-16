@@ -102,7 +102,7 @@ export const LiveKitBottomSheet = () => {
   );
 
   return (
-    <Actionsheet isOpen={isBottomSheetVisible} onClose={() => setIsBottomSheetVisible(false)} snapPoints={[30]}>
+    <Actionsheet isOpen={isBottomSheetVisible} onClose={() => setIsBottomSheetVisible(false)} snapPoints={[40]}>
       <ActionsheetBackdrop />
       <ActionsheetContent className="rounded-t-3x bg-white dark:bg-gray-800">
         <ActionsheetDragIndicatorWrapper>

@@ -4,7 +4,10 @@ import { useColorScheme } from 'nativewind';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { BackgroundGeolocationItem } from '@/components/settings/background-geolocation-item';
+import { BluetoothDeviceItem } from '@/components/settings/bluetooth-device-item';
 import { Item } from '@/components/settings/item';
+import { KeepAliveItem } from '@/components/settings/keep-alive-item';
 import { LanguageItem } from '@/components/settings/language-item';
 import { LoginInfoBottomSheet } from '@/components/settings/login-info-bottom-sheet';
 import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
@@ -85,6 +88,9 @@ export default function Settings() {
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
+              <KeepAliveItem />
+              <BackgroundGeolocationItem />
+              <BluetoothDeviceItem />
             </VStack>
           </Card>
 
