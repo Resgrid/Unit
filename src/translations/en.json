@@ -237,12 +237,16 @@
     "required": "This field is required"
   },
   "livekit": {
+    "audio_devices": "Audio Devices",
+    "audio_settings": "Audio Settings",
     "connected_to_room": "Connected to Channel",
     "connecting": "Connecting...",
     "disconnect": "Disconnect",
     "join": "Join",
+    "microphone": "Microphone",
     "mute": "Mute",
     "no_rooms_available": "No voice channels available",
+    "speaker": "Speaker",
     "speaking": "Speaking",
     "title": "Voice Channels",
     "unmute": "Unmute"

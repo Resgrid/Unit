@@ -208,7 +208,7 @@ describe('BluetoothAudioService', () => {
 
       expect(mockAddButtonEvent).toHaveBeenCalledWith({
         type: 'press',
-        button: 'play_pause',
+        button: 'ptt_start',
         timestamp: expect.any(Number),
       });
     });
@@ -250,7 +250,7 @@ describe('BluetoothAudioService', () => {
 
       expect(mockAddButtonEvent).toHaveBeenCalledWith({
         type: 'long_press',
-        button: 'play_pause',
+        button: 'ptt_stop',
         timestamp: expect.any(Number),
       });
     });

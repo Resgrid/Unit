@@ -31,6 +31,15 @@ jest.mock('@/lib/logging', () => ({
   },
 }));
 
+jest.mock('react-native-mmkv', () => ({
+  MMKV: jest.fn().mockImplementation(() => ({
+    set: jest.fn(),
+    getString: jest.fn(),
+    delete: jest.fn(),
+  })),
+  useMMKVBoolean: jest.fn(() => [false, jest.fn()]),
+}));
+
 jest.mock('@/stores/app/location-store', () => ({
   useLocationStore: {
     getState: jest.fn(() => ({
@@ -40,13 +49,16 @@ jest.mock('@/stores/app/location-store', () => ({
   },
 }));
 
-// Mock React Native AppState
+// Mock React Native AppState and Platform
 jest.mock('react-native', () => ({
   AppState: {
     addEventListener: jest.fn().mockReturnValue({
       remove: jest.fn(),
     }),
     currentState: 'active',
+  },
+  Platform: {
+    OS: 'ios',
   },
 }));
 

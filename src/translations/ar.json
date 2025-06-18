@@ -237,12 +237,16 @@
     "required": "هذا الحقل مطلوب"
   },
   "livekit": {
+    "audio_devices": "أجهزة الصوت",
+    "audio_settings": "إعدادات الصوت",
     "connected_to_room": "متصل بالقناة",
     "connecting": "جاري الاتصال...",
     "disconnect": "قطع الاتصال",
     "join": "انضمام",
+    "microphone": "الميكروفون",
     "mute": "كتم",
     "no_rooms_available": "لا توجد قنوات صوتية متاحة",
+    "speaker": "السماعة",
     "speaking": "يتحدث",
     "title": "القنوات الصوتية",
     "unmute": "إلغاء الكتم"

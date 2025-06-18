@@ -40,6 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
     googleServicesFile: 'google-services.json',
+    permissions: ['WAKE_LOCK', 'RECORD_AUDIO', 'FOREGROUND_SERVICE_MICROPHONE'],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -364,6 +365,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
     './customGradle.plugin.js',
+    './customManifest.plugin.js',
   ],
   extra: {
     ...ClientEnv,

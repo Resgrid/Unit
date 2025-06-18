@@ -1,4 +1,3 @@
-import { audioService } from '../audio.service';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // Mock expo-notifications
@@ -16,6 +15,7 @@ jest.mock('@/lib/logging', () => ({
 }));
 
 import * as Notifications from 'expo-notifications';
+import { audioService } from '../audio.service';
 
 describe('AudioService', () => {
   beforeEach(() => {
