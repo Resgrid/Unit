@@ -39,7 +39,6 @@ export const BluetoothDeviceItem = () => {
     <>
       <Pressable onPress={() => setShowDeviceSelection(true)} className="flex-1 flex-row items-center justify-between px-4 py-2">
         <HStack className="flex-row items-center">
-          <BluetoothIcon size={16} className="mr-3 text-neutral-600 dark:text-neutral-400" />
           <VStack>
             <Text className="text-neutral-900 dark:text-neutral-100">{t('bluetooth.audio_device')}</Text>
             {connectionStatus && <Text className={`text-xs ${connectedDevice?.id === preferredDevice?.id ? 'text-green-600' : 'text-neutral-500'}`}>{connectionStatus}</Text>}

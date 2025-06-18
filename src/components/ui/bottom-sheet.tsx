@@ -18,7 +18,7 @@ export function CustomBottomSheet({ children, isOpen, onClose, isLoading = false
   const { colorScheme } = useColorScheme();
 
   return (
-    <Actionsheet isOpen={isOpen} onClose={onClose} snapPoints={[40]}>
+    <Actionsheet isOpen={isOpen} onClose={onClose} snapPoints={[75]}>
       <ActionsheetBackdrop />
       <ActionsheetContent className={`rounded-t-3xl px-4 pb-6 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
         <ActionsheetDragIndicatorWrapper>

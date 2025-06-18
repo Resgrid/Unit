@@ -23,11 +23,11 @@ import { APIProvider } from '@/api';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
-import { loadBackgroundGeolocationState } from '@/lib/hooks/use-background-geolocation';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { setDeviceUuid } from '@/lib/storage/app';
+import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { uuidv4 } from '@/lib/utils';
 
 export { ErrorBoundary } from 'expo-router';

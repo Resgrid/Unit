@@ -182,7 +182,17 @@ const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClo
               <Text className="text-xs text-gray-500">{new Date(event.timestamp).toLocaleTimeString()}</Text>
               <Text className="text-sm">
                 {event.type === 'long_press' ? 'Long ' : event.type === 'double_press' ? 'Double ' : ''}
-                {event.button === 'play_pause' ? 'Play/Pause' : event.button === 'mute' ? 'Mute' : event.button === 'volume_up' ? 'Volume +' : event.button === 'volume_down' ? 'Volume -' : 'Unknown'}
+                {event.button === 'ptt_start'
+                  ? 'PTT Start'
+                  : event.button === 'ptt_stop'
+                    ? 'PTT Stop'
+                    : event.button === 'mute'
+                      ? 'Mute'
+                      : event.button === 'volume_up'
+                        ? 'Volume +'
+                        : event.button === 'volume_down'
+                          ? 'Volume -'
+                          : 'Unknown'}
               </Text>
               {lastButtonAction && lastButtonAction.timestamp === event.timestamp ? (
                 <Badge variant="outline" size="sm">

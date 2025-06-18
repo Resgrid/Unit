@@ -1,5 +1,6 @@
+import { Buffer } from 'buffer';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
-import { BleError, BleManager, Characteristic, type Device, DeviceId, Service, State, type Subscription } from 'react-native-ble-plx';
+import { BleError, BleManager, Characteristic, type Device, DeviceId, type Service, State, type Subscription } from 'react-native-ble-plx';
 
 import { logger } from '@/lib/logging';
 import { type AudioButtonEvent, type BluetoothAudioDevice, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
@@ -33,6 +34,7 @@ class BluetoothAudioService {
   private scanSubscription: Promise<void> | null = null;
   private buttonSubscription: Subscription | null = null;
   private connectionSubscription: Promise<void> | null = null;
+  private isInitialized: boolean = false;
 
   private constructor() {
     this.bleManager = new BleManager();
@@ -46,6 +48,82 @@ class BluetoothAudioService {
     return BluetoothAudioService.instance;
   }
 
+  /**
+   * Initialize the Bluetooth service and attempt to connect to the preferred device
+   */
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
+    try {
+      logger.info({
+        message: 'Initializing Bluetooth Audio Service',
+      });
+
+      // Check if we have permissions
+      const hasPermissions = await this.requestPermissions();
+      if (!hasPermissions) {
+        logger.warn({
+          message: 'Bluetooth permissions not granted, skipping initialization',
+        });
+        return;
+      }
+
+      // Check Bluetooth state
+      const state = await this.checkBluetoothState();
+      if (state !== State.PoweredOn) {
+        logger.info({
+          message: 'Bluetooth not powered on, skipping initialization',
+          context: { state },
+        });
+        return;
+      }
+
+      // Load preferred device from storage
+      const { getItem } = require('@/lib/storage') as typeof import('@/lib/storage');
+      const preferredDevice = getItem<{ id: string; name: string }>('preferredBluetoothDevice');
+
+      if (preferredDevice) {
+        logger.info({
+          message: 'Found preferred Bluetooth device, attempting to connect',
+          context: { deviceId: preferredDevice.id, deviceName: preferredDevice.name },
+        });
+
+        // Set the preferred device in the store
+        useBluetoothAudioStore.getState().setPreferredDevice(preferredDevice);
+
+        // Try to connect directly to the preferred device
+        try {
+          await this.connectToDevice(preferredDevice.id);
+          logger.info({
+            message: 'Successfully connected to preferred Bluetooth device on startup',
+            context: { deviceId: preferredDevice.id },
+          });
+        } catch (error) {
+          logger.warn({
+            message: 'Failed to connect to preferred Bluetooth device on startup, will scan for it',
+            context: { deviceId: preferredDevice.id, error },
+          });
+
+          // If direct connection fails, start scanning to find the device
+          this.startScanning(5000); // 5 second scan
+        }
+      } else {
+        logger.info({
+          message: 'No preferred Bluetooth device found',
+        });
+      }
+
+      this.isInitialized = true;
+    } catch (error) {
+      logger.error({
+        message: 'Failed to initialize Bluetooth Audio Service',
+        context: { error },
+      });
+    }
+  }
+
   private setupBleStateListener(): void {
     this.bleManager.onStateChange((state) => {
       logger.info({
@@ -57,8 +135,34 @@ class BluetoothAudioService {
 
       if (state === State.PoweredOff || state === State.Unauthorized) {
         this.handleBluetoothDisabled();
+      } else if (state === State.PoweredOn && this.isInitialized) {
+        // If Bluetooth is turned back on, try to reconnect to preferred device
+        this.attemptReconnectToPreferredDevice();
       }
     }, true);
+  }
+
+  private async attemptReconnectToPreferredDevice(): Promise<void> {
+    const { preferredDevice, connectedDevice } = useBluetoothAudioStore.getState();
+
+    if (preferredDevice && !connectedDevice) {
+      logger.info({
+        message: 'Bluetooth turned on, attempting to reconnect to preferred device',
+        context: { deviceId: preferredDevice.id },
+      });
+
+      try {
+        await this.connectToDevice(preferredDevice.id);
+      } catch (error) {
+        logger.warn({
+          message: 'Failed to reconnect to preferred device, starting scan',
+          context: { deviceId: preferredDevice.id, error },
+        });
+
+        // Start a quick scan to find the device
+        this.startScanning(5000);
+      }
+    }
   }
 
   private handleBluetoothDisabled(): void {
@@ -303,46 +407,27 @@ class BluetoothAudioService {
   private async setupButtonEventMonitoring(device: Device): Promise<void> {
     try {
       const services = await device.services();
+      logger.info({
+        message: 'Available services for button monitoring',
+        context: {
+          deviceId: device.id,
+          deviceName: device.name,
+          serviceCount: services.length,
+          serviceUUIDs: services.map((s) => s.uuid),
+        },
+      });
 
-      for (const service of services) {
-        for (const buttonUuid of BUTTON_CONTROL_UUIDS) {
-          try {
-            const characteristics = await service.characteristics();
-            const buttonChar = characteristics.find((char) => char.uuid.toUpperCase() === buttonUuid.toUpperCase() && char.isNotifiable);
-
-            if (buttonChar) {
-              this.buttonSubscription = buttonChar.monitor((error, characteristic) => {
-                if (error) {
-                  logger.error({
-                    message: 'Button monitoring error',
-                    context: { error },
-                  });
-                  return;
-                }
-
-                if (characteristic?.value) {
-                  this.handleButtonEvent(characteristic.value);
-                }
-              });
-
-              logger.info({
-                message: 'Button event monitoring established',
-                context: { deviceId: device.id, characteristicUuid: buttonChar.uuid },
-              });
-
-              break;
-            }
-          } catch (charError) {
-            // Continue trying other characteristics
-            logger.debug({
-              message: 'Failed to set up button monitoring for characteristic',
-              context: { uuid: buttonUuid, error: charError },
-            });
-          }
-        }
-
-        if (this.buttonSubscription) break;
+      // Handle device-specific button monitoring
+      if (await this.setupAinaButtonMonitoring(device, services)) {
+        return;
       }
+
+      if (await this.setupB01InricoButtonMonitoring(device, services)) {
+        return;
+      }
+
+      // Generic button monitoring for standard devices
+      await this.setupGenericButtonMonitoring(device, services);
     } catch (error) {
       logger.warn({
         message: 'Could not set up button event monitoring',
@@ -351,28 +436,294 @@ class BluetoothAudioService {
     }
   }
 
-  private handleButtonEvent(data: string): void {
-    // Parse button data (implementation depends on device manufacturer)
-    // This is a simplified implementation
-    const buffer = Buffer.from(data, 'base64');
-    const buttonEvent = this.parseButtonData(buffer);
+  private async setupAinaButtonMonitoring(device: Device, services: Service[]): Promise<boolean> {
+    try {
+      const ainaService = services.find((s) => s.uuid.toUpperCase() === AINA_HEADSET_SERVICE.toUpperCase());
 
-    if (buttonEvent) {
+      if (!ainaService) {
+        return false;
+      }
+
       logger.info({
-        message: 'Button event received',
-        context: { buttonEvent },
+        message: 'Setting up AINA headset button monitoring',
+        context: { deviceId: device.id },
       });
 
-      useBluetoothAudioStore.getState().addButtonEvent(buttonEvent);
+      const characteristics = await ainaService.characteristics();
+      const buttonChar = characteristics.find((char) => char.uuid.toUpperCase() === AINA_HEADSET_SVC_PROP.toUpperCase() && (char.isNotifiable || char.isIndicatable));
 
-      // Handle mute/unmute events
-      if (buttonEvent.button === 'mute' || buttonEvent.button === 'play_pause') {
-        this.handleMuteToggle();
+      if (buttonChar) {
+        this.buttonSubscription = buttonChar.monitor((error, characteristic) => {
+          if (error) {
+            logger.error({
+              message: 'AINA button monitoring error',
+              context: { error },
+            });
+            return;
+          }
+
+          if (characteristic?.value) {
+            this.handleAinaButtonEvent(characteristic.value);
+          }
+        });
+
+        logger.info({
+          message: 'AINA button event monitoring established',
+          context: { deviceId: device.id, characteristicUuid: buttonChar.uuid },
+        });
+
+        return true;
+      }
+    } catch (error) {
+      logger.debug({
+        message: 'Failed to set up AINA button monitoring',
+        context: { error },
+      });
+    }
+
+    return false;
+  }
+
+  private async setupB01InricoButtonMonitoring(device: Device, services: Service[]): Promise<boolean> {
+    try {
+      const inricoService = services.find((s) => s.uuid.toUpperCase() === B01INRICO_HEADSET_SERVICE.toUpperCase());
+
+      if (!inricoService) {
+        return false;
+      }
+
+      logger.info({
+        message: 'Setting up B01 Inrico headset button monitoring',
+        context: { deviceId: device.id },
+      });
+
+      const characteristics = await inricoService.characteristics();
+      const buttonChar = characteristics.find((char) => char.uuid.toUpperCase() === B01INRICO_HEADSET_SERVICE_CHAR.toUpperCase() && (char.isNotifiable || char.isIndicatable));
+
+      if (buttonChar) {
+        this.buttonSubscription = buttonChar.monitor((error, characteristic) => {
+          if (error) {
+            logger.error({
+              message: 'B01 Inrico button monitoring error',
+              context: { error },
+            });
+            return;
+          }
+
+          if (characteristic?.value) {
+            this.handleB01InricoButtonEvent(characteristic.value);
+          }
+        });
+
+        logger.info({
+          message: 'B01 Inrico button event monitoring established',
+          context: { deviceId: device.id, characteristicUuid: buttonChar.uuid },
+        });
+
+        return true;
+      }
+    } catch (error) {
+      logger.debug({
+        message: 'Failed to set up B01 Inrico button monitoring',
+        context: { error },
+      });
+    }
+
+    return false;
+  }
+
+  private async setupGenericButtonMonitoring(device: Device, services: Service[]): Promise<void> {
+    for (const service of services) {
+      for (const buttonUuid of BUTTON_CONTROL_UUIDS) {
+        try {
+          const characteristics = await service.characteristics();
+          const buttonChar = characteristics.find((char) => char.uuid.toUpperCase() === buttonUuid.toUpperCase() && (char.isNotifiable || char.isIndicatable));
+
+          if (buttonChar) {
+            this.buttonSubscription = buttonChar.monitor((error, characteristic) => {
+              if (error) {
+                logger.error({
+                  message: 'Generic button monitoring error',
+                  context: { error },
+                });
+                return;
+              }
+
+              if (characteristic?.value) {
+                this.handleGenericButtonEvent(characteristic.value);
+              }
+            });
+
+            logger.info({
+              message: 'Generic button event monitoring established',
+              context: { deviceId: device.id, characteristicUuid: buttonChar.uuid },
+            });
+
+            return;
+          }
+        } catch (charError) {
+          logger.debug({
+            message: 'Failed to set up button monitoring for characteristic',
+            context: { uuid: buttonUuid, error: charError },
+          });
+        }
       }
     }
   }
 
-  private parseButtonData(buffer: Buffer): AudioButtonEvent | null {
+  private handleAinaButtonEvent(data: string): void {
+    try {
+      const buffer = Buffer.from(data, 'base64');
+      logger.info({
+        message: 'AINA button data received',
+        context: {
+          dataLength: buffer.length,
+          rawData: buffer.toString('hex'),
+        },
+      });
+
+      // AINA-specific button parsing
+      const buttonEvent = this.parseAinaButtonData(buffer);
+      if (buttonEvent) {
+        this.processButtonEvent(buttonEvent);
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to handle AINA button event',
+        context: { error },
+      });
+    }
+  }
+
+  private handleB01InricoButtonEvent(data: string): void {
+    try {
+      const buffer = Buffer.from(data, 'base64');
+      logger.info({
+        message: 'B01 Inrico button data received',
+        context: {
+          dataLength: buffer.length,
+          rawData: buffer.toString('hex'),
+        },
+      });
+
+      // B01 Inrico-specific button parsing
+      const buttonEvent = this.parseB01InricoButtonData(buffer);
+      if (buttonEvent) {
+        this.processButtonEvent(buttonEvent);
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to handle B01 Inrico button event',
+        context: { error },
+      });
+    }
+  }
+
+  private handleGenericButtonEvent(data: string): void {
+    try {
+      const buffer = Buffer.from(data, 'base64');
+      logger.info({
+        message: 'Generic button data received',
+        context: {
+          dataLength: buffer.length,
+          rawData: buffer.toString('hex'),
+        },
+      });
+
+      // Generic button parsing
+      const buttonEvent = this.parseGenericButtonData(buffer);
+      if (buttonEvent) {
+        this.processButtonEvent(buttonEvent);
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to handle generic button event',
+        context: { error },
+      });
+    }
+  }
+
+  private parseAinaButtonData(buffer: Buffer): AudioButtonEvent | null {
+    if (buffer.length === 0) return null;
+
+    // AINA-specific parsing logic
+    const byte = buffer[0];
+
+    let buttonType: AudioButtonEvent['button'] = 'unknown';
+    let eventType: AudioButtonEvent['type'] = 'press';
+
+    // AINA button mapping (adjust based on actual AINA protocol)
+    switch (byte) {
+      case 0x00:
+        buttonType = 'ptt_stop';
+        break;
+      case 0x01:
+        buttonType = 'ptt_start';
+        break;
+      case 0x02:
+        buttonType = 'mute';
+        break;
+      case 0x03:
+        buttonType = 'volume_up';
+        break;
+      case 0x04:
+        buttonType = 'volume_down';
+        break;
+    }
+
+    // Check for long press (adjust based on AINA protocol)
+    if (buffer.length > 1 && buffer[1] === 0xff) {
+      eventType = 'long_press';
+    }
+
+    return {
+      type: eventType,
+      button: buttonType,
+      timestamp: Date.now(),
+    };
+  }
+
+  private parseB01InricoButtonData(buffer: Buffer): AudioButtonEvent | null {
+    if (buffer.length === 0) return null;
+
+    // B01 Inrico-specific parsing logic
+    const byte = buffer[0];
+
+    let buttonType: AudioButtonEvent['button'] = 'unknown';
+    let eventType: AudioButtonEvent['type'] = 'press';
+
+    // B01 Inrico button mapping (adjust based on actual protocol)
+    switch (byte) {
+      case 0x10:
+        buttonType = 'ptt_start';
+        break;
+      case 0x11:
+        buttonType = 'ptt_stop';
+        break;
+      case 0x20:
+        buttonType = 'mute';
+        break;
+      case 0x30:
+        buttonType = 'volume_up';
+        break;
+      case 0x40:
+        buttonType = 'volume_down';
+        break;
+    }
+
+    // Check for long press (adjust based on B01 Inrico protocol)
+    if (byte & 0x80) {
+      eventType = 'long_press';
+    }
+
+    return {
+      type: eventType,
+      button: buttonType,
+      timestamp: Date.now(),
+    };
+  }
+
+  private parseGenericButtonData(buffer: Buffer): AudioButtonEvent | null {
     // This is a simplified parser - real implementation would depend on device specs
     if (buffer.length === 0) return null;
 
@@ -383,8 +734,11 @@ class BluetoothAudioService {
     let eventType: AudioButtonEvent['type'] = 'press';
 
     switch (byte & 0x0f) {
+      case 0x00:
+        buttonType = 'ptt_start';
+        break;
       case 0x01:
-        buttonType = 'play_pause';
+        buttonType = 'ptt_stop';
         break;
       case 0x02:
         buttonType = 'volume_up';
@@ -408,6 +762,56 @@ class BluetoothAudioService {
       button: buttonType,
       timestamp: Date.now(),
     };
+  }
+
+  private processButtonEvent(buttonEvent: AudioButtonEvent): void {
+    logger.info({
+      message: 'Button event processed',
+      context: { buttonEvent },
+    });
+
+    useBluetoothAudioStore.getState().addButtonEvent(buttonEvent);
+
+    // Handle mute/unmute events
+    if (buttonEvent.button === 'mute') {
+      this.handleMuteToggle();
+      return;
+    }
+
+    if (buttonEvent.button === 'ptt_start') {
+      this.setMicrophoneEnabled(true);
+      return;
+    }
+
+    if (buttonEvent.button === 'ptt_stop') {
+      this.setMicrophoneEnabled(false);
+      return;
+    }
+
+    // Handle volume events
+    if (buttonEvent.button === 'volume_up' || buttonEvent.button === 'volume_down') {
+      this.handleVolumeChange(buttonEvent.button);
+    }
+  }
+
+  private async handleVolumeChange(direction: 'volume_up' | 'volume_down'): Promise<void> {
+    logger.info({
+      message: 'Volume change requested via Bluetooth button',
+      context: { direction },
+    });
+
+    useBluetoothAudioStore.getState().setLastButtonAction({
+      action: direction,
+      timestamp: Date.now(),
+    });
+
+    // Add volume control logic here if needed
+    // This would typically involve native audio controls
+  }
+
+  private handleButtonEvent(data: string): void {
+    // Keep the original method for backward compatibility
+    this.handleGenericButtonEvent(data);
   }
 
   private async handleMuteToggle(): Promise<void> {
@@ -436,6 +840,35 @@ class BluetoothAudioService {
     }
   }
 
+  private async setMicrophoneEnabled(enabled: boolean): Promise<void> {
+    const liveKitStore = useLiveKitStore.getState();
+    if (liveKitStore.currentRoom) {
+      const currentMuteState = !liveKitStore.currentRoom.localParticipant.isMicrophoneEnabled;
+
+      try {
+        if (enabled && currentMuteState) return; // already enabled
+        if (!enabled && !currentMuteState) return; // already disabled
+
+        await liveKitStore.currentRoom.localParticipant.setMicrophoneEnabled(currentMuteState);
+
+        logger.info({
+          message: 'Microphone toggled via Bluetooth button',
+          context: { enabled: currentMuteState },
+        });
+
+        useBluetoothAudioStore.getState().setLastButtonAction({
+          action: enabled ? 'unmute' : 'mute',
+          timestamp: Date.now(),
+        });
+      } catch (error) {
+        logger.error({
+          message: 'Failed to toggle microphone via Bluetooth button',
+          context: { error },
+        });
+      }
+    }
+  }
+
   private async setupLiveKitAudioRouting(device: Device): Promise<void> {
     try {
       // Note: Audio routing in React Native/LiveKit typically requires native modules
@@ -446,12 +879,35 @@ class BluetoothAudioService {
         context: { deviceId: device.id, deviceName: device.name },
       });
 
+      const bluetoothStore = useBluetoothAudioStore.getState();
+      const deviceName = device.name || 'Bluetooth Device';
+
+      // Add Bluetooth device to available audio devices
+      const bluetoothAudioDevice = {
+        id: device.id,
+        name: deviceName,
+        type: 'bluetooth' as const,
+        isAvailable: true,
+      };
+
+      // Update available audio devices list
+      const currentDevices = bluetoothStore.availableAudioDevices.filter((d) => d.type !== 'bluetooth');
+      bluetoothStore.setAvailableAudioDevices([...currentDevices, bluetoothAudioDevice]);
+
+      // If device supports microphone, set it as selected microphone
+      if (this.supportsMicrophoneControl(device)) {
+        bluetoothStore.setSelectedMicrophone(bluetoothAudioDevice);
+      }
+
+      // Set as selected speaker
+      bluetoothStore.setSelectedSpeaker(bluetoothAudioDevice);
+
       // In a real implementation, you would:
       // 1. Use native modules to route audio to the Bluetooth device
       // 2. Configure LiveKit's audio context to use the Bluetooth device as input/output
       // 3. Set audio session category and options appropriately
 
-      useBluetoothAudioStore.getState().setAudioRoutingActive(true);
+      bluetoothStore.setAudioRoutingActive(true);
 
       // Notify LiveKit store about audio device change
       // This would trigger any necessary audio context updates
@@ -470,8 +926,25 @@ class BluetoothAudioService {
         message: 'Reverting LiveKit audio routing to default',
       });
 
+      const bluetoothStore = useBluetoothAudioStore.getState();
+
+      // Remove Bluetooth devices from available audio devices
+      const nonBluetoothDevices = bluetoothStore.availableAudioDevices.filter((d) => d.type !== 'bluetooth');
+      bluetoothStore.setAvailableAudioDevices(nonBluetoothDevices);
+
+      // Revert to default audio devices
+      const defaultMic = nonBluetoothDevices.find((d) => d.type === 'default' && d.id.includes('mic'));
+      const defaultSpeaker = nonBluetoothDevices.find((d) => d.type === 'default' && d.id.includes('speaker'));
+
+      if (defaultMic) {
+        bluetoothStore.setSelectedMicrophone(defaultMic);
+      }
+      if (defaultSpeaker) {
+        bluetoothStore.setSelectedSpeaker(defaultSpeaker);
+      }
+
       // Revert audio routing to default (phone speaker/microphone)
-      useBluetoothAudioStore.getState().setAudioRoutingActive(false);
+      bluetoothStore.setAudioRoutingActive(false);
     } catch (error) {
       logger.error({
         message: 'Failed to revert LiveKit audio routing',

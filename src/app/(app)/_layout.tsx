@@ -18,6 +18,7 @@ import { Text } from '@/components/ui/text';
 import { useAuthStore } from '@/lib/auth';
 import { useIsFirstTime } from '@/lib/storage';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { usePushNotifications } from '@/services/push-notification';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
@@ -53,6 +54,11 @@ export default function TabLayout() {
       useCallsStore.getState().init();
       securityStore.getState().getRights();
       useCoreStore.getState().fetchConfig();
+
+      // Initialize Bluetooth service
+      bluetoothAudioService.initialize().catch((error) => {
+        console.warn('Failed to initialize Bluetooth service:', error);
+      });
     }
   }, [hideSplash, status]);
 

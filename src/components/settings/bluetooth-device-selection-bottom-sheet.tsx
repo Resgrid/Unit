@@ -168,7 +168,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         )}
 
         {/* Scan Button */}
-        <HStack className="mb-4 items-center justify-between">
+        <HStack className="mb-4 w-full items-center justify-between">
           <Text className="text-sm text-neutral-600 dark:text-neutral-400">{t('bluetooth.available_devices')}</Text>
           <Button onPress={startScan} disabled={isScanning} size="sm" variant="outline">
             <ButtonIcon as={RefreshCwIcon} />

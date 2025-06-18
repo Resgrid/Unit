@@ -3,8 +3,21 @@ import { useMMKVBoolean } from 'react-native-mmkv';
 
 import { logger } from '../logging';
 import { storage } from '../storage';
+import { getBackgroundGeolocationStorageKey, saveBackgroundGeolocationState } from '../storage/background-geolocation';
 
-const BACKGROUND_GEOLOCATION_ENABLED = 'BACKGROUND_GEOLOCATION_ENABLED';
+// Define a type for the location service update function
+type LocationServiceUpdater = (enabled: boolean) => Promise<void>;
+
+// Global variable to hold the location service update function
+let locationServiceUpdater: LocationServiceUpdater | null = null;
+
+/**
+ * Register the location service updater function
+ * This should be called from the location service to register its update function
+ */
+export const registerLocationServiceUpdater = (updater: LocationServiceUpdater) => {
+  locationServiceUpdater = updater;
+};
 
 /**
  * Hook for managing background geolocation functionality
@@ -12,12 +25,19 @@ const BACKGROUND_GEOLOCATION_ENABLED = 'BACKGROUND_GEOLOCATION_ENABLED';
  * When enabled, location tracking will continue when the app is backgrounded
  */
 export const useBackgroundGeolocation = () => {
-  const [backgroundGeolocationEnabled, _setBackgroundGeolocationEnabled] = useMMKVBoolean(BACKGROUND_GEOLOCATION_ENABLED, storage);
+  const [backgroundGeolocationEnabled, _setBackgroundGeolocationEnabled] = useMMKVBoolean(getBackgroundGeolocationStorageKey(), storage);
 
   const setBackgroundGeolocationEnabled = React.useCallback(
     async (enabled: boolean) => {
       try {
         _setBackgroundGeolocationEnabled(enabled);
+        saveBackgroundGeolocationState(enabled);
+
+        // Update the location service if the updater is registered
+        if (locationServiceUpdater) {
+          await locationServiceUpdater(enabled);
+        }
+
         logger.info({
           message: `Background geolocation ${enabled ? 'enabled' : 'disabled'}`,
           context: { enabled },
@@ -35,22 +55,4 @@ export const useBackgroundGeolocation = () => {
 
   const isBackgroundGeolocationEnabled = backgroundGeolocationEnabled ?? false;
   return { isBackgroundGeolocationEnabled, setBackgroundGeolocationEnabled } as const;
-};
-
-// Function to be used in the root file to load the background geolocation state from MMKV on app startup
-export const loadBackgroundGeolocationState = async () => {
-  try {
-    const backgroundGeolocationEnabled = storage.getBoolean(BACKGROUND_GEOLOCATION_ENABLED);
-    logger.info({
-      message: 'Background geolocation state loaded on startup',
-      context: { enabled: backgroundGeolocationEnabled },
-    });
-    return backgroundGeolocationEnabled ?? false;
-  } catch (error) {
-    logger.error({
-      message: 'Failed to load background geolocation state on startup',
-      context: { error },
-    });
-    return false;
-  }
 };

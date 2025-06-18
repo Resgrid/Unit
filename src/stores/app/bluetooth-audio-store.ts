@@ -13,13 +13,25 @@ export interface BluetoothAudioDevice {
 
 export interface AudioButtonEvent {
   type: 'press' | 'long_press' | 'double_press';
-  button: 'play_pause' | 'volume_up' | 'volume_down' | 'mute' | 'unknown';
+  button: 'ptt_start' | 'ptt_stop' | 'volume_up' | 'volume_down' | 'mute' | 'unknown';
   timestamp: number;
 }
 
 export interface ButtonAction {
   action: 'mute' | 'unmute' | 'volume_up' | 'volume_down';
   timestamp: number;
+}
+
+export interface AudioDeviceInfo {
+  id: string;
+  name: string;
+  type: 'bluetooth' | 'wired' | 'speaker' | 'default';
+  isAvailable: boolean;
+}
+
+export interface AudioDeviceSelection {
+  microphone: AudioDeviceInfo | null;
+  speaker: AudioDeviceInfo | null;
 }
 
 interface BluetoothAudioState {
@@ -32,6 +44,10 @@ interface BluetoothAudioState {
   availableDevices: BluetoothAudioDevice[];
   connectedDevice: BluetoothAudioDevice | null;
   preferredDevice: { id: string; name: string } | null;
+
+  // Audio device selection
+  availableAudioDevices: AudioDeviceInfo[];
+  selectedAudioDevices: AudioDeviceSelection;
 
   // Connection status
   connectionError: string | null;
@@ -54,6 +70,12 @@ interface BluetoothAudioState {
   setConnectedDevice: (device: BluetoothAudioDevice | null) => void;
   setPreferredDevice: (device: { id: string; name: string } | null) => void;
 
+  // Audio device selection
+  setAvailableAudioDevices: (devices: AudioDeviceInfo[]) => void;
+  setSelectedMicrophone: (device: AudioDeviceInfo | null) => void;
+  setSelectedSpeaker: (device: AudioDeviceInfo | null) => void;
+  updateAudioDeviceAvailability: (deviceId: string, isAvailable: boolean) => void;
+
   // Connection error management
   setConnectionError: (error: string | null) => void;
   clearConnectionError: () => void;
@@ -75,6 +97,14 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   availableDevices: [],
   connectedDevice: null,
   preferredDevice: null,
+  availableAudioDevices: [
+    { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
+    { id: 'default-speaker', name: 'Default Speaker', type: 'default', isAvailable: true },
+  ],
+  selectedAudioDevices: {
+    microphone: { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
+    speaker: { id: 'default-speaker', name: 'Default Speaker', type: 'default', isAvailable: true },
+  },
   connectionError: null,
   isAudioRoutingActive: false,
   buttonEvents: [],
@@ -153,4 +183,33 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
 
   // Preferred device management
   setPreferredDevice: (device) => set({ preferredDevice: device }),
+
+  // Audio device selection actions
+  setAvailableAudioDevices: (devices) => set({ availableAudioDevices: devices }),
+
+  setSelectedMicrophone: (device) => {
+    const { selectedAudioDevices } = get();
+    set({
+      selectedAudioDevices: {
+        ...selectedAudioDevices,
+        microphone: device,
+      },
+    });
+  },
+
+  setSelectedSpeaker: (device) => {
+    const { selectedAudioDevices } = get();
+    set({
+      selectedAudioDevices: {
+        ...selectedAudioDevices,
+        speaker: device,
+      },
+    });
+  },
+
+  updateAudioDeviceAvailability: (deviceId, isAvailable) => {
+    const { availableAudioDevices } = get();
+    const updatedDevices = availableAudioDevices.map((device) => (device.id === deviceId ? { ...device, isAvailable } : device));
+    set({ availableAudioDevices: updatedDevices });
+  },
 }));

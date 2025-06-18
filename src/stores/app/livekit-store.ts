@@ -1,8 +1,47 @@
 import { Room, RoomEvent } from 'livekit-client';
+import { set } from 'zod';
 import { create } from 'zustand';
 
 import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../api/voice';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
+import { audioService } from '../../services/audio.service';
+import { useBluetoothAudioStore } from './bluetooth-audio-store';
+
+// Helper function to setup audio routing based on selected devices
+const setupAudioRouting = async (room: Room): Promise<void> => {
+  try {
+    const bluetoothStore = useBluetoothAudioStore.getState();
+    const { selectedAudioDevices, connectedDevice } = bluetoothStore;
+
+    // If we have a connected Bluetooth device, prioritize it
+    if (connectedDevice && connectedDevice.hasAudioCapability) {
+      console.log('Using Bluetooth device for audio routing:', connectedDevice.name);
+
+      // Update selected devices to use Bluetooth
+      const deviceName = connectedDevice.name || 'Bluetooth Device';
+      const bluetoothMicrophone = connectedDevice.supportsMicrophoneControl ? { id: connectedDevice.id, name: deviceName, type: 'bluetooth' as const, isAvailable: true } : selectedAudioDevices.microphone;
+
+      const bluetoothSpeaker = {
+        id: connectedDevice.id,
+        name: deviceName,
+        type: 'bluetooth' as const,
+        isAvailable: true,
+      };
+
+      bluetoothStore.setSelectedMicrophone(bluetoothMicrophone);
+      bluetoothStore.setSelectedSpeaker(bluetoothSpeaker);
+
+      // Note: Actual audio routing would be implemented via native modules
+      // This is a placeholder for the audio routing logic
+      console.log('Audio routing configured for Bluetooth device');
+    } else {
+      // Use default audio devices (selected devices or default)
+      console.log('Using default audio devices:', selectedAudioDevices);
+    }
+  } catch (error) {
+    console.error('Failed to setup audio routing:', error);
+  }
+};
 
 interface LiveKitState {
   // Connection state
@@ -74,12 +113,18 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       const room = new Room();
 
       // Setup room event listeners
-      room.on(RoomEvent.ParticipantConnected, () => {
-        console.log('A participant connected');
+      room.on(RoomEvent.ParticipantConnected, (participant) => {
+        console.log('A participant connected', participant.identity);
+        // Play connection sound when others join
+        if (participant.identity !== room.localParticipant.identity) {
+          audioService.playConnectionSound();
+        }
       });
 
-      room.on(RoomEvent.ParticipantDisconnected, () => {
-        console.log('A participant disconnected');
+      room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+        console.log('A participant disconnected', participant.identity);
+        // Play disconnection sound when others leave
+        audioService.playDisconnectionSound();
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -92,9 +137,12 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Connect to the room
       await room.connect(voipServerWebsocketSslAddress, token);
 
-      // Set microphone to enabled, camera to disabled (audio-only call)
-      await room.localParticipant.setMicrophoneEnabled(true);
+      // Set microphone to muted by default, camera to disabled (audio-only call)
+      await room.localParticipant.setMicrophoneEnabled(false);
       await room.localParticipant.setCameraEnabled(false);
+
+      // Setup audio routing based on selected devices
+      await setupAudioRouting(room);
 
       set({
         currentRoom: room,
