@@ -107,7 +107,7 @@
     "expo-location": "~18.0.10",
     "expo-notifications": "~0.29.14",
     "expo-router": "~4.0.21",
-    "expo-screen-orientation": "~8.0.4",
+    "expo-screen-orientation": "~8.1.7",
     "expo-sharing": "~13.0.1",
     "expo-splash-screen": "~0.29.24",
     "expo-status-bar": "~2.0.0",
