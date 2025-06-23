@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 import * as z from 'zod';
 
+import { DispatchSelectionModal } from '@/components/calls/dispatch-selection-modal';
 import { Loading } from '@/components/common/loading';
 import FullScreenLocationPicker from '@/components/maps/full-screen-location-picker';
 import LocationPicker from '@/components/maps/location-picker';
@@ -16,11 +17,12 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FormControl, FormControlError, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
 import { Input, InputField } from '@/components/ui/input';
-import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/components/ui/select';
+import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useCallsStore } from '@/stores/calls/store';
+import { type DispatchSelection } from '@/stores/dispatch/store';
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -37,6 +39,15 @@ const formSchema = z.object({
   type: z.string().optional(),
   contactName: z.string().optional(),
   contactInfo: z.string().optional(),
+  dispatchSelection: z
+    .object({
+      everyone: z.boolean(),
+      users: z.array(z.string()),
+      groups: z.array(z.string()),
+      roles: z.array(z.string()),
+      units: z.array(z.string()),
+    })
+    .optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -47,6 +58,14 @@ export default function NewCall() {
   const { callPriorities, isLoading, error, fetchCallPriorities } = useCallsStore();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchSelection, setDispatchSelection] = useState<DispatchSelection>({
+    everyone: false,
+    users: [],
+    groups: [],
+    roles: [],
+    units: [],
+  });
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -74,6 +93,13 @@ export default function NewCall() {
       type: '',
       contactName: '',
       contactInfo: '',
+      dispatchSelection: {
+        everyone: false,
+        users: [],
+        groups: [],
+        roles: [],
+        units: [],
+      },
     },
   });
 
@@ -140,6 +166,27 @@ export default function NewCall() {
     setValue('coordinates', `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
   };
 
+  // Handle dispatch selection
+  const handleDispatchSelection = (selection: DispatchSelection) => {
+    setDispatchSelection(selection);
+    setValue('dispatchSelection', selection);
+  };
+
+  // Get dispatch selection summary
+  const getDispatchSummary = () => {
+    if (dispatchSelection.everyone) {
+      return t('calls.everyone');
+    }
+
+    const count = dispatchSelection.users.length + dispatchSelection.groups.length + dispatchSelection.roles.length + dispatchSelection.units.length;
+
+    if (count === 0) {
+      return t('calls.select_recipients');
+    }
+
+    return `${count} ${t('calls.selected')}`;
+  };
+
   if (isLoading) {
     return <Loading />;
   }
@@ -194,9 +241,9 @@ export default function NewCall() {
                   control={control}
                   name="nature"
                   render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.nature_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
+                    <Textarea>
+                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.nature_placeholder')} />
+                    </Textarea>
                   )}
                 />
                 {errors.nature && <FormControlError>{errors.nature.message}</FormControlError>}
@@ -212,25 +259,20 @@ export default function NewCall() {
                   control={control}
                   name="priority"
                   render={({ field: { onChange, value } }) => (
-                    <>
-                      <Select onValueChange={onChange} selectedValue={value}>
-                        <SelectTrigger>
-                          <SelectInput placeholder={t('calls.select_priority')} className="w-[240px]" />
-                          <SelectIcon as={ChevronDownIcon} className="mr-3" />
-                        </SelectTrigger>
-                        <SelectPortal>
-                          <SelectBackdrop />
-                          <SelectDragIndicatorWrapper>
-                            <SelectDragIndicator />
-                          </SelectDragIndicatorWrapper>
-                          <SelectContent>
-                            {callPriorities.map((priority) => (
-                              <SelectItem key={priority.Id} label={priority.Name} value={priority.Id.toString()} />
-                            ))}
-                          </SelectContent>
-                        </SelectPortal>
-                      </Select>
-                    </>
+                    <Select onValueChange={onChange} selectedValue={value}>
+                      <SelectTrigger>
+                        <SelectInput placeholder={t('calls.select_priority')} className="w-5/6" />
+                        <SelectIcon as={ChevronDownIcon} className="mr-3" />
+                      </SelectTrigger>
+                      <SelectPortal>
+                        <SelectBackdrop />
+                        <SelectContent>
+                          {callPriorities.map((priority) => (
+                            <SelectItem key={priority.Id} label={priority.Name} value={priority.Id.toString()} />
+                          ))}
+                        </SelectContent>
+                      </SelectPortal>
+                    </Select>
                   )}
                 />
                 {errors.priority && <FormControlError>{errors.priority.message}</FormControlError>}
@@ -247,7 +289,7 @@ export default function NewCall() {
                   name="note"
                   render={({ field: { onChange, onBlur, value } }) => (
                     <Textarea>
-                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} />
+                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.note_placeholder')} />
                     </Textarea>
                   )}
                 />
@@ -367,6 +409,13 @@ export default function NewCall() {
               </FormControl>
             </Card>
 
+            <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+              <Text className="mb-4 text-lg font-semibold">{t('calls.dispatch_to')}</Text>
+              <Button onPress={() => setShowDispatchModal(true)} className="w-full">
+                <ButtonText>{getDispatchSummary()}</ButtonText>
+              </Button>
+            </Card>
+
             <Box className="mb-6 flex-row space-x-4">
               <Button className="flex-1" variant="outline" onPress={() => router.back()}>
                 <ButtonText>{t('common.cancel')}</ButtonText>
@@ -380,8 +429,29 @@ export default function NewCall() {
         </Box>
       </View>
 
-      {/* Full-screen location picker modal */}
-      {showLocationPicker && <FullScreenLocationPicker initialLocation={selectedLocation || undefined} onLocationSelected={handleLocationSelected} onClose={() => setShowLocationPicker(false)} />}
+      {/* Full-screen location picker overlay */}
+      {showLocationPicker && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+          }}
+        >
+          <FullScreenLocationPicker
+            key={showLocationPicker ? 'location-picker-open' : 'location-picker-closed'}
+            initialLocation={selectedLocation || undefined}
+            onLocationSelected={handleLocationSelected}
+            onClose={() => setShowLocationPicker(false)}
+          />
+        </View>
+      )}
+
+      {/* Dispatch selection modal */}
+      <DispatchSelectionModal isVisible={showDispatchModal} onClose={() => setShowDispatchModal(false)} onConfirm={handleDispatchSelection} initialSelection={dispatchSelection} />
     </>
   );
 }

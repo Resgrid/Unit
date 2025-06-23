@@ -331,6 +331,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           extraProguardRules: '-keep class expo.modules.location.** { *; }',
+          extraMavenRepos: ['../../node_modules/@notifee/react-native/android/libs'],
         },
       },
     ],
