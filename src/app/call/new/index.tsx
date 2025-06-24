@@ -228,7 +228,11 @@ export default function NewCall() {
                     </Input>
                   )}
                 />
-                {errors.name && <FormControlError>{errors.name.message}</FormControlError>}
+                {errors.name && (
+                  <FormControlError>
+                    <Text className="text-red-500">{errors.name.message}</Text>
+                  </FormControlError>
+                )}
               </FormControl>
             </Card>
 
@@ -246,7 +250,11 @@ export default function NewCall() {
                     </Textarea>
                   )}
                 />
-                {errors.nature && <FormControlError>{errors.nature.message}</FormControlError>}
+                {errors.nature && (
+                  <FormControlError>
+                    <Text className="text-red-500">{errors.nature.message}</Text>
+                  </FormControlError>
+                )}
               </FormControl>
             </Card>
 
@@ -275,7 +283,11 @@ export default function NewCall() {
                     </Select>
                   )}
                 />
-                {errors.priority && <FormControlError>{errors.priority.message}</FormControlError>}
+                {errors.priority && (
+                  <FormControlError>
+                    <Text className="text-red-500">{errors.priority.message}</Text>
+                  </FormControlError>
+                )}
               </FormControl>
             </Card>
 
@@ -417,10 +429,10 @@ export default function NewCall() {
             </Card>
 
             <Box className="mb-6 flex-row space-x-4">
-              <Button className="flex-1" variant="outline" onPress={() => router.back()}>
+              <Button className="mr-10 flex-1" variant="outline" onPress={() => router.back()}>
                 <ButtonText>{t('common.cancel')}</ButtonText>
               </Button>
-              <Button className="flex-1" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
+              <Button className="ml-10 flex-1" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
                 <PlusIcon size={18} className="mr-2 text-white" />
                 <ButtonText>{t('calls.create')}</ButtonText>
               </Button>

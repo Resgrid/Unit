@@ -71,7 +71,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
       <Box className={`flex-row items-center justify-between p-4 ${colorScheme === 'dark' ? 'border-b border-neutral-800 bg-neutral-900' : 'border-b border-neutral-200 bg-white'}`}>
         <HStack className="items-center space-x-3">
           <UsersIcon size={24} className={colorScheme === 'dark' ? 'text-white' : 'text-neutral-900'} />
-          <Text className="text-xl font-bold">{t('calls.select_dispatch_recipients')}</Text>
+          <Text className="pl-4 text-xl font-bold">{t('calls.select_dispatch_recipients')}</Text>
         </HStack>
         <TouchableOpacity onPress={handleCancel}>
           <X size={24} className={colorScheme === 'dark' ? 'text-white' : 'text-neutral-900'} />
@@ -103,8 +103,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                   {selection.everyone && <CheckIcon size={16} className="text-white" />}
                 </Box>
                 <VStack className="flex-1">
-                  <Text className="text-lg font-semibold">{t('calls.everyone')}</Text>
-                  <Text className="text-sm text-neutral-500">{t('calls.dispatch_to_everyone')}</Text>
+                  <Text className="pl-4 text-lg font-semibold">{t('calls.everyone')}</Text>
+                  <Text className="pl-4 text-sm text-neutral-500">{t('calls.dispatch_to_everyone')}</Text>
                 </VStack>
               </HStack>
             </TouchableOpacity>
@@ -127,10 +127,10 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                         {selection.users.includes(user.UserId) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
-                        <Text className="font-medium">
+                        <Text className="pl-4 font-medium">
                           {user.FirstName} {user.LastName}
                         </Text>
-                        <Text className="text-sm text-neutral-500">{user.GroupName}</Text>
+                        <Text className="pl-4 text-sm text-neutral-500">{user.GroupName}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -156,8 +156,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                         {selection.groups.includes(group.GroupId) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
-                        <Text className="font-medium">{group.Name}</Text>
-                        <Text className="text-sm text-neutral-500">{group.GroupType}</Text>
+                        <Text className="pl-4 font-medium">{group.Name}</Text>
+                        <Text className="pl-4 text-sm text-neutral-500">{group.GroupType}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -183,7 +183,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                         {selection.roles.includes(role.UnitRoleId) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
-                        <Text className="font-medium">{role.Name}</Text>
+                        <Text className="pl-4 font-medium">{role.Name}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -209,8 +209,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                         {selection.units.includes(unit.UnitId) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
-                        <Text className="font-medium">{unit.Name}</Text>
-                        <Text className="text-sm text-neutral-500">{unit.GroupName}</Text>
+                        <Text className="pl-4 font-medium">{unit.Name}</Text>
+                        <Text className="pl-4 text-sm text-neutral-500">{unit.GroupName}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -233,11 +233,11 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
         <Text className="text-sm text-neutral-500">
           {getSelectionCount()} {t('calls.selected')}
         </Text>
-        <HStack className="space-x-3">
-          <Button variant="outline" onPress={handleCancel} className="flex-1">
+        <HStack className="space-x-3 pl-4">
+          <Button variant="outline" onPress={handleCancel} className="mr-10 flex-1">
             <ButtonText>{t('common.cancel')}</ButtonText>
           </Button>
-          <Button variant="solid" action="primary" onPress={handleConfirm} disabled={getSelectionCount() === 0} className="flex-1">
+          <Button variant="solid" action="primary" onPress={handleConfirm} disabled={getSelectionCount() === 0} className="ml-10 flex-1">
             <ButtonText>{t('common.confirm')}</ButtonText>
           </Button>
         </HStack>
