@@ -54,6 +54,19 @@ export interface CreateCallRequest {
 }
 
 export const createCall = async (callData: CreateCallRequest) => {
+  let dispatchList = '';
+
+  if (callData.dispatchEveryone) {
+    dispatchList = 'Everyone';
+  } else {
+    if (callData.dispatchUsers) {
+      dispatchList = callData.dispatchUsers.join(',');
+    }
+    if (callData.dispatchGroups) {
+      dispatchList = callData.dispatchGroups.join(',');
+    }
+  }
+
   const data = {
     Name: callData.name,
     Nature: callData.nature,

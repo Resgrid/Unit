@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 import * as z from 'zod';
 
+import { createCall } from '@/api/calls/calls';
 import { DispatchSelectionModal } from '@/components/calls/dispatch-selection-modal';
 import { Loading } from '@/components/common/loading';
 import FullScreenLocationPicker from '@/components/maps/full-screen-location-picker';
@@ -117,6 +118,21 @@ export default function NewCall() {
 
       // TODO: Implement the API call to create a new call
       console.log('Creating new call with data:', data);
+
+      const priority = callPriorities.find((p) => p.Name === data.priority);
+
+      const response = await createCall({
+        name: data.name,
+        nature: data.nature,
+        priority: priority?.Id || 0,
+        note: data.note,
+        address: data.address,
+        dispatchUsers: data.dispatchSelection?.users,
+        dispatchGroups: data.dispatchSelection?.groups,
+        dispatchRoles: data.dispatchSelection?.roles,
+        dispatchUnits: data.dispatchSelection?.units,
+        dispatchEveryone: data.dispatchSelection?.everyone,
+      });
 
       // Show success toast
       toast.show({
