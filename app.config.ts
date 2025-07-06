@@ -40,6 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
     googleServicesFile: 'google-services.json',
+    permissions: ['WAKE_LOCK', 'RECORD_AUDIO', 'FOREGROUND_SERVICE_MICROPHONE'],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -330,6 +331,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           extraProguardRules: '-keep class expo.modules.location.** { *; }',
+          extraMavenRepos: ['../../node_modules/@notifee/react-native/android/libs'],
         },
       },
     ],
@@ -353,9 +355,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         url: 'https://sentry.resgrid.net/',
       },
     ],
+    [
+      'react-native-ble-plx',
+      {
+        isBackgroundEnabled: true,
+        modes: ['peripheral', 'central'],
+        bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices',
+      },
+    ],
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
     './customGradle.plugin.js',
+    './customManifest.plugin.js',
   ],
   extra: {
     ...ClientEnv,

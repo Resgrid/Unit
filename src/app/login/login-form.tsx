@@ -37,7 +37,7 @@ export type LoginFormProps = {
   error?: string;
 };
 
-export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined }: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
   const { t } = useTranslation();
   const {

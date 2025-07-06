@@ -4,14 +4,12 @@ import { createCachedApiEndpoint } from '../common/cached-client';
 
 const getConfigApi = createCachedApiEndpoint('/Config/GetConfig', {
   ttl: 60 * 1000 * 1440, // Cache for 1 days
-  enabled: true,
+  enabled: false,
 });
 
 export const getConfig = async (key: string) => {
   const response = await getConfigApi.get<GetConfigResult>({
-    params: {
-      key: encodeURIComponent(key),
-    },
+    key: encodeURIComponent(key),
   });
   return response.data;
 };

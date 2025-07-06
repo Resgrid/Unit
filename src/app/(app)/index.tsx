@@ -139,7 +139,7 @@ export default function Map() {
           <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation followUserMode={Mapbox.UserTrackingMode.Follow} />
 
           {location.latitude && location.longitude && (
-            <Mapbox.MarkerView id="userLocation" key="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }} allowOverlap={true}>
+            <Mapbox.PointAnnotation id="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }}>
               <Animated.View
                 style={[
                   styles.markerContainer,
@@ -148,19 +148,22 @@ export default function Map() {
                   },
                 ]}
               >
+                <View style={styles.markerOuterRing} />
                 <View style={styles.markerInnerContainer}>
                   <View style={styles.markerDot} />
-                  <View
-                    style={[
-                      styles.directionIndicator,
-                      {
-                        transform: [{ rotate: `${location.heading || 0}deg` }],
-                      },
-                    ]}
-                  />
+                  {location.heading !== null && location.heading !== undefined && (
+                    <View
+                      style={[
+                        styles.directionIndicator,
+                        {
+                          transform: [{ rotate: `${location.heading}deg` }],
+                        },
+                      ]}
+                    />
+                  )}
                 </View>
               </Animated.View>
-            </Mapbox.MarkerView>
+            </Mapbox.PointAnnotation>
           )}
           <MapPins pins={mapPins} />
         </Mapbox.MapView>
@@ -179,25 +182,42 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 50,
-    height: 50,
-    zIndex: 1,
+    width: 60,
+    height: 60,
+    position: 'relative',
+  },
+  markerOuterRing: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderWidth: 2,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
   },
   markerInnerContainer: {
-    width: 40,
-    height: 40,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(52, 152, 219, 0.2)',
-    borderRadius: 20,
+    backgroundColor: '#3b82f6',
+    borderRadius: 12,
+    borderWidth: 3,
+    borderColor: '#ffffff',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   markerDot: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#3498db',
-    borderWidth: 3,
-    borderColor: '#fff',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
   },
   directionIndicator: {
     position: 'absolute',
@@ -205,12 +225,12 @@ const styles = StyleSheet.create({
     height: 0,
     backgroundColor: 'transparent',
     borderStyle: 'solid',
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderBottomWidth: 20,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 24,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#3498db',
-    top: -4,
+    borderBottomColor: '#3b82f6',
+    top: -36,
   },
 });

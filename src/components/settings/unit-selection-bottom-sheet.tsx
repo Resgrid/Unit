@@ -94,8 +94,9 @@ export function UnitSelectionBottomSheet({ isOpen, onClose }: UnitSelectionBotto
                     key={unit.UnitId}
                     onPress={() => handleUnitSelection(unit)}
                     disabled={isLoading}
-                    className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${activeUnit?.UnitId === unit.UnitId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                      }`}
+                    className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
+                      activeUnit?.UnitId === unit.UnitId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                    }`}
                   >
                     <HStack space="md" className="items-center justify-between">
                       <VStack>

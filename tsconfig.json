@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "allowSyntheticDefaultImports": true,
-    "types": [],
+    "types": ["jest"],
     "experimentalDecorators": true,
     "jsx": "react-native",
     "module": "es2015",

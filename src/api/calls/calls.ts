@@ -1,17 +1,19 @@
 import { type ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
 import { type CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult';
 import { type CallResult } from '@/models/v4/calls/callResult';
+import { type SaveCallResult } from '@/models/v4/calls/saveCallResult';
 
 import { createCachedApiEndpoint } from '../common/cached-client';
 import { createApiEndpoint } from '../common/client';
 
 const callsApi = createCachedApiEndpoint('/Calls/GetActiveCalls', {
   ttl: 60 * 1000, // Cache for 60 seconds
-  enabled: true,
+  enabled: false,
 });
 
 const getCallApi = createApiEndpoint('/Calls/GetCall');
 const getCallExtraDataApi = createApiEndpoint('/Calls/GetCallExtraData');
+const createCallApi = createApiEndpoint('/Calls/SaveCall');
 
 export const getCalls = async () => {
   const response = await callsApi.get<ActiveCallsResult>();
@@ -29,5 +31,66 @@ export const getCall = async (callId: string) => {
   const response = await getCallApi.get<CallResult>({
     callId: encodeURIComponent(callId),
   });
+  return response.data;
+};
+
+export interface CreateCallRequest {
+  name: string;
+  nature: string;
+  note?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  priority: number;
+  type?: string;
+  contactName?: string;
+  contactInfo?: string;
+  what3words?: string;
+  dispatchUsers?: string[];
+  dispatchGroups?: string[];
+  dispatchRoles?: string[];
+  dispatchUnits?: string[];
+  dispatchEveryone?: boolean;
+}
+
+export const createCall = async (callData: CreateCallRequest) => {
+  let dispatchList = '';
+
+  if (callData.dispatchEveryone) {
+    dispatchList = '0';
+  } else {
+    const dispatchEntries: string[] = [];
+
+    if (callData.dispatchUsers) {
+      dispatchEntries.push(...callData.dispatchUsers.map((user) => `U:${user}`));
+    }
+    if (callData.dispatchGroups) {
+      dispatchEntries.push(...callData.dispatchGroups.map((group) => `G:${group}`));
+    }
+    if (callData.dispatchRoles) {
+      dispatchEntries.push(...callData.dispatchRoles.map((role) => `R:${role}`));
+    }
+    if (callData.dispatchUnits) {
+      dispatchEntries.push(...callData.dispatchUnits.map((unit) => `U:${unit}`));
+    }
+
+    dispatchList = dispatchEntries.join('|');
+  }
+
+  const data = {
+    Name: callData.name,
+    Nature: callData.nature,
+    Note: callData.note || '',
+    Address: callData.address || '',
+    Geolocation: `${callData.latitude?.toString() || ''},${callData.longitude?.toString() || ''}`,
+    Priority: callData.priority,
+    Type: callData.type || '',
+    ContactName: callData.contactName || '',
+    ContactInfo: callData.contactInfo || '',
+    What3Words: callData.what3words || '',
+    DispatchList: dispatchList,
+  };
+
+  const response = await createCallApi.post<SaveCallResult>(data);
   return response.data;
 };

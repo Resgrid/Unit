@@ -40,7 +40,7 @@ Best Practices:
 - Utilize Expo's EAS Build and Updates for continuous deployment and Over-The-Air (OTA) updates.
 - Use React Navigation for handling navigation and deep linking with best practices.
 - Create and use Jest to test to validate all generated components
-- Write unit tests for all generated logic
+- Generate tests for all components, services and logic generated. Ensure tests run without errors and fix any issues.
 
 Additional Rules:
 

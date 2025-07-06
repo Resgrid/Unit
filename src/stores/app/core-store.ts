@@ -35,6 +35,8 @@ interface CoreState {
   config: GetConfigResultData | null;
 
   isLoading: boolean;
+  isInitialized: boolean;
+  isInitializing: boolean;
   error: string | null;
   init: () => Promise<void>;
   setActiveUnit: (unitId: string) => void;
@@ -55,37 +57,59 @@ export const useCoreStore = create<CoreState>()(
       activePriority: null,
       config: null,
       isLoading: false,
+      isInitialized: false,
+      isInitializing: false,
       error: null,
       activeStatuses: null,
       init: async () => {
-        set({ isLoading: true, error: null });
+        const state = get();
+
+        // Prevent multiple simultaneous initializations
+        if (state.isInitializing) {
+          logger.info({
+            message: 'Core store initialization already in progress, skipping',
+          });
+          return;
+        }
+
+        // Don't re-initialize if already initialized
+        if (state.isInitialized) {
+          logger.info({
+            message: 'Core store already initialized, skipping',
+          });
+          return;
+        }
+
+        set({ isLoading: true, isInitializing: true, error: null });
+
         try {
           const activeUnitId = getActiveUnitId();
           const activeCallId = getActiveCallId();
 
+          // Initialize in sequence to prevent race conditions
           if (activeUnitId) {
-            //const unitsStore = useUnitsStore.getState();
-            //await unitsStore.fetchUnits();
-            //const activeUnit = unitsStore.units.find((unit) => unit.UnitId === activeUnitId);
-            //set({ activeUnit: activeUnit, isLoading: false });
             await get().setActiveUnit(activeUnitId);
           }
 
           if (activeCallId) {
-            //const callStore = useCallsStore.getState();
-            //await callStore.fetchCalls();
-            //await callStore.fetchCallPriorities();
-            //const activeCall = callStore.calls.find((call) => call.CallId === activeCallId);
-            //const activePriority = callStore.callPriorities.find((priority) => priority.Id === activeCall?.Priority);
-            //set({
-            //  activeCall: activeCall,
-            //  activePriority: activePriority,
-            //  isLoading: false,
-            //});
             await get().setActiveCall(activeCallId);
           }
+
+          set({
+            isInitialized: true,
+            isLoading: false,
+            isInitializing: false,
+          });
+
+          logger.info({
+            message: 'Core store initialization completed successfully',
+          });
         } catch (error) {
-          set({ error: 'Failed to init core app data', isLoading: false });
+          set({
+            error: 'Failed to init core app data',
+            isLoading: false,
+            isInitializing: false,
+          });
           logger.error({
             message: `Failed to init core app data: ${JSON.stringify(error)}`,
             context: { error },
