@@ -27,9 +27,7 @@ export const getUnits = async () => {
 export const getUnitsInfos = async (filter: string) => {
   if (filter) {
     const response = await unitsInfosApi.get<UnitsInfoResult>({
-      params: {
-        activeFilter: encodeURIComponent(filter),
-      },
+      activeFilter: encodeURIComponent(filter),
     });
     return response.data;
   }

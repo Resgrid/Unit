@@ -117,20 +117,18 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                 {t('calls.users')} ({filteredData.users.length})
               </Text>
               {filteredData.users.map((user) => (
-                <Card key={user.UserId} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-                  <TouchableOpacity onPress={() => toggleUser(user.UserId)}>
+                <Card key={user.Id} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                  <TouchableOpacity onPress={() => toggleUser(user.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${selection.users.includes(user.UserId) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                          }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${
+                          selection.users.includes(user.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                        }`}
                       >
-                        {selection.users.includes(user.UserId) && <CheckIcon size={12} className="text-white" />}
+                        {selection.users.includes(user.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
-                        <Text className="pl-4 font-medium">
-                          {user.FirstName} {user.LastName}
-                        </Text>
-                        <Text className="pl-4 text-sm text-neutral-500">{user.GroupName}</Text>
+                        <Text className="pl-4 font-medium">{user.Name}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -146,18 +144,18 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                 {t('calls.groups')} ({filteredData.groups.length})
               </Text>
               {filteredData.groups.map((group) => (
-                <Card key={group.GroupId} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-                  <TouchableOpacity onPress={() => toggleGroup(group.GroupId)}>
+                <Card key={group.Id} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                  <TouchableOpacity onPress={() => toggleGroup(group.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${selection.groups.includes(group.GroupId) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                          }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${
+                          selection.groups.includes(group.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                        }`}
                       >
-                        {selection.groups.includes(group.GroupId) && <CheckIcon size={12} className="text-white" />}
+                        {selection.groups.includes(group.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
                         <Text className="pl-4 font-medium">{group.Name}</Text>
-                        <Text className="pl-4 text-sm text-neutral-500">{group.GroupType}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>
@@ -173,14 +171,15 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                 {t('calls.roles')} ({filteredData.roles.length})
               </Text>
               {filteredData.roles.map((role) => (
-                <Card key={role.UnitRoleId} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-                  <TouchableOpacity onPress={() => toggleRole(role.UnitRoleId)}>
+                <Card key={role.Id} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                  <TouchableOpacity onPress={() => toggleRole(role.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${selection.roles.includes(role.UnitRoleId) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                          }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${
+                          selection.roles.includes(role.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                        }`}
                       >
-                        {selection.roles.includes(role.UnitRoleId) && <CheckIcon size={12} className="text-white" />}
+                        {selection.roles.includes(role.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
                         <Text className="pl-4 font-medium">{role.Name}</Text>
@@ -199,18 +198,18 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                 {t('calls.units')} ({filteredData.units.length})
               </Text>
               {filteredData.units.map((unit) => (
-                <Card key={unit.UnitId} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-                  <TouchableOpacity onPress={() => toggleUnit(unit.UnitId)}>
+                <Card key={unit.Id} className={`mb-2 rounded-lg border p-3 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                  <TouchableOpacity onPress={() => toggleUnit(unit.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${selection.units.includes(unit.UnitId) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                          }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${
+                          selection.units.includes(unit.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                        }`}
                       >
-                        {selection.units.includes(unit.UnitId) && <CheckIcon size={12} className="text-white" />}
+                        {selection.units.includes(unit.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
                       <VStack className="flex-1">
                         <Text className="pl-4 font-medium">{unit.Name}</Text>
-                        <Text className="pl-4 text-sm text-neutral-500">{unit.GroupName}</Text>
                       </VStack>
                     </HStack>
                   </TouchableOpacity>

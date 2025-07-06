@@ -394,7 +394,7 @@ describe('useDispatchStore', () => {
 
     // Should only return John Doe
     expect(filteredData.users).toHaveLength(1);
-    expect(filteredData.users[0].FirstName).toBe('John');
+    expect(filteredData.users[0].Name).toBe('John Doe');
 
     // Other arrays should be empty since no matches for "john"
     expect(filteredData.groups).toHaveLength(0);

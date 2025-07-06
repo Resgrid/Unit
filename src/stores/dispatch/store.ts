@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 
 import { getAllGroups } from '@/api/groups/groups';
+import { getRecipients } from '@/api/messaging/messages';
 import { getAllPersonnelInfos } from '@/api/personnel/personnel';
 import { getAllUnitRolesAndAssignmentsForDepartment } from '@/api/units/unitRoles';
 import { getUnits } from '@/api/units/units';
 import { type GroupResultData } from '@/models/v4/groups/groupsResultData';
+import { type RecipientsResultData } from '@/models/v4/messages/recipientsResultData';
 import { type PersonnelInfoResultData } from '@/models/v4/personnel/personnelInfoResultData';
 import { type UnitRoleResultData } from '@/models/v4/unitRoles/unitRoleResultData';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
@@ -18,10 +20,10 @@ export interface DispatchSelection {
 }
 
 export interface DispatchData {
-  users: PersonnelInfoResultData[];
-  groups: GroupResultData[];
-  roles: UnitRoleResultData[];
-  units: UnitResultData[];
+  users: RecipientsResultData[];
+  groups: RecipientsResultData[];
+  roles: RecipientsResultData[];
+  units: RecipientsResultData[];
 }
 
 interface DispatchState {
@@ -65,14 +67,33 @@ export const useDispatchStore = create<DispatchState>((set, get) => ({
   fetchDispatchData: async () => {
     set({ isLoading: true, error: null });
     try {
-      const [usersResponse, groupsResponse, rolesResponse, unitsResponse] = await Promise.all([getAllPersonnelInfos(''), getAllGroups(), getAllUnitRolesAndAssignmentsForDepartment(), getUnits()]);
+      const recipients = await getRecipients(false, true);
+
+      // Initialize arrays for categorized recipients
+      const categorizedUsers: RecipientsResultData[] = [];
+      const categorizedGroups: RecipientsResultData[] = [];
+      const categorizedRoles: RecipientsResultData[] = [];
+      const categorizedUnits: RecipientsResultData[] = [];
+
+      // Categorize recipients based on Type field
+      recipients.Data.forEach((recipient) => {
+        if (recipient.Type === 'Personnel') {
+          categorizedUsers.push(recipient);
+        } else if (recipient.Type === 'Groups') {
+          categorizedGroups.push(recipient);
+        } else if (recipient.Type === 'Roles') {
+          categorizedRoles.push(recipient);
+        } else if (recipient.Type === 'Unit') {
+          categorizedUnits.push(recipient);
+        }
+      });
 
       set({
         data: {
-          users: usersResponse.Data,
-          groups: groupsResponse.Data,
-          roles: rolesResponse.Data,
-          units: unitsResponse.Data,
+          users: categorizedUsers,
+          groups: categorizedGroups,
+          roles: categorizedRoles,
+          units: categorizedUnits,
         },
         isLoading: false,
       });
@@ -180,7 +201,7 @@ export const useDispatchStore = create<DispatchState>((set, get) => ({
 
     const query = searchQuery.toLowerCase();
     return {
-      users: data.users.filter((user) => `${user.FirstName} ${user.LastName}`.toLowerCase().includes(query) || user.EmailAddress.toLowerCase().includes(query)),
+      users: data.users.filter((user) => user.Name.toLowerCase().includes(query)),
       groups: data.groups.filter((group) => group.Name.toLowerCase().includes(query)),
       roles: data.roles.filter((role) => role.Name.toLowerCase().includes(query)),
       units: data.units.filter((unit) => unit.Name.toLowerCase().includes(query)),

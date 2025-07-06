@@ -5,13 +5,12 @@ import '../lib/i18n';
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { registerGlobals } from '@livekit/react-native';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import { isRunningInExpoGo } from 'expo';
 import * as Notifications from 'expo-notifications';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { PostHogProvider } from 'posthog-react-native';
 import React, { useEffect } from 'react';
 import { LogBox, useColorScheme } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
@@ -20,6 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
+import { PostHogProviderWrapper } from '@/components/common/posthog-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
@@ -31,6 +31,7 @@ import { loadBackgroundGeolocationState } from '@/lib/storage/background-geoloca
 import { uuidv4 } from '@/lib/utils';
 
 export { ErrorBoundary } from 'expo-router';
+export const navigationRef = createNavigationContainerRef();
 
 export const unstable_settings = {
   initialRouteName: '(app)',
@@ -43,8 +44,8 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
 
 Sentry.init({
   dsn: Env.SENTRY_DSN,
-  debug: true, // If `true`, Sentry will try to print out useful debugging information if something goes wrong with sending the event. Set it to `false` in production
-  tracesSampleRate: 1.0, // Set tracesSampleRate to 1.0 to capture 100% of transactions for tracing. Adjusting this value in production.
+  debug: __DEV__, // Only debug in development, not production
+  tracesSampleRate: __DEV__ ? 1.0 : 0.1, // 100% in dev, 10% in production to reduce performance impact
   integrations: [
     // Pass integration
     navigationIntegration,
@@ -159,10 +160,10 @@ function Providers({ children }: { children: React.ReactNode }) {
     <SafeAreaProvider>
       <GestureHandlerRootView>
         <KeyboardProvider>
-          {Env.POSTHOG_API_KEY ? (
-            <PostHogProvider apiKey={Env.POSTHOG_API_KEY} options={{ host: Env.POSTHOG_HOST }}>
+          {Env.POSTHOG_API_KEY && Env.POSTHOG_HOST && !__DEV__ ? (
+            <PostHogProviderWrapper apiKey={Env.POSTHOG_API_KEY} host={Env.POSTHOG_HOST} navigationRef={navigationRef}>
               {renderContent()}
-            </PostHogProvider>
+            </PostHogProviderWrapper>
           ) : (
             renderContent()
           )}

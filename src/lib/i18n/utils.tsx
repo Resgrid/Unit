@@ -2,7 +2,7 @@ import type TranslateOptions from 'i18next';
 import i18n from 'i18next';
 import memoize from 'lodash.memoize';
 import { useCallback } from 'react';
-import { I18nManager, NativeModules, Platform } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';
 import RNRestart from 'react-native-restart';
 
@@ -24,17 +24,38 @@ export const translate = memoize(
 );
 
 export const changeLanguage = (lang: Language) => {
-  i18n.changeLanguage(lang);
-  if (lang === 'ar') {
-    I18nManager.forceRTL(true);
-  } else {
-    I18nManager.forceRTL(false);
+  const currentLanguage = i18n.language;
+  const currentRTL = I18nManager.isRTL;
+
+  // Only proceed if language is actually changing
+  if (currentLanguage === lang) {
+    return;
   }
-  if (Platform.OS === 'ios' || Platform.OS === 'android') {
-    if (__DEV__) NativeModules.DevSettings.reload();
-    else RNRestart.restart();
+
+  i18n.changeLanguage(lang);
+
+  const newRTL = lang === 'ar';
+
+  // Only restart if RTL direction is changing and we're not in web
+  if (currentRTL !== newRTL && Platform.OS !== 'web') {
+    if (newRTL) {
+      I18nManager.forceRTL(true);
+    } else {
+      I18nManager.forceRTL(false);
+    }
+
+    // Only restart the app if RTL direction actually changed
+    // This prevents unnecessary reloads when switching between LTR languages
+    if (!__DEV__) {
+      RNRestart.restart();
+    }
+    // In development, we'll let the developer manually reload if needed
+    // This prevents random reloads during development
   } else if (Platform.OS === 'web') {
-    window.location.reload();
+    // For web, we still need to reload for RTL changes
+    if (currentRTL !== newRTL) {
+      window.location.reload();
+    }
   }
 };
 

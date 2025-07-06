@@ -24,9 +24,7 @@ export const getPersonnelInfo = async (userId: string) => {
 export const getAllPersonnelInfos = async (filter: string) => {
   if (filter) {
     const response = await getAllPersonnelInfosApi.get<GetAllPersonnelInfosResult>({
-      params: {
-        activeFilter: encodeURIComponent(filter),
-      },
+      activeFilter: encodeURIComponent(filter),
     });
     return response.data;
   }

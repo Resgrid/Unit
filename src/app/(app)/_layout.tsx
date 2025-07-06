@@ -15,7 +15,9 @@ import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Drawer, DrawerBackdrop, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@/components/ui/drawer';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
+import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useAuthStore } from '@/lib/auth';
+import { logger } from '@/lib/logging';
 import { useIsFirstTime } from '@/lib/storage';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
@@ -33,34 +35,143 @@ export default function TabLayout() {
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const hideSplash = useCallback(async () => {
-    await SplashScreen.hideAsync();
-  }, []);
+  const { isActive, appState } = useAppLifecycle();
+
+  // Refs to track initialization state
+  const hasInitialized = useRef(false);
+  const isInitializing = useRef(false);
+  const hasHiddenSplash = useRef(false);
+  const lastSignedInStatus = useRef<string | null>(null);
   const parentRef = useRef(null);
+
+  const hideSplash = useCallback(async () => {
+    if (hasHiddenSplash.current) return;
+
+    try {
+      await SplashScreen.hideAsync();
+      hasHiddenSplash.current = true;
+      logger.info({
+        message: 'Splash screen hidden',
+      });
+    } catch (error) {
+      logger.error({
+        message: 'Failed to hide splash screen',
+        context: { error },
+      });
+    }
+  }, []);
 
   // Initialize push notifications
   usePushNotifications();
 
-  useEffect(() => {
-    if (status !== 'idle') {
-      setTimeout(() => {
-        hideSplash();
-      }, 1000);
+  const initializeApp = useCallback(async () => {
+    if (isInitializing.current) {
+      logger.info({
+        message: 'App initialization already in progress, skipping',
+      });
+      return;
     }
 
-    if (status === 'signedIn') {
-      useCoreStore.getState().init();
-      useRolesStore.getState().init();
-      useCallsStore.getState().init();
-      securityStore.getState().getRights();
-      useCoreStore.getState().fetchConfig();
+    if (status !== 'signedIn') {
+      logger.info({
+        message: 'User not signed in, skipping initialization',
+        context: { status },
+      });
+      return;
+    }
+
+    isInitializing.current = true;
+    logger.info({
+      message: 'Starting app initialization',
+      context: {
+        hasInitialized: hasInitialized.current,
+      },
+    });
+
+    try {
+      // Initialize core app data
+      await useCoreStore.getState().init();
+      await useRolesStore.getState().init();
+      await useCallsStore.getState().init();
+      await securityStore.getState().getRights();
+      await useCoreStore.getState().fetchConfig();
 
       // Initialize Bluetooth service
-      bluetoothAudioService.initialize().catch((error) => {
-        console.warn('Failed to initialize Bluetooth service:', error);
+      await bluetoothAudioService.initialize();
+
+      hasInitialized.current = true;
+      logger.info({
+        message: 'App initialization completed successfully',
+      });
+    } catch (error) {
+      logger.error({
+        message: 'Failed to initialize app',
+        context: { error },
+      });
+      // Reset initialization state on error so it can be retried
+      hasInitialized.current = false;
+    } finally {
+      isInitializing.current = false;
+    }
+  }, [status]);
+
+  const refreshDataFromBackground = useCallback(async () => {
+    if (status !== 'signedIn' || !hasInitialized.current) return;
+
+    logger.info({
+      message: 'App resumed from background, refreshing data',
+    });
+
+    try {
+      await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles()]);
+    } catch (error) {
+      logger.error({
+        message: 'Failed to refresh data on app resume',
+        context: { error },
       });
     }
-  }, [hideSplash, status]);
+  }, [status]);
+
+  // Handle splash screen hiding
+  useEffect(() => {
+    if (status !== 'idle' && !hasHiddenSplash.current) {
+      const timer = setTimeout(() => {
+        hideSplash();
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [status, hideSplash]);
+
+  // Handle app initialization - simplified logic
+  useEffect(() => {
+    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && lastSignedInStatus.current !== 'signedIn';
+
+    if (shouldInitialize) {
+      logger.info({
+        message: 'Triggering app initialization',
+        context: {
+          statusChanged: lastSignedInStatus.current !== status,
+        },
+      });
+      initializeApp();
+    }
+
+    // Update last known status
+    lastSignedInStatus.current = status;
+  }, [status, initializeApp]);
+
+  // Handle app resuming from background - separate from initialization
+  useEffect(() => {
+    // Only trigger on state change, not on initial render
+    if (isActive && appState === 'active' && hasInitialized.current) {
+      const timer = setTimeout(() => {
+        refreshDataFromBackground();
+      }, 500); // Small delay to prevent multiple rapid calls
+
+      return () => clearTimeout(timer);
+    }
+  }, [isActive, appState, refreshDataFromBackground]);
 
   // Force drawer open in landscape
   useEffect(() => {

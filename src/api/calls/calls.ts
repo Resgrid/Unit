@@ -8,12 +8,12 @@ import { createApiEndpoint } from '../common/client';
 
 const callsApi = createCachedApiEndpoint('/Calls/GetActiveCalls', {
   ttl: 60 * 1000, // Cache for 60 seconds
-  enabled: true,
+  enabled: false,
 });
 
 const getCallApi = createApiEndpoint('/Calls/GetCall');
 const getCallExtraDataApi = createApiEndpoint('/Calls/GetCallExtraData');
-const createCallApi = createApiEndpoint('/Calls/CreateCall');
+const createCallApi = createApiEndpoint('/Calls/SaveCall');
 
 export const getCalls = async () => {
   const response = await callsApi.get<ActiveCallsResult>();
@@ -57,14 +57,24 @@ export const createCall = async (callData: CreateCallRequest) => {
   let dispatchList = '';
 
   if (callData.dispatchEveryone) {
-    dispatchList = 'Everyone';
+    dispatchList = '0';
   } else {
+    const dispatchEntries: string[] = [];
+
     if (callData.dispatchUsers) {
-      dispatchList = callData.dispatchUsers.join(',');
+      dispatchEntries.push(...callData.dispatchUsers.map((user) => `U:${user}`));
     }
     if (callData.dispatchGroups) {
-      dispatchList = callData.dispatchGroups.join(',');
+      dispatchEntries.push(...callData.dispatchGroups.map((group) => `G:${group}`));
     }
+    if (callData.dispatchRoles) {
+      dispatchEntries.push(...callData.dispatchRoles.map((role) => `R:${role}`));
+    }
+    if (callData.dispatchUnits) {
+      dispatchEntries.push(...callData.dispatchUnits.map((unit) => `U:${unit}`));
+    }
+
+    dispatchList = dispatchEntries.join('|');
   }
 
   const data = {
@@ -72,18 +82,13 @@ export const createCall = async (callData: CreateCallRequest) => {
     Nature: callData.nature,
     Note: callData.note || '',
     Address: callData.address || '',
-    Latitude: callData.latitude?.toString() || '',
-    Longitude: callData.longitude?.toString() || '',
+    Geolocation: `${callData.latitude?.toString() || ''},${callData.longitude?.toString() || ''}`,
     Priority: callData.priority,
     Type: callData.type || '',
     ContactName: callData.contactName || '',
     ContactInfo: callData.contactInfo || '',
     What3Words: callData.what3words || '',
-    DispatchUsers: callData.dispatchUsers || [],
-    DispatchGroups: callData.dispatchGroups || [],
-    DispatchRoles: callData.dispatchRoles || [],
-    DispatchUnits: callData.dispatchUnits || [],
-    DispatchEveryone: callData.dispatchEveryone || false,
+    DispatchList: dispatchList,
   };
 
   const response = await createCallApi.post<SaveCallResult>(data);

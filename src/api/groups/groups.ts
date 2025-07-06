@@ -18,9 +18,7 @@ export const getAllGroups = async () => {
 
 export const getGroup = async (groupId: string) => {
   const response = await getGroupsApi.get<GroupResult>({
-    params: {
-      groupId: encodeURIComponent(groupId),
-    },
+    groupId: encodeURIComponent(groupId),
   });
   return response.data;
 };
