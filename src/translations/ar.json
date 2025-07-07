@@ -181,14 +181,21 @@
     "select_priority": "اختر الأولوية",
     "select_priority_placeholder": "اختر أولوية المكالمة",
     "select_recipients": "اختيار المستقبلين",
+    "select_type": "اختر النوع",
     "selected": "مختار",
     "title": "المكالمات",
+    "type": "النوع",
     "units": "الوحدات",
     "users": "المستخدمين",
     "viewNotes": "ملاحظات",
     "view_details": "عرض التفاصيل",
     "what3words": "what3words",
-    "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)"
+    "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)",
+    "what3words_required": "يرجى إدخال عنوان what3words للبحث",
+    "what3words_invalid_format": "تنسيق what3words غير صحيح. استخدم التنسيق: كلمة.كلمة.كلمة",
+    "what3words_found": "تم العثور على عنوان what3words وتم تحديث الموقع",
+    "what3words_not_found": "لم يتم العثور على عنوان what3words، جرب عنوان آخر",
+    "what3words_geocoding_error": "فشل في البحث عن عنوان what3words، يرجى المحاولة مرة أخرى"
   },
   "common": {
     "add": "إضافة",

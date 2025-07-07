@@ -46,6 +46,7 @@ export interface CreateCallRequest {
   contactName?: string;
   contactInfo?: string;
   what3words?: string;
+  plusCode?: string;
   dispatchUsers?: string[];
   dispatchGroups?: string[];
   dispatchRoles?: string[];
@@ -88,6 +89,7 @@ export const createCall = async (callData: CreateCallRequest) => {
     ContactName: callData.contactName || '',
     ContactInfo: callData.contactInfo || '',
     What3Words: callData.what3words || '',
+    PlusCode: callData.plusCode || '',
     DispatchList: dispatchList,
   };
 

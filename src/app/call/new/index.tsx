@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { render } from '@testing-library/react-native';
 import axios from 'axios';
 import * as Location from 'expo-location';
 import { router, Stack } from 'expo-router';
@@ -41,7 +42,7 @@ const formSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   priority: z.string().min(1, { message: 'Priority is required' }),
-  type: z.string().optional(),
+  type: z.string().min(1, { message: 'Type is required' }),
   contactName: z.string().optional(),
   contactInfo: z.string().optional(),
   dispatchSelection: z
@@ -74,10 +75,33 @@ interface GeocodingResponse {
   status: string;
 }
 
+// what3words API response types
+interface What3WordsResponse {
+  country: string;
+  square: {
+    southwest: {
+      lng: number;
+      lat: number;
+    };
+    northeast: {
+      lng: number;
+      lat: number;
+    };
+  };
+  nearestPlace: string;
+  coordinates: {
+    lng: number;
+    lat: number;
+  };
+  words: string;
+  language: string;
+  map: string;
+}
+
 export default function NewCall() {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
-  const { callPriorities, isLoading, error, fetchCallPriorities } = useCallsStore();
+  const { callPriorities, callTypes, isLoading, error, fetchCallPriorities, fetchCallTypes } = useCallsStore();
   const { config } = useCoreStore();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
@@ -86,6 +110,7 @@ export default function NewCall() {
   const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
   const [isGeocodingPlusCode, setIsGeocodingPlusCode] = useState(false);
   const [isGeocodingCoordinates, setIsGeocodingCoordinates] = useState(false);
+  const [isGeocodingWhat3Words, setIsGeocodingWhat3Words] = useState(false);
   const [addressResults, setAddressResults] = useState<GeocodingResult[]>([]);
   const [dispatchSelection, setDispatchSelection] = useState<DispatchSelection>({
     everyone: false,
@@ -133,7 +158,8 @@ export default function NewCall() {
 
   useEffect(() => {
     fetchCallPriorities();
-  }, [fetchCallPriorities]);
+    fetchCallTypes();
+  }, [fetchCallPriorities, fetchCallTypes]);
 
   const onSubmit = async (data: FormValues) => {
     try {
@@ -147,13 +173,19 @@ export default function NewCall() {
       console.log('Creating new call with data:', data);
 
       const priority = callPriorities.find((p) => p.Name === data.priority);
+      const type = callTypes.find((t) => t.Name === data.type);
 
       const response = await createCall({
         name: data.name,
         nature: data.nature,
         priority: priority?.Id || 0,
+        type: type?.Id || '',
         note: data.note,
         address: data.address,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        what3words: data.what3words,
+        plusCode: data.plusCode,
         dispatchUsers: data.dispatchSelection?.users,
         dispatchGroups: data.dispatchSelection?.groups,
         dispatchRoles: data.dispatchSelection?.roles,
@@ -357,6 +389,115 @@ export default function NewCall() {
         );
       },
     });
+  };
+
+  /**
+   * Handles what3words search using what3words API
+   *
+   * Features:
+   * - Validates empty/null what3words input and shows error toast
+   * - Uses what3words API key from CoreStore configuration
+   * - Handles API errors gracefully with user-friendly messages
+   * - Shows loading state during API call
+   * - Updates coordinates and address fields in form
+   * - Validates what3words format (3 words separated by dots)
+   *
+   * @param what3words - The what3words string to geocode (e.g., "filled.count.soap")
+   */
+  const handleWhat3WordsSearch = async (what3words: string) => {
+    if (!what3words.trim()) {
+      toast.show({
+        placement: 'top',
+        render: () => {
+          return (
+            <Box className="rounded-lg bg-orange-500 p-4 shadow-lg">
+              <Text className="text-white">{t('calls.what3words_required')}</Text>
+            </Box>
+          );
+        },
+      });
+      return;
+    }
+
+    // Validate what3words format - should be 3 words separated by dots
+    const w3wRegex = /^[a-z]+\.[a-z]+\.[a-z]+$/;
+    if (!w3wRegex.test(what3words.trim().toLowerCase())) {
+      toast.show({
+        placement: 'top',
+        render: () => {
+          return (
+            <Box className="rounded-lg bg-orange-500 p-4 shadow-lg">
+              <Text className="text-white">{t('calls.what3words_invalid_format')}</Text>
+            </Box>
+          );
+        },
+      });
+      return;
+    }
+
+    setIsGeocodingWhat3Words(true);
+    try {
+      // Get what3words API key from CoreStore config
+      const apiKey = config?.W3WKey;
+
+      if (!apiKey) {
+        throw new Error('what3words API key not configured');
+      }
+
+      // Make request to what3words API
+      const response = await axios.get<What3WordsResponse>(`https://api.what3words.com/v3/convert-to-coordinates?words=${encodeURIComponent(what3words)}&key=${apiKey}`);
+
+      if (response.data.coordinates) {
+        const newLocation = {
+          latitude: response.data.coordinates.lat,
+          longitude: response.data.coordinates.lng,
+          address: response.data.nearestPlace,
+        };
+
+        // Update the selected location and form values
+        handleLocationSelected(newLocation);
+
+        // Show success toast
+        toast.show({
+          placement: 'top',
+          render: () => {
+            return (
+              <Box className="rounded-lg bg-green-500 p-4 shadow-lg">
+                <Text className="text-white">{t('calls.what3words_found')}</Text>
+              </Box>
+            );
+          },
+        });
+      } else {
+        // Show error toast for no results
+        toast.show({
+          placement: 'top',
+          render: () => {
+            return (
+              <Box className="rounded-lg bg-red-500 p-4 shadow-lg">
+                <Text className="text-white">{t('calls.what3words_not_found')}</Text>
+              </Box>
+            );
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error geocoding what3words:', error);
+
+      // Show error toast
+      toast.show({
+        placement: 'top',
+        render: () => {
+          return (
+            <Box className="rounded-lg bg-red-500 p-4 shadow-lg">
+              <Text className="text-white">{t('calls.what3words_geocoding_error')}</Text>
+            </Box>
+          );
+        },
+      });
+    } finally {
+      setIsGeocodingWhat3Words(false);
+    }
   };
 
   /**
@@ -690,7 +831,7 @@ export default function NewCall() {
                         <SelectBackdrop />
                         <SelectContent>
                           {callPriorities.map((priority) => (
-                            <SelectItem key={priority.Id} label={priority.Name} value={priority.Id.toString()} />
+                            <SelectItem key={priority.Id} label={priority.Name} value={priority.Name} />
                           ))}
                         </SelectContent>
                       </SelectPortal>
@@ -700,6 +841,39 @@ export default function NewCall() {
                 {errors.priority && (
                   <FormControlError>
                     <Text className="text-red-500">{errors.priority.message}</Text>
+                  </FormControlError>
+                )}
+              </FormControl>
+            </Card>
+
+            <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+              <FormControl isInvalid={!!errors.type}>
+                <FormControlLabel>
+                  <FormControlLabelText>{t('calls.type')}</FormControlLabelText>
+                </FormControlLabel>
+                <Controller
+                  control={control}
+                  name="type"
+                  render={({ field: { onChange, value } }) => (
+                    <Select onValueChange={onChange} selectedValue={value}>
+                      <SelectTrigger>
+                        <SelectInput placeholder={t('calls.select_type')} className="w-5/6" />
+                        <SelectIcon as={ChevronDownIcon} className="mr-3" />
+                      </SelectTrigger>
+                      <SelectPortal>
+                        <SelectBackdrop />
+                        <SelectContent>
+                          {callTypes.map((type) => (
+                            <SelectItem key={type.Id} label={type.Name} value={type.Name} />
+                          ))}
+                        </SelectContent>
+                      </SelectPortal>
+                    </Select>
+                  )}
+                />
+                {errors.type && (
+                  <FormControlError>
+                    <Text className="text-red-500">{errors.type.message}</Text>
                   </FormControlError>
                 )}
               </FormControl>
@@ -780,9 +954,16 @@ export default function NewCall() {
                   control={control}
                   name="what3words"
                   render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.what3words_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
+                    <Box className="flex-row items-center space-x-2">
+                      <Box className="flex-1">
+                        <Input>
+                          <InputField testID="what3words-input" placeholder={t('calls.what3words_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                        </Input>
+                      </Box>
+                      <Button testID="what3words-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handleWhat3WordsSearch(value || '')} disabled={isGeocodingWhat3Words || !value?.trim()}>
+                        {isGeocodingWhat3Words ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
+                      </Button>
+                    </Box>
                   )}
                 />
               </FormControl>

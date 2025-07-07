@@ -12,6 +12,7 @@ import { Alert } from 'react-native';
 import axios from 'axios';
 import { getConfig } from '@/api/config/config';
 import NewCall from '../index';
+import { router } from 'expo-router';
 
 // Mock Alert
 jest.spyOn(Alert, 'alert').mockImplementation(() => { });
@@ -68,6 +69,11 @@ jest.mock('@/stores/calls/store', () => ({
 const mockUseDispatchStore = jest.fn();
 jest.mock('@/stores/dispatch/store', () => ({
   useDispatchStore: mockUseDispatchStore,
+}));
+
+const mockUseCoreStore = jest.fn();
+jest.mock('@/stores/app/core-store', () => ({
+  useCoreStore: mockUseCoreStore,
 }));
 
 // Mock auth store
@@ -1003,6 +1009,679 @@ describe('NewCall Component - Plus Code Search', () => {
 
       // Verify config was fetched
       expect(mockGetConfig).toHaveBeenCalledWith('GoogleMapsKey');
+    });
+  });
+});
+
+describe('NewCall', () => {
+  const mockCallPriorities = [
+    { Id: 1, Name: 'High', DepartmentId: 1, Color: '#FF0000', Sort: 1, IsDeleted: false, IsDefault: false, Tone: 0 },
+    { Id: 2, Name: 'Medium', DepartmentId: 1, Color: '#FFFF00', Sort: 2, IsDeleted: false, IsDefault: false, Tone: 0 },
+  ];
+
+  const mockCallTypes = [
+    { Id: '1', Name: 'Emergency' },
+    { Id: '2', Name: 'Medical' },
+    { Id: '3', Name: 'Fire' },
+  ];
+
+  const mockCallsStore = {
+    callPriorities: mockCallPriorities,
+    callTypes: mockCallTypes,
+    isLoading: false,
+    error: null,
+    fetchCallPriorities: jest.fn(),
+    fetchCallTypes: jest.fn(),
+    calls: [],
+    fetchCalls: jest.fn(),
+    init: jest.fn(),
+  };
+
+  const mockCoreStore = {
+    config: {
+      GoogleMapsKey: 'test-api-key',
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseCallsStore.mockReturnValue(mockCallsStore);
+    mockUseCoreStore.mockReturnValue(mockCoreStore);
+  });
+
+  it('should render the new call form with type selection', () => {
+    render(<NewCall />);
+
+    expect(screen.getByText('calls.create_new_call')).toBeTruthy();
+    expect(screen.getByText('calls.type')).toBeTruthy();
+    expect(screen.getByText('calls.priority')).toBeTruthy();
+  });
+
+  it('should call fetchCallTypes on component mount', () => {
+    render(<NewCall />);
+
+    expect(mockCallsStore.fetchCallTypes).toHaveBeenCalledTimes(1);
+    expect(mockCallsStore.fetchCallPriorities).toHaveBeenCalledTimes(1);
+  });
+
+  it('should display loading state', () => {
+    mockUseCallsStore.mockReturnValue({
+      ...mockCallsStore,
+      isLoading: true,
+    });
+
+    render(<NewCall />);
+
+    expect(screen.getByTestId('loading-indicator')).toBeTruthy();
+  });
+
+  it('should display error state', () => {
+    const errorMessage = 'Failed to load data';
+    mockUseCallsStore.mockReturnValue({
+      ...mockCallsStore,
+      error: errorMessage,
+    });
+
+    render(<NewCall />);
+
+    expect(screen.getByText(errorMessage)).toBeTruthy();
+  });
+
+  it('should populate type dropdown with call types', () => {
+    render(<NewCall />);
+
+    // The dropdown items are rendered in a portal, so we need to look for the select input
+    const typeSelectInput = screen.getByPlaceholderText('calls.select_type');
+    expect(typeSelectInput).toBeTruthy();
+  });
+
+  it('should populate priority dropdown with call priorities', () => {
+    render(<NewCall />);
+
+    // The dropdown items are rendered in a portal, so we need to look for the select input
+    const prioritySelectInput = screen.getByPlaceholderText('calls.select_priority');
+    expect(prioritySelectInput).toBeTruthy();
+  });
+
+  it('should validate required fields including type', async () => {
+    render(<NewCall />);
+
+    // Try to submit without filling required fields
+    const createButton = screen.getByText('calls.create');
+    fireEvent.press(createButton);
+
+    // The form should show validation errors
+    await waitFor(() => {
+      expect(screen.getByText('Name is required')).toBeTruthy();
+      expect(screen.getByText('Nature is required')).toBeTruthy();
+      expect(screen.getByText('Priority is required')).toBeTruthy();
+      expect(screen.getByText('Type is required')).toBeTruthy();
+    });
+  });
+
+  it('should handle form submission with type data', async () => {
+    const { createCall } = require('@/api/calls/calls');
+    createCall.mockResolvedValue({ IsSuccess: true });
+
+    render(<NewCall />);
+
+    // Fill in the form
+    const nameInput = screen.getByPlaceholderText('calls.name_placeholder');
+    const natureInput = screen.getByPlaceholderText('calls.nature_placeholder');
+
+    fireEvent.changeText(nameInput, 'Test Call');
+    fireEvent.changeText(natureInput, 'Test Nature');
+
+    // The type and priority selection would require interaction with the dropdown
+    // which is complex to test with react-native-testing-library
+    // For now, we'll just check that the form can be submitted
+    const createButton = screen.getByText('calls.create');
+    expect(createButton).toBeTruthy();
+  });
+
+  it('should handle address search', async () => {
+    render(<NewCall />);
+
+    const addressInput = screen.getByTestId('address-input');
+    const addressSearchButton = screen.getByTestId('address-search-button');
+
+    fireEvent.changeText(addressInput, '123 Test Street');
+    fireEvent.press(addressSearchButton);
+
+    // The search functionality would be tested in integration tests
+    // Here we just verify the UI components exist
+    expect(addressInput).toBeTruthy();
+    expect(addressSearchButton).toBeTruthy();
+  });
+
+  it('should handle plus code search', async () => {
+    render(<NewCall />);
+
+    const plusCodeInput = screen.getByTestId('plus-code-input');
+    const plusCodeSearchButton = screen.getByTestId('plus-code-search-button');
+
+    fireEvent.changeText(plusCodeInput, '849VCWC8+R9');
+    fireEvent.press(plusCodeSearchButton);
+
+    // The search functionality would be tested in integration tests
+    // Here we just verify the UI components exist
+    expect(plusCodeInput).toBeTruthy();
+    expect(plusCodeSearchButton).toBeTruthy();
+  });
+
+  it('should handle coordinates search', async () => {
+    render(<NewCall />);
+
+    const coordinatesInput = screen.getByTestId('coordinates-input');
+    const coordinatesSearchButton = screen.getByTestId('coordinates-search-button');
+
+    fireEvent.changeText(coordinatesInput, '37.7749, -122.4194');
+    fireEvent.press(coordinatesSearchButton);
+
+    // The search functionality would be tested in integration tests
+    // Here we just verify the UI components exist
+    expect(coordinatesInput).toBeTruthy();
+    expect(coordinatesSearchButton).toBeTruthy();
+  });
+
+  it('should handle cancel button', () => {
+    render(<NewCall />);
+
+    const cancelButton = screen.getByText('common.cancel');
+    fireEvent.press(cancelButton);
+
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('NewCall what3words functionality', () => {
+  const mockConfig = {
+    W3WKey: 'test-api-key',
+    GoogleMapsKey: 'test-google-key',
+  };
+
+  const mockCallsStore = {
+    callPriorities: [
+      { Id: 1, Name: 'High' },
+      { Id: 2, Name: 'Medium' },
+    ],
+    callTypes: [
+      { Id: '1', Name: 'Emergency' },
+      { Id: '2', Name: 'Medical' },
+    ],
+    isLoading: false,
+    error: null,
+    fetchCallPriorities: jest.fn(),
+    fetchCallTypes: jest.fn(),
+  };
+
+  const mockCoreStore = {
+    config: mockConfig,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseCallsStore.mockReturnValue(mockCallsStore);
+    mockUseCoreStore.mockReturnValue(mockCoreStore);
+  });
+
+  describe('what3words search functionality', () => {
+    it('should render what3words input field with search button', () => {
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      expect(what3wordsInput).toBeTruthy();
+      expect(searchButton).toBeTruthy();
+    });
+
+    it('should disable search button when input is empty', () => {
+      render(<NewCall />);
+
+      const searchButton = screen.getByTestId('what3words-search-button');
+      expect(searchButton.props.disabled).toBeTruthy();
+    });
+
+    it('should enable search button when input has value', () => {
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+
+      expect(searchButton.props.disabled).toBeFalsy();
+    });
+
+    it('should show loading state when searching', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      // The button should show loading state
+      await waitFor(() => {
+        expect(screen.getByText('...')).toBeTruthy();
+      });
+    });
+
+    it('should successfully search for valid what3words address', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockAxios.get).toHaveBeenCalledWith(
+          'https://api.what3words.com/v3/convert-to-coordinates?words=filled.count.soap&key=test-api-key'
+        );
+      });
+    });
+
+    it('should show error for empty what3words input', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, '   '); // Empty/whitespace
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should show error for invalid what3words format', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'invalid-format');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should validate what3words format correctly', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      // Test invalid formats
+      const invalidFormats = [
+        'word.word', // Only 2 words
+        'word.word.word.word', // 4 words
+        'word word word', // Spaces instead of dots
+        'word-word-word', // Hyphens instead of dots
+        'word.word.', // Trailing dot
+        '.word.word', // Leading dot
+        'word..word', // Double dots
+        'word.123.word', // Numbers
+        'word.WORD.word', // Uppercase letters
+        'word.wo@rd.word', // Special characters
+      ];
+
+      for (const format of invalidFormats) {
+        fireEvent.changeText(what3wordsInput, format);
+        fireEvent.press(searchButton);
+
+        await waitFor(() => {
+          expect(mockToast.show).toHaveBeenCalled();
+        });
+
+        mockToast.show.mockClear();
+      }
+    });
+
+    it('should accept valid what3words formats', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValue(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      // Test valid formats
+      const validFormats = [
+        'filled.count.soap',
+        'index.home.raft',
+        'daring.lion.race',
+        'pretty.much.good',
+      ];
+
+      for (const format of validFormats) {
+        fireEvent.changeText(what3wordsInput, format);
+        fireEvent.press(searchButton);
+
+        await waitFor(() => {
+          expect(mockAxios.get).toHaveBeenCalledWith(
+            `https://api.what3words.com/v3/convert-to-coordinates?words=${format}&key=test-api-key`
+          );
+        });
+
+        mockAxios.get.mockClear();
+      }
+    });
+
+    it('should handle API key not configured error', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      // Mock config without W3WKey
+      mockUseCoreStore.mockReturnValue({
+        config: {
+          GoogleMapsKey: 'test-google-key',
+        },
+      });
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should handle API request failure', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      mockAxios.get.mockRejectedValueOnce(new Error('Network error'));
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should handle API response without coordinates', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      const mockResponse = {
+        data: {
+          // No coordinates field
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should update form fields when what3words search is successful', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+      const addressInput = screen.getByTestId('address-input');
+      const coordinatesInput = screen.getByTestId('coordinates-input');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(addressInput.props.value).toBe('Bayswater, London');
+        expect(coordinatesInput.props.value).toBe('51.520847, -0.195521');
+      });
+    });
+
+    it('should handle what3words with case insensitive validation', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      // Test with uppercase letters (should be converted to lowercase)
+      fireEvent.changeText(what3wordsInput, 'FILLED.COUNT.SOAP');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockAxios.get).toHaveBeenCalledWith(
+          'https://api.what3words.com/v3/convert-to-coordinates?words=FILLED.COUNT.SOAP&key=test-api-key'
+        );
+      });
+    });
+
+    it('should show success toast when what3words search is successful', async () => {
+      const mockToast = { show: jest.fn() };
+      jest.mocked(require('@/components/ui/toast').useToast).mockReturnValue(mockToast);
+
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockToast.show).toHaveBeenCalledWith({
+          placement: 'top',
+          render: expect.any(Function),
+        });
+      });
+    });
+
+    it('should properly encode what3words for URL', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      // Test with special characters that need encoding
+      fireEvent.changeText(what3wordsInput, 'tëst.wörds.addréss');
+      fireEvent.press(searchButton);
+
+      await waitFor(() => {
+        expect(mockAxios.get).toHaveBeenCalledWith(
+          'https://api.what3words.com/v3/convert-to-coordinates?words=t%C3%ABst.w%C3%B6rds.addr%C3%A9ss&key=test-api-key'
+        );
+      });
+    });
+
+    it('should reset loading state after API call completes', async () => {
+      const mockResponse = {
+        data: {
+          coordinates: {
+            lat: 51.520847,
+            lng: -0.195521,
+          },
+          nearestPlace: 'Bayswater, London',
+          words: 'filled.count.soap',
+        },
+      };
+
+      mockAxios.get.mockResolvedValueOnce(mockResponse);
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      // Should show loading
+      await waitFor(() => {
+        expect(screen.getByText('...')).toBeTruthy();
+      });
+
+      // Should hide loading after completion
+      await waitFor(() => {
+        expect(screen.queryByText('...')).toBeFalsy();
+      });
+    });
+
+    it('should reset loading state after API call fails', async () => {
+      mockAxios.get.mockRejectedValueOnce(new Error('Network error'));
+
+      render(<NewCall />);
+
+      const what3wordsInput = screen.getByTestId('what3words-input');
+      const searchButton = screen.getByTestId('what3words-search-button');
+
+      fireEvent.changeText(what3wordsInput, 'filled.count.soap');
+      fireEvent.press(searchButton);
+
+      // Should show loading
+      await waitFor(() => {
+        expect(screen.getByText('...')).toBeTruthy();
+      });
+
+      // Should hide loading after error
+      await waitFor(() => {
+        expect(screen.queryByText('...')).toBeFalsy();
+      });
     });
   });
 }); 

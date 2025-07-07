@@ -181,14 +181,21 @@
     "select_priority": "Seleccionar prioridad",
     "select_priority_placeholder": "Selecciona la prioridad de la llamada",
     "select_recipients": "Seleccionar Destinatarios",
+    "select_type": "Seleccionar Tipo",
     "selected": "seleccionados",
     "title": "Llamadas",
+    "type": "Tipo",
     "units": "Unidades",
     "users": "Usuarios",
     "viewNotes": "Notas",
     "view_details": "Ver detalles",
     "what3words": "what3words",
-    "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)"
+    "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)",
+    "what3words_required": "Por favor introduce una dirección what3words para buscar",
+    "what3words_invalid_format": "Formato what3words inválido. Use el formato: palabra.palabra.palabra",
+    "what3words_found": "Dirección what3words encontrada y ubicación actualizada",
+    "what3words_not_found": "Dirección what3words no encontrada, intente con otra dirección",
+    "what3words_geocoding_error": "Error al buscar dirección what3words, intente nuevamente"
   },
   "common": {
     "add": "Añadir",

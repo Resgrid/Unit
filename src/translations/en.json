@@ -181,14 +181,21 @@
     "select_priority": "Select Priority",
     "select_priority_placeholder": "Select the priority of the call",
     "select_recipients": "Select Recipients",
+    "select_type": "Select Type",
     "selected": "selected",
     "title": "Calls",
+    "type": "Type",
     "units": "Units",
     "users": "Users",
     "viewNotes": "Notes",
     "view_details": "View Details",
     "what3words": "what3words",
-    "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)"
+    "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)",
+    "what3words_required": "Please enter a what3words address to search",
+    "what3words_invalid_format": "Invalid what3words format. Please use format: word.word.word",
+    "what3words_found": "what3words address found and location updated",
+    "what3words_not_found": "what3words address not found, please try a different address",
+    "what3words_geocoding_error": "Failed to search for what3words address, please try again"
   },
   "common": {
     "add": "Add",
