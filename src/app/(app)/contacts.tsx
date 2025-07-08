@@ -41,6 +41,15 @@ export default function Contacts() {
     );
   }, [contacts, searchQuery]);
 
+  // Show loading page during initial fetch (when no contacts are loaded yet)
+  if (isLoading && contacts.length === 0) {
+    return (
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900">
+        <Loading />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       <Box className="flex-1 px-4 pt-4">
@@ -50,16 +59,15 @@ export default function Contacts() {
           </InputSlot>
           <InputField placeholder={t('contacts.search')} value={searchQuery} onChangeText={setSearchQuery} />
           {searchQuery ? (
-            <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button">
               <InputIcon as={X} />
             </InputSlot>
           ) : null}
         </Input>
 
-        {isLoading && !refreshing ? (
-          <Loading />
-        ) : filteredContacts.length > 0 ? (
+        {filteredContacts.length > 0 ? (
           <FlatList
+            testID="contacts-list"
             data={filteredContacts}
             keyExtractor={(item) => item.ContactId}
             renderItem={({ item }) => <ContactCard contact={item} onPress={selectContact} />}

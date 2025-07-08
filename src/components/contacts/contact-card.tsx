@@ -19,20 +19,32 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onPress }) =>
       .toUpperCase();
   };
 
+  const getDisplayName = (contact: ContactResultData) => {
+    if (contact.ContactType === ContactType.Person) {
+      const firstName = contact.FirstName?.trim() || '';
+      const lastName = contact.LastName?.trim() || '';
+      return `${firstName} ${lastName}`.trim() || contact.Name || 'Unknown Person';
+    } else {
+      return contact.CompanyName?.trim() || contact.Name || 'Unknown Company';
+    }
+  };
+
+  const displayName = getDisplayName(contact);
+
   return (
     <Pressable className="mb-3 overflow-hidden rounded-lg bg-white shadow-sm dark:bg-gray-800" onPress={() => onPress(contact.ContactId)}>
       <View className="flex-row items-center p-4">
         <Avatar size="md" className="mr-4">
           {contact.ImageUrl ? (
-            <AvatarImage source={{ uri: contact.ImageUrl }} alt={contact.Name} />
+            <AvatarImage source={{ uri: contact.ImageUrl }} alt={displayName} />
           ) : (
-            <View className="size-full items-center justify-center bg-primary-500">{contact.Type === ContactType.Person ? <UserIcon size={24} color="#fff" /> : <BuildingIcon size={24} color="#fff" />}</View>
+            <View className="size-full items-center justify-center">{contact.ContactType === ContactType.Person ? <UserIcon size={24} color="#000" /> : <BuildingIcon size={24} color="#000" />}</View>
           )}
         </Avatar>
 
         <View className="flex-1">
           <View className="flex-row items-center">
-            <Text className="flex-1 text-lg font-semibold text-gray-900 dark:text-white">{contact.Name}</Text>
+            <Text className="flex-1 text-lg font-semibold text-gray-900 dark:text-white">{displayName}</Text>
             {contact.IsImportant ? <StarIcon size={16} color="#FFD700" /> : null}
           </View>
 
