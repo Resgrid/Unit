@@ -30,6 +30,7 @@
     "add_new": "Add New Image",
     "default_name": "Untitled Image",
     "error": "Error getting images",
+    "failed_to_load": "Failed to load image",
     "image_name": "Image Name",
     "loading": "Loading...",
     "no_images": "No images available",
@@ -50,10 +51,29 @@
   "call_detail": {
     "address": "Address",
     "call_location": "Call Location",
+    "close_call": "Close Call",
+    "close_call_confirmation": "Are you sure you want to close this call?",
+    "close_call_error": "Failed to close call",
+    "close_call_note": "Close Note",
+    "close_call_note_placeholder": "Enter a note about closing the call",
+    "close_call_success": "Call closed successfully",
+    "close_call_type": "Close Type",
+    "close_call_type_placeholder": "Select close type",
+    "close_call_type_required": "Please select a close type",
+    "close_call_types": {
+      "closed": "Closed",
+      "cancelled": "Cancelled",
+      "unfounded": "Unfounded",
+      "founded": "Founded",
+      "minor": "Minor",
+      "transferred": "Transferred",
+      "false_alarm": "False Alarm"
+    },
     "contact_email": "Email",
     "contact_info": "Contact Info",
     "contact_name": "Contact Name",
     "contact_phone": "Phone",
+    "edit_call": "Edit Call",
     "external_id": "External ID",
     "failed_to_open_maps": "Failed to open maps application",
     "files": {
@@ -103,7 +123,9 @@
     "timestamp": "Timestamp",
     "title": "Call Details",
     "type": "Type",
-    "unit": "Unit"
+    "unit": "Unit",
+    "update_call_error": "Failed to update call",
+    "update_call_success": "Call updated successfully"
   },
   "calls": {
     "address": "Address",
@@ -135,6 +157,8 @@
     "create_error": "Error creating call",
     "create_new_call": "Create New Call",
     "create_success": "Call created successfully",
+    "edit_call": "Edit Call",
+    "edit_call_description": "Update call information",
     "description": "Description",
     "description_placeholder": "Enter the description of the call",
     "deselect": "Deselect",

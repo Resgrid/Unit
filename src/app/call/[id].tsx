@@ -25,9 +25,11 @@ import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useToastStore } from '@/stores/toast/store';
 
+import { useCallDetailMenu } from '../../components/calls/call-detail-menu';
 import CallFilesModal from '../../components/calls/call-files-modal';
 import CallImagesModal from '../../components/calls/call-images-modal';
 import CallNotesModal from '../../components/calls/call-notes-modal';
+import { CloseCallBottomSheet } from '../../components/calls/close-call-bottom-sheet';
 
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
@@ -45,6 +47,7 @@ export default function CallDetail() {
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
+  const [isCloseCallModalOpen, setIsCloseCallModalOpen] = useState(false);
   const showToast = useToastStore((state) => state.showToast);
 
   const { colorScheme } = useColorScheme();
@@ -55,6 +58,37 @@ export default function CallDetail() {
     latitude: state.latitude,
     longitude: state.longitude,
   }));
+
+  const handleBack = () => {
+    router.back();
+  };
+
+  const openNotesModal = () => {
+    useCallDetailStore.getState().fetchCallNotes(callId);
+    setIsNotesModalOpen(true);
+  };
+
+  const openImagesModal = () => {
+    setIsImagesModalOpen(true);
+  };
+
+  const openFilesModal = () => {
+    setIsFilesModalOpen(true);
+  };
+
+  const handleEditCall = () => {
+    router.push(`/call/${callId}/edit`);
+  };
+
+  const handleCloseCall = () => {
+    setIsCloseCallModalOpen(true);
+  };
+
+  // Initialize the call detail menu hook
+  const { HeaderRightMenu, CallDetailActionSheet } = useCallDetailMenu({
+    onEditCall: handleEditCall,
+    onCloseCall: handleCloseCall,
+  });
 
   useEffect(() => {
     reset();
@@ -79,23 +113,6 @@ export default function CallDetail() {
       }
     }
   }, [call]);
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  const openNotesModal = () => {
-    useCallDetailStore.getState().fetchCallNotes(callId);
-    setIsNotesModalOpen(true);
-  };
-
-  const openImagesModal = () => {
-    setIsImagesModalOpen(true);
-  };
-
-  const openFilesModal = () => {
-    setIsFilesModalOpen(true);
-  };
 
   /**
    * Opens the device's native maps application with directions to the call location
@@ -129,6 +146,7 @@ export default function CallDetail() {
           options={{
             title: t('call_detail.title'),
             headerShown: true,
+            headerRight: () => <HeaderRightMenu />,
           }}
         />
         <View className="size-full flex-1">
@@ -146,6 +164,7 @@ export default function CallDetail() {
           options={{
             title: t('call_detail.title'),
             headerShown: true,
+            headerRight: () => <HeaderRightMenu />,
           }}
         />
         <View className="size-full flex-1">
@@ -395,27 +414,26 @@ export default function CallDetail() {
         options={{
           title: t('call_detail.title'),
           headerShown: true,
+          headerRight: () => <HeaderRightMenu />,
         }}
       />
-      <SafeAreaView className="size-full flex-1">
-        <FocusAwareStatusBar hidden={true} />
-        <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
-          {/* Header */}
-          <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-            <HStack className="mb-2 items-center">
-              <Heading size="md">
-                {call.Name} ({call.Number})
-              </Heading>
-            </HStack>
-            <VStack className="space-y-1">
-              <Box style={{ height: 80 }}>
-                <WebView
-                  style={[styles.container, { height: 80 }]}
-                  originWhitelist={['*']}
-                  scrollEnabled={false}
-                  showsVerticalScrollIndicator={false}
-                  source={{
-                    html: `
+      <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
+        {/* Header */}
+        <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
+          <HStack className="mb-2 items-center">
+            <Heading size="md">
+              {call.Name} ({call.Number})
+            </Heading>
+          </HStack>
+          <VStack className="space-y-1">
+            <Box style={{ height: 80 }}>
+              <WebView
+                style={[styles.container, { height: 80 }]}
+                originWhitelist={['*']}
+                scrollEnabled={false}
+                showsVerticalScrollIndicator={false}
+                source={{
+                  html: `
                                 <!DOCTYPE html>
                                 <html>
                                   <head>
@@ -437,62 +455,67 @@ export default function CallDetail() {
                                   <body>${call.Nature}</body>
                                 </html>
                               `,
-                  }}
-                  androidLayerType="software"
-                />
+                }}
+                androidLayerType="software"
+              />
+            </Box>
+          </VStack>
+        </Box>
+
+        {/* Map */}
+        <Box className="w-full">
+          {coordinates.latitude && coordinates.longitude ? <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} /> : null}
+        </Box>
+
+        {/* Action Buttons */}
+        <HStack className={`justify-around p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
+          <Button onPress={() => openNotesModal()} variant="outline" className="mx-1 flex-1">
+            <ButtonIcon as={FileTextIcon} />
+            <ButtonText>{t('call_detail.notes')}</ButtonText>
+            {call?.NotesCount ? (
+              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
+                <Text className="text-xs font-medium">{call.NotesCount}</Text>
               </Box>
-            </VStack>
-          </Box>
+            ) : null}
+          </Button>
+          <Button onPress={openImagesModal} variant="outline" className="mx-1 flex-1">
+            <ButtonIcon as={ImageIcon} />
+            <ButtonText>{t('call_detail.images')}</ButtonText>
+            {call?.ImgagesCount ? (
+              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
+                <Text className="text-xs font-medium">{call.ImgagesCount}</Text>
+              </Box>
+            ) : null}
+          </Button>
+          <Button onPress={openFilesModal} variant="outline" className="mx-1 flex-1">
+            <ButtonIcon as={PaperclipIcon} />
+            <ButtonText>{t('call_detail.files.button')}</ButtonText>
+            {call?.FileCount ? (
+              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
+                <Text className="text-xs font-medium">{call.FileCount}</Text>
+              </Box>
+            ) : null}
+          </Button>
+          <Button onPress={handleRoute} variant="outline" className="mx-1 flex-1">
+            <ButtonIcon as={RouteIcon} />
+            <ButtonText>{t('common.route')}</ButtonText>
+          </Button>
+        </HStack>
 
-          {/* Map */}
-          <Box className="w-full">
-            {coordinates.latitude && coordinates.longitude ? <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} /> : null}
-          </Box>
-
-          {/* Action Buttons */}
-          <HStack className={`justify-around p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-            <Button onPress={() => openNotesModal()} variant="outline" className="mx-1 flex-1">
-              <ButtonIcon as={FileTextIcon} />
-              <ButtonText>{t('call_detail.notes')}</ButtonText>
-              {call?.NotesCount ? (
-                <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                  <Text className="text-xs font-medium">{call.NotesCount}</Text>
-                </Box>
-              ) : null}
-            </Button>
-            <Button onPress={openImagesModal} variant="outline" className="mx-1 flex-1">
-              <ButtonIcon as={ImageIcon} />
-              <ButtonText>{t('call_detail.images')}</ButtonText>
-              {call?.ImgagesCount ? (
-                <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                  <Text className="text-xs font-medium">{call.ImgagesCount}</Text>
-                </Box>
-              ) : null}
-            </Button>
-            <Button onPress={openFilesModal} variant="outline" className="mx-1 flex-1">
-              <ButtonIcon as={PaperclipIcon} />
-              <ButtonText>{t('call_detail.files.button')}</ButtonText>
-              {call?.FileCount ? (
-                <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                  <Text className="text-xs font-medium">{call.FileCount}</Text>
-                </Box>
-              ) : null}
-            </Button>
-            <Button onPress={handleRoute} variant="outline" className="mx-1 flex-1">
-              <ButtonIcon as={RouteIcon} />
-              <ButtonText>{t('common.route')}</ButtonText>
-            </Button>
-          </HStack>
-
-          {/* Tabs */}
-          <Box className={`mt-4 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-            <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
-          </Box>
-        </ScrollView>
-      </SafeAreaView>
+        {/* Tabs */}
+        <Box className={`mt-4 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
+          <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
+        </Box>
+      </ScrollView>
       <CallNotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} callId={callId} />
       <CallImagesModal isOpen={isImagesModalOpen} onClose={() => setIsImagesModalOpen(false)} callId={callId} />
       <CallFilesModal isOpen={isFilesModalOpen} onClose={() => setIsFilesModalOpen(false)} callId={callId} />
+
+      {/* Close Call Bottom Sheet */}
+      <CloseCallBottomSheet isOpen={isCloseCallModalOpen} onClose={() => setIsCloseCallModalOpen(false)} callId={callId} />
+
+      {/* Call Detail Menu ActionSheet */}
+      <CallDetailActionSheet />
     </>
   );
 }
