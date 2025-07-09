@@ -43,7 +43,11 @@ jest.mock('@/stores/dispatch/store', () => ({
 
 jest.mock('nativewind', () => ({
   useColorScheme: () => ({ colorScheme: 'light' }),
+  cssInterop: jest.fn(),
 }));
+
+// Mock cssInterop globally
+(global as any).cssInterop = jest.fn();
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({

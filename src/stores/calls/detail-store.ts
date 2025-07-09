@@ -175,6 +175,7 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to update call',
         isLoading: false,
       });
+      throw error;
     }
   },
   closeCall: async (callData: CloseCallRequest) => {
@@ -189,6 +190,7 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to close call',
         isLoading: false,
       });
+      throw error;
     }
   },
 }));

@@ -484,6 +484,16 @@
     "version": "Version",
     "website": "Website"
   },
+  "map": {
+    "call_set_as_current": "Call set as current call",
+    "failed_to_open_maps": "Failed to open maps application",
+    "failed_to_set_current_call": "Failed to set call as current call",
+    "no_location_for_routing": "No location data available for routing",
+    "pin_color": "Pin Color",
+    "recenter_map": "Recenter Map",
+    "set_as_current_call": "Set as Current Call",
+    "view_call_details": "View Call Details"
+  },
   "tabs": {
     "calls": "Calls",
     "contacts": "Contacts",

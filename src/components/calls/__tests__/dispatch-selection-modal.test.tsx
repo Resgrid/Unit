@@ -9,7 +9,9 @@ const mockDispatchStore = {
   data: {
     users: [
       {
+        Id: '1',
         UserId: '1',
+        Name: 'John Doe',
         FirstName: 'John',
         LastName: 'Doe',
         EmailAddress: 'john.doe@example.com',
@@ -82,7 +84,9 @@ const mockDispatchStore = {
   getFilteredData: jest.fn().mockReturnValue({
     users: [
       {
+        Id: '1',
         UserId: '1',
+        Name: 'John Doe',
         FirstName: 'John',
         LastName: 'Doe',
         EmailAddress: 'john.doe@example.com',

@@ -22,7 +22,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall }: CallDetailMenuPro
   const closeMenu = () => setIsKebabMenuOpen(false);
 
   const HeaderRightMenu = () => (
-    <Pressable onPressOut={openMenu} testID="kebab-menu-button" className="rounded p-2">
+    <Pressable onPress={openMenu} testID="kebab-menu-button" className="rounded p-2">
       <MoreVerticalIcon size={24} className="text-gray-700 dark:text-gray-300" />
     </Pressable>
   );
