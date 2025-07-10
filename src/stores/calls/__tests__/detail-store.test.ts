@@ -2,7 +2,7 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
-import { updateCall, closeCall } from '@/api/calls/calls';
+import { updateCall, closeCall, getCall, getCallExtraData } from '@/api/calls/calls';
 import { useCallDetailStore } from '../detail-store';
 
 // Mock the API calls
@@ -14,6 +14,8 @@ const mockGetCallNotes = getCallNotes as jest.MockedFunction<typeof getCallNotes
 const mockSaveCallNote = saveCallNote as jest.MockedFunction<typeof saveCallNote>;
 const mockUpdateCall = updateCall as jest.MockedFunction<typeof updateCall>;
 const mockCloseCall = closeCall as jest.MockedFunction<typeof closeCall>;
+const mockGetCall = getCall as jest.MockedFunction<typeof getCall>;
+const mockGetCallExtraData = getCallExtraData as jest.MockedFunction<typeof getCallExtraData>;
 
 describe('useCallDetailStore - Notes', () => {
   beforeEach(() => {
@@ -443,6 +445,13 @@ describe('useCallDetailStore - Notes', () => {
       };
 
       mockUpdateCall.mockResolvedValue({} as any);
+      // Mock the fetchCallDetail dependencies
+      mockGetCall.mockResolvedValue({
+        Data: { CallId: 'call123', Name: 'Updated Test Call' },
+      } as any);
+      mockGetCallExtraData.mockResolvedValue({
+        Data: { CallId: 'call123' },
+      } as any);
 
       const { result } = renderHook(() => useCallDetailStore());
 
@@ -451,6 +460,8 @@ describe('useCallDetailStore - Notes', () => {
       });
 
       expect(mockUpdateCall).toHaveBeenCalledWith(mockCallData);
+      expect(mockGetCall).toHaveBeenCalledWith('call123');
+      expect(mockGetCallExtraData).toHaveBeenCalledWith('call123');
     });
 
     it('should handle update call error', async () => {
@@ -488,6 +499,13 @@ describe('useCallDetailStore - Notes', () => {
       };
 
       mockUpdateCall.mockResolvedValue({} as any);
+      // Mock the fetchCallDetail dependencies
+      mockGetCall.mockResolvedValue({
+        Data: { CallId: 'call123', Name: 'Updated Name Only' },
+      } as any);
+      mockGetCallExtraData.mockResolvedValue({
+        Data: { CallId: 'call123' },
+      } as any);
 
       const { result } = renderHook(() => useCallDetailStore());
 
@@ -503,7 +521,7 @@ describe('useCallDetailStore - Notes', () => {
     it('should close call successfully', async () => {
       const closeData = {
         callId: 'call123',
-        type: 'resolved',
+        type: 1, // Changed from 'resolved' to 1
         note: 'Call resolved successfully',
       };
 
@@ -522,7 +540,7 @@ describe('useCallDetailStore - Notes', () => {
       const errorMessage = 'Close call failed';
       const closeData = {
         callId: 'call123',
-        type: 'cancelled',
+        type: 2, // Changed from 'cancelled' to 2
         note: 'Call cancelled',
       };
 
@@ -542,7 +560,7 @@ describe('useCallDetailStore - Notes', () => {
     it('should handle close call with empty note', async () => {
       const closeData = {
         callId: 'call123',
-        type: 'resolved',
+        type: 1, // Changed from 'resolved' to 1
         note: '',
       };
 
@@ -558,7 +576,7 @@ describe('useCallDetailStore - Notes', () => {
     });
 
     it('should handle different close call types', async () => {
-      const closeTypes = ['resolved', 'cancelled', 'transferred', 'false_alarm'];
+      const closeTypes = [1, 2, 3, 4]; // Changed from 'resolved', 'cancelled', 'transferred', 'false_alarm' to 1, 2, 3, 4
 
       mockCloseCall.mockResolvedValue({} as any);
 
@@ -600,12 +618,19 @@ describe('useCallDetailStore - Notes', () => {
 
       const closeData = {
         callId: 'call123',
-        type: 'resolved',
+        type: 1, // Changed from 'resolved' to 1
         note: 'Call completed successfully',
       };
 
       mockUpdateCall.mockResolvedValue({} as any);
       mockCloseCall.mockResolvedValue({} as any);
+      // Mock the fetchCallDetail dependencies
+      mockGetCall.mockResolvedValue({
+        Data: { CallId: 'call123', Name: 'Updated Call' },
+      } as any);
+      mockGetCallExtraData.mockResolvedValue({
+        Data: { CallId: 'call123' },
+      } as any);
 
       const { result } = renderHook(() => useCallDetailStore());
 
@@ -644,7 +669,7 @@ describe('useCallDetailStore - Notes', () => {
 
       const closeData = {
         callId: 'call123',
-        type: 'resolved',
+        type: 1, // Changed from 'resolved' to 1
         note: 'Call completed successfully',
       };
 

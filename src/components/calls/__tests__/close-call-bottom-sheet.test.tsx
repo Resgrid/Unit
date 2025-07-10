@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -14,6 +14,20 @@ jest.mock('react-i18next');
 jest.mock('@/stores/calls/detail-store');
 jest.mock('@/stores/calls/store');
 jest.mock('@/stores/toast/store');
+
+// Mock console.error to prevent logging issues in tests
+const originalConsoleError = console.error;
+beforeAll(() => {
+  console.error = jest.fn();
+});
+
+afterAll(() => {
+  console.error = originalConsoleError;
+});
+
+afterEach(() => {
+  cleanup();
+});
 
 // Mock nativewind
 jest.mock('nativewind', () => ({
@@ -145,6 +159,8 @@ const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastSt
 describe('CloseCallBottomSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Clear the console.error mock as well
+    (console.error as jest.Mock).mockClear();
 
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useTranslation as jest.Mock).mockReturnValue(mockUseTranslation);
@@ -220,9 +236,6 @@ describe('CloseCallBottomSheet', () => {
         type: 1,
         note: 'Call resolved successfully',
       });
-    });
-
-    await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
       expect(mockFetchCalls).toHaveBeenCalled();
       expect(mockRouter.back).toHaveBeenCalled();
@@ -251,9 +264,6 @@ describe('CloseCallBottomSheet', () => {
         type: 2,
         note: '',
       });
-    });
-
-    await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
       expect(mockFetchCalls).toHaveBeenCalled();
       expect(mockRouter.back).toHaveBeenCalled();
@@ -283,43 +293,47 @@ describe('CloseCallBottomSheet', () => {
     expect(mockRouter.back).not.toHaveBeenCalled();
   });
 
-  it('should handle different close call types', async () => {
+  it.each([
+    { type: '1', expected: 1 },
+    { type: '2', expected: 2 },
+    { type: '3', expected: 3 },
+    { type: '4', expected: 4 },
+    { type: '5', expected: 5 },
+    { type: '6', expected: 6 },
+    { type: '7', expected: 7 },
+  ])('should handle close call type $type', async ({ type, expected }) => {
     mockCloseCall.mockResolvedValue(undefined);
     mockFetchCalls.mockResolvedValue(undefined);
 
-    const closeTypes = ['1', '2', '3', '4', '5', '6', '7'];
+    render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
 
-    for (const type of closeTypes) {
-      jest.clearAllMocks();
-      mockCloseCall.mockResolvedValue(undefined);
-      mockFetchCalls.mockResolvedValue(undefined);
+    // Select close type
+    const typeSelect = screen.getByTestId('close-call-type-select');
+    fireEvent(typeSelect, 'onValueChange', type);
 
-      const { unmount } = render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
+    // Submit
+    const submitButton = screen.getAllByText('call_detail.close_call')[1];
+    fireEvent.press(submitButton);
 
-      // Select close type
-      const typeSelect = screen.getByTestId('close-call-type-select');
-      fireEvent(typeSelect, 'onValueChange', type);
-
-      // Submit
-      const submitButton = screen.getAllByText('call_detail.close_call')[1];
-      fireEvent.press(submitButton);
-
-      await waitFor(() => {
-        expect(mockCloseCall).toHaveBeenCalledWith({
-          callId: 'test-call-1',
-          type: parseInt(type),
-          note: '',
-        });
+    // Wait for the entire flow to complete
+    await waitFor(() => {
+      expect(mockCloseCall).toHaveBeenCalledWith({
+        callId: 'test-call-1',
+        type: expected,
+        note: '',
       });
-
-      unmount();
-    }
+      expect(mockFetchCalls).toHaveBeenCalled();
+    });
   });
 
   it('should disable buttons when submitting', async () => {
-    mockCloseCall.mockImplementation(
-      () => new Promise((resolve) => setTimeout(resolve, 100))
-    );
+    let resolveCloseCall: () => void;
+    const closeCallPromise = new Promise<void>((resolve) => {
+      resolveCloseCall = resolve;
+    });
+
+    mockCloseCall.mockImplementation(() => closeCallPromise);
+    mockFetchCalls.mockResolvedValue(undefined);
 
     render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
 
@@ -336,6 +350,12 @@ describe('CloseCallBottomSheet', () => {
     // Buttons should be disabled while submitting
     expect(submitButton).toBeDisabled();
     expect(cancelButton).toBeDisabled();
+
+    // Resolve the promise to complete the test
+    resolveCloseCall!();
+    await waitFor(() => {
+      expect(mockCloseCall).toHaveBeenCalled();
+    });
   });
 
   it('should cancel and reset form', () => {
@@ -372,17 +392,21 @@ describe('CloseCallBottomSheet', () => {
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
     fireEvent.press(submitButton);
 
+    // Wait for the entire flow to complete
     await waitFor(() => {
       expect(mockCloseCall).toHaveBeenCalled();
+      expect(mockFetchCalls).toHaveBeenCalled();
     });
 
-    // If fetchCalls fails, the entire operation is considered failed
+    // Wait for all toast messages and error handling to complete
     await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
+      expect(mockOnClose).toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith('Error closing call:', expect.any(Error));
       expect(mockShowToast).toHaveBeenCalledWith('error', 'call_detail.close_call_error');
     });
 
-    // Modal is still closed (handleClose called before fetchCalls), but router.back() doesn't happen
-    expect(mockOnClose).toHaveBeenCalled();
+    // Since closeCall succeeded, the modal should be closed but router.back() should not be called due to fetchCalls failure
     expect(mockRouter.back).not.toHaveBeenCalled();
   });
 
