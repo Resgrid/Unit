@@ -109,7 +109,7 @@ jobs:
     strategy:
       matrix:
         platform: [android, ios]
-    runs-on: ${{ matrix.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-14' || 'ubuntu-latest' }}
     environment: RNBuild
     steps:
       - name: 🏗 Checkout repository
@@ -120,7 +120,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'yarn'
-  
+
       - name: Setup Expo
         uses: expo/expo-github-action@v8
         with:
@@ -153,7 +153,7 @@ jobs:
             echo "Installing jq..."
             sudo apt-get update && sudo apt-get install -y jq
           fi
-  
+
           # Fix the main entry in package.json
           if [ -f ./package.json ]; then
             # Create a backup
