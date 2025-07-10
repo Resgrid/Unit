@@ -13,7 +13,6 @@ describe('ContactCard', () => {
 
   const basePerson: ContactResultData = {
     ContactId: '1',
-    Type: ContactType.Person,
     ContactType: ContactType.Person,
     Name: 'John Doe',
     FirstName: 'John',
@@ -34,7 +33,6 @@ describe('ContactCard', () => {
 
   const baseCompany: ContactResultData = {
     ContactId: '2',
-    Type: ContactType.Company,
     ContactType: ContactType.Company,
     Name: 'Acme Corp',
     CompanyName: 'Acme Corporation',
