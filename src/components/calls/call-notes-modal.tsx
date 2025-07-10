@@ -1,5 +1,5 @@
 import { SearchIcon, X } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, ScrollView, useWindowDimensions } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -34,15 +34,23 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [newNote, setNewNote] = useState('');
-  const { callNotes, addNote, searchNotes, isNotesLoading } = useCallDetailStore();
+  const { callNotes, addNote, searchNotes, isNotesLoading, fetchCallNotes } = useCallDetailStore();
   const { profile } = useAuthStore();
   const { height, width } = useWindowDimensions();
 
+  // Fetch call notes when modal opens
+  useEffect(() => {
+    if (isOpen && callId) {
+      fetchCallNotes(callId);
+    }
+  }, [isOpen, callId, fetchCallNotes]);
+
   const filteredNotes = React.useMemo(() => {
     return searchNotes(searchQuery);
-  }, [searchQuery, searchNotes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, searchNotes, callNotes]);
 
-  // Mock user for now - in a real app, this would come from authentication
+  // Get current user from profile
   const currentUser = profile?.sub || '';
 
   const handleAddNote = async () => {
@@ -55,7 +63,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   return (
     <Actionsheet isOpen={isOpen} onClose={onClose} snapPoints={[67]}>
       <FocusAwareStatusBar hidden={true} />
-      <ActionsheetBackdrop />
+      <ActionsheetBackdrop testID="actionsheet-backdrop" />
       <ActionsheetContent className="w-full rounded-t-xl bg-white dark:bg-gray-800">
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
@@ -64,26 +72,26 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
           {/* Header */}
           <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
             <Heading size="lg">{t('callNotes.title')}</Heading>
-            <Button variant="link" onPress={onClose} className="p-1">
+            <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
               <X size={24} />
             </Button>
           </Box>
 
           {/* Body */}
           <Box className="w-full flex-1 bg-white p-4 dark:bg-gray-800">
-            {isNotesLoading ? (
-              <Loading />
-            ) : (
-              <VStack space="md" className="size-full">
-                {/* Search Bar */}
-                <Input className="w-full rounded-lg bg-gray-100 dark:bg-gray-700">
-                  <InputSlot>
-                    <SearchIcon size={20} className="text-gray-500" />
-                  </InputSlot>
-                  <InputField placeholder={t('callNotes.searchPlaceholder')} value={searchQuery} onChangeText={setSearchQuery} />
-                </Input>
+            <VStack space="md" className="size-full">
+              {/* Search Bar */}
+              <Input className="w-full rounded-lg bg-gray-100 dark:bg-gray-700">
+                <InputSlot>
+                  <SearchIcon size={20} className="text-gray-500" />
+                </InputSlot>
+                <InputField placeholder={t('callNotes.searchPlaceholder')} value={searchQuery} onChangeText={setSearchQuery} />
+              </Input>
 
-                {/* Notes List */}
+              {/* Notes List */}
+              {isNotesLoading ? (
+                <Loading />
+              ) : (
                 <ScrollView className="size-full max-h-[40vh] flex-1">
                   <VStack space="md" className="w-full pb-4">
                     {filteredNotes.length > 0 ? (
@@ -101,8 +109,8 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
                     )}
                   </VStack>
                 </ScrollView>
-              </VStack>
-            )}
+              )}
+            </VStack>
           </Box>
 
           <Divider />
@@ -114,7 +122,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
                 <TextareaInput placeholder={t('callNotes.addNotePlaceholder')} value={newNote} onChangeText={setNewNote} autoCorrect={false} className="min-h-[80px] w-full" />
               </Textarea>
               <HStack className="w-full justify-end">
-                <Button onPress={handleAddNote} className="bg-blue-600 dark:bg-blue-500" isDisabled={!newNote.trim()}>
+                <Button onPress={handleAddNote} className="bg-blue-600 dark:bg-blue-500" isDisabled={!newNote.trim() || isNotesLoading}>
                   <HStack space="xs" className="text-center">
                     <ButtonText>{t('callNotes.addNote')}</ButtonText>
                   </HStack>

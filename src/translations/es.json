@@ -30,6 +30,7 @@
     "add_new": "Añadir nueva imagen",
     "default_name": "Imagen sin título",
     "error": "Error al obtener imágenes",
+    "failed_to_load": "Error al cargar la imagen",
     "image_name": "Nombre de la imagen",
     "loading": "Cargando...",
     "no_images": "No hay imágenes disponibles",
@@ -50,10 +51,29 @@
   "call_detail": {
     "address": "Dirección",
     "call_location": "Ubicación de la llamada",
+    "close_call": "Cerrar llamada",
+    "close_call_confirmation": "¿Estás seguro de que quieres cerrar esta llamada?",
+    "close_call_error": "Error al cerrar la llamada",
+    "close_call_note": "Nota de cierre",
+    "close_call_note_placeholder": "Introduce una nota sobre el cierre de la llamada",
+    "close_call_success": "Llamada cerrada con éxito",
+    "close_call_type": "Tipo de cierre",
+    "close_call_type_placeholder": "Selecciona el tipo de cierre",
+    "close_call_type_required": "Por favor selecciona un tipo de cierre",
+    "close_call_types": {
+      "cancelled": "Cancelada",
+      "closed": "Cerrada",
+      "false_alarm": "Falsa alarma",
+      "founded": "Fundada",
+      "minor": "Menor",
+      "transferred": "Transferida",
+      "unfounded": "Sin fundamento"
+    },
     "contact_email": "Correo electrónico",
     "contact_info": "Información de contacto",
     "contact_name": "Nombre del contacto",
     "contact_phone": "Teléfono",
+    "edit_call": "Editar llamada",
     "external_id": "ID externo",
     "failed_to_open_maps": "Error al abrir la aplicación de mapas",
     "files": {
@@ -103,7 +123,9 @@
     "timestamp": "Marca de tiempo",
     "title": "Detalles de la llamada",
     "type": "Tipo",
-    "unit": "Unidad"
+    "unit": "Unidad",
+    "update_call_error": "Error al actualizar la llamada",
+    "update_call_success": "Llamada actualizada con éxito"
   },
   "calls": {
     "address": "Dirección",
@@ -141,6 +163,8 @@
     "directions": "Direcciones",
     "dispatch_to": "Despachar A",
     "dispatch_to_everyone": "Despachar a todo el personal disponible",
+    "edit_call": "Editar llamada",
+    "edit_call_description": "Actualizar información de la llamada",
     "everyone": "Todos",
     "geocoding_error": "Error al buscar la dirección, por favor inténtelo de nuevo",
     "groups": "Grupos",
@@ -181,14 +205,21 @@
     "select_priority": "Seleccionar prioridad",
     "select_priority_placeholder": "Selecciona la prioridad de la llamada",
     "select_recipients": "Seleccionar Destinatarios",
+    "select_type": "Seleccionar Tipo",
     "selected": "seleccionados",
     "title": "Llamadas",
+    "type": "Tipo",
     "units": "Unidades",
     "users": "Usuarios",
     "viewNotes": "Notas",
     "view_details": "Ver detalles",
     "what3words": "what3words",
-    "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)"
+    "what3words_found": "Dirección what3words encontrada y ubicación actualizada",
+    "what3words_geocoding_error": "Error al buscar dirección what3words, intente nuevamente",
+    "what3words_invalid_format": "Formato what3words inválido. Use el formato: palabra.palabra.palabra",
+    "what3words_not_found": "Dirección what3words no encontrada, intente con otra dirección",
+    "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)",
+    "what3words_required": "Por favor introduce una dirección what3words para buscar"
   },
   "common": {
     "add": "Añadir",
@@ -226,35 +257,82 @@
   },
   "contacts": {
     "add": "Añadir contacto",
+    "addedBy": "Añadido por",
+    "addedOn": "Añadido el",
+    "additionalInformation": "Información adicional",
     "address": "Dirección",
+    "bluesky": "Bluesky",
     "cancel": "Cancelar",
+    "cellPhone": "Teléfono móvil",
     "city": "Ciudad",
     "cityState": "Ciudad y Estado",
+    "cityStateZip": "Ciudad, Estado, Código postal",
     "company": "Empresa",
+    "contactInformation": "Información de contacto",
+    "contactNotes": "Notas de contacto",
+    "contactNotesEmpty": "No se encontraron notas para este contacto",
+    "contactNotesEmptyDescription": "Las notas añadidas a este contacto aparecerán aquí",
+    "contactNotesExpired": "Esta nota ha expirado",
+    "contactNotesLoading": "Cargando notas del contacto...",
     "contactType": "Tipo de contacto",
+    "countryId": "ID del país",
     "delete": "Eliminar",
     "deleteConfirm": "¿Estás seguro de que quieres eliminar este contacto?",
     "deleteSuccess": "Contacto eliminado con éxito",
     "description": "Añadir y gestionar tus contactos",
     "details": "Detalles del contacto",
+    "detailsTab": "Detalles",
     "edit": "Editar contacto",
+    "editedBy": "Editado por",
+    "editedOn": "Editado el",
     "email": "Correo electrónico",
     "empty": "No se encontraron contactos",
     "emptyDescription": "Añade contactos para gestionar tus conexiones personales y comerciales",
+    "entranceCoordinates": "Coordenadas de entrada",
+    "exitCoordinates": "Coordenadas de salida",
+    "expires": "Expira",
+    "facebook": "Facebook",
+    "faxPhone": "Teléfono de fax",
     "formError": "Por favor, corrige los errores en el formulario",
+    "homePhone": "Teléfono de casa",
+    "identification": "Identificación",
     "important": "Marcar como importante",
+    "instagram": "Instagram",
+    "internal": "Interno",
     "invalidEmail": "Dirección de correo electrónico no válida",
+    "linkedin": "LinkedIn",
+    "locationCoordinates": "Coordenadas de ubicación",
+    "locationInformation": "Información de ubicación",
+    "mastodon": "Mastodon",
     "mobile": "Móvil",
     "name": "Nombre",
+    "noteAlert": "Alerta",
+    "noteType": "Tipo",
     "notes": "Notas",
+    "notesTab": "Notas",
+    "officePhone": "Teléfono de oficina",
+    "otherInfo": "Otra información",
     "person": "Persona",
     "phone": "Teléfono",
+    "public": "Público",
     "required": "Requerido",
     "save": "Guardar contacto",
     "saveSuccess": "Contacto guardado con éxito",
     "search": "Buscar contactos...",
+    "shouldAlert": "Debe alertar",
+    "socialMediaWeb": "Redes sociales y web",
     "state": "Estado",
+    "stateId": "ID del estado",
+    "systemInformation": "Información del sistema",
+    "tabs": {
+      "details": "Detalles",
+      "notes": "Notas"
+    },
+    "threads": "Threads",
     "title": "Contactos",
+    "twitter": "Twitter",
+    "visibility": "Visibilidad",
+    "website": "Sitio web",
     "zip": "Código postal"
   },
   "form": {
@@ -301,6 +379,16 @@
     "username": "Nombre de usuario",
     "username_placeholder": "Introduce tu nombre de usuario"
   },
+  "map": {
+    "call_set_as_current": "Llamada establecida como llamada actual",
+    "failed_to_open_maps": "Error al abrir la aplicación de mapas",
+    "failed_to_set_current_call": "Error al establecer la llamada como llamada actual",
+    "no_location_for_routing": "No hay datos de ubicación disponibles para el enrutamiento",
+    "pin_color": "Color del pin",
+    "recenter_map": "Recentrar mapa",
+    "set_as_current_call": "Establecer como llamada actual",
+    "view_call_details": "Ver detalles de la llamada"
+  },
   "notes": {
     "actions": {
       "add": "Añadir nota",
@@ -321,7 +409,7 @@
     "title": "Notas"
   },
   "onboarding": {
-    "message": "Bienvenido a la aplicación Resgrid"
+    "message": "Bienvenido al sitio de la aplicación obytes"
   },
   "protocols": {
     "details": {
@@ -414,5 +502,5 @@
     "protocols": "Protocolos",
     "settings": "Configuración"
   },
-  "welcome": "Bienvenido a la aplicación Resgrid"
+  "welcome": "Bienvenido al sitio de la aplicación obytes"
 }

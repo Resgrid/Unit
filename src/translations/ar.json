@@ -30,6 +30,7 @@
     "add_new": "إضافة صورة جديدة",
     "default_name": "صورة بدون عنوان",
     "error": "خطأ في الحصول على الصور",
+    "failed_to_load": "فشل في تحميل الصورة",
     "image_name": "اسم الصورة",
     "loading": "جاري التحميل...",
     "no_images": "لا توجد صور متاحة",
@@ -50,10 +51,29 @@
   "call_detail": {
     "address": "العنوان",
     "call_location": "موقع المكالمة",
+    "close_call": "إغلاق المكالمة",
+    "close_call_confirmation": "هل أنت متأكد أنك تريد إغلاق هذه المكالمة؟",
+    "close_call_error": "فشل في إغلاق المكالمة",
+    "close_call_note": "ملاحظة الإغلاق",
+    "close_call_note_placeholder": "أدخل ملاحظة حول إغلاق المكالمة",
+    "close_call_success": "تم إغلاق المكالمة بنجاح",
+    "close_call_type": "نوع الإغلاق",
+    "close_call_type_placeholder": "اختر نوع الإغلاق",
+    "close_call_type_required": "يرجى اختيار نوع الإغلاق",
+    "close_call_types": {
+      "cancelled": "ملغاة",
+      "closed": "مغلقة",
+      "false_alarm": "إنذار كاذب",
+      "founded": "تم العثور عليها",
+      "minor": "بسيطة",
+      "transferred": "محولة",
+      "unfounded": "غير مؤسسة"
+    },
     "contact_email": "البريد الإلكتروني",
     "contact_info": "معلومات الاتصال",
     "contact_name": "اسم جهة الاتصال",
     "contact_phone": "الهاتف",
+    "edit_call": "تعديل المكالمة",
     "external_id": "المعرف الخارجي",
     "failed_to_open_maps": "فشل في فتح تطبيق الخرائط",
     "files": {
@@ -103,7 +123,9 @@
     "timestamp": "الطابع الزمني",
     "title": "تفاصيل المكالمة",
     "type": "النوع",
-    "unit": "الوحدة"
+    "unit": "الوحدة",
+    "update_call_error": "فشل في تحديث المكالمة",
+    "update_call_success": "تم تحديث المكالمة بنجاح"
   },
   "calls": {
     "address": "العنوان",
@@ -141,6 +163,8 @@
     "directions": "الاتجاهات",
     "dispatch_to": "إرسال إلى",
     "dispatch_to_everyone": "إرسال إلى جميع الموظفين المتاحين",
+    "edit_call": "تعديل المكالمة",
+    "edit_call_description": "تحديث معلومات المكالمة",
     "everyone": "الجميع",
     "geocoding_error": "فشل البحث عن العنوان، يرجى المحاولة مرة أخرى",
     "groups": "المجموعات",
@@ -181,14 +205,21 @@
     "select_priority": "اختر الأولوية",
     "select_priority_placeholder": "اختر أولوية المكالمة",
     "select_recipients": "اختيار المستقبلين",
+    "select_type": "اختر النوع",
     "selected": "مختار",
     "title": "المكالمات",
+    "type": "النوع",
     "units": "الوحدات",
     "users": "المستخدمين",
     "viewNotes": "ملاحظات",
     "view_details": "عرض التفاصيل",
     "what3words": "what3words",
-    "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)"
+    "what3words_found": "تم العثور على عنوان what3words وتم تحديث الموقع",
+    "what3words_geocoding_error": "فشل في البحث عن عنوان what3words، يرجى المحاولة مرة أخرى",
+    "what3words_invalid_format": "تنسيق what3words غير صحيح. استخدم التنسيق: كلمة.كلمة.كلمة",
+    "what3words_not_found": "لم يتم العثور على عنوان what3words، جرب عنوان آخر",
+    "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)",
+    "what3words_required": "يرجى إدخال عنوان what3words للبحث"
   },
   "common": {
     "add": "إضافة",
@@ -226,35 +257,82 @@
   },
   "contacts": {
     "add": "إضافة جهة اتصال",
+    "addedBy": "أضيف بواسطة",
+    "addedOn": "تم الإضافة في",
+    "additionalInformation": "معلومات إضافية",
     "address": "العنوان",
+    "bluesky": "Bluesky",
     "cancel": "إلغاء",
+    "cellPhone": "الهاتف الخلوي",
     "city": "المدينة",
     "cityState": "المدينة والولاية",
+    "cityStateZip": "المدينة، الولاية، الرمز البريدي",
     "company": "شركة",
+    "contactInformation": "معلومات الاتصال",
+    "contactNotes": "ملاحظات جهة الاتصال",
+    "contactNotesEmpty": "لم يتم العثور على ملاحظات لجهة الاتصال هذه",
+    "contactNotesEmptyDescription": "الملاحظات المضافة إلى جهة الاتصال هذه ستظهر هنا",
+    "contactNotesExpired": "انتهت صلاحية هذه الملاحظة",
+    "contactNotesLoading": "جاري تحميل ملاحظات جهة الاتصال...",
     "contactType": "نوع جهة الاتصال",
+    "countryId": "معرف البلد",
     "delete": "حذف",
     "deleteConfirm": "هل أنت متأكد أنك تريد حذف جهة الاتصال هذه؟",
     "deleteSuccess": "تم حذف جهة الاتصال بنجاح",
     "description": "إضافة وإدارة جهات الاتصال الخاصة بك",
     "details": "تفاصيل جهة الاتصال",
+    "detailsTab": "التفاصيل",
     "edit": "تعديل جهة الاتصال",
+    "editedBy": "تم التعديل بواسطة",
+    "editedOn": "تم التعديل في",
     "email": "البريد الإلكتروني",
     "empty": "لم يتم العثور على جهات اتصال",
     "emptyDescription": "أضف جهات اتصال لإدارة اتصالاتك الشخصية والتجارية",
+    "entranceCoordinates": "إحداثيات المدخل",
+    "exitCoordinates": "إحداثيات المخرج",
+    "expires": "تنتهي في",
+    "facebook": "فيسبوك",
+    "faxPhone": "هاتف الفاكس",
     "formError": "يرجى إصلاح الأخطاء في النموذج",
+    "homePhone": "هاتف المنزل",
+    "identification": "التعريف",
     "important": "وضع علامة كمهم",
+    "instagram": "إنستغرام",
+    "internal": "داخلي",
     "invalidEmail": "عنوان بريد إلكتروني غير صالح",
+    "linkedin": "لينكد إن",
+    "locationCoordinates": "إحداثيات الموقع",
+    "locationInformation": "معلومات الموقع",
+    "mastodon": "ماستودون",
     "mobile": "جوال",
     "name": "الاسم",
+    "noteAlert": "تنبيه",
+    "noteType": "النوع",
     "notes": "ملاحظات",
+    "notesTab": "الملاحظات",
+    "officePhone": "هاتف المكتب",
+    "otherInfo": "معلومات أخرى",
     "person": "شخص",
     "phone": "هاتف",
+    "public": "عام",
     "required": "مطلوب",
     "save": "حفظ جهة الاتصال",
     "saveSuccess": "تم حفظ جهة الاتصال بنجاح",
     "search": "بحث في جهات الاتصال...",
+    "shouldAlert": "يجب التنبيه",
+    "socialMediaWeb": "وسائل التواصل الاجتماعي والويب",
     "state": "الولاية",
+    "stateId": "معرف الولاية",
+    "systemInformation": "معلومات النظام",
+    "tabs": {
+      "details": "التفاصيل",
+      "notes": "الملاحظات"
+    },
+    "threads": "Threads",
     "title": "جهات الاتصال",
+    "twitter": "تويتر",
+    "visibility": "الرؤية",
+    "website": "الموقع الإلكتروني",
     "zip": "الرمز البريدي"
   },
   "form": {
@@ -301,6 +379,16 @@
     "username": "اسم المستخدم",
     "username_placeholder": "أدخل اسم المستخدم الخاص بك"
   },
+  "map": {
+    "call_set_as_current": "تم تعيين المكالمة كمكالمة حالية",
+    "failed_to_open_maps": "فشل في فتح تطبيق الخرائط",
+    "failed_to_set_current_call": "فشل في تعيين المكالمة كمكالمة حالية",
+    "no_location_for_routing": "لا توجد بيانات موقع متاحة للتوجيه",
+    "pin_color": "لون الدبوس",
+    "recenter_map": "إعادة توسيط الخريطة",
+    "set_as_current_call": "تعيين كمكالمة حالية",
+    "view_call_details": "عرض تفاصيل المكالمة"
+  },
   "notes": {
     "actions": {
       "add": "إضافة ملاحظة",
@@ -321,7 +409,7 @@
     "title": "الملاحظات"
   },
   "onboarding": {
-    "message": "مرحبًا بك في تطبيق Resgrid"
+    "message": "مرحبًا بك في تطبيق obytes"
   },
   "protocols": {
     "details": {
@@ -414,5 +502,5 @@
     "protocols": "البروتوكولات",
     "settings": "الإعدادات"
   },
-  "welcome": "مرحبًا بك في تطبيق Resgrid"
+  "welcome": "مرحبًا بك في موقع تطبيق obytes"
 }

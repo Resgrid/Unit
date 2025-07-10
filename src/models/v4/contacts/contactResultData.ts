@@ -14,7 +14,6 @@ export interface ContactResultData {
   Notes: any;
   ImageUrl: any;
   Name: string | undefined;
-  Type: ContactType;
   IsImportant: any;
   Phone: any;
   ContactId: string;

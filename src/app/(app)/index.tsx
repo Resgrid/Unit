@@ -1,17 +1,20 @@
 import Mapbox from '@rnmapbox/maps';
 import { Stack } from 'expo-router';
+import { NavigationIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
+import PinDetailModal from '@/components/maps/pin-detail-modal';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { onSortOptions } from '@/lib/utils';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
+import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -23,6 +26,8 @@ export default function Map() {
   const cameraRef = useRef<Mapbox.Camera>(null);
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
+  const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
+  const [isPinDetailModalOpen, setIsPinDetailModalOpen] = useState(false);
   const location = useLocationStore((state) => ({
     latitude: state.latitude,
     longitude: state.longitude,
@@ -125,6 +130,53 @@ export default function Map() {
     }
   };
 
+  const handleRecenterMap = () => {
+    if (location.latitude && location.longitude) {
+      cameraRef.current?.setCamera({
+        centerCoordinate: [location.longitude, location.latitude],
+        zoomLevel: 12,
+        animationDuration: 1000,
+      });
+      setHasUserMovedMap(false);
+    }
+  };
+
+  const handlePinPress = (pin: MapMakerInfoData) => {
+    setSelectedPin(pin);
+    setIsPinDetailModalOpen(true);
+  };
+
+  const handleSetAsCurrentCall = async (pin: MapMakerInfoData) => {
+    try {
+      logger.info({
+        message: 'Setting call as current call',
+        context: {
+          callId: pin.Id,
+          callTitle: pin.Title,
+        },
+      });
+
+      await useCoreStore.getState().setActiveCall(pin.Id);
+      useToastStore.getState().showToast('success', t('map.call_set_as_current'));
+    } catch (error) {
+      logger.error({
+        message: 'Failed to set call as current call',
+        context: {
+          error,
+          callId: pin.Id,
+          callTitle: pin.Title,
+        },
+      });
+
+      useToastStore.getState().showToast('error', t('map.failed_to_set_current_call'));
+    }
+  };
+
+  const handleClosePinDetail = () => {
+    setIsPinDetailModalOpen(false);
+    setSelectedPin(null);
+  };
+
   return (
     <>
       <Stack.Screen
@@ -134,8 +186,8 @@ export default function Map() {
           headerShown: true,
         }}
       />
-      <View className="size-full flex-1">
-        <Mapbox.MapView ref={mapRef} styleURL={styleURL.styleURL} style={styles.map} onCameraChanged={onCameraChanged}>
+      <View className="size-full flex-1" testID="map-container">
+        <Mapbox.MapView ref={mapRef} styleURL={styleURL.styleURL} style={styles.map} onCameraChanged={onCameraChanged} testID="map-view">
           <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation followUserMode={Mapbox.UserTrackingMode.Follow} />
 
           {location.latitude && location.longitude && (
@@ -165,9 +217,19 @@ export default function Map() {
               </Animated.View>
             </Mapbox.PointAnnotation>
           )}
-          <MapPins pins={mapPins} />
+          <MapPins pins={mapPins} onPinPress={handlePinPress} />
         </Mapbox.MapView>
+
+        {/* Recenter Button */}
+        {hasUserMovedMap && location.latitude && location.longitude && (
+          <TouchableOpacity style={styles.recenterButton} onPress={handleRecenterMap} testID="recenter-button">
+            <NavigationIcon size={20} color="#ffffff" />
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Pin Detail Modal */}
+      <PinDetailModal pin={selectedPin} isOpen={isPinDetailModalOpen} onClose={handleClosePinDetail} onSetAsCurrentCall={handleSetAsCurrentCall} />
     </>
   );
 }
@@ -232,5 +294,24 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
     borderBottomColor: '#3b82f6',
     top: -36,
+  },
+  recenterButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

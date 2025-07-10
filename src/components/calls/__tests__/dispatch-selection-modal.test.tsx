@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 
 import { DispatchSelectionModal } from '../dispatch-selection-modal';
 
@@ -9,7 +9,9 @@ const mockDispatchStore = {
   data: {
     users: [
       {
+        Id: '1',
         UserId: '1',
+        Name: 'John Doe',
         FirstName: 'John',
         LastName: 'Doe',
         EmailAddress: 'john.doe@example.com',
@@ -82,7 +84,9 @@ const mockDispatchStore = {
   getFilteredData: jest.fn().mockReturnValue({
     users: [
       {
+        Id: '1',
         UserId: '1',
+        Name: 'John Doe',
         FirstName: 'John',
         LastName: 'Doe',
         EmailAddress: 'john.doe@example.com',
@@ -189,41 +193,49 @@ describe('DispatchSelectionModal', () => {
     expect(queryByText('calls.select_dispatch_recipients')).toBeNull();
   });
 
-  it('should call toggleEveryone when everyone option is pressed', () => {
+  it('should call toggleEveryone when everyone option is pressed', async () => {
     const { getByText } = render(<DispatchSelectionModal {...mockProps} />);
 
     const everyoneOption = getByText('calls.everyone');
     fireEvent.press(everyoneOption);
 
-    expect(mockDispatchStore.toggleEveryone).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockDispatchStore.toggleEveryone).toHaveBeenCalled();
+    });
   });
 
-  it('should call toggleUser when user is pressed', () => {
+  it('should call toggleUser when user is pressed', async () => {
     const { getByText } = render(<DispatchSelectionModal {...mockProps} />);
 
     const userOption = getByText('John Doe');
     fireEvent.press(userOption);
 
-    expect(mockDispatchStore.toggleUser).toHaveBeenCalledWith('1');
+    await waitFor(() => {
+      expect(mockDispatchStore.toggleUser).toHaveBeenCalledWith('1');
+    });
   });
 
-  it('should call setSearchQuery when search input changes', () => {
+  it('should call setSearchQuery when search input changes', async () => {
     const { getByPlaceholderText } = render(<DispatchSelectionModal {...mockProps} />);
 
     const searchInput = getByPlaceholderText('common.search');
     fireEvent.changeText(searchInput, 'test');
 
-    expect(mockDispatchStore.setSearchQuery).toHaveBeenCalledWith('test');
+    await waitFor(() => {
+      expect(mockDispatchStore.setSearchQuery).toHaveBeenCalledWith('test');
+    });
   });
 
-  it('should call clearSelection and onClose when cancel button is pressed', () => {
+  it('should call clearSelection and onClose when cancel button is pressed', async () => {
     const { getByText } = render(<DispatchSelectionModal {...mockProps} />);
 
     const cancelButton = getByText('common.cancel');
     fireEvent.press(cancelButton);
 
-    expect(mockDispatchStore.clearSelection).toHaveBeenCalled();
-    expect(mockProps.onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockDispatchStore.clearSelection).toHaveBeenCalled();
+      expect(mockProps.onClose).toHaveBeenCalled();
+    });
   });
 
   it('should show selection count', () => {

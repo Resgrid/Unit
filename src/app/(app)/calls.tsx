@@ -87,7 +87,7 @@ export default function Calls() {
         </Input>
 
         {/* Main content */}
-        <Box className="flex-1 px-4">{renderContent()}</Box>
+        <Box className="flex-1">{renderContent()}</Box>
 
         {/* FAB button for creating new call */}
         <Fab placement="bottom right" size="lg" onPress={handleNewCall} testID="new-call-fab">

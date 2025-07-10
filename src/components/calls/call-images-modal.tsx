@@ -1,13 +1,14 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, XIcon } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, FlatList, Image, Platform, TouchableOpacity, View } from 'react-native';
+import { Dimensions, FlatList, Platform, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { Image } from '@/components/ui/image';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -35,15 +36,31 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [newImageName, setNewImageName] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAddingImage, setIsAddingImage] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
 
   const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage } = useCallDetailStore();
 
+  // Filter valid images and memoize to prevent re-filtering on every render
+  const validImages = useMemo(() => {
+    if (!callImages) return [];
+    return callImages.filter((item) => item && (item.Data?.trim() || item.Url?.trim()));
+  }, [callImages]);
+
   useEffect(() => {
     if (isOpen && callId) {
       fetchCallImages(callId);
+      setActiveIndex(0); // Reset active index when opening
+      setImageErrors(new Set()); // Reset image errors
     }
   }, [isOpen, callId, fetchCallImages]);
+
+  // Reset active index when valid images change
+  useEffect(() => {
+    if (activeIndex >= validImages.length && validImages.length > 0) {
+      setActiveIndex(0);
+    }
+  }, [validImages.length, activeIndex]);
 
   const handleImageSelect = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -104,12 +121,90 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     }
   };
 
-  const renderImageItem = ({ item }: { item: CallFileResultData; index: number }) => {
-    if (!item || !item.Url) return null;
+  const handleImageError = (itemId: string, errorInfo?: any) => {
+    console.log(`Image loading failed for ${itemId}:`, errorInfo);
+    setImageErrors((prev) => new Set([...prev, itemId]));
+  };
+
+  // Helper function to test if URL is accessible
+  const testImageUrl = async (url: string) => {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      console.log(`URL ${url} accessibility test:`, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      return response.ok;
+    } catch (error) {
+      console.log(`URL ${url} fetch test failed:`, error);
+      return false;
+    }
+  };
+
+  const renderImageItem = ({ item, index }: { item: CallFileResultData; index: number }) => {
+    if (!item) return null;
+
+    // Use Data field if available (base64), otherwise fall back to Url
+    let imageSource: { uri: string } | null = null;
+    const hasError = imageErrors.has(item.Id);
+
+    if (item.Data && item.Data.trim() !== '') {
+      // Use Data as base64 image
+      const mimeType = item.Mime || 'image/png'; // Default to png if no mime type
+      imageSource = { uri: `data:${mimeType};base64,${item.Data}` };
+    } else if (item.Url && item.Url.trim() !== '') {
+      // Fall back to URL - add logging to debug URL issues
+      console.log(`Loading image from URL: ${item.Url} for item ${item.Id}`);
+      imageSource = { uri: item.Url };
+
+      // Test URL accessibility (don't await, just for debugging)
+      testImageUrl(item.Url);
+    }
+
+    if (!imageSource || hasError) {
+      return (
+        <Box className="w-full items-center justify-center px-4">
+          <Box className="h-64 w-full items-center justify-center rounded-lg bg-gray-200">
+            <ImageIcon size={48} color="#999" />
+            <Text className="mt-2 text-gray-500">{t('callImages.failed_to_load')}</Text>
+            {item.Url && (
+              <Text className="mt-1 px-2 text-center text-xs text-gray-400" numberOfLines={2}>
+                URL: {item.Url}
+              </Text>
+            )}
+          </Box>
+          <Text className="mt-2 text-center font-medium">{item.Name || ''}</Text>
+          <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
+        </Box>
+      );
+    }
 
     return (
       <Box className="w-full items-center justify-center px-4">
-        <Image source={{ uri: item.Url }} className="h-64 w-full rounded-lg" resizeMode="contain" />
+        <Image
+          key={`${item.Id}-${index}`}
+          source={imageSource}
+          className="h-64 w-full rounded-lg"
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          onError={(error) => {
+            console.log(`Full error details for ${item.Id}:`, error, 'URL:', item.Url);
+            handleImageError(item.Id, error);
+          }}
+          onLoad={() => {
+            console.log(`Image loaded successfully for ${item.Id}`);
+            // Remove from error set if it loads successfully
+            setImageErrors((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(item.Id);
+              return newSet;
+            });
+          }}
+          onLoadStart={() => {
+            console.log(`Starting to load image for ${item.Id}:`, imageSource?.uri);
+          }}
+        />
         <Text className="mt-2 text-center font-medium">{item.Name || ''}</Text>
         <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
       </Box>
@@ -118,43 +213,56 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
   const handleViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
-      setActiveIndex(viewableItems[0].index);
+      setActiveIndex(viewableItems[0].index || 0);
     }
   }).current;
 
+  const handlePrevious = () => {
+    const newIndex = Math.max(0, activeIndex - 1);
+    setActiveIndex(newIndex);
+    try {
+      flatListRef.current?.scrollToIndex({
+        index: newIndex,
+        animated: true,
+      });
+    } catch (error) {
+      console.warn('Error scrolling to previous image:', error);
+    }
+  };
+
+  const handleNext = () => {
+    const newIndex = Math.min(validImages.length - 1, activeIndex + 1);
+    setActiveIndex(newIndex);
+    try {
+      flatListRef.current?.scrollToIndex({
+        index: newIndex,
+        animated: true,
+      });
+    } catch (error) {
+      console.warn('Error scrolling to next image:', error);
+    }
+  };
+
   const renderPagination = () => {
-    if (!callImages || callImages.length <= 1) return null;
+    if (!validImages || validImages.length <= 1) return null;
 
     return (
       <HStack className="mt-4 items-center justify-between px-4">
-        <TouchableOpacity
-          onPress={() =>
-            flatListRef.current?.scrollToIndex({
-              index: activeIndex - 1,
-              animated: true,
-            })
-          }
-          disabled={activeIndex === 0}
-          className={`rounded-full bg-white/80 p-2 ${activeIndex === 0 ? 'opacity-50' : ''}`}
-        >
+        <TouchableOpacity testID="previous-button" onPress={handlePrevious} disabled={activeIndex === 0} className={`rounded-full bg-white/80 p-2 ${activeIndex === 0 ? 'opacity-50' : ''}`}>
           <ChevronLeftIcon size={24} color="#000" />
         </TouchableOpacity>
 
-        <HStack className="items-center space-x-2 rounded-full bg-white/80 px-4 py-2">
-          {callImages.map((_, index) => (
-            <Box key={index} className={`mx-1 size-2.5 rounded-full ${index === activeIndex ? 'bg-primary' : 'bg-gray-400'}`} />
-          ))}
+        <HStack className="items-center space-x-2 rounded-full bg-white/80 px-4 py-2 dark:bg-gray-800/80">
+          <Text className="text-sm font-medium text-gray-800 dark:text-white">
+            {activeIndex + 1} / {validImages.length}
+          </Text>
         </HStack>
 
         <TouchableOpacity
-          onPress={() =>
-            flatListRef.current?.scrollToIndex({
-              index: activeIndex + 1,
-              animated: true,
-            })
-          }
-          disabled={activeIndex === callImages.length - 1}
-          className={`rounded-full bg-white/80 p-2 ${activeIndex === callImages.length - 1 ? 'opacity-50' : ''}`}
+          testID="next-button"
+          onPress={handleNext}
+          disabled={activeIndex === validImages.length - 1}
+          className={`rounded-full bg-white/80 p-2 ${activeIndex === validImages.length - 1 ? 'opacity-50' : ''}`}
         >
           <ChevronRightIcon size={24} color="#000" />
         </TouchableOpacity>
@@ -180,7 +288,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
         {selectedImage ? (
           <Box className="items-center">
-            <Image source={{ uri: selectedImage }} className="h-64 w-full rounded-lg" resizeMode="contain" />
+            <Image source={{ uri: selectedImage }} className="h-64 w-full rounded-lg" contentFit="contain" />
             <Input className="mt-4 w-full">
               <InputField placeholder={t('callImages.image_name')} value={newImageName} onChangeText={setNewImageName} />
             </Input>
@@ -209,14 +317,14 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   );
 
   const renderImageGallery = () => {
-    if (!callImages?.length) return null;
+    if (!validImages?.length) return null;
 
     return (
       <VStack className="space-y-4 p-4">
         <Box className="relative">
           <FlatList
             ref={flatListRef}
-            data={callImages.filter((item) => item && item.Url)}
+            data={validImages}
             renderItem={renderImageItem}
             keyExtractor={(item) => item?.Id || `image-${Math.random()}`}
             horizontal
@@ -267,7 +375,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       return renderAddImageContent();
     }
 
-    if (!callImages || callImages.length === 0) {
+    if (!validImages || validImages.length === 0) {
       return <ZeroState icon={ImageIcon} heading={t('callImages.no_images')} description={t('callImages.no_images_description')} />;
     }
 
