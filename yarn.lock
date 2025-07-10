@@ -1027,10 +1027,10 @@
     "@types/conventional-commits-parser" "^5.0.0"
     chalk "^5.3.0"
 
-"@config-plugins/react-native-webrtc@~10.0.0":
-  version "10.0.0"
-  resolved "https://registry.yarnpkg.com/@config-plugins/react-native-webrtc/-/react-native-webrtc-10.0.0.tgz#66c7d34bb783b26bc7ebcec9ccb021fa1a55433c"
-  integrity sha512-q6owBOwQo3HRx4/b0FteE06Ymlcx7pK5bw+Stg77wgTWyxWAJ90yfVvvdMckzxuxMwDd78o9yCLKIONTulHD4A==
+"@config-plugins/react-native-webrtc@^12.0.0":
+  version "12.0.0"
+  resolved "https://registry.yarnpkg.com/@config-plugins/react-native-webrtc/-/react-native-webrtc-12.0.0.tgz#2bad8d59fa8aeb1b311c82c8704259154b00805f"
+  integrity sha512-EIYR+ArIOFBz8cEHSdPjxqFPhaN+nNeoPnI6iVStctYKZdl6AEgmXq6Qfpds6qyin1W4JP7wq2jJh32OsRfwxg==
 
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
