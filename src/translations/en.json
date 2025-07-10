@@ -61,13 +61,13 @@
     "close_call_type_placeholder": "Select close type",
     "close_call_type_required": "Please select a close type",
     "close_call_types": {
-      "closed": "Closed",
       "cancelled": "Cancelled",
-      "unfounded": "Unfounded",
+      "closed": "Closed",
+      "false_alarm": "False Alarm",
       "founded": "Founded",
       "minor": "Minor",
       "transferred": "Transferred",
-      "false_alarm": "False Alarm"
+      "unfounded": "Unfounded"
     },
     "contact_email": "Email",
     "contact_info": "Contact Info",
@@ -157,14 +157,14 @@
     "create_error": "Error creating call",
     "create_new_call": "Create New Call",
     "create_success": "Call created successfully",
-    "edit_call": "Edit Call",
-    "edit_call_description": "Update call information",
     "description": "Description",
     "description_placeholder": "Enter the description of the call",
     "deselect": "Deselect",
     "directions": "Directions",
     "dispatch_to": "Dispatch To",
     "dispatch_to_everyone": "Dispatch to all available personnel",
+    "edit_call": "Edit Call",
+    "edit_call_description": "Update call information",
     "everyone": "Everyone",
     "geocoding_error": "Failed to search for address, please try again",
     "groups": "Groups",
@@ -214,12 +214,12 @@
     "viewNotes": "Notes",
     "view_details": "View Details",
     "what3words": "what3words",
-    "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)",
-    "what3words_required": "Please enter a what3words address to search",
-    "what3words_invalid_format": "Invalid what3words format. Please use format: word.word.word",
     "what3words_found": "what3words address found and location updated",
+    "what3words_geocoding_error": "Failed to search for what3words address, please try again",
+    "what3words_invalid_format": "Invalid what3words format. Please use format: word.word.word",
     "what3words_not_found": "what3words address not found, please try a different address",
-    "what3words_geocoding_error": "Failed to search for what3words address, please try again"
+    "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)",
+    "what3words_required": "Please enter a what3words address to search"
   },
   "common": {
     "add": "Add",
@@ -379,6 +379,16 @@
     "username": "Username",
     "username_placeholder": "Enter your username"
   },
+  "map": {
+    "call_set_as_current": "Call set as current call",
+    "failed_to_open_maps": "Failed to open maps application",
+    "failed_to_set_current_call": "Failed to set call as current call",
+    "no_location_for_routing": "No location data available for routing",
+    "pin_color": "Pin Color",
+    "recenter_map": "Recenter Map",
+    "set_as_current_call": "Set as Current Call",
+    "view_call_details": "View Call Details"
+  },
   "notes": {
     "actions": {
       "add": "Add Note",
@@ -483,16 +493,6 @@
     "username": "Username",
     "version": "Version",
     "website": "Website"
-  },
-  "map": {
-    "call_set_as_current": "Call set as current call",
-    "failed_to_open_maps": "Failed to open maps application",
-    "failed_to_set_current_call": "Failed to set call as current call",
-    "no_location_for_routing": "No location data available for routing",
-    "pin_color": "Pin Color",
-    "recenter_map": "Recenter Map",
-    "set_as_current_call": "Set as Current Call",
-    "view_call_details": "View Call Details"
   },
   "tabs": {
     "calls": "Calls",
