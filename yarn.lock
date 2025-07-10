@@ -2301,10 +2301,10 @@
   resolved "https://registry.yarnpkg.com/@livekit/mutex/-/mutex-1.1.1.tgz#72492b611d55be8130ba2271b7a436d94b1bc6d4"
   integrity sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==
 
-"@livekit/protocol@1.39.2":
-  version "1.39.2"
-  resolved "https://registry.yarnpkg.com/@livekit/protocol/-/protocol-1.39.2.tgz#f2b6f29845a556bd1b04bdc287fe335153d4d245"
-  integrity sha512-kYbIO/JlC6cylSxd4WJrBps9+zoZ9gifL7t3iW9whT8rbo5jHx03I4dwBLhzOonVyX+memSEO90m/ymNoT+aAw==
+"@livekit/protocol@1.39.3":
+  version "1.39.3"
+  resolved "https://registry.yarnpkg.com/@livekit/protocol/-/protocol-1.39.3.tgz#dfbb801f6de232d64d918e0ad796268ff709cc35"
+  integrity sha512-hfOnbwPCeZBEvMRdRhU2sr46mjGXavQcrb3BFRfG+Gm0Z7WUSeFdy5WLstXJzEepz17Iwp/lkGwJ4ZgOOYfPuA==
   dependencies:
     "@bufbuild/protobuf" "^1.10.0"
 
@@ -10218,13 +10218,13 @@ listr@^0.14.3:
     p-map "^2.0.0"
     rxjs "^6.3.3"
 
-livekit-client@~2.13.4:
-  version "2.13.8"
-  resolved "https://registry.yarnpkg.com/livekit-client/-/livekit-client-2.13.8.tgz#d0e0cc1dace2a0bf8787279e8e0ff52f6c62ef95"
-  integrity sha512-HXE89EizbgS/V+gh74GLGYOzvQ9d8qAsWt/N5lYkVGJX8PCq+7WK8whq5baFF7FBGkVPaE5NmW7Nk2V5nHvvWA==
+livekit-client@^2.15.2:
+  version "2.15.2"
+  resolved "https://registry.yarnpkg.com/livekit-client/-/livekit-client-2.15.2.tgz#0d7f1c9bae26848327773d39c5c3b1f26bc58b38"
+  integrity sha512-hf0A0JFN7M0iVGZxMfTk6a3cW7TNTVdqxkykjKBweORlqhQX1ITVloh6aLvplLZOxpkUE5ZVLz1DeS3+ERglog==
   dependencies:
     "@livekit/mutex" "1.1.1"
-    "@livekit/protocol" "1.39.2"
+    "@livekit/protocol" "1.39.3"
     events "^3.3.0"
     loglevel "^1.9.2"
     sdp-transform "^2.15.0"
