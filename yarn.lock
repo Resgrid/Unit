@@ -7551,10 +7551,10 @@ expo-router@~4.0.21:
     semver "~7.6.3"
     server-only "^0.0.1"
 
-expo-screen-orientation@~8.0.4:
-  version "8.0.4"
-  resolved "https://registry.yarnpkg.com/expo-screen-orientation/-/expo-screen-orientation-8.0.4.tgz#f58fee14a150eada0638c6abf67b752e27d65ee4"
-  integrity sha512-kJrIZ/44+Gs5D5nyP6SXqTUbJEOsRgzk+nUcKeVZ0Vmx0szGrvSvhzdus7853xT/sqyAARsqBMlx626jAMu/Jg==
+expo-screen-orientation@~8.1.7:
+  version "8.1.7"
+  resolved "https://registry.yarnpkg.com/expo-screen-orientation/-/expo-screen-orientation-8.1.7.tgz#3751b441f2bfcbde798b1508c0ff9f099f4be911"
+  integrity sha512-nYwadYtdU6mMDk0MCHMPPPQtBoeFYJ2FspLRW+J35CMLqzE4nbpwGeiImfXzkvD94fpOCfI4KgLj5vGauC3pfA==
 
 expo-sharing@~13.0.1:
   version "13.0.1"
