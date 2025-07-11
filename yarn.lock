@@ -1027,7 +1027,7 @@
     "@types/conventional-commits-parser" "^5.0.0"
     chalk "^5.3.0"
 
-"@config-plugins/react-native-webrtc@^12.0.0":
+"@config-plugins/react-native-webrtc@~12.0.0":
   version "12.0.0"
   resolved "https://registry.yarnpkg.com/@config-plugins/react-native-webrtc/-/react-native-webrtc-12.0.0.tgz#2bad8d59fa8aeb1b311c82c8704259154b00805f"
   integrity sha512-EIYR+ArIOFBz8cEHSdPjxqFPhaN+nNeoPnI6iVStctYKZdl6AEgmXq6Qfpds6qyin1W4JP7wq2jJh32OsRfwxg==
@@ -2313,7 +2313,7 @@
   resolved "https://registry.yarnpkg.com/@livekit/react-native-expo-plugin/-/react-native-expo-plugin-1.0.1.tgz#8472299b1b399209463347ed27de7b0f743d700d"
   integrity sha512-CSPjjzgDDlBH1ZyFyaw7/FW2Ql1S51eUkIxv/vjGwVshn+lUD6eQ9VgfUh7ha84itvjXi9X87FvP0XWKn9CiFQ==
 
-"@livekit/react-native-webrtc@^125.0.11":
+"@livekit/react-native-webrtc@~125.0.11":
   version "125.0.11"
   resolved "https://registry.yarnpkg.com/@livekit/react-native-webrtc/-/react-native-webrtc-125.0.11.tgz#fb64c6d4b66e664c15a8820aa929acb5584e03bf"
   integrity sha512-d8bOH0rBVnyl08urRFcx9+sPCgOdcYj1VQFb0cBN87RRVF9ZdIMq8id6GGEcTv/GBIQPAZbsOcATACneMcX8ww==
@@ -10218,7 +10218,7 @@ listr@^0.14.3:
     p-map "^2.0.0"
     rxjs "^6.3.3"
 
-livekit-client@^2.15.2:
+livekit-client@~2.15.2:
   version "2.15.2"
   resolved "https://registry.yarnpkg.com/livekit-client/-/livekit-client-2.15.2.tgz#0d7f1c9bae26848327773d39c5c3b1f26bc58b38"
   integrity sha512-hf0A0JFN7M0iVGZxMfTk6a3cW7TNTVdqxkykjKBweORlqhQX1ITVloh6aLvplLZOxpkUE5ZVLz1DeS3+ERglog==
