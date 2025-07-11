@@ -2313,10 +2313,10 @@
   resolved "https://registry.yarnpkg.com/@livekit/react-native-expo-plugin/-/react-native-expo-plugin-1.0.1.tgz#8472299b1b399209463347ed27de7b0f743d700d"
   integrity sha512-CSPjjzgDDlBH1ZyFyaw7/FW2Ql1S51eUkIxv/vjGwVshn+lUD6eQ9VgfUh7ha84itvjXi9X87FvP0XWKn9CiFQ==
 
-"@livekit/react-native-webrtc@~125.0.9":
-  version "125.0.10"
-  resolved "https://registry.yarnpkg.com/@livekit/react-native-webrtc/-/react-native-webrtc-125.0.10.tgz#d24146e9bcb186eed5529ce0b9bc077910bec58c"
-  integrity sha512-pSXuohKe/sBk1bsdaSx4M9qY3s1sGkvyWLsaKoRkjVNSMUjdwdgRmjW8EsJk9sJU4CYzY63rZvhAhG0H1c8Zww==
+"@livekit/react-native-webrtc@^125.0.11":
+  version "125.0.11"
+  resolved "https://registry.yarnpkg.com/@livekit/react-native-webrtc/-/react-native-webrtc-125.0.11.tgz#fb64c6d4b66e664c15a8820aa929acb5584e03bf"
+  integrity sha512-d8bOH0rBVnyl08urRFcx9+sPCgOdcYj1VQFb0cBN87RRVF9ZdIMq8id6GGEcTv/GBIQPAZbsOcATACneMcX8ww==
   dependencies:
     base64-js "1.5.1"
     debug "4.3.4"
