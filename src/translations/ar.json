@@ -180,6 +180,8 @@
     "no_call_selected_info": "هذه الوحدة لا تستجيب حاليًا لأي مكالمات",
     "no_calls": "لا توجد مكالمات نشطة",
     "no_calls_description": "لم يتم العثور على مكالمات نشطة. اختر مكالمة نشطة لعرض التفاصيل.",
+    "no_location_message": "هذه المكالمة لا تحتوي على بيانات موقع متاحة للملاحة.",
+    "no_location_title": "الموقع غير متاح",
     "no_open_calls": "لا توجد مكالمات مفتوحة متاحة",
     "note": "ملاحظة",
     "note_placeholder": "أدخل ملاحظة المكالمة",
@@ -219,9 +221,7 @@
     "what3words_invalid_format": "تنسيق what3words غير صحيح. استخدم التنسيق: كلمة.كلمة.كلمة",
     "what3words_not_found": "لم يتم العثور على عنوان what3words، جرب عنوان آخر",
     "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)",
-    "what3words_required": "يرجى إدخال عنوان what3words للبحث",
-    "no_location_title": "الموقع غير متاح",
-    "no_location_message": "هذه المكالمة لا تحتوي على بيانات موقع متاحة للملاحة."
+    "what3words_required": "يرجى إدخال عنوان what3words للبحث"
   },
   "common": {
     "add": "إضافة",
@@ -245,6 +245,7 @@
     "no_results_found": "لم يتم العثور على نتائج",
     "no_unit_selected": "لم يتم اختيار وحدة",
     "nothingToDisplay": "لا يوجد شيء للعرض في الوقت الحالي",
+    "ok": "موافق",
     "permission_denied": "تم رفض الإذن",
     "remove": "إزالة",
     "route": "مسار",

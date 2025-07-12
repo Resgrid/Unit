@@ -180,6 +180,8 @@
     "no_call_selected_info": "Esta unidad no está respondiendo a ninguna llamada actualmente",
     "no_calls": "No hay llamadas activas",
     "no_calls_description": "No se encontraron llamadas activas. Seleccione una llamada activa para ver los detalles.",
+    "no_location_message": "Esta llamada no tiene datos de ubicación disponibles para navegación.",
+    "no_location_title": "Ubicación No Disponible",
     "no_open_calls": "No hay llamadas abiertas disponibles",
     "note": "Nota",
     "note_placeholder": "Introduce la nota de la llamada",
@@ -219,9 +221,7 @@
     "what3words_invalid_format": "Formato what3words inválido. Use el formato: palabra.palabra.palabra",
     "what3words_not_found": "Dirección what3words no encontrada, intente con otra dirección",
     "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)",
-    "what3words_required": "Por favor introduce una dirección what3words para buscar",
-    "no_location_title": "Ubicación No Disponible",
-    "no_location_message": "Esta llamada no tiene datos de ubicación disponibles para navegación."
+    "what3words_required": "Por favor introduce una dirección what3words para buscar"
   },
   "common": {
     "add": "Añadir",
@@ -245,6 +245,7 @@
     "no_results_found": "No se encontraron resultados",
     "no_unit_selected": "Ninguna unidad seleccionada",
     "nothingToDisplay": "No hay nada que mostrar en este momento",
+    "ok": "Ok",
     "permission_denied": "Permiso denegado",
     "remove": "Eliminar",
     "route": "Ruta",
