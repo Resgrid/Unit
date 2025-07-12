@@ -105,7 +105,7 @@ export default function Map() {
     };
 
     fetchMapDataAndMarkers();
-  }, [setMapPins]);
+  }, []);
 
   useEffect(() => {
     Animated.loop(

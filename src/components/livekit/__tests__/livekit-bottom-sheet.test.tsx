@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import React from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
@@ -334,8 +334,7 @@ describe('LiveKitBottomSheet', () => {
     it('should handle view transitions', () => {
       const fetchVoiceSettings = jest.fn();
 
-      // Start with room selection
-      const { rerender } = render(<LiveKitBottomSheet />);
+      // Start with room selection view
       mockUseLiveKitStore.mockReturnValue({
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
@@ -343,10 +342,11 @@ describe('LiveKitBottomSheet', () => {
         fetchVoiceSettings,
       });
 
-      rerender(<LiveKitBottomSheet />);
+      const { rerender } = render(<LiveKitBottomSheet />);
       expect(fetchVoiceSettings).toHaveBeenCalled();
 
-      // Connect to room
+      // Connect to room - fetchVoiceSettings should not be called again since we're now in connected view
+      fetchVoiceSettings.mockClear();
       mockUseLiveKitStore.mockReturnValue({
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
@@ -357,14 +357,13 @@ describe('LiveKitBottomSheet', () => {
       });
 
       rerender(<LiveKitBottomSheet />);
-      expect(fetchVoiceSettings).toHaveBeenCalled();
+      expect(fetchVoiceSettings).not.toHaveBeenCalled(); // Should not be called in connected view
     });
 
     it('should handle microphone state changes', () => {
       const fetchVoiceSettings = jest.fn();
 
-      // Start with muted microphone
-      const { rerender } = render(<LiveKitBottomSheet />);
+      // Start with muted microphone in connected state
       mockUseLiveKitStore.mockReturnValue({
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
@@ -374,7 +373,9 @@ describe('LiveKitBottomSheet', () => {
         fetchVoiceSettings,
       });
 
-      rerender(<LiveKitBottomSheet />);
+      const { rerender } = render(<LiveKitBottomSheet />);
+      // Clear the initial call that happens during render before the view switches
+      fetchVoiceSettings.mockClear();
 
       // Enable microphone
       const enabledMockRoom = {
@@ -394,7 +395,7 @@ describe('LiveKitBottomSheet', () => {
       });
 
       rerender(<LiveKitBottomSheet />);
-      expect(fetchVoiceSettings).toHaveBeenCalled();
+      expect(fetchVoiceSettings).not.toHaveBeenCalled(); // Should not be called when just changing microphone state
     });
   });
 }); 

@@ -22,7 +22,7 @@ const Sidebar = () => {
 
   return (
     <ScrollView className="size-full pt-4">
-      <VStack space="md" className="size-full p-4">
+      <VStack space="md" className="size-full p-2">
         {/* First row - Two cards side by side */}
         <HStack space="md">
           <SidebarUnitCard unitName="No Unit" unitType="" unitGroup={t('common.no_unit_selected')} bgColor="bg-background-50" />
@@ -36,7 +36,7 @@ const Sidebar = () => {
         <SidebarCallCard />
 
         {/* Third row - List of buttons */}
-        <VStack space="sm" className="w-full">
+        <VStack space="sm" className="mb-4 w-full">
           {activeStatuses?.Statuses.map((status) => (
             <Button
               key={status.Id}

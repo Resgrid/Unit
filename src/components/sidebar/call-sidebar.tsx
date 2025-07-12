@@ -61,7 +61,7 @@ export const SidebarCallCard = () => {
 
   return (
     <>
-      <Pressable onPress={() => setIsBottomSheetOpen(true)} className="w-full">
+      <Pressable onPress={() => setIsBottomSheetOpen(true)} className="w-full" testID="call-selection-trigger">
         {activeCall && activePriority ? (
           <CallCard call={activeCall} priority={activePriority} />
         ) : (
@@ -106,35 +106,41 @@ export const SidebarCallCard = () => {
         </HStack>
       )}
 
-      <CustomBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} isLoading={isLoading} loadingText={t('common.loading')}>
-        <ScrollView className="max-h-96 w-full">
-          <VStack space="lg" className="mt-4 w-full">
-            <Text className="text-lg font-bold">{t('calls.select_active_call')}</Text>
-            {openCallsData?.map((call) => (
-              <Pressable
-                key={call.CallId}
-                onPress={async () => {
-                  await setActiveCall(call.CallId);
-                  setIsBottomSheetOpen(false);
-                }}
-                className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                  activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                }`}
-              >
-                <HStack space="md" className="items-center justify-between">
-                  <VStack>
-                    <Text className={`font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{call.Name}</Text>
-                    <Text size="sm" className={colorScheme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'}>
-                      {call.Type}
-                    </Text>
-                  </VStack>
-                  {activeCall?.CallId === call.CallId && <Check size={20} className={colorScheme === 'dark' ? 'text-primary-400' : 'text-primary-600'} />}
-                </HStack>
-              </Pressable>
-            ))}
-            {!isLoading && openCallsData?.length === 0 && <Text className="text-center text-gray-500">{t('calls.no_open_calls')}</Text>}
-          </VStack>
-        </ScrollView>
+      <CustomBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} isLoading={isLoading} loadingText={t('common.loading')} snapPoints={[60]} testID="call-selection-bottom-sheet">
+        <VStack space="md" className="w-full flex-1">
+          <Text className="text-lg font-bold">{t('calls.select_active_call')}</Text>
+          <ScrollView className="w-full flex-1" showsVerticalScrollIndicator={false}>
+            <VStack space="md" className="w-full">
+              {openCallsData?.map((call) => (
+                <Pressable
+                  key={call.CallId}
+                  onPress={async () => {
+                    await setActiveCall(call.CallId);
+                    setIsBottomSheetOpen(false);
+                  }}
+                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                    }`}
+                  testID={`call-item-${call.CallId}`}
+                >
+                  <HStack space="md" className="items-center justify-between">
+                    <VStack className="flex-1">
+                      <Text className={`font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{call.Name}</Text>
+                      <Text size="sm" className={colorScheme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'}>
+                        {call.Type}
+                      </Text>
+                    </VStack>
+                    {activeCall?.CallId === call.CallId && <Check size={20} color={colorScheme === 'dark' ? '#60a5fa' : '#2563eb'} />}
+                  </HStack>
+                </Pressable>
+              ))}
+              {!isLoading && openCallsData?.length === 0 && (
+                <Text className="py-8 text-center text-gray-500" testID="no-calls-message">
+                  {t('calls.no_open_calls')}
+                </Text>
+              )}
+            </VStack>
+          </ScrollView>
+        </VStack>
       </CustomBottomSheet>
     </>
   );

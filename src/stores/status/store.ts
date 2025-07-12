@@ -63,6 +63,9 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         status.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
         status.Note = note;
         await saveUnitStatus(status);
+
+        // Refresh the active unit status after saving
+        await useCoreStore.getState().setActiveUnitWithFetch(activeUnit.UnitId);
       }
       set({ isLoading: false });
     } catch (error) {

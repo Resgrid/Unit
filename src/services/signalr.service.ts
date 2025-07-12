@@ -46,6 +46,11 @@ class SignalRService {
         throw new Error('No authentication token available');
       }
 
+      logger.info({
+        message: `Connecting to hub: ${config.name}`,
+        context: { config },
+      });
+
       const connection = new HubConnectionBuilder()
         .withUrl(config.url, {
           accessTokenFactory: () => token,
@@ -76,7 +81,16 @@ class SignalRService {
 
       // Register all methods
       config.methods.forEach((method) => {
+        logger.info({
+          message: `Registering ${method} message from hub: ${config.name}`,
+          context: { method },
+        });
+
         connection.on(method, (data) => {
+          logger.info({
+            message: `Received ${method} message from hub: ${config.name}`,
+            context: { method, data },
+          });
           this.handleMessage(config.name, method, data);
         });
       });
@@ -120,8 +134,8 @@ class SignalRService {
       message: `Received message from hub: ${hubName}`,
       context: { method, data },
     });
-    // Emit event for subscribers
-    this.emit('message', { hubName, method, data });
+    // Emit event for subscribers using the method name as the event name
+    this.emit(method, data);
   }
 
   public async disconnectFromHub(hubName: string): Promise<void> {
@@ -137,6 +151,21 @@ class SignalRService {
       } catch (error) {
         logger.error({
           message: `Error disconnecting from hub: ${hubName}`,
+          context: { error },
+        });
+        throw error;
+      }
+    }
+  }
+
+  public async invoke(hubName: string, method: string, data: unknown): Promise<void> {
+    const connection = this.connections.get(hubName);
+    if (connection) {
+      try {
+        return await connection.invoke(method, data);
+      } catch (error) {
+        logger.error({
+          message: `Error invoking method ${method} from hub: ${hubName}`,
           context: { error },
         });
         throw error;

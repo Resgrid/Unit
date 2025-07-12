@@ -26,7 +26,7 @@ export const RoleAssignmentItem: React.FC<RoleAssignmentItemProps> = ({ role, as
   });
 
   return (
-    <VStack className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800" space="xs">
+    <VStack className="rounded-lg p-4" space="xs">
       <Text className="text-base font-medium">{role.Name}</Text>
       <Select selectedValue={assignedUser?.UserId || ''} onValueChange={(value) => onAssignUser(value || undefined)}>
         <SelectTrigger>

@@ -16,6 +16,7 @@ import { Drawer, DrawerBackdrop, DrawerBody, DrawerContent, DrawerFooter, Drawer
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
+import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
 import { useAuthStore } from '@/lib/auth';
 import { logger } from '@/lib/logging';
 import { useIsFirstTime } from '@/lib/storage';
@@ -26,6 +27,7 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
+import { useSignalRStore } from '@/stores/signalr/signalr-store';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -96,10 +98,14 @@ export default function TabLayout() {
       await securityStore.getState().getRights();
       await useCoreStore.getState().fetchConfig();
 
+      await useSignalRStore.getState().connectUpdateHub();
+      await useSignalRStore.getState().connectGeolocationHub();
+
+      hasInitialized.current = true;
+
       // Initialize Bluetooth service
       await bluetoothAudioService.initialize();
 
-      hasInitialized.current = true;
       logger.info({
         message: 'App initialization completed successfully',
       });
@@ -123,6 +129,7 @@ export default function TabLayout() {
     });
 
     try {
+      // Refresh data
       await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles()]);
     } catch (error) {
       logger.error({
@@ -131,6 +138,12 @@ export default function TabLayout() {
       });
     }
   }, [status]);
+
+  // Handle SignalR lifecycle management
+  useSignalRLifecycle({
+    isSignedIn: status === 'signedIn',
+    hasInitialized: hasInitialized.current,
+  });
 
   // Handle splash screen hiding
   useEffect(() => {

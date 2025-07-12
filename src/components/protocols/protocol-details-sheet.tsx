@@ -39,7 +39,7 @@ export const ProtocolDetailsSheet: React.FC = () => {
             <Heading size="lg" className="text-gray-800 dark:text-gray-100">
               {selectedProtocol.Name}
             </Heading>
-            <Button variant="link" onPress={closeDetails} className="p-1">
+            <Button variant="link" onPress={closeDetails} className="p-1" testID="close-button">
               <X size={24} className="text-gray-600 dark:text-gray-400" />
             </Button>
           </HStack>
