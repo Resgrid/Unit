@@ -1,10 +1,11 @@
-import { Mic, Phone } from 'lucide-react-native';
+import { Lock, Mic, Phone, Unlock } from 'lucide-react-native';
 import * as React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
+import { useLocationStore } from '@/stores/app/location-store';
 
 import { Card } from '../ui/card';
 
@@ -18,6 +19,7 @@ type ItemProps = {
 export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUnitType, unitGroup: defaultUnitGroup, bgColor }: ItemProps) => {
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const { setIsBottomSheetVisible, currentRoomInfo, isConnected, isTalking } = useLiveKitStore();
+  const { isMapLocked, setMapLocked } = useLocationStore();
 
   // Derive the display values from activeUnit when available, otherwise use defaults
   const displayName = activeUnit?.Name ?? defaultUnitName;
@@ -26,6 +28,10 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
 
   const handleOpenLiveKit = () => {
     setIsBottomSheetVisible(true);
+  };
+
+  const handleToggleMapLock = () => {
+    setMapLocked(!isMapLocked);
   };
 
   return (
@@ -45,9 +51,15 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
           </View>
         ) : null}
 
-        <TouchableOpacity style={[styles.callButton, isConnected ? styles.activeCall : {}]} onPress={handleOpenLiveKit}>
-          <Phone size={18} color={isConnected ? '#fff' : '#007AFF'} />
-        </TouchableOpacity>
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity style={[styles.mapLockButton, isMapLocked ? styles.mapLockButtonActive : {}]} onPress={handleToggleMapLock} testID="map-lock-button">
+            {isMapLocked ? <Lock size={18} color={isMapLocked ? '#fff' : '#007AFF'} /> : <Unlock size={18} color="#007AFF" />}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.callButton, isConnected ? styles.activeCall : {}]} onPress={handleOpenLiveKit} testID="call-button">
+            <Phone size={18} color={isConnected ? '#fff' : '#007AFF'} />
+          </TouchableOpacity>
+        </View>
       </View>
     </Card>
   );
@@ -60,6 +72,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  buttonContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   callButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
@@ -71,6 +88,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activeCall: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  mapLockButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapLockButtonActive: {
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
   },

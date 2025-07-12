@@ -32,6 +32,7 @@ export default function Map() {
     latitude: state.latitude,
     longitude: state.longitude,
     heading: state.heading,
+    isMapLocked: state.isMapLocked,
   }));
 
   const _mapOptions = Object.keys(Mapbox.StyleURL)
@@ -82,18 +83,28 @@ export default function Map() {
           latitude: location.latitude,
           longitude: location.longitude,
           heading: location.heading,
+          isMapLocked: location.isMapLocked,
         },
       });
 
-      if (!hasUserMovedMap) {
+      // When map is locked, always follow the location
+      // When map is unlocked, only follow if user hasn't moved the map
+      if (location.isMapLocked || !hasUserMovedMap) {
         cameraRef.current?.setCamera({
           centerCoordinate: [location.longitude, location.latitude],
           zoomLevel: 12,
-          animationDuration: 1000,
+          animationDuration: location.isMapLocked ? 500 : 1000,
         });
       }
     }
-  }, [location.latitude, location.longitude, location.heading, hasUserMovedMap]);
+  }, [location.latitude, location.longitude, location.heading, location.isMapLocked, hasUserMovedMap]);
+
+  // Reset hasUserMovedMap when map gets locked
+  useEffect(() => {
+    if (location.isMapLocked) {
+      setHasUserMovedMap(false);
+    }
+  }, [location.isMapLocked]);
 
   useEffect(() => {
     const fetchMapDataAndMarkers = async () => {
@@ -125,7 +136,8 @@ export default function Map() {
   }, [pulseAnim]);
 
   const onCameraChanged = (event: any) => {
-    if (event.properties.isUserInteraction) {
+    // Only register user interaction if map is not locked
+    if (event.properties.isUserInteraction && !location.isMapLocked) {
       setHasUserMovedMap(true);
     }
   };
@@ -177,6 +189,9 @@ export default function Map() {
     setSelectedPin(null);
   };
 
+  // Show recenter button only when map is not locked and user has moved the map
+  const showRecenterButton = !location.isMapLocked && hasUserMovedMap && location.latitude && location.longitude;
+
   return (
     <>
       <Stack.Screen
@@ -188,7 +203,7 @@ export default function Map() {
       />
       <View className="size-full flex-1" testID="map-container">
         <Mapbox.MapView ref={mapRef} styleURL={styleURL.styleURL} style={styles.map} onCameraChanged={onCameraChanged} testID="map-view">
-          <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation followUserMode={Mapbox.UserTrackingMode.Follow} />
+          <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation={location.isMapLocked} followUserMode={location.isMapLocked ? Mapbox.UserTrackingMode.Follow : undefined} />
 
           {location.latitude && location.longitude && (
             <Mapbox.PointAnnotation id="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }}>
@@ -220,8 +235,8 @@ export default function Map() {
           <MapPins pins={mapPins} onPinPress={handlePinPress} />
         </Mapbox.MapView>
 
-        {/* Recenter Button */}
-        {hasUserMovedMap && location.latitude && location.longitude && (
+        {/* Recenter Button - only show when map is not locked and user has moved the map */}
+        {showRecenterButton && (
           <TouchableOpacity style={styles.recenterButton} onPress={handleRecenterMap} testID="recenter-button">
             <NavigationIcon size={20} color="#ffffff" />
           </TouchableOpacity>

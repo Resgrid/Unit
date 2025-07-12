@@ -13,8 +13,10 @@ export interface LocationState {
   altitude: number | null;
   timestamp: number | null;
   isBackgroundEnabled: boolean;
+  isMapLocked: boolean;
   setLocation: (location: Location.LocationObject) => void;
   setBackgroundEnabled: (enabled: boolean) => void;
+  setMapLocked: (locked: boolean) => void;
 }
 
 export const useLocationStore = create<LocationState>()(
@@ -28,6 +30,7 @@ export const useLocationStore = create<LocationState>()(
       altitude: null,
       timestamp: null,
       isBackgroundEnabled: false,
+      isMapLocked: false,
       setLocation: (location) =>
         set({
           latitude: location.coords.latitude,
@@ -39,6 +42,7 @@ export const useLocationStore = create<LocationState>()(
           timestamp: location.timestamp,
         }),
       setBackgroundEnabled: (enabled) => set({ isBackgroundEnabled: enabled }),
+      setMapLocked: (locked) => set({ isMapLocked: locked }),
     }),
     {
       name: 'location-storage',

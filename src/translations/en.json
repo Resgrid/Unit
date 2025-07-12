@@ -219,7 +219,9 @@
     "what3words_invalid_format": "Invalid what3words format. Please use format: word.word.word",
     "what3words_not_found": "what3words address not found, please try a different address",
     "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)",
-    "what3words_required": "Please enter a what3words address to search"
+    "what3words_required": "Please enter a what3words address to search",
+    "no_location_title": "No Location Available",
+    "no_location_message": "This call does not have location data available for navigation."
   },
   "common": {
     "add": "Add",
@@ -253,7 +255,8 @@
     "tryAgainLater": "Please try again later",
     "unknown": "Unknown",
     "upload": "Upload",
-    "uploading": "Uploading..."
+    "uploading": "Uploading...",
+    "ok": "Ok"
   },
   "contacts": {
     "add": "Add Contact",
