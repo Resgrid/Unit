@@ -55,7 +55,7 @@ export default function Protocols() {
           ) : filteredProtocols.length > 0 ? (
             <FlatList
               data={filteredProtocols}
-              keyExtractor={(item) => item.Id}
+              keyExtractor={(item, index) => item.Id || `protocol-${index}`}
               renderItem={({ item }) => <ProtocolCard protocol={item} onPress={selectProtocol} />}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}

@@ -6,17 +6,21 @@ import { Text } from '@/components/ui/text';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
 
-import { RolesModal } from '../roles/roles-modal';
+import { RolesBottomSheet } from '../roles/roles-bottom-sheet';
 import { Card } from '../ui/card';
 
 export const SidebarRolesCard = () => {
   const { t } = useTranslation();
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
 
   const handlePress = React.useCallback(() => {
-    setIsModalOpen(true);
+    setIsBottomSheetOpen(true);
+  }, []);
+
+  const handleClose = React.useCallback(() => {
+    setIsBottomSheetOpen(false);
   }, []);
 
   const activeCount = React.useMemo(() => {
@@ -36,19 +40,15 @@ export const SidebarRolesCard = () => {
 
   return (
     <>
-      <Pressable onPress={() => handlePress()}>
+      <Pressable onPress={handlePress} testID="roles-sidebar-card">
         <Card className="flex-1 bg-background-50 p-4">
-          <Text className="text-base font-medium">{displayStatus}</Text>
+          <Text className="text-base font-medium" testID="roles-status-text">
+            {displayStatus}
+          </Text>
         </Card>
       </Pressable>
 
-      <RolesModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          console.log('Modal closing');
-          setIsModalOpen(false);
-        }}
-      />
+      <RolesBottomSheet isOpen={isBottomSheetOpen} onClose={handleClose} />
     </>
   );
 };

@@ -11,7 +11,7 @@ export const SidebarStatusCard = () => {
   const activeUnitStatus = useCoreStore((state) => state.activeUnitStatus);
 
   // Derive the display values from activeUnit when available, otherwise use defaults
-  const displayStatus = activeUnitStatus?.State ?? 'Unknown';
+  const displayStatus = activeUnitStatus?.State || 'Unknown';
   let displayColor = activeUnitStatus?.StateStyle ?? '';
 
   // Fix up the color values to match the design system
@@ -36,7 +36,7 @@ export const SidebarStatusCard = () => {
   }
 
   return (
-    <Card className="flex-1 bg-background-50" style={{ backgroundColor: displayColor }}>
+    <Card className="flex-1 bg-background-50" style={{ backgroundColor: displayColor }} testID="status-card">
       <Text className="font-medium">{displayStatus}</Text>
     </Card>
   );
