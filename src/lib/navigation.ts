@@ -3,6 +3,56 @@ import { Linking, Platform } from 'react-native';
 import { logger } from './logging';
 
 /**
+ * Opens the device's native maps application with directions using an address.
+ *
+ * @param address - The destination address
+ * @returns Promise<boolean> - True if the maps app was successfully opened
+ */
+export const openMapsWithAddress = async (address: string): Promise<boolean> => {
+  const encodedAddress = encodeURIComponent(address);
+  let url = '';
+
+  // Platform-specific URL schemes
+  if (Platform.OS === 'ios') {
+    // Apple Maps (iOS)
+    url = `maps://maps.apple.com/?daddr=${encodedAddress}&dirflg=d`;
+  } else if (Platform.OS === 'android') {
+    // Google Maps (Android)
+    url = `google.navigation:q=${encodedAddress}`;
+  } else if (Platform.OS === 'web') {
+    // Google Maps (Web)
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`;
+  } else if (Platform.OS === 'windows' || Platform.OS === 'macos') {
+    // For desktop platforms, use web URL that will open in browser
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`;
+  }
+
+  // Fallback to web URL if platform-specific URL is empty
+  if (!url) {
+    url = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`;
+  }
+
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (canOpen) {
+      await Linking.openURL(url);
+      return true;
+    } else {
+      // If the specific map app can't be opened, try a web fallback
+      const webUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}&travelmode=driving`;
+      await Linking.openURL(webUrl);
+      return true;
+    }
+  } catch (error) {
+    logger.error({
+      message: 'Failed to open maps application with address',
+      context: { error, url, address },
+    });
+    return false;
+  }
+};
+
+/**
  * Opens the device's native maps application with directions from the user's current location
  * to the specified destination coordinates.
  *

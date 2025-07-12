@@ -11,6 +11,7 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
+import { openMapsWithDirections, openMapsWithAddress } from '@/lib/navigation';
 
 // Mock dependencies
 jest.mock('react-i18next');
@@ -20,6 +21,7 @@ jest.mock('expo-router');
 jest.mock('react-native/Libraries/Alert/Alert');
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/calls/store');
+jest.mock('@/lib/navigation');
 
 // Mock UI components
 jest.mock('@/components/ui/bottom-sheet', () => ({
@@ -184,6 +186,8 @@ const mockRouter = router as jest.Mocked<typeof router>;
 const mockAlert = Alert as jest.Mocked<typeof Alert>;
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockUseCallsStore = useCallsStore as jest.MockedFunction<typeof useCallsStore>;
+const mockOpenMapsWithDirections = openMapsWithDirections as jest.MockedFunction<typeof openMapsWithDirections>;
+const mockOpenMapsWithAddress = openMapsWithAddress as jest.MockedFunction<typeof openMapsWithAddress>;
 
 describe('SidebarCallCard', () => {
   const mockSetActiveCall = jest.fn();
@@ -224,6 +228,8 @@ describe('SidebarCallCard', () => {
 
     mockAlert.alert = jest.fn();
     mockRouter.push = jest.fn();
+    mockOpenMapsWithDirections.mockResolvedValue(true);
+    mockOpenMapsWithAddress.mockResolvedValue(true);
   });
 
   describe('Basic Rendering', () => {
@@ -251,7 +257,7 @@ describe('SidebarCallCard', () => {
       expect(screen.getByText('Test Emergency Call')).toBeTruthy();
     });
 
-    it('should show action buttons when active call exists', () => {
+    it('should show action buttons when active call exists with coordinates', () => {
       mockUseCoreStore.mockReturnValue({
         activeCall: mockCall,
         activePriority: mockPriority,
@@ -262,6 +268,69 @@ describe('SidebarCallCard', () => {
 
       expect(screen.getByTestId('eye-icon')).toBeTruthy();
       expect(screen.getByTestId('map-pin-icon')).toBeTruthy();
+      expect(screen.getByTestId('circle-x-icon')).toBeTruthy();
+    });
+
+    it('should show map button when active call has address only', () => {
+      const callWithAddressOnly = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '123 Test Street',
+      };
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(screen.getByTestId('eye-icon')).toBeTruthy();
+      expect(screen.getByTestId('map-pin-icon')).toBeTruthy();
+      expect(screen.getByTestId('circle-x-icon')).toBeTruthy();
+    });
+
+    it('should not show map button when active call has no location data', () => {
+      const callWithoutLocation = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '',
+      };
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: callWithoutLocation,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(screen.getByTestId('eye-icon')).toBeTruthy();
+      expect(() => screen.getByTestId('map-pin-icon')).toThrow();
+      expect(screen.getByTestId('circle-x-icon')).toBeTruthy();
+    });
+
+    it('should not show map button when active call has empty address', () => {
+      const callWithEmptyAddress = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '   ',
+      };
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: callWithEmptyAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(screen.getByTestId('eye-icon')).toBeTruthy();
+      expect(() => screen.getByTestId('map-pin-icon')).toThrow();
       expect(screen.getByTestId('circle-x-icon')).toBeTruthy();
     });
   });
@@ -354,6 +423,88 @@ describe('SidebarCallCard', () => {
           expect.objectContaining({ text: 'common.confirm' }),
         ]),
         { cancelable: true }
+      );
+    });
+
+    it('should open maps with coordinates when map pin button is pressed with valid coordinates', async () => {
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(
+        mockCall.Latitude,
+        mockCall.Longitude,
+        mockCall.Address
+      );
+      expect(mockOpenMapsWithAddress).not.toHaveBeenCalled();
+    });
+
+    it('should open maps with address when map pin button is pressed with address only', async () => {
+      const callWithAddressOnly = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '123 Test Street',
+      };
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('123 Test Street');
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
+    });
+
+    it('should show error alert when openMapsWithDirections fails', async () => {
+      mockOpenMapsWithDirections.mockRejectedValue(new Error('Navigation failed'));
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+
+    it('should show error alert when openMapsWithAddress fails', async () => {
+      const callWithAddressOnly = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '123 Test Street',
+      };
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithAddress.mockRejectedValue(new Error('Address navigation failed'));
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
       );
     });
   });

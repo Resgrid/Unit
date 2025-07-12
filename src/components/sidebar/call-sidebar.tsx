@@ -9,6 +9,7 @@ import { Alert, Pressable, ScrollView } from 'react-native';
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 
@@ -59,6 +60,41 @@ export const SidebarCallCard = () => {
     );
   };
 
+  // Check if location data exists (either coordinates or address)
+  const hasLocationData = (call: typeof activeCall) => {
+    if (!call) return false;
+    const hasCoordinates = call.Latitude && call.Longitude;
+    const hasAddress = call.Address && call.Address.trim() !== '';
+    return hasCoordinates || hasAddress;
+  };
+
+  const handleDirections = async () => {
+    if (!activeCall) return;
+
+    const latitude = activeCall.Latitude;
+    const longitude = activeCall.Longitude;
+    const address = activeCall.Address;
+
+    // Check if we have coordinates
+    if (latitude && longitude) {
+      try {
+        await openMapsWithDirections(latitude, longitude, address);
+      } catch (error) {
+        Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+      }
+    } else if (address && address.trim() !== '') {
+      // Fall back to address if no coordinates
+      try {
+        await openMapsWithAddress(address);
+      } catch (error) {
+        Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+      }
+    } else {
+      // No location data available
+      Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+    }
+  };
+
   return (
     <>
       <Pressable onPress={() => setIsBottomSheetOpen(true)} className="w-full" testID="call-selection-trigger">
@@ -86,16 +122,8 @@ export const SidebarCallCard = () => {
             <ButtonIcon as={Eye} />
           </Button>
 
-          {activeCall?.Address && (
-            <Button
-              variant="outline"
-              className="flex-1"
-              size="sm"
-              action="primary"
-              onPress={() => {
-                // Handle viewing directions
-              }}
-            >
+          {hasLocationData(activeCall) && (
+            <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDirections}>
               <ButtonIcon as={MapPin} />
             </Button>
           )}

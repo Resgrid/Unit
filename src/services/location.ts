@@ -2,12 +2,61 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { AppState, type AppStateStatus } from 'react-native';
 
+import { setUnitLocation } from '@/api/units/unitLocation';
 import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolocation';
 import { logger } from '@/lib/logging';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
+import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
+import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 
 const LOCATION_TASK_NAME = 'location-updates';
+
+// Helper function to send location to API
+const sendLocationToAPI = async (location: Location.LocationObject): Promise<void> => {
+  try {
+    const { activeUnitId } = useCoreStore.getState();
+
+    if (!activeUnitId) {
+      logger.warn({
+        message: 'No active unit selected, skipping location API call',
+      });
+      return;
+    }
+
+    const locationInput = new SaveUnitLocationInput();
+    locationInput.UnitId = activeUnitId;
+    locationInput.Timestamp = new Date(location.timestamp).toISOString();
+    locationInput.Latitude = location.coords.latitude.toString();
+    locationInput.Longitude = location.coords.longitude.toString();
+    locationInput.Accuracy = location.coords.accuracy?.toString() || '0';
+    locationInput.Altitude = location.coords.altitude?.toString() || '0';
+    locationInput.AltitudeAccuracy = location.coords.altitudeAccuracy?.toString() || '0';
+    locationInput.Speed = location.coords.speed?.toString() || '0';
+    locationInput.Heading = location.coords.heading?.toString() || '0';
+
+    const result = await setUnitLocation(locationInput);
+
+    logger.info({
+      message: 'Location successfully sent to API',
+      context: {
+        unitId: activeUnitId,
+        resultId: result.Id,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      },
+    });
+  } catch (error) {
+    logger.error({
+      message: 'Failed to send location to API',
+      context: {
+        error: error instanceof Error ? error.message : String(error),
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      },
+    });
+  }
+};
 
 // Define the task
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
@@ -30,7 +79,12 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
           heading: location.coords.heading,
         },
       });
+
+      // Update local store
       useLocationStore.getState().setLocation(location);
+
+      // Send to API
+      await sendLocationToAPI(location);
     }
   }
 });
@@ -130,6 +184,7 @@ class LocationService {
           },
         });
         useLocationStore.getState().setLocation(location);
+        sendLocationToAPI(location); // Send to API for foreground updates
       }
     );
 
@@ -164,6 +219,7 @@ class LocationService {
           },
         });
         useLocationStore.getState().setLocation(location);
+        sendLocationToAPI(location); // Send to API for background updates
       }
     );
 
