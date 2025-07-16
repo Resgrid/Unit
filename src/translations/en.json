@@ -167,9 +167,9 @@
     "edit_call_description": "Update call information",
     "everyone": "Everyone",
     "files": {
-      "title": "Call Files",
       "no_files": "No files available",
-      "no_files_description": "No files have been added to this call yet"
+      "no_files_description": "No files have been added to this call yet",
+      "title": "Call Files"
     },
     "geocoding_error": "Failed to search for address, please try again",
     "groups": "Groups",

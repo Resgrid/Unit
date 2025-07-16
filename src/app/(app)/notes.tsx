@@ -7,11 +7,11 @@ import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { NoteCard } from '@/components/notes/note-card';
 import { NoteDetailsSheet } from '@/components/notes/note-details-sheet';
+import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useNotesStore } from '@/stores/notes/store';
-import { FocusAwareStatusBar } from '@/components/ui';
 
 export default function Notes() {
   const { t } = useTranslation();

@@ -8,6 +8,7 @@ import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { Env } from '@/lib/env';
@@ -18,7 +19,6 @@ import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useToastStore } from '@/stores/toast/store';
-import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 

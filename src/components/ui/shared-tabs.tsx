@@ -130,10 +130,14 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={getContainerStyle()}>
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className={isLandscape ? "mr-1.5" : "mr-1"}>{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{t(tab.title)}</Text> : <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{tab.title}</Text>}
+              {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
+              {typeof tab.title === 'string' ? (
+                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{t(tab.title)}</Text>
+              ) : (
+                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{tab.title}</Text>
+              )}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className={`${isLandscape ? "ml-1.5" : "ml-1"} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
+                <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
                   <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}
@@ -144,10 +148,14 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
         <Box className={getContainerStyles()}>
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)}`} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className={isLandscape ? "mr-1.5" : "mr-1"}>{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{t(tab.title)}</Text> : <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{tab.title}</Text>}
+              {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
+              {typeof tab.title === 'string' ? (
+                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{t(tab.title)}</Text>
+              ) : (
+                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{tab.title}</Text>
+              )}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className={`${isLandscape ? "ml-1.5" : "ml-1"} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
+                <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
                   <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}

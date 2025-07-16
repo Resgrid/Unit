@@ -8,10 +8,10 @@ import ZeroState from '@/components/common/zero-state';
 import { ProtocolCard } from '@/components/protocols/protocol-card';
 import { ProtocolDetailsSheet } from '@/components/protocols/protocol-details-sheet';
 import { Box } from '@/components/ui/box';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useProtocolsStore } from '@/stores/protocols/store';
-import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 
 export default function Protocols() {
   const { t } = useTranslation();

@@ -1,13 +1,11 @@
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
 import { SearchIcon, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, useWindowDimensions } from 'react-native';
-import {
-  ScrollView
-} from 'react-native-gesture-handler';
+import { ScrollView } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 
 import { useAuthStore } from '@/lib/auth';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -72,23 +70,17 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   };
 
   // Handle sheet changes
-  const handleSheetChanges = useCallback((index: number) => {
-    if (index === -1) {
-      onClose();
-    }
-  }, [onClose]);
+  const handleSheetChanges = useCallback(
+    (index: number) => {
+      if (index === -1) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
   // Render backdrop
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-      />
-    ),
-    []
-  );
+  const renderBackdrop = useCallback((props: BottomSheetBackdropProps) => <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />, []);
 
   return (
     <>
@@ -125,12 +117,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
           </VStack>
 
           {/* Scrollable Notes List - This is the only scrollable part */}
-          <ScrollView
-            style={{ flex: 1 }}
-            className="bg-white dark:bg-gray-800"
-            showsVerticalScrollIndicator={true}
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}
-          >
+          <ScrollView style={{ flex: 1 }} className="bg-white dark:bg-gray-800" showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
             <VStack space="md" className="w-full">
               {isNotesLoading ? (
                 <Loading />
@@ -153,11 +140,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
           <Divider />
 
           {/* Fixed Footer - Always at bottom */}
-          <KeyboardAwareScrollView
-            keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'}
-            showsVerticalScrollIndicator={false}
-            style={{ flexGrow: 0 }}
-          >
+          <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'} showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>
             <Box className="w-full bg-gray-50 p-4 dark:bg-gray-900">
               <VStack space="md" className="w-full">
                 <Textarea className="w-full rounded-lg bg-white dark:bg-gray-700">

@@ -116,11 +116,11 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
         </FormControl>
 
         <HStack className="space-x-3 pt-10">
-          <Button variant="outline" className="mr-4 flex-1" onPress={handleClose} disabled={isButtonDisabled} size={isLandscape ? "md" : "sm"}>
-            <ButtonText className={isLandscape ? "" : "text-xs"}>{t('common.cancel')}</ButtonText>
+          <Button variant="outline" className="mr-4 flex-1" onPress={handleClose} disabled={isButtonDisabled} size={isLandscape ? 'md' : 'sm'}>
+            <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('common.cancel')}</ButtonText>
           </Button>
-          <Button className="ml-4 flex-1" onPress={handleSubmit} disabled={isButtonDisabled} size={isLandscape ? "md" : "sm"}>
-            <ButtonText className={isLandscape ? "" : "text-xs"}>{t('call_detail.close_call')}</ButtonText>
+          <Button className="ml-4 flex-1" onPress={handleSubmit} disabled={isButtonDisabled} size={isLandscape ? 'md' : 'sm'}>
+            <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('call_detail.close_call')}</ButtonText>
           </Button>
         </HStack>
       </VStack>

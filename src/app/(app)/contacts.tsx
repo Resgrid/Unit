@@ -7,11 +7,11 @@ import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { ContactCard } from '@/components/contacts/contact-card';
 import { ContactDetailsSheet } from '@/components/contacts/contact-details-sheet';
+import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { View } from '@/components/ui/view';
 import { useContactsStore } from '@/stores/contacts/store';
-import { FocusAwareStatusBar } from '@/components/ui';
 
 export default function Contacts() {
   const { t } = useTranslation();

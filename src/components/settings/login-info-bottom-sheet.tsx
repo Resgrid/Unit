@@ -87,11 +87,11 @@ export function LoginInfoBottomSheet({ isOpen, onClose, onSubmit }: LoginInfoBot
           </FormControl>
 
           <HStack space="md" className="mt-4">
-            <Button variant="outline" className="flex-1" onPress={onClose} size={isLandscape ? "md" : "sm"}>
-              <ButtonText className={isLandscape ? "" : "text-xs"}>{t('common.cancel')}</ButtonText>
+            <Button variant="outline" className="flex-1" onPress={onClose} size={isLandscape ? 'md' : 'sm'}>
+              <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('common.cancel')}</ButtonText>
             </Button>
-            <Button className="flex-1 bg-primary-600" onPress={handleSubmit(onFormSubmit)} disabled={isLoading} size={isLandscape ? "md" : "sm"}>
-              {isLoading ? <ButtonSpinner /> : <ButtonText className={isLandscape ? "" : "text-xs"}>{t('common.save')}</ButtonText>}
+            <Button className="flex-1 bg-primary-600" onPress={handleSubmit(onFormSubmit)} disabled={isLoading} size={isLandscape ? 'md' : 'sm'}>
+              {isLoading ? <ButtonSpinner /> : <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('common.save')}</ButtonText>}
             </Button>
           </HStack>
         </VStack>

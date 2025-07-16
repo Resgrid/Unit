@@ -79,12 +79,12 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     if (!file.Url || downloadingFiles[file.Id]) return;
 
     try {
-      setDownloadingFiles(prev => ({ ...prev, [file.Id]: 0 }));
+      setDownloadingFiles((prev) => ({ ...prev, [file.Id]: 0 }));
 
       const fileData = await getCallAttachmentFile(file.Url, {
         onEvent: (event) => {
           if (event.type === 'progress' && event.progress !== undefined) {
-            setDownloadingFiles(prev => ({ ...prev, [file.Id]: event.progress! }));
+            setDownloadingFiles((prev) => ({ ...prev, [file.Id]: event.progress! }));
           }
         },
       });
@@ -121,7 +121,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
         Alert.alert(t('calls.files.share_error'), 'Sharing is not available on this device');
       }
 
-      setDownloadingFiles(prev => {
+      setDownloadingFiles((prev) => {
         const newState = { ...prev };
         delete newState[file.Id];
         return newState;
@@ -129,7 +129,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     } catch (error) {
       console.error('Error downloading file:', error);
       Alert.alert(t('calls.files.open_error'), error instanceof Error ? error.message : 'Unknown error occurred');
-      setDownloadingFiles(prev => {
+      setDownloadingFiles((prev) => {
         const newState = { ...prev };
         delete newState[file.Id];
         return newState;
@@ -157,14 +157,8 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
               {file.Name || file.FileName || t('calls.files.file_name')}
             </Text>
             <HStack space="md" className="items-center">
-              <Text className="text-sm text-gray-500 dark:text-gray-400">
-                {formatFileSize(file.Size)}
-              </Text>
-              {file.Timestamp && (
-                <Text className="text-sm text-gray-500 dark:text-gray-400">
-                  {formatDate(file.Timestamp)}
-                </Text>
-              )}
+              <Text className="text-sm text-gray-500 dark:text-gray-400">{formatFileSize(file.Size)}</Text>
+              {file.Timestamp && <Text className="text-sm text-gray-500 dark:text-gray-400">{formatDate(file.Timestamp)}</Text>}
             </HStack>
           </VStack>
           <Box className="items-center justify-center">
@@ -188,9 +182,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
       return (
         <Box className="flex-1 items-center justify-center py-8">
           <Spinner size="large" />
-          <Text className="mt-4 text-gray-600 dark:text-gray-400">
-            {t('common.loading')}
-          </Text>
+          <Text className="mt-4 text-gray-600 dark:text-gray-400">{t('common.loading')}</Text>
         </Box>
       );
     }
@@ -198,18 +190,9 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     if (errorFiles) {
       return (
         <Box className="flex-1 items-center justify-center py-8">
-          <Text className="text-center text-red-600 dark:text-red-400">
-            {t('calls.files.error')}
-          </Text>
-          <Text className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
-            {errorFiles}
-          </Text>
-          <Button
-            variant="outline"
-            onPress={() => fetchCallFiles(callId)}
-            className="mt-4"
-            size="sm"
-          >
+          <Text className="text-center text-red-600 dark:text-red-400">{t('calls.files.error')}</Text>
+          <Text className="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">{errorFiles}</Text>
+          <Button variant="outline" onPress={() => fetchCallFiles(callId)} className="mt-4" size="sm">
             <Text>{t('common.retry')}</Text>
           </Button>
         </Box>
@@ -220,12 +203,8 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
       return (
         <Box className="flex-1 items-center justify-center py-8">
           <File size={48} color="#9CA3AF" />
-          <Text className="mt-4 text-gray-600 dark:text-gray-400">
-            {t('calls.files.no_files')}
-          </Text>
-          <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-500">
-            {t('calls.files.no_files_description')}
-          </Text>
+          <Text className="mt-4 text-gray-600 dark:text-gray-400">{t('calls.files.no_files')}</Text>
+          <Text className="mt-2 text-center text-sm text-gray-500 dark:text-gray-500">{t('calls.files.no_files_description')}</Text>
         </Box>
       );
     }

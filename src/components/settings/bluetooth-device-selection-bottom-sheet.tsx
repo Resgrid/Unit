@@ -162,8 +162,8 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
                 <Text className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{t('bluetooth.current_selection')}</Text>
                 <Text className="text-sm text-neutral-600 dark:text-neutral-400">{preferredDevice.name}</Text>
               </VStack>
-              <Button onPress={handleClearSelection} size={isLandscape ? "sm" : "xs"} variant="outline">
-                <ButtonText className={isLandscape ? "" : "text-2xs"}>{t('bluetooth.clear')}</ButtonText>
+              <Button onPress={handleClearSelection} size={isLandscape ? 'sm' : 'xs'} variant="outline">
+                <ButtonText className={isLandscape ? '' : 'text-2xs'}>{t('bluetooth.clear')}</ButtonText>
               </Button>
             </HStack>
           </Box>
@@ -172,9 +172,9 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         {/* Scan Button */}
         <HStack className="mb-4 w-full items-center justify-between">
           <Text className="text-sm text-neutral-600 dark:text-neutral-400">{t('bluetooth.available_devices')}</Text>
-          <Button onPress={startScan} disabled={isScanning} size={isLandscape ? "sm" : "xs"} variant="outline">
+          <Button onPress={startScan} disabled={isScanning} size={isLandscape ? 'sm' : 'xs'} variant="outline">
             <ButtonIcon as={RefreshCwIcon} />
-            <ButtonText className={isLandscape ? "" : "text-2xs"}>{isScanning ? t('bluetooth.scanning') : t('bluetooth.scan')}</ButtonText>
+            <ButtonText className={isLandscape ? '' : 'text-2xs'}>{isScanning ? t('bluetooth.scanning') : t('bluetooth.scan')}</ButtonText>
           </Button>
         </HStack>
 

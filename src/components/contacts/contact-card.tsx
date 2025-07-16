@@ -39,11 +39,7 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onPress }) =>
             <AvatarImage source={{ uri: contact.ImageUrl }} alt={displayName} />
           ) : (
             <View className="size-full items-center justify-center bg-gray-100 dark:bg-gray-700">
-              {contact.ContactType === ContactType.Person ? (
-                <UserIcon size={24} color="#6B7280" />
-              ) : (
-                <BuildingIcon size={24} color="#6B7280" />
-              )}
+              {contact.ContactType === ContactType.Person ? <UserIcon size={24} color="#6B7280" /> : <BuildingIcon size={24} color="#6B7280" />}
             </View>
           )}
         </Avatar>
