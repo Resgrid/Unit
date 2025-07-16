@@ -120,11 +120,11 @@ const buttonTextStyle = tva({
       solid: 'text-typography-0 data-[hover=true]:text-typography-0 data-[active=true]:text-typography-0',
     },
     size: {
-      xs: 'text-xs',
-      sm: 'text-sm',
-      md: 'text-base',
-      lg: 'text-lg',
-      xl: 'text-xl',
+      xs: 'text-2xs',
+      sm: 'text-xs',
+      md: 'text-sm',
+      lg: 'text-base',
+      xl: 'text-lg',
     },
   },
   parentCompoundVariants: [

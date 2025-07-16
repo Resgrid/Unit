@@ -8,6 +8,8 @@ import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
+import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
@@ -28,6 +30,7 @@ export default function Map() {
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
   const [isPinDetailModalOpen, setIsPinDetailModalOpen] = useState(false);
+  const { isActive } = useAppLifecycle();
   const location = useLocationStore((state) => ({
     latitude: state.latitude,
     longitude: state.longitude,
@@ -90,21 +93,53 @@ export default function Map() {
       // When map is locked, always follow the location
       // When map is unlocked, only follow if user hasn't moved the map
       if (location.isMapLocked || !hasUserMovedMap) {
-        cameraRef.current?.setCamera({
+        const cameraConfig: any = {
           centerCoordinate: [location.longitude, location.latitude],
-          zoomLevel: 12,
+          zoomLevel: location.isMapLocked ? 16 : 12,
           animationDuration: location.isMapLocked ? 500 : 1000,
-        });
+        };
+
+        // Add heading and pitch for navigation mode when locked
+        if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
+          cameraConfig.heading = location.heading;
+          cameraConfig.pitch = 45;
+        }
+
+        cameraRef.current?.setCamera(cameraConfig);
       }
     }
   }, [location.latitude, location.longitude, location.heading, location.isMapLocked, hasUserMovedMap]);
 
-  // Reset hasUserMovedMap when map gets locked
+  // Reset hasUserMovedMap when map gets locked and reset camera when unlocked
   useEffect(() => {
     if (location.isMapLocked) {
       setHasUserMovedMap(false);
+    } else {
+      // When exiting locked mode, reset camera to normal view
+      if (location.latitude && location.longitude) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [location.longitude, location.latitude],
+          zoomLevel: 12,
+          heading: 0,
+          pitch: 0,
+          animationDuration: 1000,
+        });
+        logger.info({
+          message: 'Map unlocked, resetting camera to normal view',
+        });
+      }
     }
-  }, [location.isMapLocked]);
+  }, [location.isMapLocked, location.latitude, location.longitude]);
+
+  // Reset hasUserMovedMap when app becomes active (startup/foreground)
+  useEffect(() => {
+    if (isActive) {
+      setHasUserMovedMap(false);
+      logger.info({
+        message: 'App became active, resetting map user interaction state',
+      });
+    }
+  }, [isActive]);
 
   useEffect(() => {
     const fetchMapDataAndMarkers = async () => {
@@ -144,11 +179,19 @@ export default function Map() {
 
   const handleRecenterMap = () => {
     if (location.latitude && location.longitude) {
-      cameraRef.current?.setCamera({
+      const cameraConfig: any = {
         centerCoordinate: [location.longitude, location.latitude],
-        zoomLevel: 12,
+        zoomLevel: location.isMapLocked ? 16 : 12,
         animationDuration: 1000,
-      });
+      };
+
+      // Add heading and pitch for navigation mode when locked
+      if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
+        cameraConfig.heading = location.heading;
+        cameraConfig.pitch = 45;
+      }
+
+      cameraRef.current?.setCamera(cameraConfig);
       setHasUserMovedMap(false);
     }
   };
@@ -202,8 +245,25 @@ export default function Map() {
         }}
       />
       <View className="size-full flex-1" testID="map-container">
-        <Mapbox.MapView ref={mapRef} styleURL={styleURL.styleURL} style={styles.map} onCameraChanged={onCameraChanged} testID="map-view">
-          <Mapbox.Camera ref={cameraRef} followZoomLevel={12} followUserLocation={location.isMapLocked} followUserMode={location.isMapLocked ? Mapbox.UserTrackingMode.Follow : undefined} />
+        <FocusAwareStatusBar />
+        <Mapbox.MapView
+          ref={mapRef}
+          styleURL={styleURL.styleURL}
+          style={styles.map}
+          onCameraChanged={onCameraChanged}
+          testID="map-view"
+          scrollEnabled={!location.isMapLocked}
+          zoomEnabled={!location.isMapLocked}
+          rotateEnabled={!location.isMapLocked}
+          pitchEnabled={!location.isMapLocked}
+        >
+          <Mapbox.Camera
+            ref={cameraRef}
+            followZoomLevel={location.isMapLocked ? 16 : 12}
+            followUserLocation={location.isMapLocked}
+            followUserMode={location.isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
+            followPitch={location.isMapLocked ? 45 : undefined}
+          />
 
           {location.latitude && location.longitude && (
             <Mapbox.PointAnnotation id="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }}>

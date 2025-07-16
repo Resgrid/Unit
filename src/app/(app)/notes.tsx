@@ -7,6 +7,7 @@ import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { NoteCard } from '@/components/notes/note-card';
 import { NoteDetailsSheet } from '@/components/notes/note-details-sheet';
+import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
@@ -37,6 +38,7 @@ export default function Notes() {
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
+        <FocusAwareStatusBar />
         <Box className="flex-1 px-4 pt-4">
           <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
             <InputSlot className="pl-3">

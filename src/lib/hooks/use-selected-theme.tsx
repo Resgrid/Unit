@@ -30,9 +30,15 @@ export const useSelectedTheme = () => {
 };
 // to be used in the root file to load the selected theme from MMKV
 export const loadSelectedTheme = () => {
-  const theme = storage.getString(SELECTED_THEME);
-  if (theme !== undefined) {
-    console.log('theme', theme);
-    colorScheme.set(theme as ColorSchemeType);
+  try {
+    const theme = storage.getString(SELECTED_THEME);
+    if (theme !== undefined) {
+      console.log('Loading selected theme:', theme);
+      colorScheme.set(theme as ColorSchemeType);
+    } else {
+      console.log('No custom theme found, using system default');
+    }
+  } catch (error) {
+    console.error('Failed to load selected theme:', error);
   }
 };

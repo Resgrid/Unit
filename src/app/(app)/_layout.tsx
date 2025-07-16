@@ -2,6 +2,7 @@
 
 import { NovuProvider } from '@novu/react-native';
 import { Redirect, SplashScreen, Tabs } from 'expo-router';
+import { size } from 'lodash';
 import { Contact, ListTree, Map, Megaphone, Menu, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,10 +11,11 @@ import { StyleSheet, useWindowDimensions } from 'react-native';
 import { NotificationButton } from '@/components/notifications/NotificationButton';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
 import Sidebar from '@/components/sidebar/sidebar';
-import { View } from '@/components/ui';
-import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
+import { FocusAwareStatusBar, View } from '@/components/ui';
+import { Button, ButtonText } from '@/components/ui/button';
 import { Drawer, DrawerBackdrop, DrawerBody, DrawerContent, DrawerFooter, DrawerHeader } from '@/components/ui/drawer';
 import { Icon } from '@/components/ui/icon';
+import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
@@ -218,9 +220,6 @@ export default function TabLayout() {
           <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)}>
             <DrawerBackdrop onPress={() => setIsOpen(false)} />
             <DrawerContent className="w-4/5 bg-white dark:bg-gray-900">
-              <DrawerHeader className="border-b border-gray-200 dark:border-gray-800">
-                <Text className="text-xl font-bold">Menu</Text>
-              </DrawerHeader>
               <DrawerBody>
                 <Sidebar />
               </DrawerBody>
@@ -242,6 +241,15 @@ export default function TabLayout() {
               tabBarIconStyle: {
                 width: 24,
                 height: 24,
+              },
+              tabBarLabelStyle: {
+                fontSize: isLandscape ? 12 : 10,
+                fontWeight: '500',
+              },
+              tabBarStyle: {
+                paddingBottom: 5,
+                paddingTop: 5,
+                height: isLandscape ? 65 : 60,
               },
             }}
           >
@@ -341,15 +349,14 @@ const CreateDrawerMenuButton = ({ setIsOpen, isLandscape }: CreateDrawerMenuButt
   }
 
   return (
-    <Button
-      size="lg"
-      className="rounded-full p-3.5"
+    <Pressable
+      className="p-3"
       onPress={() => {
         setIsOpen(true);
       }}
     >
-      <ButtonIcon as={Menu} />
-    </Button>
+      <Menu size={24} color="currentColor" className="text-gray-700 dark:text-gray-300" />
+    </Pressable>
   );
 };
 

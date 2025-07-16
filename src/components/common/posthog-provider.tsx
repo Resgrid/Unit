@@ -70,7 +70,7 @@ export const PostHogProviderWrapper: React.FC<PostHogProviderWrapperProps> = ({ 
           // Disable screen capture to avoid navigation state issues
           captureScreens: false,
           // Keep touch capture but be conservative
-          captureTouches: true,
+          captureTouches: false,
           // Don't pass navigationRef to avoid navigation state errors
           // navigationRef,
         }}

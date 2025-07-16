@@ -18,7 +18,7 @@ import {
 } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { ContactType } from '@/models/v4/contacts/contactResultData';
@@ -84,6 +84,8 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
 
 export const ContactDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const { contacts, selectedContactId, isDetailsOpen, closeDetails } = useContactsStore();
   const [activeTab, setActiveTab] = useState<'details' | 'notes'>('details');
 
@@ -184,11 +186,15 @@ export const ContactDetailsSheet: React.FC = () => {
 
           {/* Tab Navigation */}
           <HStack className="mb-4 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <Pressable onPress={() => setActiveTab('details')} className={`flex-1 rounded-md px-4 py-2 ${activeTab === 'details' ? 'bg-white shadow-sm dark:bg-gray-700' : ''}`}>
-              <Text className={`text-center text-sm font-medium ${activeTab === 'details' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>{t('contacts.tabs.details')}</Text>
+            <Pressable onPress={() => setActiveTab('details')} className={`flex-1 rounded-md ${isLandscape ? 'px-4 py-2' : 'px-3 py-1.5'} ${activeTab === 'details' ? 'bg-white shadow-sm dark:bg-gray-700' : ''}`}>
+              <Text className={`text-center font-medium ${isLandscape ? 'text-sm' : 'text-xs'} ${activeTab === 'details' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                {t('contacts.tabs.details')}
+              </Text>
             </Pressable>
-            <Pressable onPress={() => setActiveTab('notes')} className={`flex-1 rounded-md px-4 py-2 ${activeTab === 'notes' ? 'bg-white shadow-sm dark:bg-gray-700' : ''}`}>
-              <Text className={`text-center text-sm font-medium ${activeTab === 'notes' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>{t('contacts.tabs.notes')}</Text>
+            <Pressable onPress={() => setActiveTab('notes')} className={`flex-1 rounded-md ${isLandscape ? 'px-4 py-2' : 'px-3 py-1.5'} ${activeTab === 'notes' ? 'bg-white shadow-sm dark:bg-gray-700' : ''}`}>
+              <Text className={`text-center font-medium ${isLandscape ? 'text-sm' : 'text-xs'} ${activeTab === 'notes' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                {t('contacts.tabs.notes')}
+              </Text>
             </Pressable>
           </HStack>
 

@@ -4,7 +4,7 @@ import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, PaperclipIcon, RouteIcon,
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import WebView from 'react-native-webview';
 
 import { Loading } from '@/components/common/loading';
@@ -36,6 +36,8 @@ export default function CallDetail() {
   const callId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { t } = useTranslation();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [coordinates, setCoordinates] = useState<{
     latitude: number | null;
     longitude: number | null;
@@ -469,42 +471,50 @@ export default function CallDetail() {
 
         {/* Action Buttons */}
         <HStack className={`justify-around p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-          <Button onPress={() => openNotesModal()} variant="outline" className="mx-1 flex-1">
-            <ButtonIcon as={FileTextIcon} />
-            <ButtonText>{t('call_detail.notes')}</ButtonText>
+          <Box className="relative mx-1 flex-1">
+            <Button onPress={() => openNotesModal()} variant="outline" className="w-full" size={isLandscape ? 'md' : 'sm'}>
+              <ButtonIcon as={FileTextIcon} />
+              <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('call_detail.notes')}</ButtonText>
+            </Button>
             {call?.NotesCount ? (
-              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                <Text className="text-xs font-medium">{call.NotesCount}</Text>
+              <Box className="absolute -right-1 -top-1 h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1">
+                <Text className="text-xs font-medium text-white">{call.NotesCount}</Text>
               </Box>
             ) : null}
-          </Button>
-          <Button onPress={openImagesModal} variant="outline" className="mx-1 flex-1">
-            <ButtonIcon as={ImageIcon} />
-            <ButtonText>{t('call_detail.images')}</ButtonText>
+          </Box>
+          <Box className="relative mx-1 flex-1">
+            <Button onPress={openImagesModal} variant="outline" className="w-full" size={isLandscape ? 'md' : 'sm'}>
+              <ButtonIcon as={ImageIcon} />
+              <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('call_detail.images')}</ButtonText>
+            </Button>
             {call?.ImgagesCount ? (
-              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                <Text className="text-xs font-medium">{call.ImgagesCount}</Text>
+              <Box className="absolute -right-1 -top-1 h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1">
+                <Text className="text-xs font-medium text-white">{call.ImgagesCount}</Text>
               </Box>
             ) : null}
-          </Button>
-          <Button onPress={openFilesModal} variant="outline" className="mx-1 flex-1">
-            <ButtonIcon as={PaperclipIcon} />
-            <ButtonText>{t('call_detail.files.button')}</ButtonText>
+          </Box>
+          <Box className="relative mx-1 flex-1">
+            <Button onPress={openFilesModal} variant="outline" className="w-full" size={isLandscape ? 'md' : 'sm'}>
+              <ButtonIcon as={PaperclipIcon} />
+              <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('call_detail.files.button')}</ButtonText>
+            </Button>
             {call?.FileCount ? (
-              <Box className="bg-primary ml-1 rounded-full px-1.5 py-0.5">
-                <Text className="text-xs font-medium">{call.FileCount}</Text>
+              <Box className="absolute -right-1 -top-1 h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1">
+                <Text className="text-xs font-medium text-white">{call.FileCount}</Text>
               </Box>
             ) : null}
-          </Button>
-          <Button onPress={handleRoute} variant="outline" className="mx-1 flex-1">
-            <ButtonIcon as={RouteIcon} />
-            <ButtonText>{t('common.route')}</ButtonText>
-          </Button>
+          </Box>
+          <Box className="relative mx-1 flex-1">
+            <Button onPress={handleRoute} variant="outline" className="w-full" size={isLandscape ? 'md' : 'sm'}>
+              <ButtonIcon as={RouteIcon} />
+              <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('common.route')}</ButtonText>
+            </Button>
+          </Box>
         </HStack>
 
         {/* Tabs */}
         <Box className={`mt-4 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-          <SharedTabs tabs={renderTabs()} variant="underlined" size="md" />
+          <SharedTabs tabs={renderTabs()} variant="underlined" size={isLandscape ? 'md' : 'sm'} />
         </Box>
       </ScrollView>
       <CallNotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} callId={callId} />

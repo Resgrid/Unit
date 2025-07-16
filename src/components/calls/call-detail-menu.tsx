@@ -16,21 +16,20 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall }: CallDetailMenuPro
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
 
   const openMenu = () => {
-    console.log('openMenu');
     setIsKebabMenuOpen(true);
   };
   const closeMenu = () => setIsKebabMenuOpen(false);
 
   const HeaderRightMenu = () => (
-    <Pressable onPress={openMenu} testID="kebab-menu-button" className="rounded p-2">
+    <Pressable onPressIn={openMenu} testID="kebab-menu-button" className="rounded p-2">
       <MoreVerticalIcon size={24} className="text-gray-700 dark:text-gray-300" />
     </Pressable>
   );
 
   const CallDetailActionSheet = () => (
-    <Actionsheet isOpen={isKebabMenuOpen} onClose={closeMenu} snapPoints={[25]}>
+    <Actionsheet isOpen={isKebabMenuOpen} onClose={closeMenu} testID="call-detail-actionsheet">
       <ActionsheetBackdrop />
-      <ActionsheetContent>
+      <ActionsheetContent className="bg-white dark:bg-gray-900">
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
@@ -40,6 +39,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall }: CallDetailMenuPro
             closeMenu();
             onEditCall();
           }}
+          testID="edit-call-button"
         >
           <HStack className="items-center">
             <EditIcon size={16} className="mr-3 text-gray-700 dark:text-gray-300" />
@@ -52,6 +52,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall }: CallDetailMenuPro
             closeMenu();
             onCloseCall();
           }}
+          testID="close-call-button"
         >
           <HStack className="items-center">
             <XIcon size={16} className="mr-3 text-gray-700 dark:text-gray-300" />

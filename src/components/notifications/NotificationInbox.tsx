@@ -4,6 +4,7 @@ import { colorScheme } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable, RefreshControl, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
 
+import { deleteMessage } from '@/api/novu/inbox';
 import { NotificationDetail } from '@/components/notifications/NotificationDetail';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -70,7 +71,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
 
   const handleDeleteNotification = async (_id: string) => {
     try {
-      // Since Novu doesn't provide a direct delete method, we'll just refetch to sync with server
+      await deleteMessage(_id);
       showToast('success', 'Notification removed');
       refetch();
     } catch (error) {

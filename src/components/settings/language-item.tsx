@@ -38,7 +38,7 @@ export const LanguageItem = () => {
       <View className="flex-row items-center">
         <Select onValueChange={onSelect} selectedValue={selectedLanguage?.value}>
           <SelectTrigger>
-            <SelectInput placeholder="Select option" className="w-[240px]" />
+            <SelectInput placeholder="Select option" />
             <SelectIcon as={ChevronDownIcon} className="mr-3" />
           </SelectTrigger>
           <SelectPortal>

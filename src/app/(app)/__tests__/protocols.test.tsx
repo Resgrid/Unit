@@ -46,6 +46,51 @@ jest.mock('@/components/protocols/protocol-details-sheet', () => ({
   },
 }));
 
+jest.mock('@/components/ui/focus-aware-status-bar', () => ({
+  FocusAwareStatusBar: () => null,
+}));
+
+jest.mock('@/components/ui/box', () => ({
+  Box: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('@/components/ui/input', () => ({
+  Input: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+  InputField: (props: any) => {
+    const { TextInput } = require('react-native');
+    return <TextInput {...props} />;
+  },
+  InputIcon: ({ as: Icon, ...props }: any) => {
+    const { View } = require('react-native');
+    return Icon ? <Icon {...props} /> : <View {...props} />;
+  },
+  InputSlot: ({ children, onPress, ...props }: any) => {
+    const { Pressable, View } = require('react-native');
+    return onPress ? <Pressable onPress={onPress} {...props}>{children}</Pressable> : <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('lucide-react-native', () => ({
+  Search: ({ ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props} testID="search-icon" />;
+  },
+  X: ({ ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props} testID="x-icon" />;
+  },
+  FileText: ({ ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props} testID="file-text-icon" />;
+  },
+}));
+
 // Mock the protocols store
 const mockProtocolsStore = {
   protocols: [],
