@@ -47,9 +47,14 @@ jest.mock('@/components/contacts/contact-details-sheet', () => ({
   ContactDetailsSheet: () => 'ContactDetailsSheet',
 }));
 
+jest.mock('@/components/ui/focus-aware-status-bar', () => ({
+  FocusAwareStatusBar: () => null,
+}));
+
 jest.mock('nativewind', () => ({
   styled: (component: any) => component,
   cssInterop: jest.fn(),
+  useColorScheme: () => ({ colorScheme: 'light' }),
 }));
 
 // Mock cssInterop globally

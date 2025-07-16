@@ -12,7 +12,7 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
   React.useEffect(() => {
     if (Platform.OS === 'android') {
       // Make both status bar and navigation bar transparent
-      StatusBar.setBackgroundColor('transparent');
+      //StatusBar.setBackgroundColor('transparent');
       StatusBar.setTranslucent(true);
 
       // Set the system UI flags to hide navigation bar

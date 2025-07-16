@@ -2,6 +2,7 @@ import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import { useWindowDimensions } from 'react-native';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
 import { Button, ButtonSpinner, ButtonText } from '../ui/button';
@@ -24,6 +25,8 @@ interface LoginInfoBottomSheetProps {
 export function LoginInfoBottomSheet({ isOpen, onClose, onSubmit }: LoginInfoBottomSheetProps) {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [isLoading, setIsLoading] = React.useState(false);
 
   const {
@@ -84,11 +87,11 @@ export function LoginInfoBottomSheet({ isOpen, onClose, onSubmit }: LoginInfoBot
           </FormControl>
 
           <HStack space="md" className="mt-4">
-            <Button variant="outline" className="flex-1" onPress={onClose}>
-              <ButtonText>{t('common.cancel')}</ButtonText>
+            <Button variant="outline" className="flex-1" onPress={onClose} size={isLandscape ? "md" : "sm"}>
+              <ButtonText className={isLandscape ? "" : "text-xs"}>{t('common.cancel')}</ButtonText>
             </Button>
-            <Button className="flex-1 bg-primary-600" onPress={handleSubmit(onFormSubmit)} disabled={isLoading}>
-              {isLoading ? <ButtonSpinner /> : <ButtonText>{t('common.save')}</ButtonText>}
+            <Button className="flex-1 bg-primary-600" onPress={handleSubmit(onFormSubmit)} disabled={isLoading} size={isLandscape ? "md" : "sm"}>
+              {isLoading ? <ButtonSpinner /> : <ButtonText className={isLandscape ? "" : "text-xs"}>{t('common.save')}</ButtonText>}
             </Button>
           </HStack>
         </VStack>

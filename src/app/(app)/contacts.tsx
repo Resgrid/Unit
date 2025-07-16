@@ -11,6 +11,7 @@ import { Box } from '@/components/ui/box';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { View } from '@/components/ui/view';
 import { useContactsStore } from '@/stores/contacts/store';
+import { FocusAwareStatusBar } from '@/components/ui';
 
 export default function Contacts() {
   const { t } = useTranslation();
@@ -52,6 +53,7 @@ export default function Contacts() {
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
+      <FocusAwareStatusBar />
       <Box className="flex-1 px-4 pt-4">
         <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
           <InputSlot className="pl-3">

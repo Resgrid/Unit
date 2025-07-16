@@ -21,9 +21,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { APIProvider } from '@/api';
 import { PostHogProviderWrapper } from '@/components/common/posthog-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
-import { FocusAwareStatusBar } from '@/components/ui';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
+import { loadSelectedTheme } from '@/lib/hooks/use-selected-theme';
 import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { setDeviceUuid } from '@/lib/storage/app';
@@ -55,8 +55,10 @@ Sentry.init({
 
 registerGlobals();
 
+// Load the selected theme from storage and apply it
+loadSelectedTheme();
+
 //useAuth().hydrate();
-//loadSelectedTheme();
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 //SplashScreen.preventAutoHideAsync();
 // Set the animation options. This is optional.
@@ -129,7 +131,6 @@ function RootLayout() {
 
   return (
     <Providers>
-      <FocusAwareStatusBar hidden={true} />
       <Stack>
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />

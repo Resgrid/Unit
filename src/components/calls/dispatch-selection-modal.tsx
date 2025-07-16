@@ -232,7 +232,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
           <Button variant="outline" onPress={handleCancel} className="mr-10 flex-1">
             <ButtonText>{t('common.cancel')}</ButtonText>
           </Button>
-          <Button variant="solid" action="primary" onPress={handleConfirm} disabled={getSelectionCount() === 0} className="ml-10 flex-1">
+          <Button variant="solid" action="primary" onPress={handleConfirm} disabled={getSelectionCount() === 0} className="ml-2 flex-1">
             <ButtonText>{t('common.confirm')}</ButtonText>
           </Button>
         </HStack>

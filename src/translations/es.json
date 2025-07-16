@@ -3,7 +3,7 @@
     "title": "Resgrid Unit"
   },
   "bluetooth": {
-    "audio_device": "Dispositivo de Audio Bluetooth",
+    "audio_device": "Auricular BT",
     "available_devices": "Dispositivos Disponibles",
     "bluetooth_not_ready": "Bluetooth está {{state}}. Por favor habilita Bluetooth.",
     "clear": "Limpiar",

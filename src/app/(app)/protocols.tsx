@@ -11,6 +11,7 @@ import { Box } from '@/components/ui/box';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useProtocolsStore } from '@/stores/protocols/store';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 
 export default function Protocols() {
   const { t } = useTranslation();
@@ -37,6 +38,7 @@ export default function Protocols() {
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
+        <FocusAwareStatusBar />
         <Box className="flex-1 px-4 pt-4">
           <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
             <InputSlot className="pl-3">

@@ -3,7 +3,7 @@
     "title": "وحدة ريسغريد"
   },
   "bluetooth": {
-    "audio_device": "جهاز الصوت بلوتوث",
+    "audio_device": "سماعة BT",
     "available_devices": "الأجهزة المتاحة",
     "bluetooth_not_ready": "البلوتوث {{state}}. يرجى تمكين البلوتوث.",
     "clear": "مسح",

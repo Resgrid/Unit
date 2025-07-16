@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { create } from 'zustand';
 
 import { Box } from '@/components/ui/box';
@@ -55,6 +55,8 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   const { t } = useTranslation();
   const [localActiveIndex, setLocalActiveIndex] = useState(initialIndex);
   const { activeIndex, setActiveIndex } = useTabStore();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   // Use local state if no external state management is needed
   const currentIndex = onChange ? activeIndex : localActiveIndex;
@@ -77,9 +79,9 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
 
     const baseStyles = 'flex-1 flex items-center justify-center';
     const sizeStyles = {
-      sm: 'px-3 py-1.5 text-xs',
-      md: 'px-4 py-2 text-sm',
-      lg: 'px-5 py-2.5 text-base',
+      sm: isLandscape ? 'px-3 py-1.5 text-xs' : 'px-2 py-1 text-2xs',
+      md: isLandscape ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs',
+      lg: isLandscape ? 'px-5 py-2.5 text-base' : 'px-4 py-2 text-sm',
     }[size];
 
     const variantStyles = {
@@ -128,10 +130,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={getContainerStyle()}>
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className="mr-1.5">{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? <Text>{t(tab.title)}</Text> : <Text className="text-gray-800">{tab.title}</Text>}
+              {tab.icon && <Box className={isLandscape ? "mr-1.5" : "mr-1"}>{tab.icon}</Box>}
+              {typeof tab.title === 'string' ? <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{t(tab.title)}</Text> : <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{tab.title}</Text>}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className="ml-1.5 min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5">
+                <Box className={`${isLandscape ? "ml-1.5" : "ml-1"} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
                   <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}
@@ -142,10 +144,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
         <Box className={getContainerStyles()}>
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)}`} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className="mr-1.5">{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? <Text className="text-gray-800">{t(tab.title)}</Text> : <Text className="text-gray-800">{tab.title}</Text>}
+              {tab.icon && <Box className={isLandscape ? "mr-1.5" : "mr-1"}>{tab.icon}</Box>}
+              {typeof tab.title === 'string' ? <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{t(tab.title)}</Text> : <Text className={isLandscape ? "text-gray-800" : "text-gray-800 text-xs"}>{tab.title}</Text>}
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className="ml-1.5 min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5">
+                <Box className={`${isLandscape ? "ml-1.5" : "ml-1"} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
                   <Text className="text-xs font-bold text-white">{tab.badge}</Text>
                 </Box>
               )}

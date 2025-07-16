@@ -14,7 +14,7 @@ import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sh
 import { ThemeItem } from '@/components/settings/theme-item';
 import { ToggleItem } from '@/components/settings/toggle-item';
 import { UnitSelectionBottomSheet } from '@/components/settings/unit-selection-bottom-sheet';
-import { ScrollView } from '@/components/ui';
+import { FocusAwareStatusBar, ScrollView } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
@@ -59,6 +59,7 @@ export default function Settings() {
 
   return (
     <Box className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
+      <FocusAwareStatusBar />
       <ScrollView>
         <VStack className="md p-4">
           {/* App Info Section */}
