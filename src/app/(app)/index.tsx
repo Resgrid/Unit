@@ -1,7 +1,7 @@
 import Mapbox from '@rnmapbox/maps';
-import { Stack } from 'expo-router';
+import { Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -51,6 +51,37 @@ export default function Map() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
+
+  // Handle navigation focus - reset map state when user navigates back to map page
+  useFocusEffect(
+    useCallback(() => {
+      // Reset hasUserMovedMap when navigating back to map
+      setHasUserMovedMap(false);
+
+      // If map is not locked and we have a location, reset camera to default position
+      if (!location.isMapLocked && location.latitude && location.longitude) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [location.longitude, location.latitude],
+          zoomLevel: 12,
+          heading: 0,
+          pitch: 0,
+          animationDuration: 1000,
+        });
+
+        logger.info({
+          message: 'Navigated back to map with unlocked map, resetting camera to default position',
+          context: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+        });
+      } else {
+        logger.info({
+          message: 'Navigated back to map, resetting map user interaction state',
+        });
+      }
+    }, [location.isMapLocked, location.latitude, location.longitude])
+  );
 
   useEffect(() => {
     const startLocationTracking = async () => {
@@ -131,15 +162,35 @@ export default function Map() {
     }
   }, [location.isMapLocked, location.latitude, location.longitude]);
 
-  // Reset hasUserMovedMap when app becomes active (startup/foreground)
+  // Reset hasUserMovedMap when app becomes active (startup/foreground) or when navigating back to map
   useEffect(() => {
     if (isActive) {
       setHasUserMovedMap(false);
-      logger.info({
-        message: 'App became active, resetting map user interaction state',
-      });
+
+      // If map is not locked and we have a location, reset camera to default position
+      if (!location.isMapLocked && location.latitude && location.longitude) {
+        cameraRef.current?.setCamera({
+          centerCoordinate: [location.longitude, location.latitude],
+          zoomLevel: 12,
+          heading: 0,
+          pitch: 0,
+          animationDuration: 1000,
+        });
+
+        logger.info({
+          message: 'App became active with unlocked map, resetting camera to default position',
+          context: {
+            latitude: location.latitude,
+            longitude: location.longitude,
+          },
+        });
+      } else {
+        logger.info({
+          message: 'App became active, resetting map user interaction state',
+        });
+      }
     }
-  }, [isActive]);
+  }, [isActive, location.isMapLocked, location.latitude, location.longitude]);
 
   useEffect(() => {
     const fetchMapDataAndMarkers = async () => {
