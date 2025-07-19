@@ -2,12 +2,13 @@ module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/jest-setup.ts'],
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
+  testPathIgnorePatterns: ['<rootDir>/node_modules/', '\\.\\._.*'],
   collectCoverage: true,
-  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!**/coverage/**', '!**/node_modules/**', '!**/babel.config.js', '!**/jest.setup.js', '!**/docs/**', '!**/cli/**', '!**/ios/**', '!**/android/**'],
+  collectCoverageFrom: ['src/**/*.{ts,tsx}', '!**/coverage/**', '!**/node_modules/**', '!**/babel.config.js', '!**/jest.setup.js', '!**/docs/**', '!**/cli/**', '!**/ios/**', '!**/android/**', '!**/_*', '!**/._*'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@legendapp/motion|@gluestack-ui/.*))',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|@legendapp/motion|@gluestack-ui|expo-audio/.*))',
   ],
   coverageReporters: ['json-summary', ['text', { file: 'coverage.txt' }], 'cobertura'],
   reporters: [

@@ -24,7 +24,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
     infoPlist: {
-      UIBackgroundModes: ['remote-notification'],
+      UIBackgroundModes: ['remote-notification', 'audio'],
       ITSAppUsesNonExemptEncryption: false,
     },
   },
@@ -40,7 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
     googleServicesFile: 'google-services.json',
-    permissions: ['WAKE_LOCK', 'RECORD_AUDIO', 'FOREGROUND_SERVICE_MICROPHONE'],
+    permissions: ['WAKE_LOCK', 'RECORD_AUDIO', 'FOREGROUND_SERVICE_MICROPHONE', 'POST_NOTIFICATIONS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_CONNECTED_DEVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK'],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -176,7 +176,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-asset',
       {
-        assets: ['assets/mapping'],
+        assets: [
+          'assets/mapping',
+          'assets/audio/ui/space_notification1.mp3',
+          'assets/audio/ui/space_notification2.mp3',
+          'assets/audio/ui/positive_interface_beep.mp3',
+          'assets/audio/ui/software_interface_start.mp3',
+          'assets/audio/ui/software_interface_back.mp3',
+        ],
       },
     ],
     [
@@ -201,6 +208,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices',
       },
     ],
+    'expo-audio',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
     './customGradle.plugin.js',

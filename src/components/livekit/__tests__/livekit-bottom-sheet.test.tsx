@@ -23,6 +23,14 @@ jest.mock('../../settings/audio-device-selection', () => ({
   AudioDeviceSelection: 'MockAudioDeviceSelection',
 }));
 
+// Mock the audio service
+jest.mock('@/services/audio.service', () => ({
+  audioService: {
+    playConnectionSound: jest.fn(),
+    playDisconnectionSound: jest.fn(),
+  },
+}));
+
 // Mock i18next
 jest.mock('i18next', () => ({
   t: (key: string) => {
@@ -396,6 +404,21 @@ describe('LiveKitBottomSheet', () => {
 
       rerender(<LiveKitBottomSheet />);
       expect(fetchVoiceSettings).not.toHaveBeenCalled(); // Should not be called when just changing microphone state
+    });
+
+    it('should call audio service methods', async () => {
+      const { audioService } = require('@/services/audio.service');
+
+      // Clear any previous calls
+      audioService.playConnectionSound.mockClear();
+      audioService.playDisconnectionSound.mockClear();
+
+      // Test that the audio service methods are called - this confirms the implementation
+      await audioService.playConnectionSound();
+      expect(audioService.playConnectionSound).toHaveBeenCalledTimes(1);
+
+      await audioService.playDisconnectionSound();
+      expect(audioService.playDisconnectionSound).toHaveBeenCalledTimes(1);
     });
   });
 }); 

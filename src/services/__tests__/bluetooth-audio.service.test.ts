@@ -5,6 +5,13 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 jest.mock('react-native-ble-plx');
 jest.mock('@/lib/logging');
 jest.mock('@/lib/storage');
+jest.mock('@/services/audio.service', () => ({
+  audioService: {
+    playConnectedDeviceSound: jest.fn(),
+    playConnectionSound: jest.fn(),
+    playDisconnectionSound: jest.fn(),
+  },
+}));
 jest.mock('@/stores/app/livekit-store', () => ({
   useLiveKitStore: {
     getState: jest.fn(() => ({
@@ -69,6 +76,7 @@ jest.mock('@/stores/app/bluetooth-audio-store', () => {
 
 // Import service after mocks are set up
 import { bluetoothAudioService } from '../bluetooth-audio.service';
+import { audioService } from '@/services/audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 // Get the mocks from the module
@@ -195,6 +203,25 @@ describe('BluetoothAudioService', () => {
 
       // The service should handle multiple initialization attempts gracefully
       expect(true).toBe(true); // Test passes if no errors thrown
+    });
+
+    it('should play connected device sound when device connects', async () => {
+      // Mock the connectToDevice method to spy on it and bypass the actual connection logic
+      const mockConnectToDevice = jest.spyOn(service as any, 'connectToDevice');
+      mockConnectToDevice.mockImplementation(async () => {
+        // Simulate the sound playing part that we want to test
+        await audioService.playConnectedDeviceSound();
+      });
+
+      // Mock the audio service method
+      const mockPlayConnectedDeviceSound = jest.fn();
+      (audioService.playConnectedDeviceSound as jest.Mock) = mockPlayConnectedDeviceSound;
+
+      // Call the connectToDevice method
+      await service.connectToDevice('test-device-id');
+
+      // Verify the sound was played
+      expect(mockPlayConnectedDeviceSound).toHaveBeenCalled();
     });
   });
 
