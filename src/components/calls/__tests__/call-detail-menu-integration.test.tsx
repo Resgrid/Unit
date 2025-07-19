@@ -59,9 +59,9 @@ jest.mock('lucide-react-native', () => ({
 }));
 
 jest.mock('@/components/ui/', () => ({
-  Pressable: ({ children, onPress, testID }: { children: React.ReactNode; onPress: () => void; testID?: string }) => {
+  Pressable: ({ children, onPress, onPressIn, testID }: { children: React.ReactNode; onPress?: () => void; onPressIn?: () => void; testID?: string }) => {
     const { TouchableOpacity } = require('react-native');
-    return <TouchableOpacity testID={testID} onPress={onPress}>{children}</TouchableOpacity>;
+    return <TouchableOpacity testID={testID} onPress={onPress || onPressIn}>{children}</TouchableOpacity>;
   },
 }));
 

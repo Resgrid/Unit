@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { type DepartmentVoiceChannelResultData } from '@/models/v4/voice/departmentVoiceResultData';
+import { audioService } from '@/services/audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 import { Card } from '../../components/ui/card';
@@ -67,6 +68,15 @@ export const LiveKitBottomSheet = () => {
       try {
         await currentRoom.localParticipant.setMicrophoneEnabled(newMicEnabled);
         setIsMuted(!newMicEnabled);
+
+        // Play appropriate sound based on mute state
+        if (newMicEnabled) {
+          // Mic is being unmuted
+          await audioService.playStartTransmittingSound();
+        } else {
+          // Mic is being muted
+          await audioService.playStopTransmittingSound();
+        }
       } catch (error) {
         console.error('Failed to toggle microphone:', error);
       }

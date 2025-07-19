@@ -1039,10 +1039,10 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
-"@dev-plugins/react-query@^0.3.1":
-  version "0.3.1"
-  resolved "https://registry.yarnpkg.com/@dev-plugins/react-query/-/react-query-0.3.1.tgz#189c572aa069be67db5cf9be2b53b2ac7be16b16"
-  integrity sha512-xmNfMIwHLhigE/usbGma+W/2G8bHRAfrP83nqTtjPMc7Rt2zSv1Ju3EK3KhkAh3WuHrUMpBIbNJdLgSc+K4tMg==
+"@dev-plugins/react-query@~0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@dev-plugins/react-query/-/react-query-0.2.0.tgz#623f53f082c550dca0601879dbe1423136f25bb2"
+  integrity sha512-tbGfXiR4/Pd9V6oJGDqx/YFtNpHJ0jrfLhDnY6k9yZu2e5niuIStDVKDimZ3m+HYXQDw62Ydk5NFa6fcRq4soA==
   dependencies:
     flatted "^3.3.1"
 
@@ -7367,6 +7367,11 @@ expo-asset@~11.0.5:
     expo-constants "~17.0.8"
     invariant "^2.2.4"
     md5-file "^3.2.3"
+
+expo-audio@~0.3.5:
+  version "0.3.5"
+  resolved "https://registry.yarnpkg.com/expo-audio/-/expo-audio-0.3.5.tgz#1f151ec9919e163019f1aa76a117657e0ea6b613"
+  integrity sha512-gzpDH3vZI1FDL1Q8pXryACtNIW+idZ/zIZ8WqdTRzJuzxucazrG2gLXUS2ngcXQBn09Jyz4RUnU10Tu2N7/Hgg==
 
 expo-build-properties@~0.13.3:
   version "0.13.3"

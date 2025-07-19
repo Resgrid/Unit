@@ -1,4 +1,6 @@
+import notifee, { AndroidImportance } from '@notifee/react-native';
 import { Room, RoomEvent } from 'livekit-client';
+import { Platform } from 'react-native';
 import { set } from 'zod';
 import { create } from 'zustand';
 
@@ -117,14 +119,14 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         console.log('A participant connected', participant.identity);
         // Play connection sound when others join
         if (participant.identity !== room.localParticipant.identity) {
-          audioService.playConnectionSound();
+          //audioService.playConnectToAudioRoomSound();
         }
       });
 
       room.on(RoomEvent.ParticipantDisconnected, (participant) => {
         console.log('A participant disconnected', participant.identity);
         // Play disconnection sound when others leave
-        audioService.playDisconnectionSound();
+        //audioService.playDisconnectedFromAudioRoomSound();
       });
 
       room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -144,6 +146,33 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Setup audio routing based on selected devices
       await setupAudioRouting(room);
 
+      await audioService.playConnectToAudioRoomSound();
+
+      try {
+        const startForegroundService = async () => {
+          notifee.registerForegroundService(async () => {
+            // Minimal function with no interval or tasks to reduce strain on the main thread
+            return new Promise(() => {
+              console.log('Foreground service registered.');
+            });
+          });
+
+          // Step 3: Display the notification as a foreground service
+          await notifee.displayNotification({
+            title: 'Active PTT Call',
+            body: 'There is an active PTT call in progress.',
+            android: {
+              channelId: 'notif',
+              asForegroundService: true,
+              smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
+            },
+          });
+        };
+
+        await startForegroundService();
+      } catch (error) {
+        console.error('Failed to register foreground service:', error);
+      }
       set({
         currentRoom: room,
         currentRoomInfo: roomInfo,
@@ -156,10 +185,17 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     }
   },
 
-  disconnectFromRoom: () => {
+  disconnectFromRoom: async () => {
     const { currentRoom } = get();
     if (currentRoom) {
-      currentRoom.disconnect();
+      await currentRoom.disconnect();
+      await audioService.playDisconnectedFromAudioRoomSound();
+
+      try {
+        await notifee.stopForegroundService();
+      } catch (error) {
+        console.error('Failed to stop foreground service:', error);
+      }
       set({
         currentRoom: null,
         currentRoomInfo: null,

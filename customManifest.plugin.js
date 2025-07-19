@@ -14,7 +14,7 @@ const withForegroundService = (config) => {
     mainApplication['service'].push({
       $: {
         'android:name': 'app.notifee.core.ForegroundService',
-        'android:foregroundServiceType': 'microphone',
+        'android:foregroundServiceType': 'microphone|mediaPlayback|connectedDevice',
         'tools:replace': 'android:foregroundServiceType',
       },
     });
