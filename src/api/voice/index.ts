@@ -19,7 +19,7 @@ const getDepartmentVoiceSettingsApi = createApiEndpoint('/Voice/GetDepartmentVoi
 
 const getDepartmentAudioStreamsApi = createCachedApiEndpoint('/Voice/GetDepartmentAudioStreams', {
   ttl: 60 * 1000 * 2880, // Cache for 2 days
-  enabled: true,
+  enabled: false,
 });
 
 export const getDepartmentVoiceSettings = async () => {

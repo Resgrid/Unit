@@ -2,6 +2,28 @@
   "app": {
     "title": "Resgrid Unit"
   },
+  "audio_streams": {
+    "buffering": "Buffering",
+    "buffering_stream": "Buffering audio stream...",
+    "close": "Close",
+    "currently_playing": "Currently playing: {{streamName}}",
+    "loading": "Loading",
+    "loading_stream": "Loading audio stream...",
+    "loading_streams": "Loading audio streams...",
+    "name": "Name",
+    "no_stream_playing": "No audio stream is currently playing",
+    "none": "None",
+    "playing": "Playing",
+    "refresh_streams": "Refresh Streams",
+    "select_placeholder": "Select an audio stream",
+    "select_stream": "Select Audio Stream",
+    "status": "Status",
+    "stopped": "Stopped",
+    "stream_info": "Stream Information",
+    "stream_selected": "Selected: {{streamName}}",
+    "title": "Audio Streams",
+    "type": "Type"
+  },
   "bluetooth": {
     "audio_device": "BT Handset",
     "available_devices": "Available Devices",

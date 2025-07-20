@@ -208,6 +208,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices',
       },
     ],
+    [
+      'expo-navigation-bar',
+      {
+        position: 'relative',
+        visibility: 'hidden',
+        behavior: 'inset-touch',
+      },
+    ],
     'expo-audio',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',

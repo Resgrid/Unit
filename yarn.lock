@@ -7373,6 +7373,11 @@ expo-audio@~0.3.5:
   resolved "https://registry.yarnpkg.com/expo-audio/-/expo-audio-0.3.5.tgz#1f151ec9919e163019f1aa76a117657e0ea6b613"
   integrity sha512-gzpDH3vZI1FDL1Q8pXryACtNIW+idZ/zIZ8WqdTRzJuzxucazrG2gLXUS2ngcXQBn09Jyz4RUnU10Tu2N7/Hgg==
 
+expo-av@~15.0.2:
+  version "15.0.2"
+  resolved "https://registry.yarnpkg.com/expo-av/-/expo-av-15.0.2.tgz#65bb08658a7fe3a67aa47da614abbfae9adb684e"
+  integrity sha512-AHIHXdqLgK1dfHZF0JzX3YSVySGMrWn9QtPzaVjw54FAzvXfMt4sIoq4qRL/9XWCP9+ICcCs/u3EcvmxQjrfcA==
+
 expo-build-properties@~0.13.3:
   version "0.13.3"
   resolved "https://registry.yarnpkg.com/expo-build-properties/-/expo-build-properties-0.13.3.tgz#6b96d0486148fca6e74e62c7c502c0a9990931aa"
@@ -7523,6 +7528,14 @@ expo-modules-core@2.2.3, expo-modules-core@~2.2.3:
   integrity sha512-01QqZzpP/wWlxnNly4G06MsOBUTbMDj02DQigZoXfDh80vd/rk3/uVXqnZgOdLSggTs6DnvOgAUy0H2q30XdUg==
   dependencies:
     invariant "^2.2.4"
+
+expo-navigation-bar@~4.0.9:
+  version "4.0.9"
+  resolved "https://registry.yarnpkg.com/expo-navigation-bar/-/expo-navigation-bar-4.0.9.tgz#e0409c2db8f6384d12c87f45c2674effc9fae1b6"
+  integrity sha512-dCJ04yPixFOUixJaWlmCZafGeQ1L1g6vWn+oX8rqPnYN9kYCMUz2aRNnhRRoK5MBGFTK/nue2D49TE/AwwWt9w==
+  dependencies:
+    "@react-native/normalize-colors" "0.76.8"
+    debug "^4.3.2"
 
 expo-notifications@~0.29.14:
   version "0.29.14"

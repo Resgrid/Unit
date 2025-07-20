@@ -1,8 +1,10 @@
-import { Lock, Mic, Phone, Unlock } from 'lucide-react-native';
+import { Lock, Mic, Phone, Radio, Unlock } from 'lucide-react-native';
 import * as React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { AudioStreamBottomSheet } from '@/components/audio-stream/audio-stream-bottom-sheet';
 import { Text } from '@/components/ui/text';
+import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -20,6 +22,7 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const { setIsBottomSheetVisible, currentRoomInfo, isConnected, isTalking } = useLiveKitStore();
   const { isMapLocked, setMapLocked } = useLocationStore();
+  const { setIsBottomSheetVisible: setAudioStreamBottomSheetVisible, currentStream, isPlaying } = useAudioStreamStore();
 
   // Derive the display values from activeUnit when available, otherwise use defaults
   const displayName = activeUnit?.Name ?? defaultUnitName;
@@ -32,6 +35,10 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
 
   const handleToggleMapLock = () => {
     setMapLocked(!isMapLocked);
+  };
+
+  const handleOpenAudioStream = () => {
+    setAudioStreamBottomSheetVisible(true);
   };
 
   return (
@@ -56,11 +63,16 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
             {isMapLocked ? <Lock size={18} color={isMapLocked ? '#fff' : '#007AFF'} /> : <Unlock size={18} color="#007AFF" />}
           </TouchableOpacity>
 
+          <TouchableOpacity style={[styles.audioStreamButton, currentStream && isPlaying ? styles.audioStreamButtonActive : {}]} onPress={handleOpenAudioStream} testID="audio-stream-button">
+            <Radio size={18} color={currentStream && isPlaying ? '#fff' : '#007AFF'} />
+          </TouchableOpacity>
+
           <TouchableOpacity style={[styles.callButton, isConnected ? styles.activeCall : {}]} onPress={handleOpenLiveKit} testID="call-button">
             <Phone size={18} color={isConnected ? '#fff' : '#007AFF'} />
           </TouchableOpacity>
         </View>
       </View>
+      <AudioStreamBottomSheet />
     </Card>
   );
 };
@@ -102,6 +114,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   mapLockButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  audioStreamButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  audioStreamButtonActive: {
     backgroundColor: '#007AFF',
     borderColor: '#007AFF',
   },

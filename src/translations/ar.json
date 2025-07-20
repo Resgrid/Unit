@@ -2,6 +2,28 @@
   "app": {
     "title": "وحدة ريسغريد"
   },
+  "audio_streams": {
+    "buffering": "التخزين المؤقت",
+    "buffering_stream": "جاري التخزين المؤقت للبث الصوتي...",
+    "close": "إغلاق",
+    "currently_playing": "يتم تشغيل حاليًا: {{streamName}}",
+    "loading": "جاري التحميل",
+    "loading_stream": "جاري تحميل البث الصوتي...",
+    "loading_streams": "جاري تحميل البثوث الصوتية...",
+    "name": "الاسم",
+    "no_stream_playing": "لا يوجد بث صوتي يتم تشغيله حاليًا",
+    "none": "لا شيء",
+    "playing": "يتم التشغيل",
+    "refresh_streams": "تحديث البثوث",
+    "select_placeholder": "اختر بث صوتي",
+    "select_stream": "اختيار البث الصوتي",
+    "status": "الحالة",
+    "stopped": "متوقف",
+    "stream_info": "معلومات البث",
+    "stream_selected": "مختار: {{streamName}}",
+    "title": "البثوث الصوتية",
+    "type": "النوع"
+  },
   "bluetooth": {
     "audio_device": "سماعة BT",
     "available_devices": "الأجهزة المتاحة",
