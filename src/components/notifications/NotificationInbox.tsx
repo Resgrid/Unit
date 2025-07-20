@@ -1,5 +1,5 @@
 import { useNotifications } from '@novu/react-native';
-import { ChevronRight, ExternalLink, X } from 'lucide-react-native';
+import { CheckCircle, ChevronRight, Circle, ExternalLink, MoreVertical, Trash2, X } from 'lucide-react-native';
 import { colorScheme } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable, RefreshControl, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
@@ -7,6 +7,7 @@ import { ActivityIndicator, Animated, Dimensions, FlatList, Platform, Pressable,
 import { deleteMessage } from '@/api/novu/inbox';
 import { NotificationDetail } from '@/components/notifications/NotificationDetail';
 import { Button } from '@/components/ui/button';
+import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
 import { Text } from '@/components/ui/text';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useToastStore } from '@/stores/toast/store';
@@ -28,6 +29,10 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   const { notifications, isLoading, fetchMore, hasMore, refetch } = useNotifications();
   const showToast = useToastStore((state) => state.showToast);
   const [selectedNotification, setSelectedNotification] = useState<NotificationPayload | null>(null);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<Set<string>>(new Set());
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [isDeletingSelected, setIsDeletingSelected] = useState(false);
 
   // Animation values
   const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
@@ -49,7 +54,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
         }),
       ]).start();
     } else {
-      // Animate out
+      // Animate out and reset state
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: SIDEBAR_WIDTH,
@@ -62,11 +67,76 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
           useNativeDriver: true,
         }),
       ]).start();
+
+      // Reset selection state when closing
+      setIsSelectionMode(false);
+      setSelectedNotificationIds(new Set());
+      setSelectedNotification(null);
+      setShowDeleteConfirmModal(false);
     }
   }, [isOpen, slideAnim, fadeAnim]);
 
   const handleNotificationPress = (notification: NotificationPayload) => {
-    setSelectedNotification(notification);
+    if (isSelectionMode) {
+      toggleNotificationSelection(notification.id);
+    } else {
+      setSelectedNotification(notification);
+    }
+  };
+
+  const toggleNotificationSelection = (notificationId: string) => {
+    setSelectedNotificationIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(notificationId)) {
+        newSet.delete(notificationId);
+      } else {
+        newSet.add(notificationId);
+      }
+      return newSet;
+    });
+  };
+
+  const enterSelectionMode = () => {
+    setIsSelectionMode(true);
+    setSelectedNotificationIds(new Set());
+  };
+
+  const exitSelectionMode = () => {
+    setIsSelectionMode(false);
+    setSelectedNotificationIds(new Set());
+  };
+
+  const selectAllNotifications = () => {
+    const allIds = notifications?.map((item: any) => item.id) || [];
+    setSelectedNotificationIds(new Set(allIds));
+  };
+
+  const deselectAllNotifications = () => {
+    setSelectedNotificationIds(new Set());
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedNotificationIds.size > 0) {
+      setShowDeleteConfirmModal(true);
+    }
+  };
+
+  const confirmBulkDelete = async () => {
+    setIsDeletingSelected(true);
+    setShowDeleteConfirmModal(false);
+
+    try {
+      const deletePromises = Array.from(selectedNotificationIds).map((id) => deleteMessage(id));
+      await Promise.all(deletePromises);
+
+      showToast('success', `${selectedNotificationIds.size} notification${selectedNotificationIds.size > 1 ? 's' : ''} removed`);
+      exitSelectionMode();
+      refetch();
+    } catch (error) {
+      showToast('error', 'Failed to remove notifications');
+    } finally {
+      setIsDeletingSelected(false);
+    }
   };
 
   const handleDeleteNotification = async (_id: string) => {
@@ -98,25 +168,46 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       metadata: item.payload?.metadata,
     };
 
+    const isSelected = selectedNotificationIds.has(notification.id);
+
     return (
-      <Pressable onPress={() => handleNotificationPress(notification)} style={[styles.notificationItem, !item.read ? styles.unreadNotificationItem : {}]}>
+      <Pressable
+        onPress={() => handleNotificationPress(notification)}
+        onLongPress={() => {
+          if (!isSelectionMode) {
+            enterSelectionMode();
+            toggleNotificationSelection(notification.id);
+          }
+        }}
+        style={[styles.notificationItem, !item.read ? styles.unreadNotificationItem : {}, isSelected ? styles.selectedNotificationItem : {}]}
+      >
         {!item.read ? <View style={styles.unreadIndicator} /> : null}
+
+        {isSelectionMode ? (
+          <View style={styles.selectionIndicator}>
+            {isSelected ? <CheckCircle size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} /> : <Circle size={24} className="text-gray-400 dark:text-gray-500" strokeWidth={2} />}
+          </View>
+        ) : null}
+
         <View style={styles.notificationContent}>
           <Text style={[styles.notificationBody, !item.read ? styles.unreadNotificationText : {}]}>{notification.body}</Text>
           <Text style={styles.timestamp}>
             {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
           </Text>
         </View>
-        {notification.referenceType && notification.referenceId ? (
-          <View style={styles.actionButtons}>
-            <Button onPress={() => handleNavigateToReference(notification.referenceType!, notification.referenceId!)} variant="outline" className="size-8 p-0">
-              <ExternalLink size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
-            </Button>
+
+        {!isSelectionMode ? (
+          notification.referenceType && notification.referenceId ? (
+            <View style={styles.actionButtons}>
+              <Button onPress={() => handleNavigateToReference(notification.referenceType!, notification.referenceId!)} variant="outline" className="size-8 p-0">
+                <ExternalLink size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+              </Button>
+              <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
+            </View>
+          ) : (
             <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
-          </View>
-        ) : (
-          <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
-        )}
+          )
+        ) : null}
       </Pressable>
     );
   };
@@ -156,10 +247,36 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
           ) : (
             <>
               <View style={styles.header}>
-                <Text style={styles.headerTitle}>Notifications</Text>
-                <Pressable onPress={onClose} style={styles.closeButton}>
-                  <X size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
-                </Pressable>
+                {isSelectionMode ? (
+                  <>
+                    <View style={styles.selectionHeader}>
+                      <Text style={styles.selectionCount}>{selectedNotificationIds.size} selected</Text>
+                      <View style={styles.selectionActions}>
+                        <Button onPress={selectedNotificationIds.size === notifications?.length ? deselectAllNotifications : selectAllNotifications} variant="outline" className="mr-2">
+                          <Text>{selectedNotificationIds.size === notifications?.length ? 'Deselect All' : 'Select All'}</Text>
+                        </Button>
+                        <Button onPress={handleBulkDelete} variant="outline" className="mr-2" disabled={selectedNotificationIds.size === 0 || isDeletingSelected}>
+                          {isDeletingSelected ? <ActivityIndicator size="small" color="#ef4444" /> : <Trash2 size={16} className="text-red-500" strokeWidth={2} />}
+                        </Button>
+                        <Button onPress={exitSelectionMode} variant="outline">
+                          <Text>Cancel</Text>
+                        </Button>
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.headerTitle}>Notifications</Text>
+                    <View style={styles.headerActions}>
+                      <Pressable onPress={enterSelectionMode} style={styles.actionButton}>
+                        <MoreVertical size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+                      </Pressable>
+                      <Pressable onPress={onClose} style={styles.closeButton}>
+                        <X size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+                      </Pressable>
+                    </View>
+                  </>
+                )}
               </View>
 
               {isLoading && !notifications ? (
@@ -187,6 +304,29 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
           )}
         </SafeAreaView>
       </Animated.View>
+
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={showDeleteConfirmModal} onClose={() => setShowDeleteConfirmModal(false)}>
+        <ModalBackdrop />
+        <ModalContent>
+          <ModalHeader>
+            <Text className="text-lg font-semibold">Confirm Delete</Text>
+          </ModalHeader>
+          <ModalBody>
+            <Text>
+              Are you sure you want to delete {selectedNotificationIds.size} notification{selectedNotificationIds.size > 1 ? 's' : ''}? This action cannot be undone.
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="outline" onPress={() => setShowDeleteConfirmModal(false)} className="mr-2">
+              <Text>Cancel</Text>
+            </Button>
+            <Button variant="solid" onPress={confirmBulkDelete} className="bg-red-500">
+              <Text className="text-white">Delete</Text>
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </View>
   );
 };
@@ -233,8 +373,31 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  actionButton: {
+    padding: 8,
+    marginRight: 8,
+  },
   closeButton: {
     padding: 8,
+  },
+  selectionHeader: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectionCount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colorScheme.get() === 'dark' ? '#ffffff' : '#000000',
+  },
+  selectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   notificationItem: {
     flexDirection: 'row',
@@ -247,6 +410,9 @@ const styles = StyleSheet.create({
   unreadNotificationItem: {
     backgroundColor: colorScheme.get() === 'dark' ? '#262626' : '#f0f7ff',
   },
+  selectedNotificationItem: {
+    backgroundColor: colorScheme.get() === 'dark' ? '#1e3a8a' : '#dbeafe',
+  },
   unreadIndicator: {
     position: 'absolute',
     left: 0,
@@ -254,6 +420,9 @@ const styles = StyleSheet.create({
     width: 4,
     height: '100%',
     backgroundColor: colorScheme.get() === 'dark' ? '#60a5fa' : '#3b82f6',
+  },
+  selectionIndicator: {
+    marginRight: 12,
   },
   notificationContent: {
     flex: 1,

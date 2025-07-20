@@ -4,7 +4,7 @@ const getGroupsApi = createApiEndpoint('/Inbox/DeleteMessage');
 
 export const deleteMessage = async (messageId: string) => {
   const response = await getGroupsApi.delete({
-    groupId: encodeURIComponent(messageId),
+    messageId: encodeURIComponent(messageId),
   });
   return response.data;
 };
