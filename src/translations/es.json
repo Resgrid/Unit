@@ -2,6 +2,24 @@
   "app": {
     "title": "Resgrid Unit"
   },
+  "audio_streams": {
+    "close": "Cerrar",
+    "currently_playing": "Reproduciendo actualmente: {{streamName}}",
+    "loading_streams": "Cargando transmisiones de audio...",
+    "name": "Nombre",
+    "no_stream_playing": "No se está reproduciendo ninguna transmisión de audio",
+    "none": "Ninguno",
+    "playing": "Reproduciendo",
+    "refresh_streams": "Actualizar Transmisiones",
+    "select_placeholder": "Seleccionar una transmisión de audio",
+    "select_stream": "Seleccionar Transmisión de Audio",
+    "status": "Estado",
+    "stopped": "Detenido",
+    "stream_info": "Información de Transmisión",
+    "stream_selected": "Seleccionado: {{streamName}}",
+    "title": "Transmisiones de Audio",
+    "type": "Tipo"
+  },
   "bluetooth": {
     "audio_device": "Auricular BT",
     "available_devices": "Dispositivos Disponibles",

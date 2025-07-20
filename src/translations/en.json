@@ -2,6 +2,24 @@
   "app": {
     "title": "Resgrid Unit"
   },
+  "audio_streams": {
+    "close": "Close",
+    "currently_playing": "Currently playing: {{streamName}}",
+    "loading_streams": "Loading audio streams...",
+    "name": "Name",
+    "no_stream_playing": "No audio stream is currently playing",
+    "none": "None",
+    "playing": "Playing",
+    "refresh_streams": "Refresh Streams",
+    "select_placeholder": "Select an audio stream",
+    "select_stream": "Select Audio Stream",
+    "status": "Status",
+    "stopped": "Stopped",
+    "stream_info": "Stream Information",
+    "stream_selected": "Selected: {{streamName}}",
+    "title": "Audio Streams",
+    "type": "Type"
+  },
   "bluetooth": {
     "audio_device": "BT Handset",
     "available_devices": "Available Devices",
@@ -47,24 +65,6 @@
     "noSearchResults": "No notes match your search",
     "searchPlaceholder": "Search notes...",
     "title": "Call Notes"
-  },
-  "audio_streams": {
-    "close": "Close",
-    "currently_playing": "Currently playing: {{streamName}}",
-    "loading_streams": "Loading audio streams...",
-    "name": "Name",
-    "no_stream_playing": "No audio stream is currently playing",
-    "none": "None",
-    "playing": "Playing",
-    "refresh_streams": "Refresh Streams",
-    "select_placeholder": "Select an audio stream",
-    "select_stream": "Select Audio Stream",
-    "status": "Status",
-    "stopped": "Stopped",
-    "stream_info": "Stream Information",
-    "stream_selected": "Selected: {{streamName}}",
-    "title": "Audio Streams",
-    "type": "Type"
   },
   "call_detail": {
     "address": "Address",
