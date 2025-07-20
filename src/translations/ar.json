@@ -3,8 +3,12 @@
     "title": "وحدة ريسغريد"
   },
   "audio_streams": {
+    "buffering": "التخزين المؤقت",
+    "buffering_stream": "جاري التخزين المؤقت للبث الصوتي...",
     "close": "إغلاق",
     "currently_playing": "يتم تشغيل حاليًا: {{streamName}}",
+    "loading": "جاري التحميل",
+    "loading_stream": "جاري تحميل البث الصوتي...",
     "loading_streams": "جاري تحميل البثوث الصوتية...",
     "name": "الاسم",
     "no_stream_playing": "لا يوجد بث صوتي يتم تشغيله حاليًا",

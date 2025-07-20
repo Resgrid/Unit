@@ -131,7 +131,7 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
 
               // For live streams, try to reconnect
               const { currentStream } = get();
-              if (currentStream && currentStream.Id === stream.Id) {
+              if (currentStream?.Id === stream.Id) {
                 setTimeout(async () => {
                   try {
                     await sound.replayAsync();

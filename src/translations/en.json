@@ -3,8 +3,12 @@
     "title": "Resgrid Unit"
   },
   "audio_streams": {
+    "buffering": "Buffering",
+    "buffering_stream": "Buffering audio stream...",
     "close": "Close",
     "currently_playing": "Currently playing: {{streamName}}",
+    "loading": "Loading",
+    "loading_stream": "Loading audio stream...",
     "loading_streams": "Loading audio streams...",
     "name": "Name",
     "no_stream_playing": "No audio stream is currently playing",
