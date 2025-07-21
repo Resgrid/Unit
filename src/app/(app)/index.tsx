@@ -26,6 +26,7 @@ export default function Map() {
   const { t } = useTranslation();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
@@ -58,29 +59,34 @@ export default function Map() {
       // Reset hasUserMovedMap when navigating back to map
       setHasUserMovedMap(false);
 
-      // If map is not locked and we have a location, reset camera to default position
-      if (!location.isMapLocked && location.latitude && location.longitude) {
-        cameraRef.current?.setCamera({
+      // Reset camera to current location when navigating back to map
+      if (isMapReady && location.latitude && location.longitude) {
+        const cameraConfig: any = {
           centerCoordinate: [location.longitude, location.latitude],
-          zoomLevel: 12,
+          zoomLevel: location.isMapLocked ? 16 : 12,
+          animationDuration: 1000,
           heading: 0,
           pitch: 0,
-          animationDuration: 1000,
-        });
+        };
+
+        // Add heading and pitch for navigation mode when locked
+        if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
+          cameraConfig.heading = location.heading;
+          cameraConfig.pitch = 45;
+        }
+
+        cameraRef.current?.setCamera(cameraConfig);
 
         logger.info({
-          message: 'Navigated back to map with unlocked map, resetting camera to default position',
+          message: 'Map focused, resetting camera to current location',
           context: {
             latitude: location.latitude,
             longitude: location.longitude,
+            isMapLocked: location.isMapLocked,
           },
         });
-      } else {
-        logger.info({
-          message: 'Navigated back to map, resetting map user interaction state',
-        });
       }
-    }, [location.isMapLocked, location.latitude, location.longitude])
+    }, [isMapReady, location.latitude, location.longitude, location.isMapLocked, location.heading])
   );
 
   useEffect(() => {
@@ -110,9 +116,9 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    if (location.latitude && location.longitude) {
+    if (isMapReady && location.latitude && location.longitude) {
       logger.info({
-        message: 'Location updated',
+        message: 'Location updated and map is ready',
         context: {
           latitude: location.latitude,
           longitude: location.longitude,
@@ -139,36 +145,17 @@ export default function Map() {
         cameraRef.current?.setCamera(cameraConfig);
       }
     }
-  }, [location.latitude, location.longitude, location.heading, location.isMapLocked, hasUserMovedMap]);
+  }, [isMapReady, location.latitude, location.longitude, location.heading, location.isMapLocked, hasUserMovedMap]);
 
   // Reset hasUserMovedMap when map gets locked and reset camera when unlocked
   useEffect(() => {
     if (location.isMapLocked) {
       setHasUserMovedMap(false);
     } else {
-      // When exiting locked mode, reset camera to normal view
-      if (location.latitude && location.longitude) {
-        cameraRef.current?.setCamera({
-          centerCoordinate: [location.longitude, location.latitude],
-          zoomLevel: 12,
-          heading: 0,
-          pitch: 0,
-          animationDuration: 1000,
-        });
-        logger.info({
-          message: 'Map unlocked, resetting camera to normal view',
-        });
-      }
-    }
-  }, [location.isMapLocked, location.latitude, location.longitude]);
-
-  // Reset hasUserMovedMap when app becomes active (startup/foreground) or when navigating back to map
-  useEffect(() => {
-    if (isActive) {
+      // When exiting locked mode, reset camera to normal view and reset user interaction state
       setHasUserMovedMap(false);
 
-      // If map is not locked and we have a location, reset camera to default position
-      if (!location.isMapLocked && location.latitude && location.longitude) {
+      if (isMapReady && location.latitude && location.longitude) {
         cameraRef.current?.setCamera({
           centerCoordinate: [location.longitude, location.latitude],
           zoomLevel: 12,
@@ -176,21 +163,16 @@ export default function Map() {
           pitch: 0,
           animationDuration: 1000,
         });
-
         logger.info({
-          message: 'App became active with unlocked map, resetting camera to default position',
+          message: 'Map unlocked, resetting camera to normal view and user interaction state',
           context: {
             latitude: location.latitude,
             longitude: location.longitude,
           },
         });
-      } else {
-        logger.info({
-          message: 'App became active, resetting map user interaction state',
-        });
       }
     }
-  }, [isActive, location.isMapLocked, location.latitude, location.longitude]);
+  }, [isMapReady, location.isMapLocked, location.latitude, location.longitude]);
 
   useEffect(() => {
     const fetchMapDataAndMarkers = async () => {
@@ -302,6 +284,7 @@ export default function Map() {
           styleURL={styleURL.styleURL}
           style={styles.map}
           onCameraChanged={onCameraChanged}
+          onDidFinishLoadingMap={() => setIsMapReady(true)}
           testID="map-view"
           scrollEnabled={!location.isMapLocked}
           zoomEnabled={!location.isMapLocked}
