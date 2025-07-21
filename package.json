@@ -85,7 +85,7 @@
     "@novu/react-native": "~2.6.6",
     "@rnmapbox/maps": "10.1.38",
     "@semantic-release/git": "^10.0.1",
-    "@sentry/react-native": "~6.10.0",
+    "@sentry/react-native": "~6.17.0",
     "@shopify/flash-list": "1.7.3",
     "@tanstack/react-query": "~5.52.1",
     "axios": "~1.7.5",
