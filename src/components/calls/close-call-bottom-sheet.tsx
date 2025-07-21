@@ -34,13 +34,13 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
   const [closeCallNote, setCloseCallNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleClose = () => {
+  const handleClose = React.useCallback(() => {
     setCloseCallType('');
     setCloseCallNote('');
     onClose();
-  };
+  }, [onClose]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = React.useCallback(async () => {
     if (!closeCallType) {
       showToast('error', t('call_detail.close_call_type_required'));
       return;
@@ -73,7 +73,7 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [closeCallType, showToast, t, callId, closeCallNote, handleClose, fetchCalls, router, closeCall]);
 
   const isButtonDisabled = isLoading || isSubmitting;
 

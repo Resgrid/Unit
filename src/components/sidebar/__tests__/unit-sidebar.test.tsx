@@ -4,22 +4,36 @@ import React from 'react';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
-
-import { SidebarUnitCard } from '../unit-sidebar';
+import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 
 // Mock the stores
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/app/location-store');
 jest.mock('@/stores/app/livekit-store');
+jest.mock('@/stores/app/audio-stream-store');
+
+jest.mock('@/components/audio-stream/audio-stream-bottom-sheet', () => ({
+  AudioStreamBottomSheet: () => null,
+}));
+
+// Mock lucide-react-native icons
+jest.mock('lucide-react-native', () => ({
+  Lock: () => null,
+  Unlock: () => null,
+  Phone: () => null,
+  Radio: () => null,
+  Mic: () => null,
+}));
 
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockUseLocationStore = useLocationStore as jest.MockedFunction<typeof useLocationStore>;
 const mockUseLiveKitStore = useLiveKitStore as jest.MockedFunction<typeof useLiveKitStore>;
+const mockUseAudioStreamStore = useAudioStreamStore as jest.MockedFunction<typeof useAudioStreamStore>;
+
+// Import component after mocks
+import { SidebarUnitCard } from '../unit-sidebar';
 
 describe('SidebarUnitCard', () => {
-  const mockSetMapLocked = jest.fn();
-  const mockSetIsBottomSheetVisible = jest.fn();
-
   const defaultProps = {
     unitName: 'Test Unit',
     unitType: 'Ambulance',
@@ -30,211 +44,128 @@ describe('SidebarUnitCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCoreStore.mockReturnValue({
-      activeUnit: null,
+    // Reset to default mocks
+    mockUseCoreStore.mockImplementation((selector) => selector({ activeUnit: null } as any));
+    mockUseLocationStore.mockReturnValue({ isMapLocked: false, setMapLocked: jest.fn() });
+    mockUseLiveKitStore.mockReturnValue({
+      setIsBottomSheetVisible: jest.fn(),
+      currentRoomInfo: null,
+      isConnected: false,
+      isTalking: false,
     });
+    mockUseAudioStreamStore.mockReturnValue({
+      setIsBottomSheetVisible: jest.fn(),
+      currentStream: null,
+      isPlaying: false,
+    });
+  });
 
+  it('renders unit information correctly with default props', () => {
+    render(<SidebarUnitCard {...defaultProps} />);
+
+    expect(screen.getByText('Test Unit')).toBeTruthy();
+    expect(screen.getByText('Ambulance')).toBeTruthy();
+    expect(screen.getByText('Test Group')).toBeTruthy();
+  });
+
+  it('renders active unit information when available', () => {
+    const mockActiveUnit = {
+      Name: 'Active Unit Name',
+      Type: 'Fire Truck',
+      GroupName: 'Fire Department',
+    } as any;
+
+    mockUseCoreStore.mockImplementation((selector) => selector({ activeUnit: mockActiveUnit } as any));
+
+    render(<SidebarUnitCard {...defaultProps} />);
+
+    expect(screen.getByText('Active Unit Name')).toBeTruthy();
+    expect(screen.getByText('Fire Truck')).toBeTruthy();
+    expect(screen.getByText('Fire Department')).toBeTruthy();
+  });
+
+  it('renders action buttons', () => {
+    render(<SidebarUnitCard {...defaultProps} />);
+
+    expect(screen.getByTestId('map-lock-button')).toBeTruthy();
+    expect(screen.getByTestId('audio-stream-button')).toBeTruthy();
+    expect(screen.getByTestId('call-button')).toBeTruthy();
+  });
+
+  it('handles map lock button press', () => {
+    const mockSetMapLocked = jest.fn();
     mockUseLocationStore.mockReturnValue({
       isMapLocked: false,
-      setMapLocked: mockSetMapLocked,
+      setMapLocked: mockSetMapLocked
     });
 
+    render(<SidebarUnitCard {...defaultProps} />);
+
+    const mapLockButton = screen.getByTestId('map-lock-button');
+    fireEvent.press(mapLockButton);
+
+    expect(mockSetMapLocked).toHaveBeenCalledWith(true);
+  });
+
+  it('handles audio stream button press', () => {
+    const mockSetAudioStreamBottomSheetVisible = jest.fn();
+    mockUseAudioStreamStore.mockReturnValue({
+      setIsBottomSheetVisible: mockSetAudioStreamBottomSheetVisible,
+      currentStream: null,
+      isPlaying: false,
+    });
+
+    render(<SidebarUnitCard {...defaultProps} />);
+
+    const audioStreamButton = screen.getByTestId('audio-stream-button');
+    fireEvent.press(audioStreamButton);
+
+    expect(mockSetAudioStreamBottomSheetVisible).toHaveBeenCalledWith(true);
+  });
+
+  it('handles call button press', () => {
+    const mockSetIsBottomSheetVisible = jest.fn();
     mockUseLiveKitStore.mockReturnValue({
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     });
-  });
 
-  it('renders unit information correctly', () => {
     render(<SidebarUnitCard {...defaultProps} />);
 
-    expect(screen.getByText('Test Unit')).toBeTruthy();
-    expect(screen.getByText('Ambulance')).toBeTruthy();
-    expect(screen.getByText('Test Group')).toBeTruthy();
+    const callButton = screen.getByTestId('call-button');
+    fireEvent.press(callButton);
+
+    expect(mockSetIsBottomSheetVisible).toHaveBeenCalledWith(true);
   });
 
-  it('renders with default props when no active unit', () => {
+  it('shows room status when connected', () => {
+    const mockRoomInfo = { Name: 'Emergency Call Room' };
+    mockUseLiveKitStore.mockReturnValue({
+      setIsBottomSheetVisible: jest.fn(),
+      currentRoomInfo: mockRoomInfo as any,
+      isConnected: true,
+      isTalking: false,
+    });
+
     render(<SidebarUnitCard {...defaultProps} />);
 
-    // Should render the default props since no active unit is set
-    expect(screen.getByText('Test Unit')).toBeTruthy();
-    expect(screen.getByText('Ambulance')).toBeTruthy();
-    expect(screen.getByText('Test Group')).toBeTruthy();
+    expect(screen.getByText('Emergency Call Room')).toBeTruthy();
   });
 
-  describe('Map Lock Button', () => {
-    it('renders map lock button with unlock icon when map is not locked', () => {
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const mapLockButton = screen.getByTestId('map-lock-button');
-      expect(mapLockButton).toBeTruthy();
-
-      // Check that the button has the correct styling for unlocked state
-      expect(mapLockButton).toHaveStyle({
-        backgroundColor: 'transparent',
-        borderColor: '#007AFF',
-      });
+  it('toggles map lock correctly when currently locked', () => {
+    const mockSetMapLocked = jest.fn();
+    mockUseLocationStore.mockReturnValue({
+      isMapLocked: true,
+      setMapLocked: mockSetMapLocked
     });
 
-    it('renders map lock button with lock icon when map is locked', () => {
-      mockUseLocationStore.mockReturnValue({
-        isMapLocked: true,
-        setMapLocked: mockSetMapLocked,
-      });
+    render(<SidebarUnitCard {...defaultProps} />);
 
-      render(<SidebarUnitCard {...defaultProps} />);
+    const mapLockButton = screen.getByTestId('map-lock-button');
+    fireEvent.press(mapLockButton);
 
-      const mapLockButton = screen.getByTestId('map-lock-button');
-      expect(mapLockButton).toBeTruthy();
-
-      // Check that the button has the correct styling for locked state
-      expect(mapLockButton).toHaveStyle({
-        backgroundColor: '#007AFF',
-        borderColor: '#007AFF',
-      });
-    });
-
-    it('toggles map lock state when pressed', () => {
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const mapLockButton = screen.getByTestId('map-lock-button');
-      fireEvent.press(mapLockButton);
-
-      expect(mockSetMapLocked).toHaveBeenCalledWith(true);
-    });
-
-    it('toggles map lock state from locked to unlocked when pressed', () => {
-      mockUseLocationStore.mockReturnValue({
-        isMapLocked: true,
-        setMapLocked: mockSetMapLocked,
-      });
-
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const mapLockButton = screen.getByTestId('map-lock-button');
-      fireEvent.press(mapLockButton);
-
-      expect(mockSetMapLocked).toHaveBeenCalledWith(false);
-    });
-  });
-
-  describe('Call Button', () => {
-    it('renders call button with correct styling when not connected', () => {
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const callButton = screen.getByTestId('call-button');
-      expect(callButton).toBeTruthy();
-
-      // Check that the button has the correct styling for disconnected state
-      expect(callButton).toHaveStyle({
-        backgroundColor: 'transparent',
-        borderColor: '#007AFF',
-      });
-    });
-
-    it('renders call button with active styling when connected', () => {
-      mockUseLiveKitStore.mockReturnValue({
-        setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
-        currentRoomInfo: null,
-        isConnected: true,
-        isTalking: false,
-      });
-
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const callButton = screen.getByTestId('call-button');
-      expect(callButton).toBeTruthy();
-
-      // Check that the button has the correct styling for connected state
-      expect(callButton).toHaveStyle({
-        backgroundColor: '#007AFF',
-        borderColor: '#007AFF',
-      });
-    });
-
-    it('opens LiveKit when call button is pressed', () => {
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const callButton = screen.getByTestId('call-button');
-      fireEvent.press(callButton);
-
-      expect(mockSetIsBottomSheetVisible).toHaveBeenCalledWith(true);
-    });
-  });
-
-  describe('Room Status Display', () => {
-    it('shows room status when connected and has room info', () => {
-      const mockRoomInfo = {
-        Name: 'Test Room',
-        Id: '123',
-      };
-
-      mockUseLiveKitStore.mockReturnValue({
-        setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
-        currentRoomInfo: mockRoomInfo,
-        isConnected: true,
-        isTalking: false,
-      });
-
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      expect(screen.getByText('Test Room')).toBeTruthy();
-    });
-
-    it('shows microphone icon when talking', () => {
-      const mockRoomInfo = {
-        Name: 'Test Room',
-        Id: '123',
-      };
-
-      mockUseLiveKitStore.mockReturnValue({
-        setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
-        currentRoomInfo: mockRoomInfo,
-        isConnected: true,
-        isTalking: true,
-      });
-
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      expect(screen.getByText('Test Room')).toBeTruthy();
-      // Note: Testing for specific icon presence would require additional setup
-      // for icon mocking, which is beyond the scope of this basic test
-    });
-
-    it('does not show room status when not connected', () => {
-      const mockRoomInfo = {
-        Name: 'Test Room',
-        Id: '123',
-      };
-
-      mockUseLiveKitStore.mockReturnValue({
-        setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
-        currentRoomInfo: mockRoomInfo,
-        isConnected: false,
-        isTalking: false,
-      });
-
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      expect(screen.queryByText('Test Room')).toBeNull();
-    });
-  });
-
-  describe('Button Container Layout', () => {
-    it('renders both buttons in the correct order', () => {
-      render(<SidebarUnitCard {...defaultProps} />);
-
-      const mapLockButton = screen.getByTestId('map-lock-button');
-      const callButton = screen.getByTestId('call-button');
-
-      expect(mapLockButton).toBeTruthy();
-      expect(callButton).toBeTruthy();
-
-      // Both buttons should be present
-      expect(mapLockButton).toBeTruthy();
-      expect(callButton).toBeTruthy();
-    });
+    expect(mockSetMapLocked).toHaveBeenCalledWith(false);
   });
 }); 

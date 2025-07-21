@@ -46,7 +46,7 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
   };
 
   // Add handler for save button
-  const handleSave = async () => {
+  const handleSave = React.useCallback(async () => {
     if (!activeUnit) return;
 
     try {
@@ -72,7 +72,7 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
       });
       useToastStore.getState().showToast('error', 'Error saving role assignments');
     }
-  };
+  }, [activeUnit, pendingAssignments, onClose]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full">

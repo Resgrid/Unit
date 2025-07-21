@@ -1,6 +1,7 @@
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { Room, RoomEvent } from 'livekit-client';
 import { Platform } from 'react-native';
+import { check, type Permission, PERMISSIONS, request, requestMultiple, RESULTS } from 'react-native-permissions';
 import { set } from 'zod';
 import { create } from 'zustand';
 
@@ -77,6 +78,7 @@ interface LiveKitState {
   disconnectFromRoom: () => void;
   fetchVoiceSettings: () => Promise<void>;
   fetchCanConnectToVoice: () => Promise<void>;
+  requestPermissions: () => Promise<void>;
 }
 
 export const useLiveKitStore = create<LiveKitState>((set, get) => ({
@@ -99,6 +101,45 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   setIsTalking: (isTalking) => set({ isTalking }),
   setAvailableRooms: (rooms) => set({ availableRooms: rooms }),
   setIsBottomSheetVisible: (visible) => set({ isBottomSheetVisible: visible }),
+
+  requestPermissions: async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const permissions: Permission[] = [PERMISSIONS.ANDROID.RECORD_AUDIO];
+
+        // Request the available permissions through react-native-permissions
+        const result = await requestMultiple(permissions);
+        const allGranted = permissions.every((permission) => result[permission] === RESULTS.GRANTED);
+
+        if (!allGranted) {
+          console.error('Permissions not granted', result);
+          return;
+        }
+
+        console.log('Audio recording permission granted successfully');
+
+        // Note: Foreground service permissions are typically handled at the manifest level
+        // and don't require runtime permission requests. They are automatically granted
+        // when the app is installed if declared in AndroidManifest.xml
+        console.log('Foreground service permissions are handled at manifest level');
+      } else if (Platform.OS === 'ios') {
+        // Request microphone permission for iOS
+        const micPermission = await check(PERMISSIONS.IOS.MICROPHONE);
+
+        if (micPermission !== RESULTS.GRANTED) {
+          const result = await request(PERMISSIONS.IOS.MICROPHONE);
+          if (result !== RESULTS.GRANTED) {
+            console.error('Microphone permission not granted on iOS');
+            return;
+          }
+        }
+
+        console.log('iOS microphone permission granted');
+      }
+    } catch (error) {
+      console.error('Failed to request permissions:', error);
+    }
+  },
 
   connectToRoom: async (roomInfo, token) => {
     try {

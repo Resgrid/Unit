@@ -32,12 +32,15 @@ export const StatusBottomSheet = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    await useStatusesStore.getState().saveUnitStatus(selectedStatus?.Id.toString() || '', note);
-
-    // TODO: Implement status update logic here
-    reset();
-  };
+  const handleSubmit = React.useCallback(async () => {
+    try {
+      await useStatusesStore.getState().saveUnitStatus(selectedStatus?.Id.toString() || '', note);
+      // TODO: Implement status update logic here
+      reset();
+    } catch (error) {
+      console.error('Failed to save unit status:', error);
+    }
+  }, [selectedStatus?.Id, note, reset]);
 
   const handleCallSelect = (callId: string) => {
     const call = calls.find((c) => c.CallId === callId);

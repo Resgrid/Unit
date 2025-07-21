@@ -25,18 +25,25 @@ export const AudioStreamBottomSheet = () => {
     }
   }, [isBottomSheetVisible, availableStreams.length, fetchAvailableStreams]);
 
-  const handleStreamSelection = async (streamId: string) => {
-    if (streamId === 'none') {
-      // Stop current stream
-      await stopStream();
-    } else {
-      // Find and play the selected stream
-      const selectedStream = availableStreams.find((s) => s.Id === streamId);
-      if (selectedStream) {
-        await playStream(selectedStream);
+  const handleStreamSelection = React.useCallback(
+    async (streamId: string) => {
+      try {
+        if (streamId === 'none') {
+          // Stop current stream
+          await stopStream();
+        } else {
+          // Find and play the selected stream
+          const selectedStream = availableStreams.find((s) => s.Id === streamId);
+          if (selectedStream) {
+            await playStream(selectedStream);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to handle stream selection:', error);
       }
-    }
-  };
+    },
+    [availableStreams, stopStream, playStream]
+  );
 
   const getCurrentStreamValue = () => {
     return currentStream ? currentStream.Id : 'none';

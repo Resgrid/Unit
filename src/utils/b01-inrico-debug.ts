@@ -1,21 +1,21 @@
 /**
  * B01 Inrico Button Code Debug Helper
- * 
+ *
  * This script helps you determine the correct button codes for your B01 Inrico handheld device.
  * To use this:
- * 
+ *
  * 1. Connect your B01 Inrico device to the app
  * 2. Press different buttons on the device
  * 3. Look at the logs to see what raw button codes are being received
  * 4. Use this information to update the button mapping
- * 
+ *
  * Usage in your app:
  * ```typescript
  * import { debugB01InricoButtons } from '@/utils/b01-inrico-debug';
- * 
+ *
  * // Call this to test specific hex codes
  * debugB01InricoButtons('01');        // Test PTT start
- * debugB01InricoButtons('00');        // Test PTT stop  
+ * debugB01InricoButtons('00');        // Test PTT stop
  * debugB01InricoButtons('81');        // Test PTT with long press flag
  * ```
  */
@@ -24,12 +24,12 @@ import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 
 export function debugB01InricoButtons(hexCode: string) {
   console.log(`\n=== DEBUGGING B01 INRICO BUTTON CODE: ${hexCode} ===`);
-  
+
   const result = bluetoothAudioService.testB01InricoButtonMapping(hexCode);
-  
+
   console.log('Parsed Result:', result);
   console.log('Expected Actions:');
-  
+
   if (result?.button === 'ptt_start') {
     console.log('  → Should enable microphone (push-to-talk START)');
   } else if (result?.button === 'ptt_stop') {
@@ -43,15 +43,15 @@ export function debugB01InricoButtons(hexCode: string) {
   } else {
     console.log('  → Unknown button - no action will be taken');
   }
-  
+
   if (result?.type === 'long_press') {
     console.log('  → LONG PRESS detected');
   } else if (result?.type === 'double_press') {
     console.log('  → DOUBLE PRESS detected');
   }
-  
+
   console.log('=== END DEBUG ===\n');
-  
+
   return result;
 }
 
@@ -62,24 +62,24 @@ export function debugB01InricoButtons(hexCode: string) {
 export const COMMON_B01_BUTTON_CODES = {
   // Basic codes (0x00-0x05)
   PTT_STOP: '00',
-  PTT_START: '01', 
+  PTT_START: '01',
   MUTE: '02',
   VOLUME_UP: '03',
   VOLUME_DOWN: '04',
   EMERGENCY: '05',
-  
+
   // Original mappings (0x10-0x40)
   PTT_START_ALT: '10',
   PTT_STOP_ALT: '11',
   MUTE_ALT: '20',
   VOLUME_UP_ALT: '30',
   VOLUME_DOWN_ALT: '40',
-  
+
   // Long press variants (with 0x80 flag)
   PTT_START_LONG: '81', // 0x01 + 0x80
-  PTT_STOP_LONG: '80',  // 0x00 + 0x80
-  MUTE_LONG: '82',      // 0x02 + 0x80
-  
+  PTT_STOP_LONG: '80', // 0x00 + 0x80
+  MUTE_LONG: '82', // 0x02 + 0x80
+
   // Multi-byte examples
   PTT_START_WITH_FLAG: '0101', // PTT start + long press indicator
   PTT_START_WITH_DOUBLE: '0102', // PTT start + double press indicator
@@ -90,12 +90,12 @@ export const COMMON_B01_BUTTON_CODES = {
  */
 export function testAllCommonB01Codes() {
   console.log('\n🔍 TESTING ALL COMMON B01 INRICO BUTTON CODES\n');
-  
+
   Object.entries(COMMON_B01_BUTTON_CODES).forEach(([name, code]) => {
     console.log(`\n--- Testing ${name} (${code}) ---`);
     debugB01InricoButtons(code);
   });
-  
+
   console.log('\n✅ TESTING COMPLETE\n');
 }
 

@@ -27,15 +27,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
   } | null>(initialLocation || null);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (initialLocation) {
-      setCurrentLocation(initialLocation);
-    } else {
-      getUserLocation();
-    }
-  }, [initialLocation]);
-
-  const getUserLocation = async () => {
+  const getUserLocation = React.useCallback(async () => {
     setIsLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -64,7 +56,17 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (initialLocation) {
+      setCurrentLocation(initialLocation);
+    } else {
+      getUserLocation().catch((error) => {
+        console.error('Failed to get user location:', error);
+      });
+    }
+  }, [initialLocation, getUserLocation]);
 
   const handleMapPress = (event: any) => {
     const { coordinates } = event.geometry;

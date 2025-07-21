@@ -101,10 +101,10 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     setSelectedNotificationIds(new Set());
   };
 
-  const exitSelectionMode = () => {
+  const exitSelectionMode = React.useCallback(() => {
     setIsSelectionMode(false);
     setSelectedNotificationIds(new Set());
-  };
+  }, []);
 
   const selectAllNotifications = () => {
     const allIds = notifications?.map((item: any) => item.id) || [];
@@ -121,7 +121,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     }
   };
 
-  const confirmBulkDelete = async () => {
+  const confirmBulkDelete = React.useCallback(async () => {
     setIsDeletingSelected(true);
     setShowDeleteConfirmModal(false);
 
@@ -137,17 +137,20 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     } finally {
       setIsDeletingSelected(false);
     }
-  };
+  }, [selectedNotificationIds, showToast, exitSelectionMode, refetch]);
 
-  const handleDeleteNotification = async (_id: string) => {
-    try {
-      await deleteMessage(_id);
-      showToast('success', 'Notification removed');
-      refetch();
-    } catch (error) {
-      showToast('error', 'Failed to remove notification');
-    }
-  };
+  const handleDeleteNotification = React.useCallback(
+    async (_id: string) => {
+      try {
+        await deleteMessage(_id);
+        showToast('success', 'Notification removed');
+        refetch();
+      } catch (error) {
+        showToast('error', 'Failed to remove notification');
+      }
+    },
+    [showToast, refetch]
+  );
 
   const handleNavigateToReference = (referenceType: string, referenceId: string) => {
     // TODO: Implement navigation based on reference type

@@ -266,6 +266,8 @@
     "go_back": "Volver",
     "loading": "Cargando...",
     "loading_address": "Cargando dirección...",
+    "noActiveUnit": "No hay unidad activa establecida",
+    "noActiveUnitDescription": "Por favor establezca una unidad activa desde la página de configuración para acceder a los controles de estado",
     "noDataAvailable": "No hay datos disponibles",
     "no_address_found": "No se encontró dirección",
     "no_location": "No hay datos de ubicación disponibles",

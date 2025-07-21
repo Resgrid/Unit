@@ -40,7 +40,16 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
     googleServicesFile: 'google-services.json',
-    permissions: ['WAKE_LOCK', 'RECORD_AUDIO', 'FOREGROUND_SERVICE_MICROPHONE', 'POST_NOTIFICATIONS', 'FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_CONNECTED_DEVICE', 'FOREGROUND_SERVICE_MEDIA_PLAYBACK'],
+    permissions: [
+      'android.permission.WAKE_LOCK',
+      'android.permission.RECORD_AUDIO',
+      'android.permission.CAPTURE_AUDIO_OUTPUT',
+      'android.permission.POST_NOTIFICATIONS',
+      'android.permission.FOREGROUND_SERVICE',
+      'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+      'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE',
+      'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+    ],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -170,6 +179,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         android: {
           extraProguardRules: '-keep class expo.modules.location.** { *; }',
           extraMavenRepos: ['../../node_modules/@notifee/react-native/android/libs'],
+          targetSdkVersion: 35,
         },
       },
     ],
