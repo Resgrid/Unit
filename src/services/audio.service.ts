@@ -1,6 +1,8 @@
+import { cleanup } from '@testing-library/react-native';
 import { Asset } from 'expo-asset';
 import { type AudioPlayer, createAudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
+import { string } from 'zod';
 
 import { logger } from '@/lib/logging';
 
@@ -39,12 +41,27 @@ class AudioService {
     }
   }
 
+  public async preloadAudioAssets(): Promise<void> {
+    try {
+      await Promise.all([
+        Asset.loadAsync(require('@assets/audio/ui/space_notification1.mp3')),
+        Asset.loadAsync(require('@assets/audio/ui/space_notification2.mp3')),
+        Asset.loadAsync(require('@assets/audio/ui/positive_interface_beep.mp3')),
+        Asset.loadAsync(require('@assets/audio/ui/software_interface_start.mp3')),
+        Asset.loadAsync(require('@assets/audio/ui/software_interface_back.mp3')),
+      ]);
+      console.log('Audio assets preloaded successfully');
+    } catch (error) {
+      console.error('Error preloading audio assets:', error);
+    }
+  }
+
   private async loadAudioFiles(): Promise<void> {
     try {
       // Load connection sound
       const connectionSoundUri = Platform.select({
-        ios: require('../../assets/audio/ui/space_notification1.mp3'),
-        android: require('../../assets/audio/ui/space_notification1.mp3'),
+        ios: require('@assets/audio/ui/space_notification1.mp3'),
+        android: require('@assets/audio/ui/space_notification1.mp3'),
       });
 
       if (connectionSoundUri) {
@@ -53,8 +70,8 @@ class AudioService {
 
       // Load disconnection sound
       const disconnectionSoundUri = Platform.select({
-        ios: require('../../assets/audio/ui/space_notification2.mp3'),
-        android: require('../../assets/audio/ui/space_notification2.mp3'),
+        ios: require('@assets/audio/ui/space_notification2.mp3'),
+        android: require('@assets/audio/ui/space_notification2.mp3'),
       });
 
       if (disconnectionSoundUri) {
@@ -63,8 +80,8 @@ class AudioService {
 
       // Load connection sound
       const connectedDeviceSoundUri = Platform.select({
-        ios: require('../../assets/audio/ui/positive_interface_beep.mp3'),
-        android: require('../../assets/audio/ui/positive_interface_beep.mp3'),
+        ios: require('@assets/audio/ui/positive_interface_beep.mp3'),
+        android: require('@assets/audio/ui/positive_interface_beep.mp3'),
       });
 
       if (connectedDeviceSoundUri) {
@@ -72,8 +89,8 @@ class AudioService {
       }
 
       const connectedToAudioRoomSoundUri = Platform.select({
-        ios: require('../../assets/audio/ui/software_interface_start.mp3'),
-        android: require('../../assets/audio/ui/software_interface_start.mp3'),
+        ios: require('@assets/audio/ui/software_interface_start.mp3'),
+        android: require('@assets/audio/ui/software_interface_start.mp3'),
       });
 
       if (connectedToAudioRoomSoundUri) {
@@ -81,8 +98,8 @@ class AudioService {
       }
 
       const disconnectedFromAudioRoomSoundUri = Platform.select({
-        ios: require('../../assets/audio/ui/software_interface_back.mp3'),
-        android: require('../../assets/audio/ui/software_interface_back.mp3'),
+        ios: require('@assets/audio/ui/software_interface_back.mp3'),
+        android: require('@assets/audio/ui/software_interface_back.mp3'),
       });
 
       if (disconnectedFromAudioRoomSoundUri) {
