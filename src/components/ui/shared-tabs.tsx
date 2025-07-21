@@ -1,3 +1,4 @@
+import { useColorScheme } from 'nativewind';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
@@ -57,6 +58,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   const { activeIndex, setActiveIndex } = useTabStore();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const { colorScheme } = useColorScheme();
 
   // Use local state if no external state management is needed
   const currentIndex = onChange ? activeIndex : localActiveIndex;
@@ -73,6 +75,11 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     [onChange, setActiveIndex]
   );
 
+  // Get appropriate text color based on theme
+  const getTextColor = () => {
+    return colorScheme === 'dark' ? 'text-gray-200' : 'text-gray-800';
+  };
+
   // Determine tab styles based on variant and size
   const getTabStyles = (index: number) => {
     const isActive = index === currentIndex;
@@ -85,10 +92,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     }[size];
 
     const variantStyles = {
-      default: isActive ? 'border-b-2 border-primary-500 text-primary-500' : 'border-b-2 border-transparent text-gray-500',
-      pills: isActive ? 'bg-primary-500 text-white rounded-full' : 'bg-transparent text-gray-500',
-      underlined: isActive ? 'border-b-2 border-primary-500 text-primary-500' : 'border-b-2 border-transparent text-gray-500',
-      segmented: isActive ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-500',
+      default: isActive ? 'border-b-2 border-primary-500 text-primary-500' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
+      pills: isActive ? 'bg-primary-500 text-white rounded-full' : `bg-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
+      underlined: isActive ? 'border-b-2 border-primary-500 text-primary-500' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
+      segmented: isActive ? 'bg-primary-500 text-white' : `${colorScheme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`,
     }[variant];
 
     return `${baseStyles} ${sizeStyles} ${variantStyles} ${tabClassName}`;
@@ -99,10 +106,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     const baseStyles = 'flex flex-row flex-1';
 
     const variantStyles = {
-      default: 'border-b border-gray-200',
+      default: colorScheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200',
       pills: 'space-x-2 p-1',
-      underlined: 'border-b border-gray-200',
-      segmented: 'bg-gray-100 p-1 rounded-lg',
+      underlined: colorScheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200',
+      segmented: colorScheme === 'dark' ? 'bg-gray-800 p-1 rounded-lg' : 'bg-gray-100 p-1 rounded-lg',
     }[variant];
 
     return `${baseStyles} ${variantStyles} ${tabsContainerClassName}`;
@@ -110,14 +117,17 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
 
   // Convert Tailwind classes to style object
   const getContainerStyle = () => {
+    const borderColor = colorScheme === 'dark' ? '#374151' : '#e5e7eb';
+    const backgroundColor = colorScheme === 'dark' ? '#1f2937' : '#f3f4f6';
+
     const styles = StyleSheet.create({
       container: {
         flexDirection: 'row',
         flex: 1,
-        ...(variant === 'default' && { borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }),
+        ...(variant === 'default' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
         ...(variant === 'pills' && { gap: 8, padding: 4 }),
-        ...(variant === 'underlined' && { borderBottomWidth: 1, borderBottomColor: '#e5e7eb' }),
-        ...(variant === 'segmented' && { backgroundColor: '#f3f4f6', padding: 4, borderRadius: 8 }),
+        ...(variant === 'underlined' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
+        ...(variant === 'segmented' && { backgroundColor, padding: 4, borderRadius: 8 }),
       },
     });
     return styles.container;
@@ -132,9 +142,9 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
             <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
               {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
               {typeof tab.title === 'string' ? (
-                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{t(tab.title)}</Text>
+                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{t(tab.title)}</Text>
               ) : (
-                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{tab.title}</Text>
+                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{tab.title}</Text>
               )}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
@@ -150,9 +160,9 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
             <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)}`} onPress={() => handleTabPress(index)}>
               {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
               {typeof tab.title === 'string' ? (
-                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{t(tab.title)}</Text>
+                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{t(tab.title)}</Text>
               ) : (
-                <Text className={isLandscape ? 'text-gray-800' : 'text-xs text-gray-800'}>{tab.title}</Text>
+                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{tab.title}</Text>
               )}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
