@@ -1,18 +1,17 @@
-import { cleanup } from '@testing-library/react-native';
 import { Asset } from 'expo-asset';
-import { type AudioPlayer, createAudioPlayer } from 'expo-audio';
+import { Audio, type AVPlaybackSource } from 'expo-av';
 import { Platform } from 'react-native';
-import { string } from 'zod';
 
 import { logger } from '@/lib/logging';
 
 class AudioService {
   private static instance: AudioService;
-  private startTransmittingSound: AudioPlayer | null = null;
-  private stopTransmittingSound: AudioPlayer | null = null;
-  private connectedDeviceSound: AudioPlayer | null = null;
-  private connectToAudioRoomSound: AudioPlayer | null = null;
-  private disconnectedFromAudioRoomSound: AudioPlayer | null = null;
+  private startTransmittingSound: Audio.Sound | null = null;
+  private stopTransmittingSound: Audio.Sound | null = null;
+  private connectedDeviceSound: Audio.Sound | null = null;
+  private connectToAudioRoomSound: Audio.Sound | null = null;
+  private disconnectedFromAudioRoomSound: Audio.Sound | null = null;
+  private isInitialized = false;
 
   private constructor() {
     this.initializeAudio();
@@ -25,13 +24,35 @@ class AudioService {
     return AudioService.instance;
   }
 
+  public async initialize(): Promise<void> {
+    await this.initializeAudio();
+  }
+
   private async initializeAudio(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
     try {
-      // Pre-load audio files
+      // Configure audio mode for production builds
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        staysActiveInBackground: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: true,
+      });
+
+      // Pre-load audio assets for production builds
+      await this.preloadAudioAssets();
+
+      // Load audio files
       await this.loadAudioFiles();
 
+      this.isInitialized = true;
+
       logger.info({
-        message: 'Audio service initialized',
+        message: 'Audio service initialized successfully',
       });
     } catch (error) {
       logger.error({
@@ -50,61 +71,74 @@ class AudioService {
         Asset.loadAsync(require('@assets/audio/ui/software_interface_start.mp3')),
         Asset.loadAsync(require('@assets/audio/ui/software_interface_back.mp3')),
       ]);
-      console.log('Audio assets preloaded successfully');
+
+      logger.debug({
+        message: 'Audio assets preloaded successfully',
+      });
     } catch (error) {
-      console.error('Error preloading audio assets:', error);
+      logger.error({
+        message: 'Error preloading audio assets',
+        context: { error },
+      });
     }
   }
 
   private async loadAudioFiles(): Promise<void> {
     try {
-      // Load connection sound
-      const connectionSoundUri = Platform.select({
-        ios: require('@assets/audio/ui/space_notification1.mp3'),
-        android: require('@assets/audio/ui/space_notification1.mp3'),
+      // Load start transmitting sound
+      const startTransmittingSoundAsset = Asset.fromModule(require('@assets/audio/ui/space_notification1.mp3'));
+      await startTransmittingSoundAsset.downloadAsync();
+
+      const { sound: startSound } = await Audio.Sound.createAsync({ uri: startTransmittingSoundAsset.localUri || startTransmittingSoundAsset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
       });
+      this.startTransmittingSound = startSound;
 
-      if (connectionSoundUri) {
-        this.startTransmittingSound = createAudioPlayer(connectionSoundUri);
-      }
+      // Load stop transmitting sound
+      const stopTransmittingSoundAsset = Asset.fromModule(require('@assets/audio/ui/space_notification2.mp3'));
+      await stopTransmittingSoundAsset.downloadAsync();
 
-      // Load disconnection sound
-      const disconnectionSoundUri = Platform.select({
-        ios: require('@assets/audio/ui/space_notification2.mp3'),
-        android: require('@assets/audio/ui/space_notification2.mp3'),
+      const { sound: stopSound } = await Audio.Sound.createAsync({ uri: stopTransmittingSoundAsset.localUri || stopTransmittingSoundAsset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
       });
+      this.stopTransmittingSound = stopSound;
 
-      if (disconnectionSoundUri) {
-        this.stopTransmittingSound = createAudioPlayer(disconnectionSoundUri);
-      }
+      // Load connected device sound
+      const connectedDeviceSoundAsset = Asset.fromModule(require('@assets/audio/ui/positive_interface_beep.mp3'));
+      await connectedDeviceSoundAsset.downloadAsync();
 
-      // Load connection sound
-      const connectedDeviceSoundUri = Platform.select({
-        ios: require('@assets/audio/ui/positive_interface_beep.mp3'),
-        android: require('@assets/audio/ui/positive_interface_beep.mp3'),
+      const { sound: connectedSound } = await Audio.Sound.createAsync({ uri: connectedDeviceSoundAsset.localUri || connectedDeviceSoundAsset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
       });
+      this.connectedDeviceSound = connectedSound;
 
-      if (connectedDeviceSoundUri) {
-        this.connectedDeviceSound = createAudioPlayer(connectedDeviceSoundUri);
-      }
+      // Load connect to audio room sound
+      const connectToAudioRoomSoundAsset = Asset.fromModule(require('@assets/audio/ui/software_interface_start.mp3'));
+      await connectToAudioRoomSoundAsset.downloadAsync();
 
-      const connectedToAudioRoomSoundUri = Platform.select({
-        ios: require('@assets/audio/ui/software_interface_start.mp3'),
-        android: require('@assets/audio/ui/software_interface_start.mp3'),
+      const { sound: connectToRoomSound } = await Audio.Sound.createAsync({ uri: connectToAudioRoomSoundAsset.localUri || connectToAudioRoomSoundAsset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
       });
+      this.connectToAudioRoomSound = connectToRoomSound;
 
-      if (connectedToAudioRoomSoundUri) {
-        this.connectToAudioRoomSound = createAudioPlayer(connectedToAudioRoomSoundUri);
-      }
+      // Load disconnect from audio room sound
+      const disconnectedFromAudioRoomSoundAsset = Asset.fromModule(require('@assets/audio/ui/software_interface_back.mp3'));
+      await disconnectedFromAudioRoomSoundAsset.downloadAsync();
 
-      const disconnectedFromAudioRoomSoundUri = Platform.select({
-        ios: require('@assets/audio/ui/software_interface_back.mp3'),
-        android: require('@assets/audio/ui/software_interface_back.mp3'),
+      const { sound: disconnectFromRoomSound } = await Audio.Sound.createAsync({ uri: disconnectedFromAudioRoomSoundAsset.localUri || disconnectedFromAudioRoomSoundAsset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
       });
-
-      if (disconnectedFromAudioRoomSoundUri) {
-        this.disconnectedFromAudioRoomSound = createAudioPlayer(disconnectedFromAudioRoomSoundUri);
-      }
+      this.disconnectedFromAudioRoomSound = disconnectFromRoomSound;
 
       logger.debug({
         message: 'Audio files loaded successfully',
@@ -117,7 +151,7 @@ class AudioService {
     }
   }
 
-  private async playSound(sound: AudioPlayer | null, soundName: string): Promise<void> {
+  private async playSound(sound: Audio.Sound | null, soundName: string): Promise<void> {
     try {
       if (!sound) {
         logger.warn({
@@ -126,9 +160,14 @@ class AudioService {
         return;
       }
 
-      // In expo-audio, we use play() method
-      await sound.seekTo(0); // Reset to start
-      sound.play();
+      // Ensure audio service is initialized
+      if (!this.isInitialized) {
+        await this.initializeAudio();
+      }
+
+      // Reset to start and play
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
 
       logger.debug({
         message: 'Sound played successfully',
@@ -199,35 +238,37 @@ class AudioService {
 
   async cleanup(): Promise<void> {
     try {
-      // Remove connection sound
+      // Unload start transmitting sound
       if (this.startTransmittingSound) {
-        this.startTransmittingSound.remove();
+        await this.startTransmittingSound.unloadAsync();
         this.startTransmittingSound = null;
       }
 
-      // Remove disconnection sound
+      // Unload stop transmitting sound
       if (this.stopTransmittingSound) {
-        this.stopTransmittingSound.remove();
+        await this.stopTransmittingSound.unloadAsync();
         this.stopTransmittingSound = null;
       }
 
-      // Remove connected device sound
+      // Unload connected device sound
       if (this.connectedDeviceSound) {
-        this.connectedDeviceSound.remove();
+        await this.connectedDeviceSound.unloadAsync();
         this.connectedDeviceSound = null;
       }
 
-      // Remove connect to audio room sound
+      // Unload connect to audio room sound
       if (this.connectToAudioRoomSound) {
-        this.connectToAudioRoomSound.remove();
+        await this.connectToAudioRoomSound.unloadAsync();
         this.connectToAudioRoomSound = null;
       }
 
-      // Remove disconnected from audio room sound
+      // Unload disconnect from audio room sound
       if (this.disconnectedFromAudioRoomSound) {
-        this.disconnectedFromAudioRoomSound.remove();
+        await this.disconnectedFromAudioRoomSound.unloadAsync();
         this.disconnectedFromAudioRoomSound = null;
       }
+
+      this.isInitialized = false;
 
       logger.info({
         message: 'Audio service cleaned up',

@@ -41,7 +41,7 @@ Best Practices:
 - Use React Navigation for handling navigation and deep linking with best practices.
 - Create and use Jest to test to validate all generated components
 - Generate tests for all components, services and logic generated. Ensure tests run without errors and fix any issues.
-- The app is multi-lingual, so ensure all text is wrapped in `t()` from `react-i18next` for translations with the dictonary files stored in `src/translations`.
+- The app is multi-lingual, so ensure all text is wrapped in `t()` from `react-i18next` for translations with the dictionary files stored in `src/translations`.
 - Ensure support for dark mode and light mode.
 - Ensure the app is accessible, following WCAG guidelines for mobile applications.
 - Make sure the app is optimized for performance, especially for low-end devices.

@@ -23,6 +23,7 @@ import { useAuthStore } from '@/lib/auth';
 import { logger } from '@/lib/logging';
 import { useIsFirstTime } from '@/lib/storage';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import { audioService } from '@/services/audio.service';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { usePushNotifications } from '@/services/push-notification';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -107,6 +108,7 @@ export default function TabLayout() {
 
       // Initialize Bluetooth service
       await bluetoothAudioService.initialize();
+      await audioService.initialize();
 
       logger.info({
         message: 'App initialization completed successfully',
