@@ -266,6 +266,8 @@
     "go_back": "Go Back",
     "loading": "Loading...",
     "loading_address": "Loading address...",
+    "noActiveUnit": "No Active Unit Set",
+    "noActiveUnitDescription": "Please set an active unit from the settings page to access status controls",
     "noDataAvailable": "No data available",
     "no_address_found": "No address found",
     "no_location": "No location data available",

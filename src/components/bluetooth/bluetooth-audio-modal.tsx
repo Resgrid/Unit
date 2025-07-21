@@ -27,51 +27,56 @@ const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClo
   const { isConnected: isLiveKitConnected, currentRoom } = useLiveKitStore();
   const [isMicMuted, setIsMicMuted] = useState(false);
 
-  useEffect(() => {
-    // Update mic state from LiveKit
-    if (currentRoom?.localParticipant) {
-      setIsMicMuted(!currentRoom.localParticipant.isMicrophoneEnabled);
-    }
-  }, [currentRoom?.localParticipant?.isMicrophoneEnabled]);
-
-  useEffect(() => {
-    // Auto-start scanning when modal opens and Bluetooth is ready
-    if (isOpen && bluetoothState === 'PoweredOn' && !isScanning && !connectedDevice) {
-      handleStartScan();
-    }
-  }, [isOpen, bluetoothState]);
-
-  const handleStartScan = async () => {
+  const handleStartScan = React.useCallback(async () => {
     try {
       await bluetoothAudioService.startScanning(15000); // 15 second scan
     } catch (error) {
       console.error('Failed to start Bluetooth scan:', error);
     }
-  };
+  }, []);
 
-  const handleStopScan = () => {
-    bluetoothAudioService.stopScanning();
-  };
-
-  const handleConnectDevice = async (device: BluetoothAudioDevice) => {
-    if (isConnecting) return;
-
-    try {
-      await bluetoothAudioService.connectToDevice(device.id);
-    } catch (error) {
-      console.error('Failed to connect to device:', error);
+  useEffect(() => {
+    // Update mic state from LiveKit
+    if (currentRoom?.localParticipant) {
+      setIsMicMuted(!currentRoom.localParticipant.isMicrophoneEnabled);
     }
-  };
+  }, [currentRoom?.localParticipant, currentRoom?.localParticipant?.isMicrophoneEnabled]);
 
-  const handleDisconnectDevice = async () => {
+  useEffect(() => {
+    // Auto-start scanning when modal opens and Bluetooth is ready
+    if (isOpen && bluetoothState === 'PoweredOn' && !isScanning && !connectedDevice) {
+      handleStartScan().catch((error) => {
+        console.error('Failed to start scan:', error);
+      });
+    }
+  }, [isOpen, bluetoothState, isScanning, connectedDevice, handleStartScan]);
+
+  const handleStopScan = React.useCallback(() => {
+    bluetoothAudioService.stopScanning();
+  }, []);
+
+  const handleConnectDevice = React.useCallback(
+    async (device: BluetoothAudioDevice) => {
+      if (isConnecting) return;
+
+      try {
+        await bluetoothAudioService.connectToDevice(device.id);
+      } catch (error) {
+        console.error('Failed to connect to device:', error);
+      }
+    },
+    [isConnecting]
+  );
+
+  const handleDisconnectDevice = React.useCallback(async () => {
     try {
       await bluetoothAudioService.disconnectDevice();
     } catch (error) {
       console.error('Failed to disconnect device:', error);
     }
-  };
+  }, []);
 
-  const handleToggleMicrophone = async () => {
+  const handleToggleMicrophone = React.useCallback(async () => {
     if (!currentRoom?.localParticipant) return;
 
     try {
@@ -81,7 +86,7 @@ const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClo
     } catch (error) {
       console.error('Failed to toggle microphone:', error);
     }
-  };
+  }, [currentRoom?.localParticipant, isMicMuted]);
 
   const renderBluetoothState = () => {
     switch (bluetoothState) {

@@ -62,12 +62,16 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   // Get current user from profile
   const currentUser = profile?.sub || '';
 
-  const handleAddNote = async () => {
+  const handleAddNote = React.useCallback(async () => {
     if (newNote.trim()) {
-      await addNote(callId, newNote, currentUser, null, null);
-      setNewNote('');
+      try {
+        await addNote(callId, newNote, currentUser, null, null);
+        setNewNote('');
+      } catch (error) {
+        console.error('Failed to add note:', error);
+      }
     }
-  };
+  }, [newNote, callId, currentUser, addNote]);
 
   // Handle sheet changes
   const handleSheetChanges = useCallback(

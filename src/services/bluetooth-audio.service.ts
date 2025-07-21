@@ -234,12 +234,12 @@ class BluetoothAudioService {
     // Scan for all devices without service UUID filtering to increase discovery chances
     // Many audio devices don't advertise audio service UUIDs during discovery
     this.scanSubscription = this.bleManager.startDeviceScan(
-      null,//[AUDIO_SERVICE_UUID, HFP_SERVICE_UUID, HSP_SERVICE_UUID, AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE], // Scan for all devices
-      { 
+      null, //[AUDIO_SERVICE_UUID, HFP_SERVICE_UUID, HSP_SERVICE_UUID, AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE], // Scan for all devices
+      {
         allowDuplicates: false,
         scanMode: 1, // Balanced scan mode
         callbackType: 1, // All matches
-      }, 
+      },
       (error, device) => {
         if (error) {
           logger.error({
@@ -273,12 +273,12 @@ class BluetoothAudioService {
     // Stop scanning after duration
     this.scanTimeout = setTimeout(() => {
       this.stopScanning();
-      
+
       logger.info({
         message: 'Bluetooth scan completed',
-        context: { 
+        context: {
           durationMs,
-          devicesFound: useBluetoothAudioStore.getState().availableDevices.length 
+          devicesFound: useBluetoothAudioStore.getState().availableDevices.length,
         },
       });
     }, durationMs);
@@ -313,11 +313,11 @@ class BluetoothAudioService {
     // Scan for ALL devices with detailed logging
     this.scanSubscription = this.bleManager.startDeviceScan(
       null, // Scan for all devices
-      { 
+      {
         allowDuplicates: true, // Allow duplicates for debugging
         scanMode: 1, // Balanced scan mode
         callbackType: 1, // All matches
-      }, 
+      },
       (error, device) => {
         if (error) {
           logger.error({
@@ -359,12 +359,12 @@ class BluetoothAudioService {
     // Stop scanning after duration
     this.scanTimeout = setTimeout(() => {
       this.stopScanning();
-      
+
       logger.info({
         message: 'DEBUG: Bluetooth scan completed',
-        context: { 
+        context: {
           durationMs,
-          totalDevicesFound: useBluetoothAudioStore.getState().availableDevices.length 
+          totalDevicesFound: useBluetoothAudioStore.getState().availableDevices.length,
         },
       });
     }, durationMs);
@@ -380,14 +380,7 @@ class BluetoothAudioService {
     // Check if device has audio service UUIDs
     const hasAudioService = device.serviceUUIDs?.some((uuid) => {
       const upperUuid = uuid.toUpperCase();
-      return [
-        AUDIO_SERVICE_UUID, 
-        HFP_SERVICE_UUID, 
-        HSP_SERVICE_UUID, 
-        AINA_HEADSET_SERVICE, 
-        B01INRICO_HEADSET_SERVICE, 
-        HYS_HEADSET_SERVICE
-      ].includes(upperUuid);
+      return [AUDIO_SERVICE_UUID, HFP_SERVICE_UUID, HSP_SERVICE_UUID, AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE].includes(upperUuid);
     });
 
     // Check manufacturer data for known audio device manufacturers
@@ -413,26 +406,21 @@ class BluetoothAudioService {
   private hasAudioManufacturerData(manufacturerData: string | { [key: string]: string }): boolean {
     // Known audio device manufacturer IDs (check manufacturer data for audio device indicators)
     // This is a simplified check - you'd need to implement device-specific logic
-    
+
     if (typeof manufacturerData === 'string') {
       // Simple string check for audio-related manufacturer data
-      return manufacturerData.toLowerCase().includes('audio') || 
-             manufacturerData.toLowerCase().includes('headset') ||
-             manufacturerData.toLowerCase().includes('speaker');
+      return manufacturerData.toLowerCase().includes('audio') || manufacturerData.toLowerCase().includes('headset') || manufacturerData.toLowerCase().includes('speaker');
     }
-    
+
     const audioManufacturerIds = [
       '0x004C', // Apple
-      '0x001D', // Qualcomm  
+      '0x001D', // Qualcomm
       '0x000F', // Broadcom
       '0x0087', // Mediatek
       '0x02E5', // Realtek
     ];
 
-    return Object.keys(manufacturerData).some(key => 
-      audioManufacturerIds.includes(key) || 
-      audioManufacturerIds.includes(`0x${key}`)
-    );
+    return Object.keys(manufacturerData).some((key) => audioManufacturerIds.includes(key) || audioManufacturerIds.includes(`0x${key}`));
   }
 
   private handleDeviceFound(device: Device): void {
@@ -498,12 +486,12 @@ class BluetoothAudioService {
       this.bleManager.stopDeviceScan();
       this.scanSubscription = null;
     }
-    
+
     if (this.scanTimeout) {
       clearTimeout(this.scanTimeout);
       this.scanTimeout = null;
     }
-    
+
     useBluetoothAudioStore.getState().setIsScanning(false);
 
     logger.info({
@@ -951,8 +939,10 @@ class BluetoothAudioService {
 
     // Log all raw button data for debugging
     const rawHex = buffer.toString('hex');
-    const allBytes = Array.from(buffer).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(', ');
-    
+    const allBytes = Array.from(buffer)
+      .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
+      .join(', ');
+
     logger.info({
       message: 'B01 Inrico raw button data analysis',
       context: {
@@ -1050,7 +1040,7 @@ class BluetoothAudioService {
           actualButtonByte: `0x${actualButtonByte.toString(16).padStart(2, '0')}`,
         },
       });
-      
+
       // Re-check button mapping with the actual button byte (without long press flag)
       switch (actualButtonByte) {
         case 0x00:
@@ -1440,18 +1430,18 @@ class BluetoothAudioService {
       // Convert hex string to buffer (e.g., "01" -> Buffer([0x01]))
       const cleanHex = hexString.replace(/[^0-9A-Fa-f]/g, '');
       const buffer = Buffer.from(cleanHex, 'hex');
-      
+
       logger.info({
         message: 'Testing B01 Inrico button mapping',
         context: {
           inputHex: hexString,
           cleanHex,
-          buffer: Array.from(buffer).map(b => `0x${b.toString(16).padStart(2, '0')}`),
+          buffer: Array.from(buffer).map((b) => `0x${b.toString(16).padStart(2, '0')}`),
         },
       });
 
       const result = this.parseB01InricoButtonData(buffer);
-      
+
       logger.info({
         message: 'B01 Inrico button mapping test result',
         context: {

@@ -39,7 +39,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
     }
   }, [isOpen, hasScanned]);
 
-  const startScan = useCallback(async () => {
+  const startScan = React.useCallback(async () => {
     try {
       setHasScanned(true);
       await bluetoothAudioService.startScanning(10000); // 10 second scan
@@ -53,7 +53,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
     }
   }, [t]);
 
-  const handleDeviceSelect = useCallback(
+  const handleDeviceSelect = React.useCallback(
     async (device: BluetoothAudioDevice) => {
       try {
         const selectedDevice = {
@@ -81,7 +81,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
     [setPreferredDevice, onClose, t]
   );
 
-  const handleClearSelection = useCallback(async () => {
+  const handleClearSelection = React.useCallback(async () => {
     try {
       await setPreferredDevice(null);
       onClose();

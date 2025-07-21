@@ -142,9 +142,18 @@ export const SidebarCallCard = () => {
               {openCallsData?.map((call) => (
                 <Pressable
                   key={call.CallId}
-                  onPress={async () => {
-                    await setActiveCall(call.CallId);
-                    setIsBottomSheetOpen(false);
+                  onPress={() => {
+                    const handleCallSelect = async () => {
+                      try {
+                        await setActiveCall(call.CallId);
+                        setIsBottomSheetOpen(false);
+                      } catch (error) {
+                        console.error('Failed to set active call:', error);
+                      }
+                    };
+                    handleCallSelect().catch((error) => {
+                      console.error('Failed to handle call selection:', error);
+                    });
                   }}
                   className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
                     activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''

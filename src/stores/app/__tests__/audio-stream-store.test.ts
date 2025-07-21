@@ -40,10 +40,10 @@ describe('AudioStreamStore', () => {
   };
 
   const mockSoundObject = {
-    playAsync: jest.fn(),
-    pauseAsync: jest.fn(),
-    unloadAsync: jest.fn(),
-    replayAsync: jest.fn(),
+    playAsync: jest.fn(() => Promise.resolve()),
+    pauseAsync: jest.fn(() => Promise.resolve()),
+    unloadAsync: jest.fn(() => Promise.resolve()),
+    replayAsync: jest.fn(() => Promise.resolve()),
   } as any;
 
   beforeEach(() => {
@@ -60,6 +60,12 @@ describe('AudioStreamStore', () => {
       isBuffering: false,
       isBottomSheetVisible: false,
     });
+
+    // Reset mock implementations
+    mockSoundObject.playAsync.mockImplementation(() => Promise.resolve());
+    mockSoundObject.pauseAsync.mockImplementation(() => Promise.resolve());
+    mockSoundObject.unloadAsync.mockImplementation(() => Promise.resolve());
+    mockSoundObject.replayAsync.mockImplementation(() => Promise.resolve());
 
     // Mock Audio methods
     mockAudio.setAudioModeAsync.mockResolvedValue(undefined);
@@ -353,6 +359,9 @@ describe('AudioStreamStore', () => {
       expect(state.currentStream).toBeNull();
       expect(state.isPlaying).toBe(false);
       
+      expect(mockSoundObject.pauseAsync).toHaveBeenCalled();
+      expect(mockSoundObject.unloadAsync).toHaveBeenCalled();
+      
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: 'Audio stream store cleaned up',
       });
@@ -370,8 +379,10 @@ describe('AudioStreamStore', () => {
       
       await useAudioStreamStore.getState().cleanup();
       
+      // The cleanup method calls stopStream, which catches its own errors
+      // So we expect the stopStream error message, not the cleanup error message
       expect(mockLogger.error).toHaveBeenCalledWith({
-        message: 'Failed to cleanup audio stream store',
+        message: 'Failed to stop audio stream',
         context: { error: mockError },
       });
     });

@@ -23,13 +23,34 @@ export enum BottomSheetView {
 }
 
 export const LiveKitBottomSheet = () => {
-  const { isBottomSheetVisible, setIsBottomSheetVisible, availableRooms, fetchVoiceSettings, connectToRoom, disconnectFromRoom, currentRoomInfo, currentRoom, isConnected, isConnecting, isTalking } = useLiveKitStore();
+  const { isBottomSheetVisible, setIsBottomSheetVisible, availableRooms, fetchVoiceSettings, connectToRoom, disconnectFromRoom, currentRoomInfo, currentRoom, isConnected, isConnecting, isTalking, requestPermissions } =
+    useLiveKitStore();
 
   const { selectedAudioDevices } = useBluetoothAudioStore();
   const { colorScheme } = useColorScheme();
 
   const [currentView, setCurrentView] = useState<BottomSheetView>(BottomSheetView.ROOM_SELECT);
   const [isMuted, setIsMuted] = useState(true); // Default to muted
+  const [permissionsRequested, setPermissionsRequested] = useState(false);
+
+  // Request permissions once when the component becomes visible
+  useEffect(() => {
+    const requestPermissionsOnce = async () => {
+      if (isBottomSheetVisible && !permissionsRequested) {
+        try {
+          await requestPermissions();
+          setPermissionsRequested(true);
+        } catch (error) {
+          console.error('Failed to request permissions:', error);
+        }
+      }
+    };
+
+    // Don't await in useEffect - just call the async function
+    requestPermissionsOnce().catch((error) => {
+      console.error('Failed to request permissions:', error);
+    });
+  }, [isBottomSheetVisible, permissionsRequested, requestPermissions]);
 
   // Sync mute state with LiveKit room
   useEffect(() => {
@@ -37,7 +58,7 @@ export const LiveKitBottomSheet = () => {
       const micEnabled = currentRoom.localParticipant.isMicrophoneEnabled;
       setIsMuted(!micEnabled);
     }
-  }, [currentRoom?.localParticipant?.isMicrophoneEnabled]);
+  }, [currentRoom?.localParticipant, currentRoom?.localParticipant?.isMicrophoneEnabled]);
 
   useEffect(() => {
     // If we're showing the sheet, make sure we have the latest rooms
