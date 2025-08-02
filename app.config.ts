@@ -35,7 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: Env.ANDROID_VERSION_CODE,
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#2E3C4B',
+      backgroundColor: '#2a7dd5',
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
@@ -59,7 +59,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#2E3C4B',
+        backgroundColor: '#2a7dd5',
         image: './assets/adaptive-icon.png',
         imageWidth: 250,
       },
@@ -77,7 +77,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'expo-notifications',
       {
         icon: './assets/notification-icon.png',
-        color: '#2E3C4B',
+        color: '#2a7dd5',
         permissions: {
           ios: {
             allowAlert: true,
@@ -143,9 +143,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-location',
       {
-        locationWhenInUsePermission: 'Allow Resgird Unit to show current location on map.',
-        locationAlwaysAndWhenInUsePermission: 'Allow Resgrid Unit to use your location.',
-        locationAlwaysPermission: 'Resgrid Unit needs to track your location',
+        locationWhenInUsePermission: 'Allow Resgrid Unit to show current location on map.',
+        locationAlwaysAndWhenInUsePermission: 'Allow Resgrid Unit to use your location for department updates.',
+        locationAlwaysPermission: 'Resgrid Unit needs to track your location for department AVL.',
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
@@ -215,7 +215,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         isBackgroundEnabled: true,
         modes: ['peripheral', 'central'],
-        bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices',
+        bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
       },
     ],
     [
