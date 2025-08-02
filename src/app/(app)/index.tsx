@@ -9,6 +9,7 @@ import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { Env } from '@/lib/env';
@@ -24,6 +25,7 @@ Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
 export default function Map() {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -202,6 +204,15 @@ export default function Map() {
       ])
     ).start();
   }, [pulseAnim]);
+
+  // Track when map view is rendered
+  useEffect(() => {
+    trackEvent('map_view_rendered', {
+      hasMapPins: mapPins.length > 0,
+      mapPinsCount: mapPins.length,
+      isMapLocked: location.isMapLocked,
+    });
+  }, [trackEvent, mapPins.length, location.isMapLocked]);
 
   const onCameraChanged = (event: any) => {
     // Only register user interaction if map is not locked

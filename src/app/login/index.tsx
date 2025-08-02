@@ -7,6 +7,7 @@ import { FocusAwareStatusBar } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
 import { Text } from '@/components/ui/text';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuth } from '@/lib/auth';
 import { logger } from '@/lib/logging';
 
@@ -15,8 +16,18 @@ import { LoginForm } from './login-form';
 export default function Login() {
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const router = useRouter();
   const { login, status, error, isAuthenticated } = useAuth();
+
+  // Track when login view is rendered
+  useEffect(() => {
+    trackEvent('login_view_rendered', {
+      hasError: !!error,
+      status: status,
+    });
+  }, [trackEvent, error, status]);
+
   useEffect(() => {
     if (status === 'signedIn' && isAuthenticated) {
       logger.info({

@@ -7,6 +7,7 @@ import { Platform, useWindowDimensions } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib/auth';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
@@ -34,6 +35,7 @@ interface CallNotesModalProps {
 
 const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState('');
   const [newNote, setNewNote] = useState('');
   const { callNotes, addNote, searchNotes, isNotesLoading, fetchCallNotes } = useCallDetailStore();
@@ -53,6 +55,18 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
       bottomSheetRef.current?.close();
     }
   }, [isOpen, callId, fetchCallNotes]);
+
+  // Track when call notes modal is opened/rendered
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('call_notes_modal_opened', {
+        callId: callId,
+        existingNotesCount: callNotes.length,
+        hasSearchQuery: searchQuery.length > 0,
+        isNotesLoading: isNotesLoading,
+      });
+    }
+  }, [isOpen, trackEvent, callId, callNotes.length, searchQuery.length, isNotesLoading]);
 
   const filteredNotes = React.useMemo(() => {
     return searchNotes(searchQuery);

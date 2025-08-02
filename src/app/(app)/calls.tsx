@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
@@ -12,12 +12,14 @@ import { Box } from '@/components/ui/box';
 import { Fab, FabIcon } from '@/components/ui/fab';
 import { FlatList } from '@/components/ui/flat-list';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';
 
 export default function Calls() {
   const { calls, isLoading, error, fetchCalls, fetchCallPriorities } = useCallsStore();
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Fetch data when screen comes into focus
@@ -31,6 +33,14 @@ export default function Calls() {
       };
     }, [fetchCalls, fetchCallPriorities])
   );
+
+  // Track when calls view is rendered
+  useEffect(() => {
+    trackEvent('calls_view_rendered', {
+      callsCount: calls.length,
+      hasSearchQuery: searchQuery.length > 0,
+    });
+  }, [trackEvent, calls.length, searchQuery]);
 
   const handleRefresh = () => {
     fetchCalls();

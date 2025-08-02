@@ -1,24 +1,29 @@
+import { trackEvent } from '@aptabase/react-native';
+
 import { logger } from '@/lib/logging';
 
-interface PostHogServiceOptions {
+interface AnalyticsEventProperties {
+  [key: string]: string | number | boolean;
+}
+
+interface AptabaseServiceOptions {
   maxRetries?: number;
   retryDelay?: number;
   enableLogging?: boolean;
   disableTimeout?: number;
 }
 
-class PostHogService {
+class AptabaseService {
   private retryCount = 0;
   private maxRetries = 2;
   private retryDelay = 2000;
   private enableLogging = true;
   private isDisabled = false;
-  private navigationErrorsSuppressed = false;
   private disableTimeout = 10 * 60 * 1000;
   private lastErrorTime = 0;
   private errorThrottleMs = 30000;
 
-  constructor(options: PostHogServiceOptions = {}) {
+  constructor(options: AptabaseServiceOptions = {}) {
     this.maxRetries = options.maxRetries ?? 2;
     this.retryDelay = options.retryDelay ?? 2000;
     this.enableLogging = options.enableLogging ?? true;
@@ -26,9 +31,37 @@ class PostHogService {
   }
 
   /**
-   * Handle PostHog network errors gracefully
+   * Track an analytics event
    */
-  public handleNetworkError(error: any): void {
+  public trackEvent(eventName: string, properties: AnalyticsEventProperties = {}): void {
+    if (this.isDisabled) {
+      if (this.enableLogging) {
+        logger.debug({
+          message: 'Analytics event skipped - service is disabled',
+          context: { eventName, properties },
+        });
+      }
+      return;
+    }
+
+    try {
+      trackEvent(eventName, properties);
+
+      if (this.enableLogging) {
+        logger.debug({
+          message: 'Analytics event tracked',
+          context: { eventName, properties },
+        });
+      }
+    } catch (error) {
+      this.handleAnalyticsError(error, eventName, properties);
+    }
+  }
+
+  /**
+   * Handle analytics errors gracefully
+   */
+  private handleAnalyticsError(error: any, eventName?: string, properties?: AnalyticsEventProperties): void {
     if (this.isDisabled) {
       return;
     }
@@ -40,9 +73,11 @@ class PostHogService {
       this.lastErrorTime = now;
 
       logger.error({
-        message: 'PostHog network error',
+        message: 'Analytics tracking error',
         context: {
           error: error.message || String(error),
+          eventName,
+          properties,
           retryCount: this.retryCount,
           maxRetries: this.maxRetries,
           willDisable: this.retryCount >= this.maxRetries,
@@ -51,33 +86,14 @@ class PostHogService {
     }
 
     if (this.retryCount >= this.maxRetries) {
-      this.disablePostHog();
+      this.disableAnalytics();
     }
   }
 
   /**
-   * Handle PostHog navigation state errors
+   * Disable analytics temporarily to prevent further errors
    */
-  public handleNavigationError(error: any): void {
-    if (!this.navigationErrorsSuppressed) {
-      this.navigationErrorsSuppressed = true;
-
-      if (this.enableLogging) {
-        logger.warn({
-          message: 'PostHog navigation state errors suppressed',
-          context: {
-            error: error.message || String(error),
-            note: 'Navigation tracking has been disabled to prevent errors',
-          },
-        });
-      }
-    }
-  }
-
-  /**
-   * Disable PostHog temporarily to prevent further network errors
-   */
-  private disablePostHog(): void {
+  private disableAnalytics(): void {
     if (this.isDisabled) {
       return;
     }
@@ -86,7 +102,7 @@ class PostHogService {
 
     if (this.enableLogging) {
       logger.info({
-        message: 'PostHog temporarily disabled due to network errors',
+        message: 'Analytics temporarily disabled due to errors',
         context: {
           retryCount: this.retryCount,
           disableTimeoutMinutes: this.disableTimeout / 60000,
@@ -95,40 +111,33 @@ class PostHogService {
     }
 
     setTimeout(() => {
-      this.enablePostHog();
+      this.enableAnalytics();
     }, this.disableTimeout);
   }
 
   /**
-   * Re-enable PostHog after network issues are resolved
+   * Re-enable analytics after issues are resolved
    */
-  private enablePostHog(): void {
+  private enableAnalytics(): void {
     this.isDisabled = false;
     this.retryCount = 0;
     this.lastErrorTime = 0;
 
     if (this.enableLogging) {
       logger.info({
-        message: 'PostHog re-enabled after network recovery',
+        message: 'Analytics re-enabled after recovery',
         context: {
-          note: 'PostHog service has been restored and is ready for use',
+          note: 'Analytics service has been restored and is ready for use',
         },
       });
     }
   }
 
   /**
-   * Check if PostHog is currently disabled
+   * Check if analytics is currently disabled
    */
-  public isPostHogDisabled(): boolean {
+  public isAnalyticsDisabled(): boolean {
     return this.isDisabled;
-  }
-
-  /**
-   * Check if navigation errors are being suppressed
-   */
-  public areNavigationErrorsSuppressed(): boolean {
-    return this.navigationErrorsSuppressed;
   }
 
   /**
@@ -137,7 +146,6 @@ class PostHogService {
   public reset(): void {
     this.retryCount = 0;
     this.isDisabled = false;
-    this.navigationErrorsSuppressed = false;
     this.lastErrorTime = 0;
   }
 
@@ -147,18 +155,16 @@ class PostHogService {
   public getStatus(): {
     retryCount: number;
     isDisabled: boolean;
-    navigationErrorsSuppressed: boolean;
     maxRetries: number;
     disableTimeoutMinutes: number;
   } {
     return {
       retryCount: this.retryCount,
       isDisabled: this.isDisabled,
-      navigationErrorsSuppressed: this.navigationErrorsSuppressed,
       maxRetries: this.maxRetries,
       disableTimeoutMinutes: this.disableTimeout / 60000,
     };
   }
 }
 
-export const postHogService = new PostHogService();
+export const aptabaseService = new AptabaseService();

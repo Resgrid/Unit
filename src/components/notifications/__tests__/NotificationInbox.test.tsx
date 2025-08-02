@@ -11,6 +11,14 @@ jest.mock('@novu/react-native');
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/toast/store');
 jest.mock('@/api/novu/inbox');
+jest.mock('nativewind', () => ({
+  colorScheme: {
+    get: jest.fn(() => 'light'),
+    set: jest.fn(),
+    toggle: jest.fn(),
+  },
+  cssInterop: jest.fn(),
+}));
 
 const mockUseNotifications = useNotifications as jest.MockedFunction<typeof useNotifications>;
 const mockUseCoreStore = useCoreStore as unknown as jest.MockedFunction<any>;
@@ -63,6 +71,8 @@ describe('NotificationInbox', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.clearAllTimers();
+    jest.useFakeTimers();
 
     mockUseNotifications.mockReturnValue({
       notifications: mockNotifications as any,
@@ -94,6 +104,13 @@ describe('NotificationInbox', () => {
     });
 
     mockDeleteMessage.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+    jest.clearAllMocks();
   });
 
   it('renders correctly when closed', () => {

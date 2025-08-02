@@ -19,6 +19,7 @@ import { Box } from '@/components/ui/box';
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
 import { VStack } from '@/components/ui/vstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
@@ -28,6 +29,7 @@ import { useUnitsStore } from '@/stores/units/store';
 
 export default function Settings() {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const signOut = useAuthStore.getState().logout;
   const { colorScheme } = useColorScheme();
   const [showLoginInfo, setShowLoginInfo] = React.useState(false);
@@ -56,6 +58,14 @@ export default function Settings() {
       });
     }
   }, [status, isAuthenticated]);
+
+  // Track when settings view is rendered
+  useEffect(() => {
+    trackEvent('settings_view_rendered', {
+      hasActiveUnit: !!activeUnit,
+      unitName: activeUnit?.Name || 'none',
+    });
+  }, [trackEvent, activeUnit]);
 
   return (
     <Box className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>

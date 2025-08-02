@@ -2,6 +2,7 @@ import { AlertTriangleIcon, CalendarIcon, ClockIcon, EyeIcon, EyeOffIcon, Shield
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
 import { useContactsStore } from '@/stores/contacts/store';
 
@@ -101,6 +102,7 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
 
 export const ContactNotesList: React.FC<ContactNotesListProps> = ({ contactId }) => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { contactNotes, isNotesLoading, fetchContactNotes } = useContactsStore();
 
   React.useEffect(() => {
@@ -111,6 +113,18 @@ export const ContactNotesList: React.FC<ContactNotesListProps> = ({ contactId })
 
   const notes = contactNotes[contactId] || [];
   const hasNotes = notes.length > 0;
+
+  // Track when contact notes list is rendered
+  React.useEffect(() => {
+    if (contactId) {
+      trackEvent('contact_notes_list_rendered', {
+        contactId: contactId,
+        notesCount: notes.length,
+        hasNotes: hasNotes,
+        isLoading: isNotesLoading,
+      });
+    }
+  }, [trackEvent, contactId, notes.length, hasNotes, isNotesLoading]);
 
   if (isNotesLoading) {
     return (

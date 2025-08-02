@@ -1,7 +1,13 @@
 module.exports = function (api) {
   api.cache(true);
+
+  // Check if we're in test environment
+  const isTest = process.env.NODE_ENV === 'test';
+
   return {
-    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
+    presets: isTest
+      ? ['babel-preset-expo'] // No nativewind in test environment
+      : [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
     plugins: [
       [
         'module-resolver',

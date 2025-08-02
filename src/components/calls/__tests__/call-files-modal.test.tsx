@@ -47,6 +47,14 @@ jest.mock('@/stores/calls/detail-store', () => ({
   useCallDetailStore: () => mockStoreState,
 }));
 
+// Mock analytics
+const mockTrackEvent = jest.fn();
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: mockTrackEvent,
+  }),
+}));
+
 // Mock expo modules
 jest.mock('expo-file-system', () => ({
   documentDirectory: '/mock/documents/',
@@ -603,6 +611,112 @@ describe('CallFilesModal', () => {
       // Should display formatted dates (exact format may vary by locale)
       const timestampElements = getAllByText(/1\/15\/2023/);
       expect(timestampElements.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Analytics', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // Reset to default state
+      mockStoreState = {
+        callFiles: defaultMockFiles,
+        isLoadingFiles: false,
+        errorFiles: null,
+        fetchCallFiles: mockFetchCallFiles,
+      };
+    });
+
+    it('should track analytics event when modal is opened', () => {
+      render(<CallFilesModal {...defaultProps} isOpen={true} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_files_modal_opened', {
+        callId: 'test-call-123',
+        hasExistingFiles: true,
+        filesCount: 2,
+        isLoadingFiles: false,
+        hasError: false,
+      });
+    });
+
+    it('should not track analytics event when modal is closed', () => {
+      render(<CallFilesModal {...defaultProps} isOpen={false} />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should track analytics event with loading state', () => {
+      mockStoreState = {
+        ...mockStoreState,
+        isLoadingFiles: true,
+      };
+
+      render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-456" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_files_modal_opened', {
+        callId: 'test-call-456',
+        hasExistingFiles: true,
+        filesCount: 2,
+        isLoadingFiles: true,
+        hasError: false,
+      });
+    });
+
+    it('should track analytics event with error state', () => {
+      mockStoreState = {
+        ...mockStoreState,
+        errorFiles: 'Failed to load files',
+      };
+
+      render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-error" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_files_modal_opened', {
+        callId: 'test-call-error',
+        hasExistingFiles: true,
+        filesCount: 2,
+        isLoadingFiles: false,
+        hasError: true,
+      });
+    });
+
+    it('should track analytics event with no files', () => {
+      mockStoreState = {
+        ...mockStoreState,
+        callFiles: [],
+      };
+
+      render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-no-files" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_files_modal_opened', {
+        callId: 'test-call-no-files',
+        hasExistingFiles: false,
+        filesCount: 0,
+        isLoadingFiles: false,
+        hasError: false,
+      });
+    });
+
+    it('should track analytics event only once when isOpen changes from false to true', () => {
+      const { rerender } = render(<CallFilesModal {...defaultProps} isOpen={false} />);
+
+      // Should not track when initially closed
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+
+      // Should track when opened
+      rerender(<CallFilesModal {...defaultProps} isOpen={true} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_files_modal_opened', {
+        callId: 'test-call-123',
+        hasExistingFiles: true,
+        filesCount: 2,
+        isLoadingFiles: false,
+        hasError: false,
+      });
+
+      // Should not track again when staying open
+      rerender(<CallFilesModal {...defaultProps} isOpen={true} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
@@ -24,6 +25,7 @@ type RolesBottomSheetProps = {
 export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
+  const { trackEvent } = useAnalytics();
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const { roles, unitRoleAssignments, users, isLoading, error } = useRolesStore();
 
@@ -40,13 +42,35 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
     }
   }, [isOpen, activeUnit]);
 
+  // Track when roles bottom sheet is opened/rendered
+  React.useEffect(() => {
+    if (isOpen) {
+      trackEvent('roles_bottom_sheet_opened', {
+        unitId: activeUnit?.UnitId || '',
+        unitName: activeUnit?.Name || '',
+        rolesCount: roles.length,
+        usersCount: users.length,
+        hasError: !!error,
+      });
+    }
+  }, [isOpen, trackEvent, activeUnit, roles.length, users.length, error]);
+
   // Handle user assignment changes
   const handleAssignUser = React.useCallback((roleId: string, userId?: string) => {
     setPendingAssignments((current) => {
       const filtered = current.filter((a) => a.roleId !== roleId);
-      return [...filtered, { roleId, userId }];
+      // Only add to pending assignments if a user is actually selected
+      if (userId && userId.trim() !== '') {
+        return [...filtered, { roleId, userId }];
+      }
+      // If no user selected (unassigned), just return filtered array
+      return filtered;
     });
   }, []);
+
+  const filteredRoles = React.useMemo(() => {
+    return roles.filter((role) => role.UnitId === activeUnit?.UnitId);
+  }, [roles, activeUnit]);
 
   // Handle save button
   const handleSave = React.useCallback(async () => {
@@ -54,14 +78,22 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
 
     setIsSaving(true);
     try {
-      // Save all pending assignments
+      // Get all roles for this unit to ensure we send complete assignment data
+      const allUnitRoles = filteredRoles.map((role) => {
+        const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
+        const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit.UnitId);
+
+        return {
+          RoleId: role.UnitRoleId,
+          UserId: pendingAssignment?.userId || currentAssignment?.UserId || '',
+          Name: '',
+        };
+      });
+
+      // Save all role assignments (both assigned and unassigned)
       await useRolesStore.getState().assignRoles({
         UnitId: activeUnit.UnitId,
-        Roles: pendingAssignments.map((a) => ({
-          RoleId: a.roleId,
-          UserId: a.userId ? a.userId : '',
-          Name: '',
-        })),
+        Roles: allUnitRoles,
       });
 
       // Refresh role assignments after all updates
@@ -79,16 +111,12 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
     } finally {
       setIsSaving(false);
     }
-  }, [activeUnit, pendingAssignments, onClose, t]);
+  }, [activeUnit, pendingAssignments, onClose, t, filteredRoles, unitRoleAssignments]);
 
   const handleClose = React.useCallback(() => {
     setPendingAssignments([]);
     onClose();
   }, [onClose]);
-
-  const filteredRoles = React.useMemo(() => {
-    return roles.filter((role) => role.UnitId === activeUnit?.UnitId);
-  }, [roles, activeUnit]);
 
   const hasChanges = pendingAssignments.length > 0;
 
@@ -120,14 +148,18 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
                     availableUsers={users}
                     onAssignUser={(userId) => handleAssignUser(role.UnitRoleId, userId)}
                     currentAssignments={[
-                      ...unitRoleAssignments.map((a) => ({
-                        roleId: a.UnitRoleId,
-                        userId: a.UserId,
-                      })),
-                      ...pendingAssignments.map((a) => ({
-                        roleId: a.roleId,
-                        userId: a.userId ?? '',
-                      })),
+                      ...unitRoleAssignments
+                        .filter((a) => a.UserId && a.UserId.trim() !== '')
+                        .map((a) => ({
+                          roleId: a.UnitRoleId,
+                          userId: a.UserId,
+                        })),
+                      ...pendingAssignments
+                        .filter((a) => a.userId && a.userId.trim() !== '')
+                        .map((a) => ({
+                          roleId: a.roleId,
+                          userId: a.userId!,
+                        })),
                     ]}
                   />
                 );

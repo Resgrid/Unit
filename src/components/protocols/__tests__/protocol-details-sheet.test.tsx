@@ -5,6 +5,14 @@ import { CallProtocolsResultData } from '@/models/v4/callProtocols/callProtocols
 
 import { ProtocolDetailsSheet } from '../protocol-details-sheet';
 
+// Mock analytics
+const mockTrackEvent = jest.fn();
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: mockTrackEvent,
+  }),
+}));
+
 // Mock dependencies
 jest.mock('@/lib/utils', () => ({
   formatDateForDisplay: jest.fn((date) => date ? '2023-01-01 12:00 UTC' : ''),
@@ -378,4 +386,175 @@ describe('ProtocolDetailsSheet', () => {
       expect(mockProtocolsStore.closeDetails).toHaveBeenCalled();
     });
   });
-}); 
+
+  describe('Analytics', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should track analytics event when protocol details sheet is opened', () => {
+      Object.assign(mockProtocolsStore, {
+        protocols: mockProtocols,
+        selectedProtocolId: '1',
+        isDetailsOpen: true,
+      });
+
+      render(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
+        protocolId: '1',
+        protocolName: 'Fire Emergency Response',
+        hasCode: true,
+        hasDescription: true,
+        hasProtocolText: true,
+        protocolTextLength: 47, // Length of '<p>Fire emergency response protocol content</p>'
+      });
+    });
+
+    it('should track analytics event with false flags when protocol has no optional data', () => {
+      const minimalProtocol: CallProtocolsResultData = {
+        Id: 'protocol-minimal',
+        DepartmentId: 'dept1',
+        Name: 'Minimal Protocol',
+        Code: '',
+        Description: '',
+        ProtocolText: '',
+        CreatedOn: '2023-01-01T00:00:00Z',
+        CreatedByUserId: 'user1',
+        IsDisabled: false,
+        UpdatedOn: '',
+        UpdatedByUserId: '',
+        MinimumWeight: 0,
+        State: 1,
+        Triggers: [],
+        Attachments: [],
+        Questions: [],
+      };
+
+      Object.assign(mockProtocolsStore, {
+        protocols: [minimalProtocol],
+        selectedProtocolId: 'protocol-minimal',
+        isDetailsOpen: true,
+      });
+
+      render(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
+        protocolId: 'protocol-minimal',
+        protocolName: 'Minimal Protocol',
+        hasCode: false,
+        hasDescription: false,
+        hasProtocolText: false,
+        protocolTextLength: 0,
+      });
+    });
+
+    it('should not track analytics event when sheet is closed', () => {
+      Object.assign(mockProtocolsStore, {
+        protocols: mockProtocols,
+        selectedProtocolId: '1',
+        isDetailsOpen: false,
+      });
+
+      render(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should not track analytics event when no protocol is selected', () => {
+      Object.assign(mockProtocolsStore, {
+        protocols: mockProtocols,
+        selectedProtocolId: null,
+        isDetailsOpen: true,
+      });
+
+      render(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should track analytics event only once when isDetailsOpen changes from false to true', () => {
+      Object.assign(mockProtocolsStore, {
+        protocols: mockProtocols,
+        selectedProtocolId: '1',
+        isDetailsOpen: false,
+      });
+
+      const { rerender } = render(<ProtocolDetailsSheet />);
+
+      // Should not track when initially closed
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+
+      // Should track when opened
+      Object.assign(mockProtocolsStore, {
+        protocols: mockProtocols,
+        selectedProtocolId: '1',
+        isDetailsOpen: true,
+      });
+
+      rerender(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+      expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
+        protocolId: '1',
+        protocolName: 'Fire Emergency Response',
+        hasCode: true,
+        hasDescription: true,
+        hasProtocolText: true,
+        protocolTextLength: 47,
+      });
+
+      // Should not track again when staying open
+      rerender(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should track analytics event when selected protocol changes', () => {
+      const secondProtocol: CallProtocolsResultData = {
+        ...mockProtocols[0],
+        Id: '3',
+        Name: 'Second Protocol',
+        Code: 'SP002',
+      };
+
+      // Initial render with first protocol
+      Object.assign(mockProtocolsStore, {
+        protocols: [mockProtocols[0], secondProtocol],
+        selectedProtocolId: '1',
+        isDetailsOpen: true,
+      });
+
+      const { rerender } = render(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+      expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
+        protocolId: '1',
+        protocolName: 'Fire Emergency Response',
+        hasCode: true,
+        hasDescription: true,
+        hasProtocolText: true,
+        protocolTextLength: 47,
+      });
+
+      // Change selected protocol
+      Object.assign(mockProtocolsStore, {
+        protocols: [mockProtocols[0], secondProtocol],
+        selectedProtocolId: '3',
+        isDetailsOpen: true,
+      });
+
+      rerender(<ProtocolDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(2);
+      expect(mockTrackEvent).toHaveBeenLastCalledWith('protocol_details_sheet_opened', {
+        protocolId: '3',
+        protocolName: 'Second Protocol',
+        hasCode: true,
+        hasDescription: true,
+        hasProtocolText: true,
+        protocolTextLength: 47,
+      });
+    });
+  });
+});

@@ -1,10 +1,11 @@
 import { Calendar, Tag, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import WebView from 'react-native-webview';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/store';
 
@@ -20,9 +21,23 @@ import { VStack } from '../ui/vstack';
 export const NoteDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
+  const { trackEvent } = useAnalytics();
   const { notes, selectedNoteId, isDetailsOpen, closeDetails, deleteNote } = useNotesStore();
 
   const selectedNote = notes.find((note) => note.NoteId === selectedNoteId);
+
+  // Track when note details sheet is opened/rendered
+  useEffect(() => {
+    if (isDetailsOpen && selectedNote) {
+      trackEvent('note_details_sheet_opened', {
+        noteId: selectedNote.NoteId,
+        hasCategory: !!selectedNote.Category,
+        hasBody: !!selectedNote.Body,
+        bodyLength: selectedNote.Body?.length || 0,
+        hasAddedDate: !!selectedNote.AddedOn,
+      });
+    }
+  }, [isDetailsOpen, selectedNote, trackEvent]);
 
   if (!selectedNote) return null;
 

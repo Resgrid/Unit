@@ -9,6 +9,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { Image } from '@/components/ui/image';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -31,6 +32,7 @@ const { width } = Dimensions.get('window');
 
 const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [newImageName, setNewImageName] = useState('');
@@ -54,6 +56,19 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       setImageErrors(new Set()); // Reset image errors
     }
   }, [isOpen, callId, fetchCallImages]);
+
+  // Track when call images modal is opened/rendered
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('call_images_modal_opened', {
+        callId: callId,
+        hasExistingImages: validImages.length > 0,
+        imagesCount: validImages.length,
+        isLoadingImages: isLoadingImages,
+        hasError: !!errorImages,
+      });
+    }
+  }, [isOpen, trackEvent, callId, validImages.length, isLoadingImages, errorImages]);
 
   // Reset active index when valid images change
   useEffect(() => {

@@ -1,9 +1,10 @@
 import { Calendar, Tag, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import WebView from 'react-native-webview';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString, stripHtmlTags } from '@/lib/utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
 
@@ -18,9 +19,24 @@ import { VStack } from '../ui/vstack';
 
 export const ProtocolDetailsSheet: React.FC = () => {
   const { colorScheme } = useColorScheme();
+  const { trackEvent } = useAnalytics();
   const { protocols, selectedProtocolId, isDetailsOpen, closeDetails } = useProtocolsStore();
 
   const selectedProtocol = protocols.find((protocol) => protocol.Id === selectedProtocolId);
+
+  // Track when protocol details sheet is opened/rendered
+  useEffect(() => {
+    if (isDetailsOpen && selectedProtocol) {
+      trackEvent('protocol_details_sheet_opened', {
+        protocolId: selectedProtocol.Id,
+        protocolName: selectedProtocol.Name,
+        hasCode: !!selectedProtocol.Code,
+        hasDescription: !!selectedProtocol.Description,
+        hasProtocolText: !!selectedProtocol.ProtocolText,
+        protocolTextLength: selectedProtocol.ProtocolText?.length || 0,
+      });
+    }
+  }, [isDetailsOpen, selectedProtocol, trackEvent]);
 
   if (!selectedProtocol) return null;
 
