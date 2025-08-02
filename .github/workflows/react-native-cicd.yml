@@ -258,20 +258,20 @@ jobs:
             ./ResgridUnit-ios-prod.ipa
           retention-days: 7
 
+      - name: 📦 Setup Firebase CLI
+        uses: w9jds/setup-firebase@main
+        with:
+          tools-version: 11.9.0
+          firebase_token: ${{ secrets.FIREBASE_TOKEN }}
+
       - name: 📦 Upload Android artifact to Firebase App Distribution
         if: (matrix.platform == 'android')
-        uses: w9jds/firebase-action@master
-        with:
-          args: appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
-        env:
-          GCP_SA_KEY: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+        run: | 
+          appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
 
       - name: 📦 Upload iOS artifact to Firebase App Distribution
         if: (matrix.platform == 'ios')
-        uses: w9jds/firebase-action@master
-        with:
-          args: appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
-        env:
-          GCP_SA_KEY: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+        run: |
+          appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
 
 
