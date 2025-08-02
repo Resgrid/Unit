@@ -258,20 +258,20 @@ jobs:
             ./ResgridUnit-ios-prod.ipa
           retention-days: 7
 
-      - name: 📦 Upload Android build artifacts to Testfairy
+      - name: 📦 Upload Android artifact to Firebase App Distribution
         if: (matrix.platform == 'android')
-        uses: alexfu/testfairy-upload-action@main
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          api-key: ${{ secrets.TESTFAIRY_API_KEY }}
+          appId: ${{secrets.FIREBASE_ANDROID_APP_ID}}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          groups: testers
           file: ./ResgridUnit-prod.apk
-          groups: Resgrid
-          notify: on
-
-      - name: 📦 Upload iOS build artifacts to Testfairy
+      
+      - name: 📦 Upload iOS artifact to Firebase App Distribution
         if: (matrix.platform == 'ios')
-        uses: alexfu/testfairy-upload-action@main
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          api-key: ${{ secrets.TESTFAIRY_API_KEY }}
+          appId: ${{secrets.FIREBASE_IOS_APP_ID}}
+          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+          groups: testers
           file: ./ResgridUnit-ios-adhoc.ipa
-          groups: Resgrid
-          notify: on
