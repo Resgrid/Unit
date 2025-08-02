@@ -11,16 +11,26 @@ import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useNotesStore } from '@/stores/notes/store';
 
 export default function Notes() {
   const { t } = useTranslation();
   const { notes, searchQuery, setSearchQuery, selectNote, isLoading, fetchNotes } = useNotesStore();
+  const { trackEvent } = useAnalytics();
   const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     fetchNotes();
   }, [fetchNotes]);
+
+  // Track when notes view is rendered
+  React.useEffect(() => {
+    trackEvent('notes_view_rendered', {
+      notesCount: notes.length,
+      hasSearchQuery: searchQuery.length > 0,
+    });
+  }, [trackEvent, notes.length, searchQuery]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);

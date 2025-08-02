@@ -19,7 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
-import { PostHogProviderWrapper } from '@/components/common/posthog-provider';
+import { AptabaseProviderWrapper } from '@/components/common/aptabase-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
@@ -39,7 +39,8 @@ export const unstable_settings = {
 
 // Construct a new integration instance. This is needed to communicate between the integration and React
 const navigationIntegration = Sentry.reactNavigationIntegration({
-  enableTimeToInitialDisplay: !isRunningInExpoGo(),
+  // Disable enableTimeToInitialDisplay to prevent fallback timestamp errors
+  enableTimeToInitialDisplay: false,
 });
 
 Sentry.init({
@@ -51,6 +52,14 @@ Sentry.init({
     navigationIntegration,
   ],
   enableNativeFramesTracking: !isRunningInExpoGo(), // Tracks slow and frozen frames in the application
+  // Add additional options to prevent timing issues
+  beforeSendTransaction(event) {
+    // Filter out problematic navigation transactions that might cause timestamp errors
+    if (event.contexts?.trace?.op === 'navigation' && !event.contexts?.trace?.data?.route) {
+      return null;
+    }
+    return event;
+  },
 });
 
 registerGlobals();
@@ -75,6 +84,8 @@ if (!deviceUuid) {
 LogBox.ignoreLogs([
   //Mapbox errors
   'Mapbox [error] ViewTagResolver | view:',
+  // Ignore Sentry fallback timestamp warnings in development
+  'Sentry Logger [error]: Failed to receive any fallback timestamp',
 ]);
 
 function RootLayout() {
@@ -160,15 +171,7 @@ function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView>
-        <KeyboardProvider>
-          {Env.POSTHOG_API_KEY && Env.POSTHOG_HOST && !__DEV__ ? (
-            <PostHogProviderWrapper apiKey={Env.POSTHOG_API_KEY} host={Env.POSTHOG_HOST} navigationRef={navigationRef}>
-              {renderContent()}
-            </PostHogProviderWrapper>
-          ) : (
-            renderContent()
-          )}
-        </KeyboardProvider>
+        <KeyboardProvider>{Env.APTABASE_APP_KEY && !__DEV__ ? <AptabaseProviderWrapper appKey={Env.APTABASE_APP_KEY}>{renderContent()}</AptabaseProviderWrapper> : renderContent()}</KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

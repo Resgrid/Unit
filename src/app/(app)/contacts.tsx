@@ -11,16 +11,26 @@ import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { View } from '@/components/ui/view';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useContactsStore } from '@/stores/contacts/store';
 
 export default function Contacts() {
   const { t } = useTranslation();
   const { contacts, searchQuery, setSearchQuery, selectContact, isLoading, fetchContacts } = useContactsStore();
+  const { trackEvent } = useAnalytics();
   const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     fetchContacts();
   }, [fetchContacts]);
+
+  // Track when contacts view is rendered
+  React.useEffect(() => {
+    trackEvent('contacts_view_rendered', {
+      contactsCount: contacts.length,
+      hasSearchQuery: searchQuery.length > 0,
+    });
+  }, [trackEvent, contacts.length, searchQuery]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);

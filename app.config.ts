@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-notifications',
       {
-        icon: './assets/adaptive-icon.png',
+        icon: './assets/notification-icon.png',
         color: '#2E3C4B',
         permissions: {
           ios: {

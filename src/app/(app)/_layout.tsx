@@ -17,6 +17,7 @@ import { Drawer, DrawerBackdrop, DrawerBody, DrawerContent, DrawerFooter, Drawer
 import { Icon } from '@/components/ui/icon';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
 import { useAuthStore } from '@/lib/auth';
@@ -41,6 +42,7 @@ export default function TabLayout() {
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { isActive, appState } = useAppLifecycle();
+  const { trackEvent } = useAnalytics();
 
   // Refs to track initialization state
   const hasInitialized = useRef(false);
@@ -69,6 +71,17 @@ export default function TabLayout() {
   // Initialize push notifications
   usePushNotifications();
 
+  // Track when home view is rendered
+  useEffect(() => {
+    if (status === 'signedIn') {
+      trackEvent('home_view_rendered', {
+        isLandscape: isLandscape,
+        screenWidth: width,
+        screenHeight: height,
+      });
+    }
+  }, [status, trackEvent, isLandscape, width, height]);
+
   const initializeApp = useCallback(async () => {
     if (isInitializing.current) {
       logger.info({
@@ -95,11 +108,11 @@ export default function TabLayout() {
 
     try {
       // Initialize core app data
+      await useCoreStore.getState().fetchConfig();
       await useCoreStore.getState().init();
       await useRolesStore.getState().init();
       await useCallsStore.getState().init();
       await securityStore.getState().getRights();
-      await useCoreStore.getState().fetchConfig();
 
       await useSignalRStore.getState().connectUpdateHub();
       await useSignalRStore.getState().connectGeolocationHub();

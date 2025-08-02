@@ -23,6 +23,7 @@ import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectI
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useCallsStore } from '@/stores/calls/store';
@@ -72,6 +73,7 @@ interface GeocodingResponse {
 
 export default function EditCall() {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { colorScheme } = useColorScheme();
   const { id } = useLocalSearchParams();
   const callId = Array.isArray(id) ? id[0] : id;
@@ -179,6 +181,20 @@ export default function EditCall() {
       }
     }
   }, [call, callPriorities, callTypes, reset]);
+
+  // Track when edit call view is rendered
+  useEffect(() => {
+    if (call) {
+      trackEvent('edit_call_view_rendered', {
+        callId: call.CallId || '',
+        callName: call.Name || '',
+        callPriority: call.Priority || 0,
+        callType: call.Type || '',
+        hasCoordinates: !!(call.Latitude && call.Longitude),
+        hasAddress: !!call.Address,
+      });
+    }
+  }, [trackEvent, call]);
 
   const onSubmit = async (data: FormValues) => {
     try {

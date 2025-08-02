@@ -26,6 +26,7 @@ import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectI
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { type DispatchSelection } from '@/stores/dispatch/store';
@@ -103,6 +104,7 @@ export default function NewCall() {
   const { colorScheme } = useColorScheme();
   const { callPriorities, callTypes, isLoading, error, fetchCallPriorities, fetchCallTypes } = useCallsStore();
   const { config } = useCoreStore();
+  const { trackEvent } = useAnalytics();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
@@ -160,6 +162,14 @@ export default function NewCall() {
     fetchCallPriorities();
     fetchCallTypes();
   }, [fetchCallPriorities, fetchCallTypes]);
+
+  // Track when new call view is rendered
+  useEffect(() => {
+    trackEvent('new_call_view_rendered', {
+      prioritiesCount: callPriorities.length,
+      typesCount: callTypes.length,
+    });
+  }, [trackEvent, callPriorities.length, callTypes.length]);
 
   const onSubmit = async (data: FormValues) => {
     try {

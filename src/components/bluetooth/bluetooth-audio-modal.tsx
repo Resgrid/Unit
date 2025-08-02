@@ -12,6 +12,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { type BluetoothAudioDevice, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
@@ -25,6 +26,7 @@ const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClo
   const { bluetoothState, isScanning, isConnecting, availableDevices, connectedDevice, connectionError, isAudioRoutingActive, buttonEvents, lastButtonAction } = useBluetoothAudioStore();
 
   const { isConnected: isLiveKitConnected, currentRoom } = useLiveKitStore();
+  const { trackEvent } = useAnalytics();
   const [isMicMuted, setIsMicMuted] = useState(false);
 
   const handleStartScan = React.useCallback(async () => {
@@ -50,6 +52,22 @@ const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClo
       });
     }
   }, [isOpen, bluetoothState, isScanning, connectedDevice, handleStartScan]);
+
+  // Track when Bluetooth audio modal is opened/rendered
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('bluetooth_audio_modal_opened', {
+        bluetoothState,
+        isConnecting,
+        availableDevicesCount: availableDevices.length,
+        hasConnectedDevice: !!connectedDevice,
+        isLiveKitConnected,
+        isAudioRoutingActive,
+        hasConnectionError: !!connectionError,
+        recentButtonEventsCount: buttonEvents.length,
+      });
+    }
+  }, [isOpen, trackEvent, bluetoothState, isConnecting, availableDevices.length, connectedDevice, isLiveKitConnected, isAudioRoutingActive, connectionError, buttonEvents.length]);
 
   const handleStopScan = React.useCallback(() => {
     bluetoothAudioService.stopScanning();

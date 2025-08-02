@@ -13,6 +13,12 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: jest.fn(),
+  }),
+}));
+
 jest.mock('@/stores/contacts/store', () => ({
   useContactsStore: jest.fn(),
 }));

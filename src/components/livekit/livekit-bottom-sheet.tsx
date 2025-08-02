@@ -4,6 +4,7 @@ import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { type DepartmentVoiceChannelResultData } from '@/models/v4/voice/departmentVoiceResultData';
 import { audioService } from '@/services/audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
@@ -28,10 +29,43 @@ export const LiveKitBottomSheet = () => {
 
   const { selectedAudioDevices } = useBluetoothAudioStore();
   const { colorScheme } = useColorScheme();
+  const { trackEvent } = useAnalytics();
 
   const [currentView, setCurrentView] = useState<BottomSheetView>(BottomSheetView.ROOM_SELECT);
   const [isMuted, setIsMuted] = useState(true); // Default to muted
   const [permissionsRequested, setPermissionsRequested] = useState(false);
+
+  // Track when LiveKit bottom sheet is opened/rendered
+  useEffect(() => {
+    if (isBottomSheetVisible) {
+      trackEvent('livekit_bottom_sheet_opened', {
+        availableRoomsCount: availableRooms.length,
+        isConnected: isConnected,
+        isConnecting: isConnecting,
+        currentView: currentView,
+        hasCurrentRoom: !!currentRoomInfo,
+        currentRoomName: currentRoomInfo?.Name || 'none',
+        isMuted: isMuted,
+        isTalking: isTalking,
+        hasBluetoothMicrophone: selectedAudioDevices.microphone?.type === 'bluetooth',
+        hasBluetoothSpeaker: selectedAudioDevices.speaker?.type === 'bluetooth',
+        permissionsRequested: permissionsRequested,
+      });
+    }
+  }, [
+    isBottomSheetVisible,
+    trackEvent,
+    availableRooms.length,
+    isConnected,
+    isConnecting,
+    currentView,
+    currentRoomInfo,
+    isMuted,
+    isTalking,
+    selectedAudioDevices.microphone?.type,
+    selectedAudioDevices.speaker?.type,
+    permissionsRequested,
+  ]);
 
   // Request permissions once when the component becomes visible
   useEffect(() => {

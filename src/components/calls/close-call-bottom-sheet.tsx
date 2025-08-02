@@ -11,6 +11,7 @@ import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectI
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { VStack } from '@/components/ui/vstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useToastStore } from '@/stores/toast/store';
@@ -28,11 +29,22 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const showToast = useToastStore((state) => state.showToast);
+  const { trackEvent } = useAnalytics();
   const { closeCall } = useCallDetailStore();
   const { fetchCalls } = useCallsStore();
   const [closeCallType, setCloseCallType] = useState('');
   const [closeCallNote, setCloseCallNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Track when close call bottom sheet is opened/rendered
+  React.useEffect(() => {
+    if (isOpen) {
+      trackEvent('close_call_bottom_sheet_opened', {
+        callId: callId,
+        isLoading: isLoading,
+      });
+    }
+  }, [isOpen, trackEvent, callId, isLoading]);
 
   const handleClose = React.useCallback(() => {
     setCloseCallType('');

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { useAuthStore } from '@/lib';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 // Mock dependencies
 jest.mock('@/lib', () => ({
@@ -11,6 +12,8 @@ jest.mock('@/lib', () => ({
 }));
 
 jest.mock('@/stores/calls/detail-store');
+
+jest.mock('@/hooks/use-analytics');
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -47,6 +50,7 @@ const MockCallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, 
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage } = useCallDetailStore();
+  const { trackEvent } = useAnalytics();
 
   // Filter valid images and memoize to prevent re-filtering on every render
   const validImages = useMemo(() => {
@@ -61,6 +65,19 @@ const MockCallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, 
       setImageErrors(new Set());
     }
   }, [isOpen, callId, fetchCallImages]);
+
+  // Track when call images modal is opened/rendered
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('call_images_modal_opened', {
+        callId: callId,
+        hasExistingImages: validImages.length > 0,
+        imagesCount: validImages.length,
+        isLoadingImages: isLoadingImages,
+        hasError: !!errorImages,
+      });
+    }
+  }, [isOpen, trackEvent, callId, validImages.length, isLoadingImages, errorImages]);
 
   // Reset active index when valid images change
   useEffect(() => {
@@ -210,6 +227,9 @@ jest.mock('../call-images-modal', () => ({
 
 const mockUseCallDetailStore = useCallDetailStore as jest.MockedFunction<typeof useCallDetailStore>;
 const mockUseAuthStore = useAuthStore as jest.MockedObject<typeof useAuthStore>;
+const mockUseAnalytics = useAnalytics as jest.MockedFunction<typeof useAnalytics>;
+
+const mockTrackEvent = jest.fn();
 
 describe('CallImagesModal', () => {
   const defaultProps = {
@@ -272,6 +292,9 @@ describe('CallImagesModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCallDetailStore.mockReturnValue(mockStore as any);
+    mockUseAnalytics.mockReturnValue({
+      trackEvent: mockTrackEvent,
+    });
     mockUseAuthStore.getState.mockReturnValue({
       userId: 'test-user-id',
       accessToken: 'test-token',
@@ -509,4 +532,121 @@ describe('CallImagesModal', () => {
       expect(handleNext()).toBe(4); // Should not exceed bounds
     });
   });
-}); 
+
+  describe('Analytics', () => {
+    it('should track analytics event when modal is opened', () => {
+      render(<MockCallImagesModal {...defaultProps} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-id',
+        hasExistingImages: true,
+        imagesCount: 4,
+        isLoadingImages: false,
+        hasError: false,
+      });
+    });
+
+    it('should not track analytics event when modal is closed', () => {
+      render(<MockCallImagesModal {...defaultProps} isOpen={false} />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should track analytics event with existing images', () => {
+      const mockImagesStore = {
+        ...mockStore,
+        callImages: [
+          { Id: '1', Name: 'Image 1', Data: 'base64data', Url: '', Timestamp: '2024-01-01', Mime: 'image/png' },
+          { Id: '2', Name: 'Image 2', Data: 'base64data2', Url: '', Timestamp: '2024-01-02', Mime: 'image/jpeg' },
+        ],
+      };
+
+      mockUseCallDetailStore.mockReturnValue(mockImagesStore as any);
+
+      render(<MockCallImagesModal {...defaultProps} callId="test-call-456" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-456',
+        hasExistingImages: true,
+        imagesCount: 2,
+        isLoadingImages: false,
+        hasError: false,
+      });
+    });
+
+    it('should track analytics event with loading state', () => {
+      mockUseCallDetailStore.mockReturnValue({
+        ...mockStore,
+        isLoadingImages: true,
+      } as any);
+
+      render(<MockCallImagesModal {...defaultProps} callId="test-call-789" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-789',
+        hasExistingImages: true,
+        imagesCount: 4,
+        isLoadingImages: true,
+        hasError: false,
+      });
+    });
+
+    it('should track analytics event with error state', () => {
+      mockUseCallDetailStore.mockReturnValue({
+        ...mockStore,
+        errorImages: 'Failed to load images',
+      } as any);
+
+      render(<MockCallImagesModal {...defaultProps} callId="test-call-error" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-error',
+        hasExistingImages: true,
+        imagesCount: 4,
+        isLoadingImages: false,
+        hasError: true,
+      });
+    });
+
+    it('should track analytics event only once when isOpen changes from false to true', () => {
+      const { rerender } = render(<MockCallImagesModal {...defaultProps} isOpen={false} />);
+
+      // Should not track when initially closed
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+
+      // Should track when opened
+      rerender(<MockCallImagesModal {...defaultProps} isOpen={true} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-id',
+        hasExistingImages: true,
+        imagesCount: 4,
+        isLoadingImages: false,
+        hasError: false,
+      });
+
+      // Should not track again when staying open
+      rerender(<MockCallImagesModal {...defaultProps} isOpen={true} />);
+
+      expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('should track analytics event with no images', () => {
+      mockUseCallDetailStore.mockReturnValue({
+        ...mockStore,
+        callImages: [],
+      } as any);
+
+      render(<MockCallImagesModal {...defaultProps} callId="test-call-no-images" />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('call_images_modal_opened', {
+        callId: 'test-call-no-images',
+        hasExistingImages: false,
+        imagesCount: 0,
+        isLoadingImages: false,
+        hasError: false,
+      });
+    });
+  });
+});

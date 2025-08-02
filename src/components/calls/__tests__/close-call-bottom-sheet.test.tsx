@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { CloseCallBottomSheet } from '../close-call-bottom-sheet';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useToastStore } from '@/stores/toast/store';
@@ -11,6 +12,7 @@ import { useToastStore } from '@/stores/toast/store';
 // Mock dependencies
 jest.mock('expo-router');
 jest.mock('react-i18next');
+jest.mock('@/hooks/use-analytics');
 jest.mock('@/stores/calls/detail-store');
 jest.mock('@/stores/calls/store');
 jest.mock('@/stores/toast/store');
@@ -151,7 +153,9 @@ const mockUseTranslation = {
 const mockCloseCall = jest.fn();
 const mockFetchCalls = jest.fn();
 const mockShowToast = jest.fn();
+const mockTrackEvent = jest.fn();
 
+const mockUseAnalytics = useAnalytics as jest.MockedFunction<typeof useAnalytics>;
 const mockUseCallDetailStore = useCallDetailStore as jest.MockedFunction<typeof useCallDetailStore>;
 const mockUseCallsStore = useCallsStore as jest.MockedFunction<typeof useCallsStore>;
 const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
@@ -164,6 +168,10 @@ describe('CloseCallBottomSheet', () => {
 
     (useRouter as jest.Mock).mockReturnValue(mockRouter);
     (useTranslation as jest.Mock).mockReturnValue(mockUseTranslation);
+
+    mockUseAnalytics.mockReturnValue({
+      trackEvent: mockTrackEvent,
+    });
 
     mockUseCallDetailStore.mockImplementation((selector) => {
       if (typeof selector === 'function') {
@@ -415,5 +423,50 @@ describe('CloseCallBottomSheet', () => {
 
     // The component should not render its content when closed
     expect(screen.queryByText('call_detail.close_call')).toBeFalsy();
+  });
+
+  it('should track analytics event when bottom sheet is opened', () => {
+    render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-123" isLoading={false} />);
+
+    expect(mockTrackEvent).toHaveBeenCalledWith('close_call_bottom_sheet_opened', {
+      callId: 'test-call-123',
+      isLoading: false,
+    });
+  });
+
+  it('should not track analytics event when bottom sheet is closed', () => {
+    render(<CloseCallBottomSheet isOpen={false} onClose={jest.fn()} callId="test-call-123" isLoading={false} />);
+
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+  });
+
+  it('should track analytics event with loading state', () => {
+    render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-456" isLoading={true} />);
+
+    expect(mockTrackEvent).toHaveBeenCalledWith('close_call_bottom_sheet_opened', {
+      callId: 'test-call-456',
+      isLoading: true,
+    });
+  });
+
+  it('should track analytics event only once when isOpen changes from false to true', () => {
+    const { rerender } = render(<CloseCallBottomSheet isOpen={false} onClose={jest.fn()} callId="test-call-789" isLoading={false} />);
+
+    // Should not track when initially closed
+    expect(mockTrackEvent).not.toHaveBeenCalled();
+
+    // Should track when opened
+    rerender(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-789" isLoading={false} />);
+
+    expect(mockTrackEvent).toHaveBeenCalledTimes(1);
+    expect(mockTrackEvent).toHaveBeenCalledWith('close_call_bottom_sheet_opened', {
+      callId: 'test-call-789',
+      isLoading: false,
+    });
+
+    // Should not track again when staying open
+    rerender(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-789" isLoading={false} />);
+
+    expect(mockTrackEvent).toHaveBeenCalledTimes(1);
   });
 }); 

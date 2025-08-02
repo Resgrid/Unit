@@ -25,6 +25,11 @@
     "@jridgewell/gen-mapping" "^0.3.5"
     "@jridgewell/trace-mapping" "^0.3.24"
 
+"@aptabase/react-native@^0.3.10":
+  version "0.3.10"
+  resolved "https://registry.yarnpkg.com/@aptabase/react-native/-/react-native-0.3.10.tgz#ee2e82de200e4c4b32d2f14b13e06543fc84bb44"
+  integrity sha512-EqmW+AZsigas5aWTjEa/EP3b6WQAsMHpp9iF6992qwNMIPQkSgqLn00tk4dAWBKywBbAlffEbviFtCXV9LNR8g==
+
 "@babel/code-frame@7.10.4", "@babel/code-frame@~7.10.4":
   version "7.10.4"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.10.4.tgz#168da1a36e90da68ae8d49c0f1b48c7c6249213a"
@@ -11696,11 +11701,6 @@ postcss@~8.4.32:
     nanoid "^3.3.7"
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
-
-posthog-react-native@^4.1.4:
-  version "4.1.4"
-  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.1.4.tgz#8c8487cccd326c74c04066dd6a0e2ee26d97f1ae"
-  integrity sha512-VVp4YaKV04U8WvEi86+W9LuNMk4BnftUnAm7TH1yItulhvuALK8TR7dK7oLu7X2fiFV1GnRJF8SKWJnsrB6Jhg==
 
 prelude-ls@^1.2.1:
   version "1.2.1"

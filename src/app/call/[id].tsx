@@ -19,6 +19,7 @@ import { HStack } from '@/components/ui/hstack';
 import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -36,6 +37,7 @@ export default function CallDetail() {
   const callId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const [coordinates, setCoordinates] = useState<{
@@ -115,6 +117,28 @@ export default function CallDetail() {
       }
     }
   }, [call]);
+
+  // Track when call detail view is rendered
+  useEffect(() => {
+    if (call) {
+      trackEvent('call_detail_view_rendered', {
+        callId: call.CallId || '',
+        callName: call.Name || '',
+        callNumber: call.Number || '',
+        callPriority: call.Priority || 0,
+        callType: call.Type || '',
+        hasCoordinates: !!(call.Latitude && call.Longitude),
+        hasAddress: !!call.Address,
+        hasNotes: (call.NotesCount || 0) > 0,
+        hasImages: (call.ImgagesCount || 0) > 0,
+        hasFiles: (call.FileCount || 0) > 0,
+        hasExtraData: !!callExtraData,
+        hasProtocols: !!callExtraData?.Protocols?.length,
+        hasDispatches: !!callExtraData?.Dispatches?.length,
+        hasTimeline: !!callExtraData?.Activity?.length,
+      });
+    }
+  }, [trackEvent, call, callExtraData]);
 
   /**
    * Opens the device's native maps application with directions to the call location

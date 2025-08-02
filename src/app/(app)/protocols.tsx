@@ -11,16 +11,26 @@ import { Box } from '@/components/ui/box';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useProtocolsStore } from '@/stores/protocols/store';
 
 export default function Protocols() {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { protocols, searchQuery, setSearchQuery, selectProtocol, isLoading, fetchProtocols } = useProtocolsStore();
   const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {
     fetchProtocols();
   }, [fetchProtocols]);
+
+  // Track when protocols view is rendered
+  React.useEffect(() => {
+    trackEvent('protocols_view_rendered', {
+      protocolsCount: protocols.length,
+      hasSearchQuery: searchQuery.length > 0,
+    });
+  }, [trackEvent, protocols.length, searchQuery.length]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);

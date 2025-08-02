@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
 
+import { useAnalytics } from '@/hooks/use-analytics';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
 import { useToastStore } from '@/stores/toast/store';
@@ -15,6 +16,9 @@ import { RolesBottomSheet } from '../roles-bottom-sheet';
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/roles/store');
 jest.mock('@/stores/toast/store');
+
+// Mock use-analytics hook
+jest.mock('@/hooks/use-analytics');
 
 // Mock the CustomBottomSheet component
 jest.mock('@/components/ui/bottom-sheet', () => ({
@@ -51,6 +55,8 @@ jest.mock('nativewind', () => ({
 jest.mock('@/lib/logging', () => ({
   logger: {
     error: jest.fn(),
+    debug: jest.fn(),
+    info: jest.fn(),
   },
 }));
 
@@ -64,6 +70,7 @@ describe('RolesBottomSheet', () => {
   const mockFetchUsers = jest.fn();
   const mockAssignRoles = jest.fn();
   const mockShowToast = jest.fn();
+  const mockTrackEvent = jest.fn();
 
   const mockActiveUnit: UnitResultData = {
     UnitId: 'unit1',
@@ -137,6 +144,11 @@ describe('RolesBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Setup analytics mock
+    (useAnalytics as jest.MockedFunction<typeof useAnalytics>).mockReturnValue({
+      trackEvent: mockTrackEvent,
+    });
 
     mockUseCoreStore.mockReturnValue(mockActiveUnit);
     mockUseRolesStore.mockReturnValue({
@@ -256,5 +268,78 @@ describe('RolesBottomSheet', () => {
 
     expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Save')).toBeTruthy();
+  });
+
+  describe('User assignment bug fixes', () => {
+    it('should prevent duplicate role assignments for roles with same name', () => {
+      // Add roles with same name but different IDs to test the fix
+      const rolesWithSameName: UnitRoleResultData[] = [
+        {
+          UnitRoleId: 'role-1',
+          UnitId: 'unit1',
+          Name: 'Firefighter',
+        },
+        {
+          UnitRoleId: 'role-2',
+          UnitId: 'unit1',
+          Name: 'Firefighter', // Same name, different ID
+        },
+      ];
+
+      mockUseRolesStore.mockReturnValue({
+        roles: rolesWithSameName,
+        unitRoleAssignments: [],
+        users: mockUsers,
+        isLoading: false,
+        error: null,
+        fetchRolesForUnit: mockFetchRolesForUnit,
+        fetchUsers: mockFetchUsers,
+        assignRoles: mockAssignRoles,
+      } as any);
+
+      render(<RolesBottomSheet isOpen={true} onClose={mockOnClose} />);
+
+      // Both roles should be rendered with distinct IDs
+      const firefighterRoles = screen.getAllByTestId(/role-item-Firefighter/);
+      expect(firefighterRoles).toHaveLength(2);
+    });
+
+    it('should handle empty user assignments correctly', () => {
+      // Test with assignments that have empty user IDs
+      const assignmentsWithEmpty: ActiveUnitRoleResultData[] = [
+        {
+          UnitRoleId: 'role1',
+          UnitId: 'unit1',
+          UserId: 'user1',
+          Name: 'Captain',
+          FullName: 'John Doe',
+          UpdatedOn: new Date().toISOString(),
+        },
+        {
+          UnitRoleId: 'role2',
+          UnitId: 'unit1',
+          UserId: '', // Empty user ID
+          Name: 'Engineer',
+          FullName: '',
+          UpdatedOn: new Date().toISOString(),
+        },
+      ];
+
+      mockUseRolesStore.mockReturnValue({
+        roles: mockRoles,
+        unitRoleAssignments: assignmentsWithEmpty,
+        users: mockUsers,
+        isLoading: false,
+        error: null,
+        fetchRolesForUnit: mockFetchRolesForUnit,
+        fetchUsers: mockFetchUsers,
+        assignRoles: mockAssignRoles,
+      } as any);
+
+      render(<RolesBottomSheet isOpen={true} onClose={mockOnClose} />);
+
+      // Component should render without errors despite empty user assignments
+      expect(screen.getByText('Unit Role Assignments')).toBeTruthy();
+    });
   });
 }); 

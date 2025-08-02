@@ -1,10 +1,11 @@
 import { EditIcon, MoreVerticalIcon, XIcon } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Pressable } from '@/components/ui/';
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper, ActionsheetItem, ActionsheetItemText } from '@/components/ui/actionsheet';
 import { HStack } from '@/components/ui/hstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 
 interface CallDetailMenuProps {
   onEditCall: () => void;
@@ -13,7 +14,18 @@ interface CallDetailMenuProps {
 
 export const useCallDetailMenu = ({ onEditCall, onCloseCall }: CallDetailMenuProps) => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
+
+  // Track when call detail menu is opened
+  useEffect(() => {
+    if (isKebabMenuOpen) {
+      trackEvent('call_detail_menu_opened', {
+        hasEditAction: true,
+        hasCloseAction: true,
+      });
+    }
+  }, [isKebabMenuOpen, trackEvent]);
 
   const openMenu = () => {
     setIsKebabMenuOpen(true);

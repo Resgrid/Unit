@@ -16,6 +16,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
@@ -29,6 +30,7 @@ interface CallFilesModalProps {
 
 export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles } = useCallDetailStore();
   const [downloadingFiles, setDownloadingFiles] = useState<Record<string, number>>({});
 
@@ -45,6 +47,19 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
       bottomSheetRef.current?.close();
     }
   }, [isOpen, callId, fetchCallFiles]);
+
+  // Track when call files modal is opened/rendered
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent('call_files_modal_opened', {
+        callId: callId,
+        hasExistingFiles: !!(callFiles && callFiles.length > 0),
+        filesCount: callFiles?.length || 0,
+        isLoadingFiles: isLoadingFiles,
+        hasError: !!errorFiles,
+      });
+    }
+  }, [isOpen, trackEvent, callId, callFiles, isLoadingFiles, errorFiles]);
 
   // Handle sheet changes
   const handleSheetChanges = useCallback(

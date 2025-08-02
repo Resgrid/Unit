@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { useAnalytics } from '@/hooks/use-analytics';
 import { ContactType } from '@/models/v4/contacts/contactResultData';
 import { useContactsStore } from '@/stores/contacts/store';
 
@@ -84,6 +85,7 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
 
 export const ContactDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
+  const { trackEvent } = useAnalytics();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { contacts, selectedContactId, isDetailsOpen, closeDetails } = useContactsStore();
@@ -93,6 +95,24 @@ export const ContactDetailsSheet: React.FC = () => {
     if (!selectedContactId) return null;
     return contacts.find((contact) => contact.ContactId === selectedContactId);
   }, [contacts, selectedContactId]);
+
+  // Track when contact details sheet is opened/rendered
+  React.useEffect(() => {
+    if (isDetailsOpen && selectedContact) {
+      trackEvent('contact_details_sheet_opened', {
+        contactId: selectedContact.ContactId,
+        contactType: selectedContact.ContactType === ContactType.Person ? 'person' : 'company',
+        hasImage: !!selectedContact.ImageUrl,
+        isImportant: !!selectedContact.IsImportant,
+        hasCategory: !!selectedContact.Category?.Name,
+        hasEmail: !!selectedContact.Email,
+        hasPhone: !!(selectedContact.Phone || selectedContact.Mobile || selectedContact.HomePhoneNumber || selectedContact.CellPhoneNumber || selectedContact.OfficePhoneNumber),
+        hasAddress: !!(selectedContact.Address || selectedContact.City || selectedContact.State || selectedContact.Zip),
+        hasNotes: !!selectedContact.Notes,
+        activeTab: activeTab,
+      });
+    }
+  }, [isDetailsOpen, selectedContact, trackEvent, activeTab]);
 
   const handleDelete = async () => {
     if (selectedContactId) {

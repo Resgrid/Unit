@@ -1,11 +1,20 @@
 import { render, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 
+import { ContactDetailsSheet } from '../contact-details-sheet';
 import { ContactType, type ContactResultData } from '@/models/v4/contacts/contactResultData';
 
 // Mock dependencies that cause CSS interop issues
 jest.mock('@/stores/contacts/store', () => ({
   useContactsStore: jest.fn(),
+}));
+
+// Mock analytics
+const mockTrackEvent = jest.fn();
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: mockTrackEvent,
+  }),
 }));
 
 jest.mock('react-i18next', () => ({
@@ -235,6 +244,139 @@ describe('ContactDetailsSheet', () => {
 
       const result = render(<MockContactDetailsSheet {...testProps} />);
       expect(result).toBeTruthy();
+    });
+  });
+
+  describe('Analytics', () => {
+    const mockUseContactsStore = require('@/stores/contacts/store').useContactsStore as jest.MockedFunction<any>;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+
+      // Setup default mock store state
+      mockUseContactsStore.mockReturnValue({
+        contacts: [mockPersonContact],
+        selectedContactId: 'contact-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      });
+    });
+
+    it('should track analytics event when contact details sheet is opened', () => {
+      render(<ContactDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('contact_details_sheet_opened', {
+        contactId: 'contact-1',
+        contactType: 'person',
+        hasImage: true,
+        isImportant: true,
+        hasCategory: false,
+        hasEmail: true,
+        hasPhone: true,
+        hasAddress: true,
+        hasNotes: true,
+        activeTab: 'details',
+      });
+    });
+
+    it('should track analytics event with company contact type', () => {
+      const companyContact: ContactResultData = {
+        ...mockPersonContact,
+        ContactId: 'company-1',
+        ContactType: ContactType.Company,
+        CompanyName: 'Acme Corp',
+      };
+
+      mockUseContactsStore.mockReturnValue({
+        contacts: [companyContact],
+        selectedContactId: 'company-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      });
+
+      render(<ContactDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('contact_details_sheet_opened', {
+        contactId: 'company-1',
+        contactType: 'company',
+        hasImage: true,
+        isImportant: true,
+        hasCategory: false,
+        hasEmail: true,
+        hasPhone: true,
+        hasAddress: true,
+        hasNotes: true,
+        activeTab: 'details',
+      });
+    });
+
+    it('should not track analytics event when sheet is closed', () => {
+      mockUseContactsStore.mockReturnValue({
+        contacts: [mockPersonContact],
+        selectedContactId: 'contact-1',
+        isDetailsOpen: false,
+        closeDetails: jest.fn(),
+      });
+
+      render(<ContactDetailsSheet />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should not track analytics event when no contact is selected', () => {
+      mockUseContactsStore.mockReturnValue({
+        contacts: [mockPersonContact],
+        selectedContactId: null,
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      });
+
+      render(<ContactDetailsSheet />);
+
+      expect(mockTrackEvent).not.toHaveBeenCalled();
+    });
+
+    it('should track analytics event with correct flags for contact without optional data', () => {
+      const minimalContact: ContactResultData = {
+        ...mockPersonContact,
+        ContactId: 'minimal-1',
+        ImageUrl: undefined,
+        IsImportant: false,
+        Category: undefined,
+        Email: undefined,
+        Phone: undefined,
+        Mobile: undefined,
+        HomePhoneNumber: undefined,
+        CellPhoneNumber: undefined,
+        OfficePhoneNumber: undefined,
+        Address: undefined,
+        City: undefined,
+        State: undefined,
+        Zip: undefined,
+        Notes: undefined,
+      };
+
+      mockUseContactsStore.mockReturnValue({
+        contacts: [minimalContact],
+        selectedContactId: 'minimal-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      });
+
+      render(<ContactDetailsSheet />);
+
+      expect(mockTrackEvent).toHaveBeenCalledWith('contact_details_sheet_opened', {
+        contactId: 'minimal-1',
+        contactType: 'person',
+        hasImage: false,
+        isImportant: false,
+        hasCategory: false,
+        hasEmail: false,
+        hasPhone: false,
+        hasAddress: false,
+        hasNotes: false,
+        activeTab: 'details',
+      });
     });
   });
 }); 
