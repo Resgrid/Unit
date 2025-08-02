@@ -260,18 +260,18 @@ jobs:
 
       - name: 📦 Upload Android artifact to Firebase App Distribution
         if: (matrix.platform == 'android')
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        uses: w9jds/firebase-action@master
         with:
-          appId: ${{secrets.FIREBASE_ANDROID_APP_ID}}
-          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
-          groups: testers
-          file: ./ResgridUnit-prod.apk
-      
+          args: appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
+        env:
+          GCP_SA_KEY: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+
       - name: 📦 Upload iOS artifact to Firebase App Distribution
         if: (matrix.platform == 'ios')
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        uses: w9jds/firebase-action@master
         with:
-          appId: ${{secrets.FIREBASE_IOS_APP_ID}}
-          serviceCredentialsFileContent: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
-          groups: testers
-          file: ./ResgridUnit-ios-adhoc.ipa
+          args: appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
+        env:
+          GCP_SA_KEY: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+
+
