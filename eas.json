@@ -59,7 +59,7 @@
         "image": "latest"
       },
       "env": {
-        "APP_ENV": "development",
+        "APP_ENV": "internal",
         "EXPO_NO_DOTENV": "1",
         "FLIPPER_DISABLE": "1"
       }
