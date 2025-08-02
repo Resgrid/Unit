@@ -267,11 +267,11 @@ jobs:
       - name: 📦 Upload Android artifact to Firebase App Distribution
         if: (matrix.platform == 'android')
         run: | 
-          appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
+          firebase appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
 
       - name: 📦 Upload iOS artifact to Firebase App Distribution
         if: (matrix.platform == 'ios')
         run: |
-          appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
+          firebase appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
 
 
