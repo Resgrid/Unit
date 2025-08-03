@@ -51,6 +51,7 @@
     },
     "internal": {
       "yarn": "1.22.22",
+      "distribution": "internal",
       "ios": {
         "image": "latest"
       },
