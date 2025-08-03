@@ -134,6 +134,10 @@
     "notes": "ملاحظات",
     "priority": "الأولوية",
     "reference_id": "معرف المرجع",
+    "set_active": "تعيين كنشط",
+    "set_active_error": "فشل في تعيين المكالمة كنشطة",
+    "set_active_success": "تم تعيين المكالمة كنشطة",
+    "setting_active": "جاري التعيين كنشط...",
     "status": "الحالة",
     "tabs": {
       "contact": "جهة الاتصال",

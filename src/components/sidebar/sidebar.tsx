@@ -58,7 +58,7 @@ const Sidebar = () => {
               <Button
                 key={status.Id}
                 variant="solid"
-                className="justify-center px-3 py-2"
+                className="justify-center px-3 pb-2"
                 action="primary"
                 size="lg"
                 style={{

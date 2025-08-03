@@ -2,6 +2,7 @@
 import type { ConfigContext, ExpoConfig } from '@expo/config';
 
 import { ClientEnv, Env } from './env';
+const packageJSON = require('./package.json');
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -10,7 +11,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   owner: Env.EXPO_ACCOUNT_OWNER,
   scheme: Env.SCHEME,
   slug: 'resgrid-unit',
-  version: Env.VERSION.toString(),
+  version: packageJSON.version,
   orientation: 'default',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
@@ -20,6 +21,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   assetBundlePatterns: ['**/*'],
   ios: {
+    version: packageJSON.version,
+    buildNumber: packageJSON.version,
     supportsTablet: true,
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
@@ -32,7 +35,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     typedRoutes: true,
   },
   android: {
-    versionCode: Env.ANDROID_VERSION_CODE,
+    version: packageJSON.version,
+    versionCode: parseInt(packageJSON.versionCode),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#2a7dd5',

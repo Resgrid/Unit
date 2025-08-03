@@ -134,6 +134,10 @@
     "notes": "Notas",
     "priority": "Prioridad",
     "reference_id": "ID de referencia",
+    "set_active": "Establecer como activa",
+    "set_active_error": "Error al establecer la llamada como activa",
+    "set_active_success": "Llamada establecida como activa",
+    "setting_active": "Estableciendo como activa...",
     "status": "Estado",
     "tabs": {
       "contact": "Contacto",

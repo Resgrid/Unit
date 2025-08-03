@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, PaperclipIcon, RouteIcon, UserIcon, UsersIcon } from 'lucide-react-native';
+import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, PaperclipIcon, RouteIcon, UserIcon, UsersIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -22,8 +22,10 @@ import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
+import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useStatusBottomSheetStore } from '@/stores/status/store';
 import { useToastStore } from '@/stores/toast/store';
 
 import { useCallDetailMenu } from '../../components/calls/call-detail-menu';
@@ -31,6 +33,7 @@ import CallFilesModal from '../../components/calls/call-files-modal';
 import CallImagesModal from '../../components/calls/call-images-modal';
 import CallNotesModal from '../../components/calls/call-notes-modal';
 import { CloseCallBottomSheet } from '../../components/calls/close-call-bottom-sheet';
+import { StatusBottomSheet } from '../../components/status/status-bottom-sheet';
 
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
@@ -48,10 +51,13 @@ export default function CallDetail() {
     longitude: null,
   });
   const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } = useCallDetailStore();
+  const { activeCall, activeStatuses } = useCoreStore();
+  const { setIsOpen: setStatusBottomSheetOpen, setSelectedCall } = useStatusBottomSheetStore();
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
   const [isCloseCallModalOpen, setIsCloseCallModalOpen] = useState(false);
+  const [isSettingActive, setIsSettingActive] = useState(false);
   const showToast = useToastStore((state) => state.showToast);
 
   const { colorScheme } = useColorScheme();
@@ -86,6 +92,37 @@ export default function CallDetail() {
 
   const handleCloseCall = () => {
     setIsCloseCallModalOpen(true);
+  };
+
+  const handleSetActive = async () => {
+    if (!call) return;
+
+    setIsSettingActive(true);
+
+    try {
+      // Set this call as the active call in the core store
+      await useCoreStore.getState().setActiveCall(call.CallId);
+
+      // Find a "Responding" or "En Route" status from the available statuses
+      const respondingStatus = activeStatuses?.Statuses.find(
+        (status) => status.Text.toLowerCase().includes('responding') || status.Text.toLowerCase().includes('en route') || status.Text.toLowerCase().includes('enroute')
+      );
+
+      // Pre-select the current call and open the status bottom sheet
+      setSelectedCall(call);
+      setStatusBottomSheetOpen(true, respondingStatus || activeStatuses?.Statuses[0]);
+
+      // Show success message
+      showToast('success', t('call_detail.set_active_success'));
+    } catch (error) {
+      logger.error({
+        message: 'Failed to set call as active',
+        context: { error, callId: call.CallId },
+      });
+      showToast('error', t('call_detail.set_active_error'));
+    } finally {
+      setIsSettingActive(false);
+    }
   };
 
   // Initialize the call detail menu hook
@@ -446,10 +483,17 @@ export default function CallDetail() {
       <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
         {/* Header */}
         <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-          <HStack className="mb-2 items-center">
+          <HStack className="mb-2 items-center justify-between">
             <Heading size="md">
               {call.Name} ({call.Number})
             </Heading>
+            {/* Show "Set Active" button if this call is not the active call */}
+            {activeCall?.CallId !== call.CallId && (
+              <Button variant="solid" size="sm" onPress={handleSetActive} disabled={isSettingActive} className={`${isSettingActive ? 'bg-primary-400 opacity-80' : 'bg-primary-500'} shadow-lg`}>
+                {isSettingActive && <ButtonIcon as={LoaderIcon} className="mr-1 animate-spin text-white" />}
+                <ButtonText className="font-medium text-white">{isSettingActive ? t('call_detail.setting_active') : t('call_detail.set_active')}</ButtonText>
+              </Button>
+            )}
           </HStack>
           <VStack className="space-y-1">
             <Box style={{ height: 80 }}>
@@ -547,6 +591,9 @@ export default function CallDetail() {
 
       {/* Close Call Bottom Sheet */}
       <CloseCallBottomSheet isOpen={isCloseCallModalOpen} onClose={() => setIsCloseCallModalOpen(false)} callId={callId} />
+
+      {/* Status Bottom Sheet */}
+      <StatusBottomSheet />
 
       {/* Call Detail Menu ActionSheet */}
       <CallDetailActionSheet />
