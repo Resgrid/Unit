@@ -134,6 +134,10 @@
     "notes": "Notes",
     "priority": "Priority",
     "reference_id": "Reference ID",
+    "set_active": "Set Active",
+    "set_active_error": "Failed to set call as active",
+    "set_active_success": "Call set as active",
+    "setting_active": "Setting Active...",
     "status": "Status",
     "tabs": {
       "contact": "Contact",

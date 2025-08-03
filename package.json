@@ -34,7 +34,6 @@
     "build:internal:ios": "cross-env APP_ENV=internal EXPO_NO_DOTENV=1 eas build --profile internal --platform ios",
     "build:internal:android": "cross-env APP_ENV=internal EXPO_NO_DOTENV=1 eas build --profile internal --platform android",
     "app-release": "cross-env SKIP_BRANCH_PROTECTION=true np --no-publish --no-cleanup --no-release-draft",
-    "version": "yarn run prebuild && git add .",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "type-check": "tsc  --noemit",
     "lint:translations": "eslint ./src/translations/ --fix --ext .json  ",
