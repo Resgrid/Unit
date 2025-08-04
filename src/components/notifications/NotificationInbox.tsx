@@ -235,6 +235,11 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     return null;
   }
 
+  // Additional safety check to prevent rendering overlay without proper config
+  if (!activeUnitId || !config || !config.NovuApplicationId || !config.NovuBackendApiUrl || !config.NovuSocketUrl) {
+    return null;
+  }
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
       {/* Backdrop for tapping outside to close */}

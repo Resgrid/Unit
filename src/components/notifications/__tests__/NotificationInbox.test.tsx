@@ -89,7 +89,12 @@ describe('NotificationInbox', () => {
     mockUseCoreStore.mockImplementation((selector: any) => {
       const state = {
         activeUnitId: 'unit-1',
-        config: { apiUrl: 'test-url' },
+        config: {
+          apiUrl: 'test-url',
+          NovuApplicationId: 'test-app-id',
+          NovuBackendApiUrl: 'test-backend-url',
+          NovuSocketUrl: 'test-socket-url'
+        },
       };
       return selector(state);
     });
@@ -257,16 +262,18 @@ describe('NotificationInbox', () => {
     mockUseCoreStore.mockImplementation((selector: any) => {
       const state = {
         activeUnitId: null,
-        config: null,
+        config: { apiUrl: 'test-url' }, // Missing Novu config properties
       };
       return selector(state);
     });
 
-    const { getByText } = render(
+    const { queryByText } = render(
       <NotificationInbox isOpen={true} onClose={mockOnClose} />
     );
 
-    expect(getByText('Unable to load notifications')).toBeTruthy();
+    // Component should return null when required config is missing
+    expect(queryByText('Notifications')).toBeNull();
+    expect(queryByText('Unable to load notifications')).toBeNull();
   });
 
   it('opens notification detail on tap in normal mode', async () => {
