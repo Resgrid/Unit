@@ -224,7 +224,7 @@ export default function TabLayout() {
   }
 
   const content = (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <View className="flex-1 flex-row" ref={parentRef}>
         {/* Drawer - conditionally rendered as permanent in landscape */}
         {isLandscape ? (
@@ -265,6 +265,9 @@ export default function TabLayout() {
                 paddingBottom: 5,
                 paddingTop: 5,
                 height: isLandscape ? 65 : 60,
+                elevation: 8, // Ensure tab bar is above other elements on Android
+                zIndex: 100, // Ensure tab bar is above other elements on iOS
+                backgroundColor: 'transparent', // Ensure proper touch event handling
               },
             }}
           >
@@ -333,6 +336,9 @@ export default function TabLayout() {
               }}
             />
           </Tabs>
+
+          {/* NotificationInbox positioned within the tab content area */}
+          {activeUnitId && config && rights?.DepartmentCode && <NotificationInbox isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />}
         </View>
       </View>
     </View>
@@ -342,8 +348,6 @@ export default function TabLayout() {
     <>
       {activeUnitId && config && rights?.DepartmentCode ? (
         <NovuProvider subscriberId={`${rights?.DepartmentCode}_Unit_${activeUnitId}`} applicationIdentifier={config.NovuApplicationId} backendUrl={config.NovuBackendApiUrl} socketUrl={config.NovuSocketUrl}>
-          {/* NotificationInbox at the root level */}
-          <NotificationInbox isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
           {content}
         </NovuProvider>
       ) : (

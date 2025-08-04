@@ -353,16 +353,12 @@ describe('useProtocolsStore', () => {
 
       const { result } = renderHook(() => useProtocolsStore());
 
-      // Start two fetch operations concurrently
-      const promise1 = act(async () => {
-        await result.current.fetchProtocols();
+      // Start two fetch operations concurrently within a single act
+      await act(async () => {
+        const promise1 = result.current.fetchProtocols();
+        const promise2 = result.current.fetchProtocols();
+        await Promise.all([promise1, promise2]);
       });
-
-      const promise2 = act(async () => {
-        await result.current.fetchProtocols();
-      });
-
-      await Promise.all([promise1, promise2]);
 
       expect(getAllProtocols).toHaveBeenCalledTimes(2);
       expect(result.current.protocols).toEqual(mockProtocols);
