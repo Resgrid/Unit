@@ -185,6 +185,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           extraMavenRepos: ['../../node_modules/@notifee/react-native/android/libs'],
           targetSdkVersion: 35,
         },
+        ios: {
+          deploymentTarget: '18.0',
+        },
       },
     ],
     [

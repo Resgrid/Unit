@@ -236,7 +236,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   }
 
   return (
-    <View style={StyleSheet.absoluteFill}>
+    <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
       {/* Backdrop for tapping outside to close */}
       <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: fadeAnim }]}>
         <Pressable style={styles.backdropPressable} onPress={onClose} />
@@ -337,7 +337,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
 const styles = StyleSheet.create({
   backdrop: {
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    zIndex: 9999,
+    zIndex: 999,
   },
   backdropPressable: {
     width: '100%',
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-    zIndex: 10000,
+    zIndex: 1000,
   },
   safeArea: {
     flex: 1,

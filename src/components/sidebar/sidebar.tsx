@@ -47,8 +47,17 @@ const Sidebar = () => {
 
         {/* Third row - Status buttons or empty state */}
         {isActiveStatusesEmpty ? (
-          <ZeroState icon={Settings} iconSize={60} iconColor="#64748b" heading={t('common.noActiveUnit')} description={t('common.noActiveUnitDescription')} className="mt-4">
-            <Button variant="solid" action="primary" size="md" onPress={handleNavigateToSettings} className="mt-4">
+          <ZeroState
+            icon={Settings}
+            iconSize={60}
+            iconColor="#64748b"
+            heading={t('common.noActiveUnit')}
+            description={t('common.noActiveUnitDescription')}
+            className="mt-0"
+            viewClassName="size-full px-6 pb-6 pt-0"
+            centerClassName="p-6"
+          >
+            <Button variant="solid" action="primary" size="md" onPress={handleNavigateToSettings} className="mt-0">
               <ButtonText>{t('settings.title')}</ButtonText>
             </Button>
           </ZeroState>
