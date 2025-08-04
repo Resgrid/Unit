@@ -9,9 +9,10 @@ describe('TabLayout Configuration', () => {
     const expectedTabBarStyle = {
       paddingBottom: 5,
       paddingTop: 5,
-      height: 60, // Default height for portrait mode
+      height: 60,
       elevation: 8, // Ensures tab bar is above other elements on Android
-      zIndex: 100, // Ensures tab bar is above other elements on iOS
+      zIndex: 10, // Ensures tab bar is above other elements on iOS
+      backgroundColor: undefined, // Let the tab bar use its default background
     };
 
     const expectedLandscapeTabBarStyle = {
@@ -19,11 +20,11 @@ describe('TabLayout Configuration', () => {
       paddingTop: 5,
       height: 65, // Height for landscape mode
       elevation: 8,
-      zIndex: 100,
+      zIndex: 10,
     };
 
     // Verify that the configuration object has the required properties
-    expect(expectedTabBarStyle.zIndex).toBe(100);
+    expect(expectedTabBarStyle.zIndex).toBe(10);
     expect(expectedTabBarStyle.elevation).toBe(8);
     expect(expectedLandscapeTabBarStyle.height).toBe(65);
     expect(expectedTabBarStyle.height).toBe(60);
@@ -52,7 +53,7 @@ describe('TabLayout Configuration', () => {
     // Tab bar should have z-index 100
     // NotificationInbox should have lower z-index (999-1000) to not interfere
 
-    const tabBarZIndex = 100;
+    const tabBarZIndex = 10;
     const notificationBackdropZIndex = 999;
     const notificationSidebarZIndex = 1000;
 

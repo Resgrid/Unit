@@ -6,7 +6,7 @@ import { size } from 'lodash';
 import { Contact, ListTree, Map, Megaphone, Menu, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { NotificationButton } from '@/components/notifications/NotificationButton';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
@@ -224,7 +224,7 @@ export default function TabLayout() {
   }
 
   const content = (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container} pointerEvents="auto">
       <View className="flex-1 flex-row" ref={parentRef}>
         {/* Drawer - conditionally rendered as permanent in landscape */}
         {isLandscape ? (
@@ -266,8 +266,8 @@ export default function TabLayout() {
                 paddingTop: 5,
                 height: isLandscape ? 65 : 60,
                 elevation: 8, // Ensure tab bar is above other elements on Android
-                zIndex: 100, // Ensure tab bar is above other elements on iOS
-                backgroundColor: 'transparent', // Ensure proper touch event handling
+                zIndex: 10, // Reduced z-index to prevent stacking issues
+                backgroundColor: undefined, // Let the tab bar use its default background
               },
             }}
           >
@@ -406,5 +406,7 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
+    // Ensure proper touch event handling in iOS production builds
+    ...(Platform.OS === 'ios' && { overflow: 'hidden' }),
   },
 });
