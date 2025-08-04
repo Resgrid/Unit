@@ -39,6 +39,7 @@ export default function TabLayout() {
   const [isFirstTime, _setIsFirstTime] = useIsFirstTime();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [isNotificationSystemReady, setIsNotificationSystemReady] = React.useState(false);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { isActive, appState } = useAppLifecycle();
@@ -215,6 +216,20 @@ export default function TabLayout() {
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const rights = securityStore((state) => state.rights);
 
+  // Manage notification system readiness
+  useEffect(() => {
+    const isReady = Boolean(activeUnitId && config && config.NovuApplicationId && config.NovuBackendApiUrl && config.NovuSocketUrl && rights?.DepartmentCode);
+
+    if (isReady && !isNotificationSystemReady) {
+      // Add a small delay to ensure the main UI is rendered first
+      setTimeout(() => {
+        setIsNotificationSystemReady(true);
+      }, 1000);
+    } else if (!isReady && isNotificationSystemReady) {
+      setIsNotificationSystemReady(false);
+    }
+  }, [activeUnitId, config, rights?.DepartmentCode, isNotificationSystemReady]);
+
   if (isFirstTime) {
     //setIsOnboarding();
     return <Redirect href="/onboarding" />;
@@ -338,7 +353,7 @@ export default function TabLayout() {
           </Tabs>
 
           {/* NotificationInbox positioned within the tab content area */}
-          {activeUnitId && config && rights?.DepartmentCode && <NotificationInbox isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />}
+          {isNotificationSystemReady && <NotificationInbox isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />}
         </View>
       </View>
     </View>
@@ -346,8 +361,8 @@ export default function TabLayout() {
 
   return (
     <>
-      {activeUnitId && config && rights?.DepartmentCode ? (
-        <NovuProvider subscriberId={`${rights?.DepartmentCode}_Unit_${activeUnitId}`} applicationIdentifier={config.NovuApplicationId} backendUrl={config.NovuBackendApiUrl} socketUrl={config.NovuSocketUrl}>
+      {isNotificationSystemReady ? (
+        <NovuProvider subscriberId={`${rights?.DepartmentCode}_Unit_${activeUnitId}`} applicationIdentifier={config!.NovuApplicationId} backendUrl={config!.NovuBackendApiUrl} socketUrl={config!.NovuSocketUrl}>
           {content}
         </NovuProvider>
       ) : (
@@ -394,11 +409,8 @@ const CreateNotificationButton = ({
     return null;
   }
 
-  return (
-    <NovuProvider subscriberId={`${departmentCode}_Unit_${activeUnitId}`} applicationIdentifier={config.NovuApplicationId} backendUrl={config.NovuBackendApiUrl} socketUrl={config.NovuSocketUrl}>
-      <NotificationButton onPress={() => setIsNotificationsOpen(true)} />
-    </NovuProvider>
-  );
+  // Only render after notification system is ready to prevent timing issues
+  return <NotificationButton onPress={() => setIsNotificationsOpen(true)} />;
 };
 
 const styles = StyleSheet.create({

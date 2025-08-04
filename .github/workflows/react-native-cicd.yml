@@ -66,6 +66,8 @@ env:
   EXPO_APPLE_TEAM_TYPE: ${{ secrets.EXPO_APPLE_TEAM_TYPE }}
   UNIT_APTABASE_APP_KEY: ${{ secrets.UNIT_APTABASE_APP_KEY }}
   UNIT_APTABASE_URL: ${{ secrets.UNIT_APTABASE_URL }}
+  UNIT_APP_KEY: ${{ secrets.UNIT_APP_KEY }}
+  APP_KEY: ${{ secrets.APP_KEY }}
   NODE_OPTIONS: --openssl-legacy-provider
 
 jobs:
