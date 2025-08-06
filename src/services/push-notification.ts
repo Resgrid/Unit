@@ -7,6 +7,7 @@ import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { useCoreStore } from '@/stores/app/core-store';
+import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 import { securityStore } from '@/stores/security/store';
 
 // Define notification response types
@@ -110,6 +111,20 @@ class PushNotificationService {
         data,
       },
     });
+
+    // Check if the notification has an eventCode and show modal
+    // eventCode must be a string to be valid
+    if (data && data.eventCode && typeof data.eventCode === 'string') {
+      const notificationData = {
+        eventCode: data.eventCode as string,
+        title: notification.request.content.title || undefined,
+        body: notification.request.content.body || undefined,
+        data,
+      };
+
+      // Show the notification modal using the store
+      usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+    }
   };
 
   private handleNotificationResponse = (response: Notifications.NotificationResponse): void => {

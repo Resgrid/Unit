@@ -21,6 +21,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { APIProvider } from '@/api';
 import { AptabaseProviderWrapper } from '@/components/common/aptabase-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
+import { PushNotificationModal } from '@/components/push-notification/push-notification-modal';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { loadSelectedTheme } from '@/lib/hooks/use-selected-theme';
@@ -161,6 +162,7 @@ function Providers({ children }: { children: React.ReactNode }) {
           <BottomSheetModalProvider>
             {children}
             <LiveKitBottomSheet />
+            <PushNotificationModal />
             <FlashMessage position="top" />
           </BottomSheetModalProvider>
         </ThemeProvider>

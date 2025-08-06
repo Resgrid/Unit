@@ -210,6 +210,7 @@
     "no_call_selected": "Sin llamada activa",
     "no_call_selected_info": "Esta unidad no está respondiendo a ninguna llamada actualmente",
     "no_calls": "No hay llamadas activas",
+    "no_calls_available": "No hay llamadas disponibles",
     "no_calls_description": "No se encontraron llamadas activas. Seleccione una llamada activa para ver los detalles.",
     "no_location_message": "Esta llamada no tiene datos de ubicación disponibles para navegación.",
     "no_location_title": "Ubicación No Disponible",
@@ -262,6 +263,7 @@
     "confirm": "Confirmar",
     "confirm_location": "Confirmar ubicación",
     "delete": "Eliminar",
+    "dismiss": "Cerrar",
     "done": "Listo",
     "edit": "Editar",
     "error": "Error",
@@ -270,6 +272,7 @@
     "go_back": "Volver",
     "loading": "Cargando...",
     "loading_address": "Cargando dirección...",
+    "next": "Siguiente",
     "noActiveUnit": "No hay unidad activa establecida",
     "noActiveUnitDescription": "Por favor establezca una unidad activa desde la página de configuración para acceder a los controles de estado",
     "noDataAvailable": "No hay datos disponibles",
@@ -278,8 +281,11 @@
     "no_results_found": "No se encontraron resultados",
     "no_unit_selected": "Ninguna unidad seleccionada",
     "nothingToDisplay": "No hay nada que mostrar en este momento",
+    "of": "de",
     "ok": "Ok",
+    "optional": "opcional",
     "permission_denied": "Permiso denegado",
+    "previous": "Anterior",
     "remove": "Eliminar",
     "retry": "Reintentar",
     "route": "Ruta",
@@ -287,6 +293,8 @@
     "search": "Buscar...",
     "set_location": "Establecer ubicación",
     "share": "Compartir",
+    "step": "Paso",
+    "submit": "Enviar",
     "tryAgainLater": "Por favor, inténtelo de nuevo más tarde",
     "unknown": "Desconocido",
     "upload": "Subir",
@@ -461,6 +469,19 @@
     "search": "Buscar protocolos...",
     "title": "Protocolos"
   },
+  "push_notifications": {
+    "close": "Cerrar",
+    "message": "Mensaje",
+    "new_notification": "Nueva notificación",
+    "title": "Título",
+    "types": {
+      "call": "Llamada",
+      "chat": "Chat",
+      "group_chat": "Chat grupal",
+      "message": "Mensaje"
+    },
+    "view_call": "Ver llamada"
+  },
   "roles": {
     "modal": {
       "title": "Asignaciones de roles de unidad"
@@ -530,6 +551,22 @@
     "username": "Nombre de usuario",
     "version": "Versión",
     "website": "Sitio web"
+  },
+  "status": {
+    "add_note": "Añadir Nota",
+    "calls_tab": "Llamadas",
+    "general_status": "Estado general sin destino específico",
+    "loading_stations": "Cargando estaciones...",
+    "no_destination": "Sin Destino",
+    "no_stations_available": "No hay estaciones disponibles",
+    "note": "Nota",
+    "note_optional": "Añade una nota opcional para esta actualización de estado",
+    "note_required": "Por favor ingresa una nota para esta actualización de estado",
+    "select_destination": "Seleccionar Destino para {{status}}",
+    "select_destination_type": "¿A dónde te gustaría responder?",
+    "selected_destination": "Destino Seleccionado",
+    "set_status": "Establecer Estado",
+    "stations_tab": "Estaciones"
   },
   "tabs": {
     "calls": "Llamadas",
