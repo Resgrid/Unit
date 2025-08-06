@@ -226,7 +226,8 @@ describe('StatusesStore', () => {
       '1',
       'Test note',
       'call1',
-      [{ roleId: 'role1', userId: 'user1' }]
+      [{ roleId: 'role1', userId: 'user1' }],
+      undefined
     );
 
     expect(result.current.isLoading).toBe(false);
@@ -286,7 +287,8 @@ describe('StatusesStore', () => {
       '1',
       '', // Note defaults to empty string
       '', // RespondingTo defaults to empty string  
-      [] // Roles defaults to empty array which maps to empty array
+      [], // Roles defaults to empty array which maps to empty array
+      undefined
     );
   });
 

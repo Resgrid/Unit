@@ -82,7 +82,22 @@ class OfflineEventManager {
   /**
    * Add a unit status event to the queue
    */
-  public queueUnitStatusEvent(unitId: string, statusType: string, note?: string, respondingTo?: string, roles?: { roleId: string; userId: string }[]): string {
+  public queueUnitStatusEvent(
+    unitId: string,
+    statusType: string,
+    note?: string,
+    respondingTo?: string,
+    roles?: { roleId: string; userId: string }[],
+    gpsData?: {
+      latitude?: string;
+      longitude?: string;
+      accuracy?: string;
+      altitude?: string;
+      altitudeAccuracy?: string;
+      speed?: string;
+      heading?: string;
+    }
+  ): string {
     const date = new Date();
     const data = {
       unitId,
@@ -92,6 +107,13 @@ class OfflineEventManager {
       timestamp: date.toISOString(),
       timestampUtc: date.toUTCString().replace('UTC', 'GMT'),
       roles,
+      latitude: gpsData?.latitude,
+      longitude: gpsData?.longitude,
+      accuracy: gpsData?.accuracy,
+      altitude: gpsData?.altitude,
+      altitudeAccuracy: gpsData?.altitudeAccuracy,
+      speed: gpsData?.speed,
+      heading: gpsData?.heading,
     };
 
     return useOfflineQueueStore.getState().addEvent(QueuedEventType.UNIT_STATUS, data);
@@ -246,6 +268,26 @@ class OfflineEventManager {
     input.RespondingTo = event.data.respondingTo || '0';
     input.Timestamp = event.data.timestamp;
     input.TimestampUtc = event.data.timestampUtc;
+
+    // Always set GPS coordinates (even if empty)
+    if (event.data.latitude && event.data.longitude) {
+      input.Latitude = event.data.latitude;
+      input.Longitude = event.data.longitude;
+      input.Accuracy = event.data.accuracy || '0';
+      input.Altitude = event.data.altitude || '0';
+      input.AltitudeAccuracy = event.data.altitudeAccuracy || '0';
+      input.Speed = event.data.speed || '0';
+      input.Heading = event.data.heading || '0';
+    } else {
+      // Set empty strings when GPS data is not available
+      input.Latitude = '';
+      input.Longitude = '';
+      input.Accuracy = '';
+      input.Altitude = '';
+      input.AltitudeAccuracy = '';
+      input.Speed = '';
+      input.Heading = '';
+    }
 
     if (event.data.roles) {
       input.Roles = event.data.roles.map((role) => {

@@ -772,6 +772,7 @@ export default function NewCall() {
         options={{
           title: t('calls.new_call'),
           headerShown: true,
+          headerBackTitle: '',
         }}
       />
       <View className="size-full flex-1">

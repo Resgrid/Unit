@@ -404,6 +404,7 @@ export default function EditCall() {
           options={{
             title: t('calls.edit_call'),
             headerShown: true,
+            headerBackTitle: '',
           }}
         />
         <Loading />
@@ -418,6 +419,7 @@ export default function EditCall() {
           options={{
             title: t('calls.edit_call'),
             headerShown: true,
+            headerBackTitle: '',
           }}
         />
         <View className="size-full flex-1">
@@ -435,6 +437,7 @@ export default function EditCall() {
         options={{
           title: t('calls.edit_call'),
           headerShown: true,
+          headerBackTitle: '',
         }}
       />
       <View className="size-full flex-1">

@@ -286,6 +286,7 @@ export default function Map() {
           title: t('tabs.map'),
           headerTitle: t('app.title'),
           headerShown: true,
+          headerBackTitle: '',
         }}
       />
       <View className="size-full flex-1" testID="map-container">
