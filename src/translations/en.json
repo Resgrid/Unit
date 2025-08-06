@@ -487,7 +487,7 @@
       "title": "Unit Role Assignments"
     },
     "selectUser": "Select user",
-    "status": "{{active}} of {{total}} Roles Active",
+    "status": "{{active}} of {{total}} Roles",
     "tap_to_manage": "Tap to manage roles",
     "unassigned": "Unassigned"
   },

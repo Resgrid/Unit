@@ -12,6 +12,7 @@ import { type SaveUnitStatusInput, type SaveUnitStatusRoleInput } from '@/models
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 
 import { useCoreStore } from '../app/core-store';
+import { useLocationStore } from '../app/location-store';
 import { useRolesStore } from '../roles/store';
 
 type StatusStep = 'select-destination' | 'add-note';
@@ -110,6 +111,28 @@ export const useStatusesStore = create<StatusesState>((set) => ({
       input.Timestamp = date.toISOString();
       input.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
 
+      // Populate GPS coordinates from location store if not already set
+      if (!input.Latitude || !input.Longitude || (input.Latitude === '' && input.Longitude === '')) {
+        const locationState = useLocationStore.getState();
+
+        if (locationState.latitude !== null && locationState.longitude !== null) {
+          input.Latitude = locationState.latitude.toString();
+          input.Longitude = locationState.longitude.toString();
+          input.Accuracy = locationState.accuracy?.toString() || '';
+          input.Altitude = locationState.altitude?.toString() || '';
+          input.Speed = locationState.speed?.toString() || '';
+          input.Heading = locationState.heading?.toString() || '';
+        } else {
+          // Ensure empty strings when no GPS data
+          input.Latitude = '';
+          input.Longitude = '';
+          input.Accuracy = '';
+          input.Altitude = '';
+          input.Speed = '';
+          input.Heading = '';
+        }
+      }
+
       try {
         // Try to save directly first
         await saveUnitStatus(input);
@@ -139,8 +162,37 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           userId: role.UserId,
         }));
 
+        // Extract GPS data for queuing - use location store if input doesn't have GPS data
+        let gpsData = undefined;
+
+        if (input.Latitude && input.Longitude) {
+          gpsData = {
+            latitude: input.Latitude,
+            longitude: input.Longitude,
+            accuracy: input.Accuracy,
+            altitude: input.Altitude,
+            altitudeAccuracy: input.AltitudeAccuracy,
+            speed: input.Speed,
+            heading: input.Heading,
+          };
+        } else {
+          // Try to get GPS data from location store
+          const locationState = useLocationStore.getState();
+          if (locationState.latitude !== null && locationState.longitude !== null) {
+            gpsData = {
+              latitude: locationState.latitude.toString(),
+              longitude: locationState.longitude.toString(),
+              accuracy: locationState.accuracy?.toString(),
+              altitude: locationState.altitude?.toString(),
+              altitudeAccuracy: undefined, // Not available in location store
+              speed: locationState.speed?.toString(),
+              heading: locationState.heading?.toString(),
+            };
+          }
+        }
+
         // Queue the event
-        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note, input.RespondingTo, roles);
+        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note, input.RespondingTo, roles, gpsData);
 
         logger.info({
           message: 'Unit status queued for offline processing',

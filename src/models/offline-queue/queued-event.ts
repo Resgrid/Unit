@@ -38,6 +38,13 @@ export interface QueuedUnitStatusEvent extends Omit<QueuedEvent, 'data'> {
       roleId: string;
       userId: string;
     }[];
+    latitude?: string;
+    longitude?: string;
+    accuracy?: string;
+    altitude?: string;
+    altitudeAccuracy?: string;
+    speed?: string;
+    heading?: string;
   };
 }
 

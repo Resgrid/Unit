@@ -210,6 +210,7 @@ export default function CallDetail() {
             title: t('call_detail.title'),
             headerShown: true,
             headerRight: () => <HeaderRightMenu />,
+            headerBackTitle: '',
           }}
         />
         <View className="size-full flex-1">
@@ -228,6 +229,7 @@ export default function CallDetail() {
             title: t('call_detail.title'),
             headerShown: true,
             headerRight: () => <HeaderRightMenu />,
+            headerBackTitle: '',
           }}
         />
         <View className="size-full flex-1">
@@ -247,6 +249,7 @@ export default function CallDetail() {
           options={{
             title: t('call_detail.title'),
             headerShown: true,
+            headerBackTitle: '',
           }}
         />
         <SafeAreaView className="size-full flex-1">
@@ -478,6 +481,7 @@ export default function CallDetail() {
           title: t('call_detail.title'),
           headerShown: true,
           headerRight: () => <HeaderRightMenu />,
+          headerBackTitle: '',
         }}
       />
       <ScrollView className={`size-full w-full flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>

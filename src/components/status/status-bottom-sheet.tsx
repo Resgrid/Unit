@@ -8,6 +8,7 @@ import { type CustomStatusResultData } from '@/models/v4/customStatuses/customSt
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
+import { useLocationStore } from '@/stores/app/location-store';
 import { useRolesStore } from '@/stores/roles/store';
 import { useStatusBottomSheetStore, useStatusesStore } from '@/stores/status/store';
 
@@ -51,9 +52,10 @@ export const StatusBottomSheet = () => {
     reset,
   } = useStatusBottomSheetStore();
 
-  const { activeUnit } = useCoreStore();
+  const { activeUnit, activeCallId, setActiveCall } = useCoreStore();
   const { unitRoleAssignments } = useRolesStore();
   const { saveUnitStatus } = useStatusesStore();
+  const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore();
 
   // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
@@ -74,6 +76,11 @@ export const StatusBottomSheet = () => {
       setSelectedCall(call);
       setSelectedDestinationType('call');
       setSelectedStation(null);
+
+      // Set as active call if it's not already the active call
+      if (activeCallId !== call.CallId) {
+        setActiveCall(call.CallId);
+      }
     }
   };
 
@@ -125,6 +132,23 @@ export const StatusBottomSheet = () => {
         input.RespondingTo = selectedStation.GroupId;
       }
 
+      // Include GPS coordinates if available
+      if (latitude !== null && longitude !== null) {
+        input.Latitude = latitude.toString();
+        input.Longitude = longitude.toString();
+        input.Accuracy = accuracy?.toString() || '0';
+        input.Altitude = altitude?.toString() || '0';
+        input.Speed = speed?.toString() || '0';
+        input.Heading = heading?.toString() || '0';
+
+        // Set timestamp from location if available, otherwise use current time
+        if (timestamp) {
+          const locationDate = new Date(timestamp);
+          input.Timestamp = locationDate.toISOString();
+          input.TimestampUtc = locationDate.toUTCString().replace('UTC', 'GMT');
+        }
+      }
+
       // Add role assignments
       input.Roles = unitRoleAssignments.map((assignment) => {
         const roleInput = new SaveUnitStatusRoleInput();
@@ -138,7 +162,25 @@ export const StatusBottomSheet = () => {
     } catch (error) {
       console.error('Failed to save unit status:', error);
     }
-  }, [selectedStatus, activeUnit, note, selectedDestinationType, selectedCall, selectedStation, unitRoleAssignments, saveUnitStatus, reset, getStatusProperty]);
+  }, [
+    selectedStatus,
+    activeUnit,
+    note,
+    selectedDestinationType,
+    selectedCall,
+    selectedStation,
+    unitRoleAssignments,
+    saveUnitStatus,
+    reset,
+    getStatusProperty,
+    latitude,
+    longitude,
+    heading,
+    accuracy,
+    speed,
+    altitude,
+    timestamp,
+  ]);
 
   // Fetch destination data when status bottom sheet opens
   React.useEffect(() => {
@@ -146,6 +188,22 @@ export const StatusBottomSheet = () => {
       fetchDestinationData(activeUnit.UnitId);
     }
   }, [isOpen, activeUnit, selectedStatus, fetchDestinationData]);
+
+  // Pre-select active call when opening with calls enabled
+  React.useEffect(() => {
+    // Only pre-select if:
+    // 1. Status bottom sheet is open and not loading
+    // 2. Status has calls enabled (detailLevel 2 or 3)
+    // 3. There's an active call and it's in the available calls
+    // 4. No call is currently selected and destination type is 'none'
+    if (isOpen && !isLoading && selectedStatus && (selectedStatus.Detail === 2 || selectedStatus.Detail === 3) && activeCallId && availableCalls.length > 0 && !selectedCall && selectedDestinationType === 'none') {
+      const activeCall = availableCalls.find((call) => call.CallId === activeCallId);
+      if (activeCall) {
+        setSelectedCall(activeCall);
+        setSelectedDestinationType('call');
+      }
+    }
+  }, [isOpen, isLoading, selectedStatus, activeCallId, availableCalls, selectedCall, selectedDestinationType, setSelectedCall, setSelectedDestinationType]);
 
   // Determine step logic
   const detailLevel = getStatusProperty('Detail', 0);
