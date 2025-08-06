@@ -210,6 +210,7 @@
     "no_call_selected": "لا توجد مكالمة نشطة",
     "no_call_selected_info": "هذه الوحدة لا تستجيب حاليًا لأي مكالمات",
     "no_calls": "لا توجد مكالمات نشطة",
+    "no_calls_available": "لا توجد مكالمات متاحة",
     "no_calls_description": "لم يتم العثور على مكالمات نشطة. اختر مكالمة نشطة لعرض التفاصيل.",
     "no_location_message": "هذه المكالمة لا تحتوي على بيانات موقع متاحة للملاحة.",
     "no_location_title": "الموقع غير متاح",
@@ -262,6 +263,7 @@
     "confirm": "تأكيد",
     "confirm_location": "تأكيد الموقع",
     "delete": "حذف",
+    "dismiss": "إغلاق",
     "done": "تم",
     "edit": "تعديل",
     "error": "خطأ",
@@ -270,6 +272,7 @@
     "go_back": "رجوع",
     "loading": "جاري التحميل...",
     "loading_address": "جاري تحميل العنوان...",
+    "next": "التالي",
     "noActiveUnit": "لم يتم تعيين وحدة نشطة",
     "noActiveUnitDescription": "يرجى تعيين وحدة نشطة من صفحة الإعدادات للوصول إلى عناصر التحكم في الحالة",
     "noDataAvailable": "لا توجد بيانات متاحة",
@@ -278,8 +281,11 @@
     "no_results_found": "لم يتم العثور على نتائج",
     "no_unit_selected": "لم يتم اختيار وحدة",
     "nothingToDisplay": "لا يوجد شيء للعرض في الوقت الحالي",
+    "of": "من",
     "ok": "موافق",
+    "optional": "اختياري",
     "permission_denied": "تم رفض الإذن",
+    "previous": "السابق",
     "remove": "إزالة",
     "retry": "إعادة المحاولة",
     "route": "مسار",
@@ -287,6 +293,8 @@
     "search": "بحث...",
     "set_location": "تعيين الموقع",
     "share": "مشاركة",
+    "step": "خطوة",
+    "submit": "إرسال",
     "tryAgainLater": "يرجى المحاولة مرة أخرى لاحقًا",
     "unknown": "غير معروف",
     "upload": "رفع",
@@ -461,6 +469,19 @@
     "search": "البحث في البروتوكولات...",
     "title": "البروتوكولات"
   },
+  "push_notifications": {
+    "close": "إغلاق",
+    "message": "رسالة",
+    "new_notification": "إشعار جديد",
+    "title": "عنوان",
+    "types": {
+      "call": "مكالمة",
+      "chat": "محادثة",
+      "group_chat": "محادثة جماعية",
+      "message": "رسالة"
+    },
+    "view_call": "عرض المكالمة"
+  },
   "roles": {
     "modal": {
       "title": "تعيينات أدوار الوحدة"
@@ -530,6 +551,22 @@
     "username": "اسم المستخدم",
     "version": "الإصدار",
     "website": "الموقع الإلكتروني"
+  },
+  "status": {
+    "add_note": "إضافة ملاحظة",
+    "calls_tab": "المكالمات",
+    "general_status": "حالة عامة بدون وجهة محددة",
+    "loading_stations": "جاري تحميل المحطات...",
+    "no_destination": "بدون وجهة",
+    "no_stations_available": "لا توجد محطات متاحة",
+    "note": "ملاحظة",
+    "note_optional": "أضف ملاحظة اختيارية لتحديث الحالة هذا",
+    "note_required": "يرجى إدخال ملاحظة لتحديث الحالة هذا",
+    "select_destination": "اختر الوجهة لـ {{status}}",
+    "select_destination_type": "أين تريد الاستجابة؟",
+    "selected_destination": "الوجهة المختارة",
+    "set_status": "تعيين الحالة",
+    "stations_tab": "المحطات"
   },
   "tabs": {
     "calls": "المكالمات",

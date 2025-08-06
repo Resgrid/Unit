@@ -210,6 +210,7 @@
     "no_call_selected": "No Active Call",
     "no_call_selected_info": "This unit is not currently responding to any calls",
     "no_calls": "No active calls",
+    "no_calls_available": "No calls available",
     "no_calls_description": "No active calls found. Select an active call to view details.",
     "no_location_message": "This call does not have location data available for navigation.",
     "no_location_title": "No Location Available",
@@ -262,6 +263,7 @@
     "confirm": "Confirm",
     "confirm_location": "Confirm Location",
     "delete": "Delete",
+    "dismiss": "Close",
     "done": "Done",
     "edit": "Edit",
     "error": "Error",
@@ -270,6 +272,7 @@
     "go_back": "Go Back",
     "loading": "Loading...",
     "loading_address": "Loading address...",
+    "next": "Next",
     "noActiveUnit": "No Active Unit Set",
     "noActiveUnitDescription": "Please set an active unit from the settings page to access status controls",
     "noDataAvailable": "No data available",
@@ -278,8 +281,11 @@
     "no_results_found": "No results found",
     "no_unit_selected": "No Unit Selected",
     "nothingToDisplay": "There's nothing to display at the moment",
+    "of": "of",
     "ok": "Ok",
+    "optional": "optional",
     "permission_denied": "Permission denied",
+    "previous": "Previous",
     "remove": "Remove",
     "retry": "Retry",
     "route": "Route",
@@ -287,6 +293,8 @@
     "search": "Search...",
     "set_location": "Set Location",
     "share": "Share",
+    "step": "Step",
+    "submit": "Submit",
     "tryAgainLater": "Please try again later",
     "unknown": "Unknown",
     "upload": "Upload",
@@ -461,6 +469,19 @@
     "search": "Search protocols...",
     "title": "Protocols"
   },
+  "push_notifications": {
+    "close": "Close",
+    "message": "Message",
+    "new_notification": "New notification",
+    "title": "Title",
+    "types": {
+      "call": "Call",
+      "chat": "Chat",
+      "group_chat": "Group Chat",
+      "message": "Message"
+    },
+    "view_call": "View call"
+  },
   "roles": {
     "modal": {
       "title": "Unit Role Assignments"
@@ -530,6 +551,22 @@
     "username": "Username",
     "version": "Version",
     "website": "Website"
+  },
+  "status": {
+    "add_note": "Add Note",
+    "calls_tab": "Calls",
+    "general_status": "General status without specific destination",
+    "loading_stations": "Loading stations...",
+    "no_destination": "No Destination",
+    "no_stations_available": "No stations available",
+    "note": "Note",
+    "note_optional": "Add an optional note for this status update",
+    "note_required": "Please enter a note for this status update",
+    "select_destination": "Select Destination for {{status}}",
+    "select_destination_type": "Where would you like to respond?",
+    "selected_destination": "Selected Destination",
+    "set_status": "Set Status",
+    "stations_tab": "Stations"
   },
   "tabs": {
     "calls": "Calls",
