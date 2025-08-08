@@ -1,5 +1,18 @@
-import { type Device, State } from 'react-native-ble-plx';
+import { type Peripheral } from 'react-native-ble-manager';
 import { create } from 'zustand';
+
+// Re-export Peripheral as Device for compatibility
+export type Device = Peripheral;
+
+// Bluetooth state enum to match react-native-ble-plx API
+export enum State {
+  Unknown = 'unknown',
+  Resetting = 'resetting',
+  Unsupported = 'unsupported',
+  Unauthorized = 'unauthorized',
+  PoweredOff = 'poweredOff',
+  PoweredOn = 'poweredOn',
+}
 
 export interface BluetoothAudioDevice {
   id: string;

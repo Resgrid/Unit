@@ -15,7 +15,7 @@ import { VStack } from '@/components/ui/vstack';
 import { usePreferredBluetoothDevice } from '@/lib/hooks/use-preferred-bluetooth-device';
 import { logger } from '@/lib/logging';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
-import { type BluetoothAudioDevice, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
+import { type BluetoothAudioDevice, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 import { CustomBottomSheet } from '../ui/bottom-sheet';
 
@@ -29,7 +29,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { preferredDevice, setPreferredDevice } = usePreferredBluetoothDevice();
-  const { availableDevices, isScanning, bluetoothState, connectedDevice } = useBluetoothAudioStore();
+  const { availableDevices, isScanning, bluetoothState, connectedDevice, connectionError } = useBluetoothAudioStore();
   const [hasScanned, setHasScanned] = useState(false);
 
   // Start scanning when sheet opens
@@ -37,6 +37,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
     if (isOpen && !hasScanned) {
       startScan();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, hasScanned]);
 
   const startScan = React.useCallback(async () => {
@@ -44,6 +45,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
       setHasScanned(true);
       await bluetoothAudioService.startScanning(10000); // 10 second scan
     } catch (error) {
+      setHasScanned(false); // Reset scan state on error
       logger.error({
         message: 'Failed to start Bluetooth scan',
         context: { error },
@@ -68,6 +70,19 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
           context: { deviceId: device.id, deviceName: device.name },
         });
 
+        // Also attempt to connect to the device if not already connected
+        if (!device.isConnected && connectedDevice?.id !== device.id) {
+          try {
+            await bluetoothAudioService.connectToDevice(device.id);
+          } catch (connectionError) {
+            logger.warn({
+              message: 'Failed to connect to selected device immediately',
+              context: { deviceId: device.id, error: connectionError },
+            });
+            // Don't show error to user as they may just want to set preference
+          }
+        }
+
         onClose();
       } catch (error) {
         logger.error({
@@ -78,7 +93,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         Alert.alert(t('bluetooth.selection_error_title'), t('bluetooth.selection_error_message'), [{ text: t('common.ok') }]);
       }
     },
-    [setPreferredDevice, onClose, t]
+    [setPreferredDevice, onClose, t, connectedDevice]
   );
 
   const handleClearSelection = React.useCallback(async () => {
@@ -92,6 +107,17 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
       });
     }
   }, [setPreferredDevice, onClose]);
+
+  const stopScan = React.useCallback(() => {
+    bluetoothAudioService.stopScanning();
+  }, []);
+
+  // Stop scanning when component unmounts or dialog closes
+  useEffect(() => {
+    if (!isOpen && isScanning) {
+      stopScan();
+    }
+  }, [isOpen, isScanning, stopScan]);
 
   const renderDeviceItem = useCallback(
     ({ item }: { item: BluetoothAudioDevice }) => {
@@ -113,11 +139,13 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
               <HStack className="mt-1 items-center">
                 {item.rssi && <Text className="text-xs text-neutral-600 dark:text-neutral-400">RSSI: {item.rssi}dBm</Text>}
                 {item.supportsMicrophoneControl && <Text className="ml-2 text-xs text-blue-600 dark:text-blue-400">{t('bluetooth.supports_mic_control')}</Text>}
+                {item.hasAudioCapability && <Text className="ml-2 text-xs text-green-600 dark:text-green-400">{t('bluetooth.audio_capable')}</Text>}
               </HStack>
             </VStack>
             {isSelected && (
               <VStack className="items-end">
                 <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('bluetooth.selected')}</Text>
+                {isConnected && <Text className="text-xs text-green-600 dark:text-green-400">{t('bluetooth.connected')}</Text>}
               </VStack>
             )}
           </HStack>
@@ -182,9 +210,22 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         <FlatList data={availableDevices} renderItem={renderDeviceItem} keyExtractor={(item) => item.id} ListEmptyComponent={renderEmptyState} className="flex-1" showsVerticalScrollIndicator={false} />
 
         {/* Bluetooth State Info */}
-        {bluetoothState !== 'PoweredOn' && (
+        {bluetoothState !== State.PoweredOn && (
           <Box className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900">
-            <Text className="text-sm text-yellow-800 dark:text-yellow-200">{t('bluetooth.bluetooth_not_ready', { state: bluetoothState })}</Text>
+            <Text className="text-sm text-yellow-800 dark:text-yellow-200">
+              {bluetoothState === State.PoweredOff
+                ? t('bluetooth.bluetooth_disabled')
+                : bluetoothState === State.Unauthorized
+                  ? t('bluetooth.bluetooth_unauthorized')
+                  : t('bluetooth.bluetooth_not_ready', { state: bluetoothState })}
+            </Text>
+          </Box>
+        )}
+
+        {/* Connection Error Display */}
+        {connectionError && (
+          <Box className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900">
+            <Text className="text-sm text-red-800 dark:text-red-200">{connectionError}</Text>
           </Box>
         )}
       </VStack>

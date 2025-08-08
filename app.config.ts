@@ -44,8 +44,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
     infoPlist: {
-      UIBackgroundModes: ['remote-notification', 'audio'],
+      UIBackgroundModes: ['remote-notification', 'audio', 'bluetooth-central'],
       ITSAppUsesNonExemptEncryption: false,
+      NSBluetoothAlwaysUsageDescription: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
     },
   },
   experiments: {
@@ -235,14 +236,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     [
-      'react-native-ble-plx',
-      {
-        isBackgroundEnabled: true,
-        modes: ['peripheral', 'central'],
-        bluetoothAlwaysPermission: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
-      },
-    ],
-    [
       'expo-navigation-bar',
       {
         position: 'relative',
@@ -250,7 +243,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         behavior: 'inset-touch',
       },
     ],
-    'expo-audio',
+    [
+      'expo-audio',
+      {
+        microphonePermission: 'Allow Resgrid Unit to access the microphone for audio input used in PTT and calls.',
+      },
+    ],
+    'react-native-ble-manager',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
     './customGradle.plugin.js',
