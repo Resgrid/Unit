@@ -24,8 +24,10 @@ const B01INRICO_HEADSET_SERVICE = '00006666-0000-1000-8000-00805F9B34FB';
 const B01INRICO_HEADSET_SERVICE_CHAR = '00008888-0000-1000-8000-00805F9B34FB';
 
 const HYS_HEADSET = '3CD31C55-A914-435E-B80E-98AF95B630C4';
-const HYS_HEADSET_SERVICE = '6E400001-B5A3-F393-E0A9-E50E24DCCA9E';
-const HYS_HEADSET_SERVICE_CHAR = '6E400003-B5A3-F393-E0A9-E50E24DCCA9E';
+const HYS_HEADSET_SERVICE = '0000FFE0-0000-1000-8000-00805F9B34FB';
+//const HYS_HEADSET_SERVICE = '6E400001-B5A3-F393-E0A9-E50E24DCCA9E';
+//const HYS_HEADSET_SERVICE_CHAR = '6E400003-B5A3-F393-E0A9-E50E24DCCA9E';
+const HYS_HEADSET_SERVICE_CHAR = '00002902-0000-1000-8000-00805F9B34FB';
 
 // Common button control characteristic UUIDs (varies by manufacturer)
 const BUTTON_CONTROL_UUIDS = [
@@ -111,6 +113,8 @@ class BluetoothAudioService {
       return;
     }
 
+    this.hasAttemptedPreferredDeviceConnection = true;
+
     try {
       // Load preferred device from storage
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -141,8 +145,6 @@ class BluetoothAudioService {
 
           // If direct connection fails, start scanning to find the device
           this.startScanning(5000); // 5 second scan
-
-          this.hasAttemptedPreferredDeviceConnection = true;
         }
       } else {
         logger.info({
@@ -196,7 +198,7 @@ class BluetoothAudioService {
 
     if (state === State.PoweredOff || state === State.Unauthorized) {
       this.handleBluetoothDisabled();
-    } else if (state === State.PoweredOn && this.isInitialized) {
+    } else if (state === State.PoweredOn && this.isInitialized && !this.hasAttemptedPreferredDeviceConnection) {
       // If Bluetooth is turned back on, try to reconnect to preferred device
       this.attemptReconnectToPreferredDevice();
     }
@@ -529,7 +531,7 @@ class BluetoothAudioService {
             return false; // Skip non-string data
           }
 
-          const upperServiceUuid = data.toUpperCase();
+          const upperServiceUuid = serviceUuid.toUpperCase();
 
           // Check if the service UUID itself indicates audio capability
           const isAudioServiceUuid = [
@@ -1571,7 +1573,7 @@ class BluetoothAudioService {
   }
 
   async disconnectDevice(): Promise<void> {
-    if (this.connectedDevice) {
+    if (this.connectedDevice && this.connectedDevice.id) {
       try {
         await BleManager.disconnect(this.connectedDevice.id);
         logger.info({

@@ -58,6 +58,32 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const handleDeviceSelect = React.useCallback(
     async (device: BluetoothAudioDevice) => {
       try {
+        // First, clear any existing preferred device
+        await setPreferredDevice(null);
+
+        logger.info({
+          message: 'Clearing existing preferred Bluetooth device before setting new one',
+          context: { newDeviceId: device.id, newDeviceName: device.name },
+        });
+
+        // Disconnect from any currently connected device
+        if (connectedDevice) {
+          try {
+            await bluetoothAudioService.disconnectDevice();
+            logger.info({
+              message: 'Disconnected from previous Bluetooth device',
+              context: { previousDeviceId: connectedDevice.id },
+            });
+          } catch (disconnectError) {
+            logger.warn({
+              message: 'Failed to disconnect from previous device',
+              context: { previousDeviceId: connectedDevice.id, error: disconnectError },
+            });
+            // Continue with connection to new device even if disconnect fails
+          }
+        }
+
+        // Set the new preferred device
         const selectedDevice = {
           id: device.id,
           name: device.name || t('bluetooth.unknown_device'),
@@ -66,21 +92,23 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         await setPreferredDevice(selectedDevice);
 
         logger.info({
-          message: 'Preferred Bluetooth device selected',
+          message: 'New preferred Bluetooth device selected',
           context: { deviceId: device.id, deviceName: device.name },
         });
 
-        // Also attempt to connect to the device if not already connected
-        if (!device.isConnected && connectedDevice?.id !== device.id) {
-          try {
-            await bluetoothAudioService.connectToDevice(device.id);
-          } catch (connectionError) {
-            logger.warn({
-              message: 'Failed to connect to selected device immediately',
-              context: { deviceId: device.id, error: connectionError },
-            });
-            // Don't show error to user as they may just want to set preference
-          }
+        // Connect to the new device
+        try {
+          await bluetoothAudioService.connectToDevice(device.id);
+          logger.info({
+            message: 'Successfully connected to new Bluetooth device',
+            context: { deviceId: device.id },
+          });
+        } catch (connectionError) {
+          logger.warn({
+            message: 'Failed to connect to selected device immediately',
+            context: { deviceId: device.id, error: connectionError },
+          });
+          // Don't show error to user as they may just want to set preference
         }
 
         onClose();
