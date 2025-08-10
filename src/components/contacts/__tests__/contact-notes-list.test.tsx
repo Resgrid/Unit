@@ -13,6 +13,28 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+// Mock react-native-webview
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View, Text } = require('react-native');
+
+  return {
+    __esModule: true,
+    default: React.forwardRef((props: any, ref: any) => {
+      // Extract HTML content from source.html for testing
+      const htmlContent = props.source?.html || '';
+      // Simple extraction of text content from HTML (removing tags)
+      const textContent = htmlContent.replace(/<[^>]*>/g, '').trim();
+
+      return React.createElement(View, {
+        ...props,
+        ref,
+        testID: props.testID || 'webview',
+      }, React.createElement(Text, { testID: 'webview-content' }, textContent));
+    }),
+  };
+});
+
 const mockTrackEvent = jest.fn();
 const mockFetchContactNotes = jest.fn();
 
@@ -76,8 +98,9 @@ describe('ContactNotesList', () => {
     it('should render correctly with notes', () => {
       const { getByText } = render(<ContactNotesList {...defaultProps} />);
 
-      expect(getByText('This is a test note')).toBeTruthy();
-      expect(getByText('This is another test note')).toBeTruthy();
+      // Check for note content within WebView mock
+      expect(getByText(/This is a test note/)).toBeTruthy();
+      expect(getByText(/This is another test note/)).toBeTruthy();
     });
 
     it('should render loading state', () => {

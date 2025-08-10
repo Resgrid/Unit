@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -113,7 +114,18 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
     setIsUploading(true);
     try {
-      const base64Image = await FileSystem.readAsStringAsync(selectedImage, {
+      // Manipulate image to ensure PNG format and proper compression
+      const manipulatedImage = await ImageManipulator.manipulateAsync(
+        selectedImage,
+        [{ resize: { width: 1024 } }], // Resize to max width of 1024px while maintaining aspect ratio
+        {
+          compress: 0.8,
+          format: ImageManipulator.SaveFormat.PNG, // Ensure PNG format
+        }
+      );
+
+      // Read the manipulated image as base64
+      const base64Image = await FileSystem.readAsStringAsync(manipulatedImage.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
@@ -286,8 +298,9 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   };
 
   const renderAddImageContent = () => (
-    <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'} style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-      <VStack className="space-y-4 p-4">
+    <VStack className="flex-1">
+      {/* Scrollable content area */}
+      <VStack className="flex-1 space-y-4 p-4">
         <HStack className="items-center justify-between">
           <Text className="text-lg font-bold">{t('callImages.add_new')}</Text>
           <TouchableOpacity
@@ -302,17 +315,11 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
         </HStack>
 
         {selectedImage ? (
-          <Box className="items-center">
+          <Box className="flex-1 items-center justify-center">
             <Image source={{ uri: selectedImage }} className="h-64 w-full rounded-lg" contentFit="contain" />
-            <Input className="mt-4 w-full">
-              <InputField placeholder={t('callImages.image_name')} value={newImageName} onChangeText={setNewImageName} />
-            </Input>
-            <Button className="mt-4 w-full" onPress={handleUploadImage} isDisabled={isUploading}>
-              <ButtonText>{isUploading ? t('common.uploading') : t('callImages.upload')}</ButtonText>
-            </Button>
           </Box>
         ) : (
-          <VStack className="space-y-4">
+          <VStack className="flex-1 justify-center space-y-4">
             <ActionsheetItem onPress={handleImageSelect}>
               <HStack className="items-center space-x-2">
                 <PlusIcon size={20} />
@@ -328,7 +335,21 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
           </VStack>
         )}
       </VStack>
-    </KeyboardAwareScrollView>
+
+      {/* Fixed bottom section for input and save button */}
+      {selectedImage && (
+        <KeyboardAwareScrollView keyboardShouldPersistTaps={Platform.OS === 'android' ? 'handled' : 'always'} showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>
+          <VStack className="max-h-30 space-y-2 border-t border-gray-200 bg-white px-4 py-2 dark:border-gray-700 dark:bg-gray-800">
+            <Input className="w-full" size="sm">
+              <InputField placeholder={t('callImages.image_name')} value={newImageName} onChangeText={setNewImageName} testID="image-name-input" />
+            </Input>
+            <Button className="mt-2 w-full" size="sm" onPress={handleUploadImage} isDisabled={isUploading} testID="upload-button">
+              <ButtonText>{isUploading ? t('common.uploading') : t('callImages.upload')}</ButtonText>
+            </Button>
+          </VStack>
+        </KeyboardAwareScrollView>
+      )}
+    </VStack>
   );
 
   const renderImageGallery = () => {

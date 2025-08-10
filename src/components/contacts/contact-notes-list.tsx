@@ -1,6 +1,9 @@
 import { AlertTriangleIcon, CalendarIcon, ClockIcon, EyeIcon, EyeOffIcon, ShieldAlertIcon, UserIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { StyleSheet } from 'react-native';
+import WebView from 'react-native-webview';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
@@ -26,6 +29,9 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
 
   const isExpired = note.ExpiresOnUtc && new Date(note.ExpiresOnUtc) < new Date();
   const isInternal = note.Visibility === 0;
+
+  const { colorScheme } = useColorScheme();
+  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   const formatDate = (dateString: string) => {
     try {
@@ -66,7 +72,37 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
         </HStack>
 
         {/* Note content */}
-        <Text className="text-base leading-relaxed text-gray-900 dark:text-white">{note.Note}</Text>
+        <WebView
+          style={[styles.container, { height: 80 }]}
+          originWhitelist={['*']}
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+          source={{
+            html: `
+                                <!DOCTYPE html>
+                                <html>
+                                  <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+                                    <style>
+                                      body {
+                                        color: ${textColor};
+                                        font-family: system-ui, -apple-system, sans-serif;
+                                        margin: 0;
+                                        padding: 0;
+                                        font-size: 16px;
+                                        line-height: 1.5;
+                                      }
+                                      * {
+                                        max-width: 100%;
+                                      }
+                                    </style>
+                                  </head>
+                                  <body>${note.Note}</body>
+                                </html>
+                              `,
+          }}
+          androidLayerType="software"
+        />
 
         {/* Expiration warning */}
         {isExpired ? (
@@ -166,3 +202,10 @@ export const ContactNotesList: React.FC<ContactNotesListProps> = ({ contactId })
     </VStack>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
+});

@@ -3,7 +3,7 @@ import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/botto
 import { SearchIcon, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Keyboard, Platform, useWindowDimensions } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -81,6 +81,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
       try {
         await addNote(callId, newNote, currentUser, null, null);
         setNewNote('');
+        Keyboard.dismiss();
       } catch (error) {
         console.error('Failed to add note:', error);
       }

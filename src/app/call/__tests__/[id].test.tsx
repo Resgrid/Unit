@@ -631,10 +631,8 @@ describe('CallDetail', () => {
         // Should call setSelectedCall with the current call
         expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
 
-        // Should call setIsOpen with true and the appropriate status
-        expect(mockSetIsOpen).toHaveBeenCalledWith(true, expect.objectContaining({
-          Text: 'En Route'
-        }));
+        // Should call setIsOpen with true but no pre-selected status (for status selection)
+        expect(mockSetIsOpen).toHaveBeenCalledWith(true);
 
         // Should show success toast
         expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.set_active_success');
@@ -881,10 +879,8 @@ describe('CallDetail', () => {
         // Should call setSelectedCall with the current call
         expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
 
-        // Should call setIsOpen with true and the first available status (since no "En Route" found)
-        expect(mockSetIsOpen).toHaveBeenCalledWith(true, expect.objectContaining({
-          Text: 'Available'
-        }));
+        // Should call setIsOpen with true but no pre-selected status (for status selection)
+        expect(mockSetIsOpen).toHaveBeenCalledWith(true);
 
         // Should show success toast
         expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.set_active_success');

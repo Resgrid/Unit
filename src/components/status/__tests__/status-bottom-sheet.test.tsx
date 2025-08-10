@@ -70,6 +70,8 @@ const mockTranslation = {
       'common.previous': 'Previous',
       'common.submit': 'Submit',
       'common.optional': 'Optional',
+      'status.select_status': 'Select Status',
+      'status.select_status_type': 'What status would you like to set?',
       'status.select_destination': 'Select Destination for {{status}}',
       'status.add_note': 'Add Note',
       'status.set_status': 'Set Status',
@@ -83,6 +85,10 @@ const mockTranslation = {
       'status.note_required': 'Note required',
       'status.note_optional': 'Note optional',
       'status.loading_stations': 'Loading stations...',
+      'status.station_destination_enabled': 'Can respond to stations',
+      'status.call_destination_enabled': 'Can respond to calls',
+      'status.both_destinations_enabled': 'Can respond to calls or stations',
+      'status.no_statuses_available': 'No statuses available',
       'calls.loading_calls': 'Loading calls...',
       'calls.no_calls_available': 'No calls available',
       'status.no_stations_available': 'No stations available',
@@ -122,6 +128,7 @@ describe('StatusBottomSheet', () => {
     selectedStation: null,
     selectedDestinationType: 'none' as const,
     selectedStatus: null,
+    cameFromStatusSelection: false,
     note: '',
     availableCalls: [],
     availableStations: [],
@@ -131,6 +138,7 @@ describe('StatusBottomSheet', () => {
     setSelectedCall: mockSetSelectedCall,
     setSelectedStation: mockSetSelectedStation,
     setSelectedDestinationType: mockSetSelectedDestinationType,
+    setSelectedStatus: jest.fn(),
     setNote: mockSetNote,
     fetchDestinationData: mockFetchDestinationData,
     reset: mockReset,
@@ -150,7 +158,14 @@ describe('StatusBottomSheet', () => {
     },
     activeUnitStatus: null,
     activeUnitStatusType: null,
-    activeStatuses: null,
+    activeStatuses: {
+      UnitType: '0',
+      Statuses: [
+        { Id: 1, Type: 1, StateId: 1, Text: 'Available', BColor: '#28a745', Color: '#fff', Gps: false, Note: 0, Detail: 1 },
+        { Id: 2, Type: 2, StateId: 2, Text: 'Responding', BColor: '#ffc107', Color: '#000', Gps: true, Note: 1, Detail: 2 },
+        { Id: 3, Type: 3, StateId: 3, Text: 'On Scene', BColor: '#dc3545', Color: '#fff', Gps: true, Note: 2, Detail: 3 },
+      ],
+    },
     activeCallId: null,
     activeCall: null,
     activePriority: null,
@@ -203,7 +218,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1, // Show destination step
-      Note: 0, // No note required
+      Note: 1, // Note required - this gives us 2 steps
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -1284,5 +1299,448 @@ describe('StatusBottomSheet', () => {
     // Should NOT pre-select the active call since it's still loading
     expect(mockSetSelectedCall).not.toHaveBeenCalled();
     expect(mockSetSelectedDestinationType).not.toHaveBeenCalled();
+  });
+
+  // New tests for status selection step
+  it('should render status selection step when no status is pre-selected', () => {
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null, // No status pre-selected
+      cameFromStatusSelection: true,
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Step 1 of 3')).toBeTruthy();
+    expect(screen.getByText('Select Status')).toBeTruthy();
+    expect(screen.getByText('What status would you like to set?')).toBeTruthy();
+    expect(screen.getByText('Available')).toBeTruthy();
+    expect(screen.getByText('Responding')).toBeTruthy();
+    expect(screen.getByText('On Scene')).toBeTruthy();
+  });
+
+  it('should handle status selection', () => {
+    const mockSetSelectedStatus = jest.fn();
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+      setSelectedStatus: mockSetSelectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const respondingStatus = screen.getByText('Responding');
+    fireEvent.press(respondingStatus);
+
+    expect(mockSetSelectedStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        Id: 2,
+        Text: 'Responding',
+        Detail: 2,
+        Note: 1,
+      })
+    );
+  });
+
+  it('should show status details in status selection', () => {
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Check for destination type descriptions
+    expect(screen.getByText('Can respond to stations')).toBeTruthy(); // Detail: 1
+    expect(screen.getByText('Can respond to calls')).toBeTruthy(); // Detail: 2
+    expect(screen.getByText('Can respond to calls or stations')).toBeTruthy(); // Detail: 3
+
+    // Check for note requirements
+    expect(screen.getByText('Note required')).toBeTruthy(); // Note: 1
+    expect(screen.getByText('Note optional')).toBeTruthy(); // Note: 2
+  });
+
+  it('should disable next button on status selection when no status is selected', () => {
+    const mockSetCurrentStep = jest.fn();
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+      cameFromStatusSelection: true,
+      setCurrentStep: mockSetCurrentStep,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+
+    // Try to press the button - it should not navigate when disabled
+    fireEvent.press(nextButton);
+    expect(mockSetCurrentStep).not.toHaveBeenCalled();
+  });
+
+  it('should enable next button on status selection when status is selected', () => {
+    const mockSetCurrentStep = jest.fn();
+
+    const selectedStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 0,
+      Detail: 1,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus,
+      cameFromStatusSelection: true,
+      setCurrentStep: mockSetCurrentStep,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+
+    // Button should be enabled and allow navigation when status is selected
+    fireEvent.press(nextButton);
+    expect(mockSetCurrentStep).toHaveBeenCalledWith('select-destination');
+  });
+
+  it('should proceed to destination step from status selection when destination is needed', () => {
+    const selectedStatus = {
+      Id: 2,
+      Type: 2,
+      StateId: 2,
+      Text: 'Responding',
+      BColor: '#ffc107',
+      Color: '#000',
+      Gps: true,
+      Note: 1,
+      Detail: 2, // Has destination step
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+    fireEvent.press(nextButton);
+
+    expect(mockSetCurrentStep).toHaveBeenCalledWith('select-destination');
+  });
+
+  it('should proceed to note step from status selection when no destination is needed but note is required', () => {
+    const selectedStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 1, // Note required
+      Detail: 0, // No destination step
+    };
+
+    const mockHandleSubmit = jest.fn();
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+    fireEvent.press(nextButton);
+
+    expect(mockSetCurrentStep).toHaveBeenCalledWith('add-note');
+  });
+
+  it('should submit directly from status selection when no destination or note is needed', () => {
+    const selectedStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 0, // No note required
+      Detail: 0, // No destination step
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+    fireEvent.press(nextButton);
+
+    // Should call submit directly
+    expect(mockSaveUnitStatus).toHaveBeenCalled();
+  });
+
+  it('should handle previous button from destination step to status selection', () => {
+    const selectedStatus = {
+      Id: 2,
+      Type: 2,
+      StateId: 2,
+      Text: 'Responding',
+      BColor: '#ffc107',
+      Color: '#000',
+      Gps: true,
+      Note: 1,
+      Detail: 2,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-destination',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const nextButton = screen.getByText('Next');
+    fireEvent.press(nextButton);
+
+    // Now in note step
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const previousButton = screen.getByText('Previous');
+    fireEvent.press(previousButton);
+
+    expect(mockSetCurrentStep).toHaveBeenCalledWith('select-destination');
+  });
+
+  it('should handle previous button from note step to status selection when no destination step', () => {
+    const selectedStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 1, // Note required
+      Detail: 0, // No destination step
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const previousButton = screen.getByText('Previous');
+    fireEvent.press(previousButton);
+
+    expect(mockSetCurrentStep).toHaveBeenCalledWith('select-status');
+  });
+
+  it('should calculate correct step numbers with status selection', () => {
+    // Test step 1 of 3 (status, destination, note)
+    const selectedStatusWithAll = {
+      Id: 3,
+      Type: 3,
+      StateId: 3,
+      Text: 'On Scene',
+      BColor: '#dc3545',
+      Color: '#fff',
+      Gps: true,
+      Note: 2, // Note optional
+      Detail: 3, // Both destinations
+    };
+
+    // Step 1: Status selection (no status selected yet)
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null, // No status selected yet, so we see status selection
+      cameFromStatusSelection: true,
+    });
+
+    const { rerender } = render(<StatusBottomSheet />);
+    expect(screen.getByText('Step 1 of 3')).toBeTruthy();
+
+    // Step 2: After selecting status, now on destination step (from new flow)
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-destination',
+      selectedStatus: selectedStatusWithAll,
+      cameFromStatusSelection: true,
+    });
+
+    rerender(<StatusBottomSheet />);
+    expect(screen.getByText('Step 2 of 3')).toBeTruthy();
+
+    // Step 3: Note step (from new flow)
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus: selectedStatusWithAll,
+      cameFromStatusSelection: true,
+    });
+
+    rerender(<StatusBottomSheet />);
+    expect(screen.getByText('Step 3 of 3')).toBeTruthy();
+  });
+
+  it('should calculate correct step numbers without destination step', () => {
+    // Test step 1 of 2 (status, note) - no destination
+    const selectedStatusNoDestination = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 1, // Note required
+      Detail: 0, // No destination
+    };
+
+    // Create a mock core store with only statuses that don't have destinations
+    const coreStoreNoDestinations = {
+      ...defaultCoreStore,
+      activeStatuses: {
+        UnitType: '0',
+        Statuses: [
+          { Id: 1, Type: 1, StateId: 1, Text: 'Available', BColor: '#28a745', Color: '#fff', Gps: false, Note: 1, Detail: 0 },
+          { Id: 4, Type: 4, StateId: 4, Text: 'Busy', BColor: '#dc3545', Color: '#fff', Gps: false, Note: 0, Detail: 0 },
+        ],
+      },
+    };
+
+    mockGetState.mockReturnValue(coreStoreNoDestinations as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreNoDestinations);
+      }
+      return coreStoreNoDestinations;
+    });
+
+    // Status selection step
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+      cameFromStatusSelection: true,
+    });
+
+    const { rerender } = render(<StatusBottomSheet />);
+    expect(screen.getByText('Step 1 of 2')).toBeTruthy();
+
+    // Note step (skipping destination)
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus: selectedStatusNoDestination,
+      cameFromStatusSelection: true,
+    });
+
+    rerender(<StatusBottomSheet />);
+    expect(screen.getByText('Step 2 of 2')).toBeTruthy();
+  });
+
+  it('should show no statuses available message when no statuses are present', () => {
+    // Mock core store with no statuses
+    const coreStoreNoStatuses = {
+      ...defaultCoreStore,
+      activeStatuses: {
+        UnitType: '0',
+        Statuses: [],
+      },
+    };
+
+    mockGetState.mockReturnValue(coreStoreNoStatuses as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreNoStatuses);
+      }
+      return coreStoreNoStatuses;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('No statuses available')).toBeTruthy();
+  });
+
+  it('should show no statuses available message when activeStatuses is null', () => {
+    // Mock core store with null activeStatuses
+    const coreStoreNullStatuses = {
+      ...defaultCoreStore,
+      activeStatuses: null,
+    };
+
+    mockGetState.mockReturnValue(coreStoreNullStatuses as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreNullStatuses);
+      }
+      return coreStoreNullStatuses;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('No statuses available')).toBeTruthy();
   });
 });

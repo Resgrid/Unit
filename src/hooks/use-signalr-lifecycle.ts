@@ -13,12 +13,40 @@ interface UseSignalRLifecycleOptions {
 export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLifecycleOptions) {
   const { isActive, appState } = useAppLifecycle();
   const signalRStore = useSignalRStore();
+
+  // Track current values with refs for timer callbacks
+  const currentIsActive = useRef(isActive);
+  const currentAppState = useRef(appState);
+  const currentIsSignedIn = useRef(isSignedIn);
+  const currentHasInitialized = useRef(hasInitialized);
+
+  // Update refs whenever values change
+  useEffect(() => {
+    currentIsActive.current = isActive;
+    currentAppState.current = appState;
+    currentIsSignedIn.current = isSignedIn;
+    currentHasInitialized.current = hasInitialized;
+  }, [isActive, appState, isSignedIn, hasInitialized]);
+
   const lastAppState = useRef<string | null>(null);
   const isProcessing = useRef(false);
   const pendingOperations = useRef<AbortController | null>(null);
+  const backgroundTimer = useRef<NodeJS.Timeout | null>(null);
+  const resumeTimer = useRef<NodeJS.Timeout | null>(null);
 
   const handleAppBackground = useCallback(async () => {
-    if (!isSignedIn || !hasInitialized || isProcessing.current) return;
+    logger.debug({
+      message: 'handleAppBackground called',
+      context: { isSignedIn: currentIsSignedIn.current, hasInitialized: currentHasInitialized.current, isProcessing: isProcessing.current },
+    });
+
+    if (!currentIsSignedIn.current || !currentHasInitialized.current || isProcessing.current) {
+      logger.debug({
+        message: 'Skipping SignalR disconnect - conditions not met',
+        context: { isSignedIn: currentIsSignedIn.current, hasInitialized: currentHasInitialized.current, isProcessing: isProcessing.current },
+      });
+      return;
+    }
 
     // Cancel any pending operations
     if (pendingOperations.current) {
@@ -58,10 +86,21 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
         pendingOperations.current = null;
       }
     }
-  }, [isSignedIn, hasInitialized, signalRStore]);
+  }, [signalRStore]);
 
   const handleAppResume = useCallback(async () => {
-    if (!isSignedIn || !hasInitialized || isProcessing.current) return;
+    logger.debug({
+      message: 'handleAppResume called',
+      context: { isSignedIn: currentIsSignedIn.current, hasInitialized: currentHasInitialized.current, isProcessing: isProcessing.current },
+    });
+
+    if (!currentIsSignedIn.current || !currentHasInitialized.current || isProcessing.current) {
+      logger.debug({
+        message: 'Skipping SignalR reconnect - conditions not met',
+        context: { isSignedIn: currentIsSignedIn.current, hasInitialized: currentHasInitialized.current, isProcessing: isProcessing.current },
+      });
+      return;
+    }
 
     // Cancel any pending operations
     if (pendingOperations.current) {
@@ -101,51 +140,115 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
         pendingOperations.current = null;
       }
     }
-  }, [isSignedIn, hasInitialized, signalRStore]);
+  }, [signalRStore]);
 
-  // Handle app going to background
-  useEffect(() => {
-    if (!isActive && (appState === 'background' || appState === 'inactive') && hasInitialized) {
-      // Debounce rapid state changes
-      const timer = setTimeout(() => {
-        if (!isActive && (appState === 'background' || appState === 'inactive')) {
-          handleAppBackground();
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
+  // Clear timers helper
+  const clearTimers = useCallback(() => {
+    if (backgroundTimer.current) {
+      clearTimeout(backgroundTimer.current);
+      backgroundTimer.current = null;
     }
-  }, [isActive, appState, hasInitialized, handleAppBackground]);
+    if (resumeTimer.current) {
+      clearTimeout(resumeTimer.current);
+      resumeTimer.current = null;
+    }
+  }, []);
+
+  // Handle app going to background with extended debounce to prevent navigation-triggered disconnects
+  useEffect(() => {
+    // Only proceed if all prerequisites are met
+    if (!isSignedIn || !hasInitialized) {
+      return;
+    }
+
+    // Clear existing timers on state change
+    clearTimers();
+
+    // Handle background/inactive states
+    if (!isActive && (appState === 'background' || appState === 'inactive')) {
+      logger.debug({
+        message: 'App state changed to background/inactive, starting disconnect timer',
+        context: { appState, isActive },
+      });
+
+      // Use extended debounce (2 seconds) to prevent rapid navigation changes from triggering disconnects
+      backgroundTimer.current = setTimeout(() => {
+        // Re-check the current state values to ensure we're still in background
+        if (!currentIsActive.current && (currentAppState.current === 'background' || currentAppState.current === 'inactive')) {
+          logger.info({
+            message: 'App confirmed in background state, proceeding with SignalR disconnect',
+            context: { appState: currentAppState.current, isActive: currentIsActive.current },
+          });
+          handleAppBackground();
+        } else {
+          logger.debug({
+            message: 'App state changed during disconnect timer, cancelling disconnect',
+            context: { appState: currentAppState.current, isActive: currentIsActive.current },
+          });
+        }
+      }, 2000); // 2 second delay
+    }
+
+    return clearTimers;
+  }, [isActive, appState, isSignedIn, hasInitialized, handleAppBackground, clearTimers]);
 
   // Handle app resuming from background
   useEffect(() => {
-    if (isActive && appState === 'active' && hasInitialized && lastAppState.current !== 'active') {
-      // Only reconnect if coming from background/inactive state
-      if (lastAppState.current === 'background' || lastAppState.current === 'inactive') {
-        const timer = setTimeout(() => {
-          // Double-check state before reconnecting
-          if (isActive && appState === 'active') {
-            handleAppResume();
-          }
-        }, 500); // Small delay to prevent multiple rapid calls
+    // Only proceed if all prerequisites are met
+    if (!isSignedIn || !hasInitialized) {
+      return;
+    }
 
-        return () => clearTimeout(timer);
+    // Clear existing timers on state change
+    clearTimers();
+
+    // Handle resume if becoming active from background/inactive
+    if (isActive && appState === 'active') {
+      const wasInBackground = lastAppState.current === 'background' || lastAppState.current === 'inactive';
+      const isStateChange = lastAppState.current !== 'active';
+
+      if (wasInBackground && isStateChange) {
+        logger.debug({
+          message: 'App resumed from background, starting reconnect timer',
+          context: { previousState: lastAppState.current, currentState: appState },
+        });
+
+        // Use shorter delay for resume to reconnect quickly
+        resumeTimer.current = setTimeout(() => {
+          // Re-check the current state values
+          if (currentIsActive.current && currentAppState.current === 'active') {
+            logger.info({
+              message: 'App confirmed active from background, proceeding with SignalR reconnect',
+              context: { previousState: lastAppState.current, currentState: currentAppState.current },
+            });
+            handleAppResume();
+          } else {
+            logger.debug({
+              message: 'App state changed during reconnect timer, cancelling reconnect',
+              context: { appState: currentAppState.current, isActive: currentIsActive.current },
+            });
+          }
+        }, 1000); // 1 second delay for resume
       }
     }
 
+    // Update last app state
     lastAppState.current = appState;
-  }, [isActive, appState, hasInitialized, handleAppResume]);
+
+    return clearTimers;
+  }, [isActive, appState, isSignedIn, hasInitialized, handleAppResume, clearTimers]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      clearTimers();
       if (pendingOperations.current) {
         pendingOperations.current.abort();
         pendingOperations.current = null;
       }
       isProcessing.current = false;
     };
-  }, []);
+  }, [clearTimers]);
 
   return {
     isActive,
