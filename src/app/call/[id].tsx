@@ -103,14 +103,9 @@ export default function CallDetail() {
       // Set this call as the active call in the core store
       await useCoreStore.getState().setActiveCall(call.CallId);
 
-      // Find a "Responding" or "En Route" status from the available statuses
-      const respondingStatus = activeStatuses?.Statuses.find(
-        (status) => status.Text.toLowerCase().includes('responding') || status.Text.toLowerCase().includes('en route') || status.Text.toLowerCase().includes('enroute')
-      );
-
-      // Pre-select the current call and open the status bottom sheet
+      // Pre-select the current call and open the status bottom sheet without a pre-selected status
       setSelectedCall(call);
-      setStatusBottomSheetOpen(true, respondingStatus || activeStatuses?.Statuses[0]);
+      setStatusBottomSheetOpen(true); // No status provided, will start with status selection
 
       // Show success message
       showToast('success', t('call_detail.set_active_success'));

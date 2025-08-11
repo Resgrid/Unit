@@ -4,6 +4,15 @@ import React from 'react';
 import { ContactDetailsSheet } from '../contact-details-sheet';
 import { ContactType, type ContactResultData } from '@/models/v4/contacts/contactResultData';
 
+// Mock react-native-webview
+jest.mock('react-native-webview', () => {
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: (props: any) => <View testID="mock-webview" {...props} />,
+  };
+});
+
 // Mock dependencies that cause CSS interop issues
 jest.mock('@/stores/contacts/store', () => ({
   useContactsStore: jest.fn(),

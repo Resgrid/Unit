@@ -15,7 +15,7 @@ import { useCoreStore } from '../app/core-store';
 import { useLocationStore } from '../app/location-store';
 import { useRolesStore } from '../roles/store';
 
-type StatusStep = 'select-destination' | 'add-note';
+type StatusStep = 'select-status' | 'select-destination' | 'add-note';
 type DestinationType = 'none' | 'call' | 'station';
 
 // Status type that can accept both custom statuses and regular statuses
@@ -28,6 +28,7 @@ interface StatusBottomSheetStore {
   selectedStation: GroupResultData | null;
   selectedDestinationType: DestinationType;
   selectedStatus: StatusType | null;
+  cameFromStatusSelection: boolean; // Track whether we came from status selection flow
   note: string;
   availableCalls: CallResultData[];
   availableStations: GroupResultData[];
@@ -38,6 +39,7 @@ interface StatusBottomSheetStore {
   setSelectedCall: (call: CallResultData | null) => void;
   setSelectedStation: (station: GroupResultData | null) => void;
   setSelectedDestinationType: (type: DestinationType) => void;
+  setSelectedStatus: (status: StatusType | null) => void;
   setNote: (note: string) => void;
   fetchDestinationData: (unitId: string) => Promise<void>;
   reset: () => void;
@@ -50,16 +52,26 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
   selectedStation: null,
   selectedDestinationType: 'none',
   selectedStatus: null,
+  cameFromStatusSelection: false,
   note: '',
   availableCalls: [],
   availableStations: [],
   isLoading: false,
   error: null,
-  setIsOpen: (isOpen, status) => set({ isOpen, selectedStatus: status || null }),
+  setIsOpen: (isOpen, status) => {
+    if (isOpen && !status) {
+      // If no status is provided, start with status selection
+      set({ isOpen, selectedStatus: null, currentStep: 'select-status', cameFromStatusSelection: true });
+    } else {
+      // If status is provided, start with destination selection
+      set({ isOpen, selectedStatus: status || null, currentStep: 'select-destination', cameFromStatusSelection: false });
+    }
+  },
   setCurrentStep: (step) => set({ currentStep: step }),
   setSelectedCall: (call) => set({ selectedCall: call }),
   setSelectedStation: (station) => set({ selectedStation: station }),
   setSelectedDestinationType: (type) => set({ selectedDestinationType: type }),
+  setSelectedStatus: (status) => set({ selectedStatus: status }),
   setNote: (note) => set({ note }),
   fetchDestinationData: async (unitId: string) => {
     set({ isLoading: true, error: null });
@@ -87,6 +99,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       selectedStation: null,
       selectedDestinationType: 'none',
       selectedStatus: null,
+      cameFromStatusSelection: false,
       note: '',
       availableCalls: [],
       availableStations: [],

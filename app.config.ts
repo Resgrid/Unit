@@ -44,7 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
     infoPlist: {
-      UIBackgroundModes: ['remote-notification', 'audio', 'bluetooth-central'],
+      UIBackgroundModes: ['remote-notification', 'audio', 'bluetooth-central', 'voip'],
       ITSAppUsesNonExemptEncryption: false,
       NSBluetoothAlwaysUsageDescription: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
     },

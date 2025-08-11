@@ -38,6 +38,7 @@ export const StatusBottomSheet = () => {
     selectedStation,
     selectedDestinationType,
     selectedStatus,
+    cameFromStatusSelection,
     note,
     availableCalls,
     availableStations,
@@ -47,12 +48,13 @@ export const StatusBottomSheet = () => {
     setSelectedCall,
     setSelectedStation,
     setSelectedDestinationType,
+    setSelectedStatus,
     setNote,
     fetchDestinationData,
     reset,
   } = useStatusBottomSheetStore();
 
-  const { activeUnit, activeCallId, setActiveCall } = useCoreStore();
+  const { activeUnit, activeCallId, setActiveCall, activeStatuses } = useCoreStore();
   const { unitRoleAssignments } = useRolesStore();
   const { saveUnitStatus } = useStatusesStore();
   const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore();
@@ -100,7 +102,26 @@ export const StatusBottomSheet = () => {
   };
 
   const handleNext = () => {
-    if (currentStep === 'select-destination') {
+    if (!canProceedFromCurrentStep()) {
+      return;
+    }
+
+    if (currentStep === 'select-status') {
+      // Move to destination selection after status is selected
+      const detailLevel = getStatusProperty('Detail', 0);
+      if (detailLevel > 0) {
+        setCurrentStep('select-destination');
+      } else {
+        // Check if note is required/optional based on selectedStatus
+        const noteLevel = getStatusProperty('Note', 0);
+        if (noteLevel === 0) {
+          // No note step, go straight to submission
+          handleSubmit();
+        } else {
+          setCurrentStep('add-note');
+        }
+      }
+    } else if (currentStep === 'select-destination') {
       // Check if note is required/optional based on selectedStatus
       const noteLevel = getStatusProperty('Note', 0);
       if (noteLevel === 0) {
@@ -113,7 +134,25 @@ export const StatusBottomSheet = () => {
   };
 
   const handlePrevious = () => {
-    setCurrentStep('select-destination');
+    if (currentStep === 'add-note') {
+      const detailLevel = getStatusProperty('Detail', 0);
+      if (detailLevel > 0) {
+        setCurrentStep('select-destination');
+      } else {
+        setCurrentStep('select-status');
+      }
+    } else if (currentStep === 'select-destination') {
+      setCurrentStep('select-status');
+    }
+  };
+
+  const handleStatusSelect = (statusId: string) => {
+    if (activeStatuses?.Statuses) {
+      const status = activeStatuses.Statuses.find((s) => s.Id.toString() === statusId);
+      if (status) {
+        setSelectedStatus(status);
+      }
+    }
   };
 
   const handleSubmit = React.useCallback(async () => {
@@ -213,6 +252,8 @@ export const StatusBottomSheet = () => {
 
   const getStepTitle = () => {
     switch (currentStep) {
+      case 'select-status':
+        return t('status.select_status');
       case 'select-destination':
         return t('status.select_destination', { status: selectedStatus?.Text });
       case 'add-note':
@@ -224,17 +265,68 @@ export const StatusBottomSheet = () => {
 
   const getStepNumber = () => {
     switch (currentStep) {
-      case 'select-destination':
+      case 'select-status':
         return 1;
+      case 'select-destination':
+        return cameFromStatusSelection ? 2 : 1; // Step 2 if from status selection, step 1 if pre-selected
       case 'add-note':
-        return 2;
+        if (cameFromStatusSelection) {
+          // New flow: step 1 = status, step 2 = destination, step 3 = note
+          return shouldShowDestinationStep ? 3 : 2;
+        } else {
+          // Old flow: step 1 = destination, step 2 = note
+          return shouldShowDestinationStep ? 2 : 1;
+        }
       default:
         return 1;
     }
   };
 
+  const getTotalSteps = () => {
+    if (cameFromStatusSelection) {
+      // New flow calculation
+      let totalSteps = 1; // Always have status selection
+
+      if (selectedStatus) {
+        // We can determine exact steps based on the selected status
+        const hasDestinationSelection = getStatusProperty('Detail', 0) > 0;
+        const hasNoteStep = getStatusProperty('Note', 0) > 0;
+
+        if (hasDestinationSelection) totalSteps++;
+        if (hasNoteStep) totalSteps++;
+      } else {
+        // Conservative estimate when no status is selected yet
+        // Look at available statuses to determine potential steps
+        if (activeStatuses?.Statuses && activeStatuses.Statuses.length > 0) {
+          const hasAnyDestination = activeStatuses.Statuses.some((s) => s.Detail > 0);
+          const hasAnyNote = activeStatuses.Statuses.some((s) => s.Note > 0);
+
+          if (hasAnyDestination) totalSteps++;
+          if (hasAnyNote) totalSteps++;
+        } else {
+          // Fallback: assume all steps
+          totalSteps = 3;
+        }
+      }
+
+      return totalSteps;
+    } else {
+      // Old flow calculation
+      const hasDestinationSelection = shouldShowDestinationStep;
+      const hasNoteStep = isNoteRequired || isNoteOptional;
+
+      let totalSteps = 0;
+      if (hasDestinationSelection) totalSteps++;
+      if (hasNoteStep) totalSteps++;
+
+      return Math.max(totalSteps, 1);
+    }
+  };
+
   const canProceedFromCurrentStep = () => {
     switch (currentStep) {
+      case 'select-status':
+        return !!selectedStatus; // Must have a status selected
       case 'select-destination':
         return true; // Can proceed with any selection including none
       case 'add-note':
@@ -266,13 +358,62 @@ export const StatusBottomSheet = () => {
           {/* Step indicator */}
           <HStack space="sm" className="mb-2 justify-center">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
-              {t('common.step')} {getStepNumber()} {t('common.of')} 2
+              {t('common.step')} {getStepNumber()} {t('common.of')} {getTotalSteps()}
             </Text>
           </HStack>
 
           <Heading size="lg" className="mb-4 text-center">
             {getStepTitle()}
           </Heading>
+
+          {currentStep === 'select-status' && (
+            <VStack space="md" className="w-full">
+              <Text className="mb-2 font-medium">{t('status.select_status_type')}</Text>
+
+              <ScrollView className="max-h-[400px]">
+                <RadioGroup value={selectedStatus?.Id.toString() || ''} onChange={handleStatusSelect}>
+                  {activeStatuses?.Statuses && activeStatuses.Statuses.length > 0 ? (
+                    activeStatuses.Statuses.map((status) => (
+                      <Radio key={status.Id} value={status.Id.toString()} className="mb-3 py-2">
+                        <RadioIndicator>
+                          <RadioIcon as={CircleIcon} />
+                        </RadioIndicator>
+                        <RadioLabel>
+                          <VStack>
+                            <Text className="font-bold" style={{ color: status.Color || undefined }}>
+                              {status.Text}
+                            </Text>
+                            {status.Detail > 0 && (
+                              <Text className="text-sm text-gray-600 dark:text-gray-400">
+                                {status.Detail === 1 && t('status.station_destination_enabled')}
+                                {status.Detail === 2 && t('status.call_destination_enabled')}
+                                {status.Detail === 3 && t('status.both_destinations_enabled')}
+                              </Text>
+                            )}
+                            {status.Note > 0 && (
+                              <Text className="text-xs text-gray-500 dark:text-gray-500">
+                                {status.Note === 1 && t('status.note_required')}
+                                {status.Note === 2 && t('status.note_optional')}
+                              </Text>
+                            )}
+                          </VStack>
+                        </RadioLabel>
+                      </Radio>
+                    ))
+                  ) : (
+                    <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_statuses_available')}</Text>
+                  )}
+                </RadioGroup>
+              </ScrollView>
+
+              <HStack space="sm" className="mt-4 justify-end">
+                <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600">
+                  <ButtonText>{t('common.next')}</ButtonText>
+                  <ArrowRight size={16} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
+                </Button>
+              </HStack>
+            </VStack>
+          )}
 
           {currentStep === 'select-destination' && shouldShowDestinationStep && (
             <VStack space="md" className="w-full">
