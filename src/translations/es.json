@@ -84,6 +84,7 @@
     "error": "Error al obtener imágenes",
     "failed_to_load": "Error al cargar la imagen",
     "image_name": "Nombre de la imagen",
+    "image_note": "Nota de la imagen",
     "loading": "Cargando...",
     "no_images": "No hay imágenes disponibles",
     "no_images_description": "Añade imágenes a tu llamada para ayudar con la documentación y comunicación",
