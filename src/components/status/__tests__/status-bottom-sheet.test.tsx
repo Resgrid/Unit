@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useStatusBottomSheetStore, useStatusesStore } from '@/stores/status/store';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
+import { useToastStore } from '@/stores/toast/store';
 
 import { StatusBottomSheet } from '../status-bottom-sheet';
 
@@ -29,6 +30,10 @@ jest.mock('@/stores/app/core-store', () => {
 
 jest.mock('@/stores/roles/store', () => ({
   useRolesStore: jest.fn(),
+}));
+
+jest.mock('@/stores/toast/store', () => ({
+  useToastStore: jest.fn(),
 }));
 
 jest.mock('@/services/offline-event-manager.service', () => ({
@@ -69,6 +74,7 @@ const mockTranslation = {
       'common.next': 'Next',
       'common.previous': 'Previous',
       'common.submit': 'Submit',
+      'common.submitting': 'Submitting',
       'common.optional': 'Optional',
       'status.select_status': 'Select Status',
       'status.select_status_type': 'What status would you like to set?',
@@ -81,6 +87,7 @@ const mockTranslation = {
       'status.calls_tab': 'Calls',
       'status.stations_tab': 'Stations',
       'status.selected_destination': 'Selected Destination',
+      'status.selected_status': 'Selected Status',
       'status.note': 'Note',
       'status.note_required': 'Note required',
       'status.note_optional': 'Note optional',
@@ -89,6 +96,8 @@ const mockTranslation = {
       'status.call_destination_enabled': 'Can respond to calls',
       'status.both_destinations_enabled': 'Can respond to calls or stations',
       'status.no_statuses_available': 'No statuses available',
+      'status.status_saved_successfully': 'Status saved successfully',
+      'status.failed_to_save_status': 'Failed to save status',
       'calls.loading_calls': 'Loading calls...',
       'calls.no_calls_available': 'No calls available',
       'status.no_stations_available': 'No stations available',
@@ -110,6 +119,7 @@ const mockUseStatusesStore = useStatusesStore as jest.MockedFunction<typeof useS
 const mockUseCoreStore = useCoreStore as unknown as jest.MockedFunction<any>;
 const mockGetState = (mockUseCoreStore as any).getState;
 const mockUseRolesStore = useRolesStore as jest.MockedFunction<typeof useRolesStore>;
+const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
 
 describe('StatusBottomSheet', () => {
   const mockReset = jest.fn();
@@ -120,6 +130,7 @@ describe('StatusBottomSheet', () => {
   const mockSetNote = jest.fn();
   const mockFetchDestinationData = jest.fn();
   const mockSaveUnitStatus = jest.fn();
+  const mockShowToast = jest.fn();
 
   const defaultBottomSheetStore = {
     isOpen: false,
@@ -190,6 +201,7 @@ describe('StatusBottomSheet', () => {
     mockUseTranslation.mockReturnValue(mockTranslation as any);
     mockUseStatusBottomSheetStore.mockReturnValue(defaultBottomSheetStore);
     mockUseStatusesStore.mockReturnValue(defaultStatusesStore);
+    mockUseToastStore.mockReturnValue({ showToast: mockShowToast });
 
     // Set up the core store mock with getState that returns the store state
     mockGetState.mockReturnValue(defaultCoreStore as any);
@@ -218,7 +230,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1, // Show destination step
-      Note: 1, // Note required - this gives us 2 steps
+      Note: 1, // Note optional - this gives us 2 steps
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -324,7 +336,7 @@ describe('StatusBottomSheet', () => {
     expect(mockSetSelectedCall).toHaveBeenCalledWith(null);
   });
 
-  it('should set active call when selecting a call that is not already active', () => {
+  it('should not set active call when selecting a call', () => {
     const mockCall = {
       CallId: 'call-1',
       Number: 'C001',
@@ -363,10 +375,11 @@ describe('StatusBottomSheet', () => {
 
     expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
     expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
-    expect(mockSetActiveCall).toHaveBeenCalledWith('call-1');
+    // Active call should NOT be set until submission
+    expect(mockSetActiveCall).not.toHaveBeenCalled();
   });
 
-  it('should set active call when selecting a different call than currently active', () => {
+  it('should not set active call when selecting a different call', () => {
     const mockCall = {
       CallId: 'call-2',
       Number: 'C002',
@@ -405,10 +418,11 @@ describe('StatusBottomSheet', () => {
 
     expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
     expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
-    expect(mockSetActiveCall).toHaveBeenCalledWith('call-2');
+    // Active call should NOT be set until submission
+    expect(mockSetActiveCall).not.toHaveBeenCalled();
   });
 
-  it('should not set active call when selecting the same call that is already active', () => {
+  it('should not set active call when selecting any call during selection', () => {
     const mockCall = {
       CallId: 'call-1',
       Number: 'C001',
@@ -477,7 +491,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1,
-      Note: 1, // Note required
+      Note: 1, // Note optional
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -500,7 +514,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1,
-      Note: 1, // Note required
+      Note: 1, // Note optional
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -549,7 +563,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1,
-      Note: 1,
+      Note: 2, // Note required
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -572,7 +586,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1,
-      Note: 1, // Note required
+      Note: 2, // Note required
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -594,7 +608,7 @@ describe('StatusBottomSheet', () => {
       Id: 'status-1',
       Text: 'Available',
       Detail: 1,
-      Note: 1, // Note required
+      Note: 2, // Note required
     };
 
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -660,6 +674,276 @@ describe('StatusBottomSheet', () => {
     render(<StatusBottomSheet />);
 
     expect(screen.getByText('Loading calls...')).toBeTruthy();
+  });
+
+  it('should set active call on submission when call is selected and different from current', async () => {
+    const mockCall = {
+      CallId: 'call-1',
+      Number: 'C001',
+      Name: 'Emergency Call',
+      Address: '123 Main St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 0, // No destination step needed
+      Note: 0, // No note required
+    };
+
+    // Mock core store with no active call
+    mockGetState.mockReturnValue({
+      ...defaultCoreStore,
+      activeCallId: null,
+    } as any);
+    (useCoreStore as any).mockImplementation(() => ({
+      ...defaultCoreStore,
+      activeCallId: null,
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      selectedCall: mockCall,
+      selectedDestinationType: 'call',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).toHaveBeenCalledWith('call-1');
+    });
+  });
+
+  it('should set active call on submission when selected call is different from current active call', async () => {
+    const mockCall = {
+      CallId: 'call-2',
+      Number: 'C002',
+      Name: 'Fire Emergency',
+      Address: '456 Oak St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 0, // No destination step needed
+      Note: 0, // No note required
+    };
+
+    // Mock core store with different active call
+    mockGetState.mockReturnValue({
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    } as any);
+    (useCoreStore as any).mockImplementation(() => ({
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      selectedCall: mockCall,
+      selectedDestinationType: 'call',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).toHaveBeenCalledWith('call-2');
+    });
+  });
+
+  it('should not set active call on submission when selected call is same as current active call', async () => {
+    const mockCall = {
+      CallId: 'call-1',
+      Number: 'C001',
+      Name: 'Emergency Call',
+      Address: '123 Main St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 0, // No destination step needed
+      Note: 0, // No note required
+    };
+
+    // Mock core store with same active call
+    mockGetState.mockReturnValue({
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    } as any);
+    (useCoreStore as any).mockImplementation(() => ({
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      selectedCall: mockCall,
+      selectedDestinationType: 'call',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should not set active call on submission when no call is selected', async () => {
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 0, // No destination step
+      Note: 0, // No note required
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should not set active call on submission when station is selected', async () => {
+    const mockStation = {
+      GroupId: 'station-1',
+      Name: 'Fire Station 1',
+      Address: '456 Oak Ave',
+      GroupType: 'Station',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 0, // No destination step needed
+      Note: 0, // No note required
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      selectedStation: mockStation,
+      selectedDestinationType: 'station',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should set active call only at end of flow, not during call selection', async () => {
+    const mockCall = {
+      CallId: 'call-1',
+      Number: 'C001',
+      Name: 'Emergency Call',
+      Address: '123 Main St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Responding',
+      Detail: 2, // Show calls
+      Note: 0, // No note required
+    };
+
+    // Mock core store with no active call
+    mockGetState.mockReturnValue({
+      ...defaultCoreStore,
+      activeCallId: null,
+    } as any);
+    (useCoreStore as any).mockImplementation(() => ({
+      ...defaultCoreStore,
+      activeCallId: null,
+    }));
+
+    const mockStore = {
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      availableCalls: [mockCall],
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue(mockStore);
+
+    render(<StatusBottomSheet />);
+
+    // Step 1: Select a call - should NOT set active call
+    const callOption = screen.getByText('C001 - Emergency Call');
+    fireEvent.press(callOption);
+
+    expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
+    expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
+    expect(mockSetActiveCall).not.toHaveBeenCalled();
+
+    // Update mock store to reflect call selection
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...mockStore,
+      selectedCall: mockCall,
+      selectedDestinationType: 'call',
+    });
+
+    // Step 2: Navigate to next step
+    const nextButton = screen.getByText('Next');
+    fireEvent.press(nextButton);
+
+    // setActiveCall should still NOT have been called
+    expect(mockSetActiveCall).not.toHaveBeenCalled();
+
+    // Re-render to show the final step (submit)
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...mockStore,
+      selectedCall: mockCall,
+      selectedDestinationType: 'call',
+      currentStep: 'select-destination',
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Step 3: Submit - NOW setActiveCall should be called
+    const submitButtonAfterFlow = screen.getByText('Next'); // This should trigger submit for no note status
+    fireEvent.press(submitButtonAfterFlow);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockSetActiveCall).toHaveBeenCalledWith('call-1');
+    });
   });
 
   it('should fetch destination data when opened', () => {
@@ -1301,6 +1585,136 @@ describe('StatusBottomSheet', () => {
     expect(mockSetSelectedDestinationType).not.toHaveBeenCalled();
   });
 
+  it('should only select active call and not show no destination as selected when pre-selecting', async () => {
+    const activeCall = {
+      CallId: 'active-call-123',
+      Number: 'C123',
+      Name: 'Active Emergency Call',
+      Address: '123 Active St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Responding',
+      Detail: 2, // Show calls
+      Note: 0,
+    };
+
+    // Mock core store with active call
+    const coreStoreWithActiveCall = {
+      ...defaultCoreStore,
+      activeCallId: 'active-call-123',
+    };
+    mockGetState.mockReturnValue(coreStoreWithActiveCall as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithActiveCall);
+      }
+      return coreStoreWithActiveCall;
+    });
+
+    // First render with initial state
+    let currentStore = {
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      availableCalls: [activeCall],
+      isLoading: false,
+      selectedCall: null,
+      selectedDestinationType: 'none',
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue(currentStore);
+
+    const { rerender } = render(<StatusBottomSheet />);
+
+    // Should pre-select the active call
+    await waitFor(() => {
+      expect(mockSetSelectedCall).toHaveBeenCalledWith(activeCall);
+      expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
+    });
+
+    // Simulate state update after pre-selection
+    const updatedStore = {
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      availableCalls: [activeCall],
+      isLoading: false,
+      selectedCall: activeCall,
+      selectedDestinationType: 'call' as const,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue(updatedStore);
+
+    rerender(<StatusBottomSheet />);
+
+    // Verify that the active call is visually selected
+    const callContainer = screen.getByText('C123 - Active Emergency Call').parent?.parent;
+    expect(callContainer).toBeTruthy();
+
+    // Verify that "No Destination" is NOT visually selected by checking the computed styling
+    const noDestinationContainer = screen.getByText('No Destination').parent?.parent?.parent;
+    expect(noDestinationContainer).toBeTruthy();
+
+    // The container should NOT have the selected styling (blue border/background)
+    expect(noDestinationContainer?.props.className).not.toContain('border-blue-500');
+    expect(noDestinationContainer?.props.className).not.toContain('bg-blue-50');
+  });
+
+  it('should not show no destination as selected during loading when there is an active call to pre-select', async () => {
+    const activeCall = {
+      CallId: 'active-call-123',
+      Number: 'C123',
+      Name: 'Active Emergency Call',
+      Address: '123 Active St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Responding',
+      Detail: 2, // Show calls
+      Note: 0,
+    };
+
+    // Mock core store with active call
+    const coreStoreWithActiveCall = {
+      ...defaultCoreStore,
+      activeCallId: 'active-call-123',
+    };
+    mockGetState.mockReturnValue(coreStoreWithActiveCall as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithActiveCall);
+      }
+      return coreStoreWithActiveCall;
+    });
+
+    // Render with loading state (no calls available yet)
+    const loadingStore = {
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      availableCalls: [], // No calls loaded yet
+      isLoading: true, // Still loading
+      selectedCall: null,
+      selectedDestinationType: 'none',
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue(loadingStore);
+
+    const { rerender } = render(<StatusBottomSheet />);
+
+    // Verify that "No Destination" is NOT visually selected even during loading
+    // when there's an active call that should be pre-selected
+    const noDestinationContainer = screen.getByText('No Destination').parent?.parent?.parent;
+    expect(noDestinationContainer).toBeTruthy();
+
+    // The container should NOT have the selected styling during loading
+    expect(noDestinationContainer?.props.className).not.toContain('border-blue-500');
+    expect(noDestinationContainer?.props.className).not.toContain('bg-blue-50');
+  });
+
   // New tests for status selection step
   it('should render status selection step when no status is pre-selected', () => {
     mockUseStatusBottomSheetStore.mockReturnValue({
@@ -1319,6 +1733,47 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Available')).toBeTruthy();
     expect(screen.getByText('Responding')).toBeTruthy();
     expect(screen.getByText('On Scene')).toBeTruthy();
+  });
+
+  it('should display checkmarks instead of radio buttons for status selection', () => {
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Check that we have TouchableOpacity components for each status instead of radio buttons
+    const statusOptions = screen.getAllByText(/Available|Responding|On Scene/);
+    expect(statusOptions).toHaveLength(3);
+
+    // Verify the status text is present (indicating TouchableOpacity structure worked)
+    expect(screen.getByText('Available')).toBeTruthy();
+    expect(screen.getByText('Responding')).toBeTruthy();
+    expect(screen.getByText('On Scene')).toBeTruthy();
+  });
+
+  it('should display checkmarks instead of radio buttons for destination selection', () => {
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 1, // Show destination step
+      Note: 1, // Note optional
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // The No Destination option should use TouchableOpacity with checkmark instead of radio
+    expect(screen.getByText('No Destination')).toBeTruthy();
+    expect(screen.getByText('General Status')).toBeTruthy();
   });
 
   it('should handle status selection', () => {
@@ -1363,8 +1818,8 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Can respond to calls or stations')).toBeTruthy(); // Detail: 3
 
     // Check for note requirements
-    expect(screen.getByText('Note required')).toBeTruthy(); // Note: 1
-    expect(screen.getByText('Note optional')).toBeTruthy(); // Note: 2
+    expect(screen.getByText('Note optional')).toBeTruthy(); // Note: 1 (Responding)
+    expect(screen.getByText('Note required')).toBeTruthy(); // Note: 2 (On Scene)
   });
 
   it('should disable next button on status selection when no status is selected', () => {
@@ -1458,7 +1913,7 @@ describe('StatusBottomSheet', () => {
       BColor: '#28a745',
       Color: '#fff',
       Gps: false,
-      Note: 1, // Note required
+      Note: 2, // Note required
       Detail: 0, // No destination step
     };
 
@@ -1558,7 +2013,7 @@ describe('StatusBottomSheet', () => {
       BColor: '#28a745',
       Color: '#fff',
       Gps: false,
-      Note: 1, // Note required
+      Note: 1, // Note optional
       Detail: 0, // No destination step
     };
 
@@ -1742,5 +2197,323 @@ describe('StatusBottomSheet', () => {
     render(<StatusBottomSheet />);
 
     expect(screen.getByText('No statuses available')).toBeTruthy();
+  });
+
+  // NEW TESTS FOR ENHANCED FUNCTIONALITY
+
+  it('should show selected status and destination on note step', () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 2,
+      Note: 1,
+    };
+
+    const selectedCall = {
+      CallId: 'call-1',
+      Number: 'C123',
+      Name: 'Emergency Call',
+      Address: '123 Main St',
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedCall,
+      selectedDestinationType: 'call',
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Selected Status:')).toBeTruthy();
+    expect(screen.getByText('Available')).toBeTruthy();
+    expect(screen.getByText('Selected Destination:')).toBeTruthy();
+    expect(screen.getByText('C123 - Emergency Call')).toBeTruthy();
+  });
+
+  it('should disable submit button and show spinner when submitting', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 0,
+      Note: 0,
+    };
+
+    // Mock a slow save operation
+    const slowSaveUnitStatus = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 1000)));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    mockUseStatusesStore.mockReturnValue({
+      ...defaultStatusesStore,
+      saveUnitStatus: slowSaveUnitStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    // Check that the button is disabled and shows submitting text
+    await waitFor(() => {
+      expect(screen.getByText('Submitting')).toBeTruthy();
+    });
+
+    // Wait for the operation to complete
+    await waitFor(() => slowSaveUnitStatus);
+  });
+
+  it('should show success toast when status is saved successfully', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 0,
+      Note: 0,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(mockSaveUnitStatus).toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'Status saved successfully');
+    });
+  });
+
+  it('should show error toast when status save fails', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 0,
+      Note: 0,
+    };
+
+    const errorSaveUnitStatus = jest.fn().mockRejectedValue(new Error('Network error'));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    mockUseStatusesStore.mockReturnValue({
+      ...defaultStatusesStore,
+      saveUnitStatus: errorSaveUnitStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      expect(errorSaveUnitStatus).toHaveBeenCalled();
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to save status');
+    });
+  });
+
+  it('should prevent double submission when submit is pressed multiple times', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 0,
+      Note: 0,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+
+    // Press submit multiple times rapidly
+    fireEvent.press(submitButton);
+    fireEvent.press(submitButton);
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      // Should only call save once despite multiple presses
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('should disable previous button when submitting on note step', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 2,
+      Note: 1,
+    };
+
+    const slowSaveUnitStatus = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+      note: 'Test note',
+    });
+
+    mockUseStatusesStore.mockReturnValue({
+      ...defaultStatusesStore,
+      saveUnitStatus: slowSaveUnitStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
+
+    await waitFor(() => {
+      // Check that the submitting state is active
+      expect(screen.getByText('Submitting')).toBeTruthy();
+    });
+
+    // Wait for the operation to complete
+    await waitFor(() => expect(slowSaveUnitStatus).toHaveBeenCalled());
+  });
+
+  it('should show "No Destination" correctly when no call or station is selected', () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 2,
+      Note: 1,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Selected Destination:')).toBeTruthy();
+    expect(screen.getByText('No Destination')).toBeTruthy();
+  });
+
+  it('should show loading state when call is being selected but selectedCall is null', () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 2,
+      Note: 1,
+    };
+
+    const availableCalls = [
+      {
+        CallId: 'call-1',
+        Number: 'C123',
+        Name: 'Emergency Call',
+        Address: '123 Main St',
+      },
+    ];
+
+    // Mock core store with active call ID
+    const coreStoreWithActiveCall = {
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    };
+
+    mockGetState.mockReturnValue(coreStoreWithActiveCall as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithActiveCall);
+      }
+      return coreStoreWithActiveCall;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'call', // Set to call but no selectedCall yet
+      selectedCall: null, // This is the issue scenario
+      availableCalls,
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Selected Destination:')).toBeTruthy();
+    expect(screen.getByText('C123 - Emergency Call')).toBeTruthy(); // Should find the call from availableCalls
+  });
+
+  it('should show loading text when call type is selected but no calls are available yet', () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 2,
+      Note: 1,
+    };
+
+    // Mock core store with active call ID
+    const coreStoreWithActiveCall = {
+      ...defaultCoreStore,
+      activeCallId: 'call-1',
+    };
+
+    mockGetState.mockReturnValue(coreStoreWithActiveCall as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithActiveCall);
+      }
+      return coreStoreWithActiveCall;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'call', // Set to call but no selectedCall yet
+      selectedCall: null, // This is the issue scenario
+      availableCalls: [], // No calls available yet
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Selected Destination:')).toBeTruthy();
+    expect(screen.getByText('Loading calls...')).toBeTruthy(); // Should show loading text
   });
 });

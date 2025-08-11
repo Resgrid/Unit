@@ -327,6 +327,7 @@
     "share": "Share",
     "step": "Step",
     "submit": "Submit",
+    "submitting": "Submitting...",
     "tryAgainLater": "Please try again later",
     "unknown": "Unknown",
     "upload": "Upload",
@@ -589,6 +590,7 @@
     "both_destinations_enabled": "Can respond to calls or stations",
     "call_destination_enabled": "Can respond to calls",
     "calls_tab": "Calls",
+    "failed_to_save_status": "Failed to save status. Please try again.",
     "general_status": "General status without specific destination",
     "loading_stations": "Loading stations...",
     "no_destination": "No Destination",
@@ -602,9 +604,11 @@
     "select_status": "Select Status",
     "select_status_type": "What status would you like to set?",
     "selected_destination": "Selected Destination",
+    "selected_status": "Selected Status",
     "set_status": "Set Status",
     "station_destination_enabled": "Can respond to stations",
-    "stations_tab": "Stations"
+    "stations_tab": "Stations",
+    "status_saved_successfully": "Status saved successfully!"
   },
   "tabs": {
     "calls": "Calls",
