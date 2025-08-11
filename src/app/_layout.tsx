@@ -56,7 +56,7 @@ Sentry.init({
   ],
   enableNativeFramesTracking: true, //!isRunningInExpoGo(), // Tracks slow and frozen frames in the application
   // Add additional options to prevent timing issues
-  beforeSendTransaction(event) {
+  beforeSendTransaction(event: any) {
     // Filter out problematic navigation transactions that might cause timestamp errors
     if (event.contexts?.trace?.op === 'navigation' && !event.contexts?.trace?.data?.route) {
       return null;
