@@ -57,7 +57,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     versionCode: parseInt(packageJSON.versionCode),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#2a7dd5',
+      backgroundColor: '#2484c4',
     },
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
