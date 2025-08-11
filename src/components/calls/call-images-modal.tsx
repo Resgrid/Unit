@@ -240,7 +240,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
             key={`${item.Id}-${index}`}
             source={imageSource}
             style={styles.galleryImage}
-            contentFit="cover"
+            contentFit="contain"
             transition={200}
             pointerEvents="none"
             onError={() => {
