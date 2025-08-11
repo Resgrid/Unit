@@ -47,12 +47,14 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
 Sentry.init({
   dsn: Env.SENTRY_DSN,
   debug: __DEV__, // Only debug in development, not production
-  tracesSampleRate: __DEV__ ? 1.0 : 0.1, // 100% in dev, 10% in production to reduce performance impact
+  tracesSampleRate: __DEV__ ? 1.0 : 0.2, // 100% in dev, 20% in production to reduce performance impact
+  profilesSampleRate: __DEV__ ? 1.0 : 0.2, // 100% in dev, 20% in production to reduce performance impact
+  sendDefaultPii: false,
   integrations: [
     // Pass integration
     navigationIntegration,
   ],
-  enableNativeFramesTracking: !isRunningInExpoGo(), // Tracks slow and frozen frames in the application
+  enableNativeFramesTracking: true, //!isRunningInExpoGo(), // Tracks slow and frozen frames in the application
   // Add additional options to prevent timing issues
   beforeSendTransaction(event) {
     // Filter out problematic navigation transactions that might cause timestamp errors
