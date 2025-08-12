@@ -481,8 +481,8 @@ export const StatusBottomSheet = () => {
                             )}
                             {status.Note > 0 && (
                               <Text className="text-xs text-gray-500 dark:text-gray-500">
-                                {status.Note === 1 && t('status.note_required')}
-                                {status.Note === 2 && t('status.note_optional')}
+                                {status.Note === 1 && t('status.note_optional')}
+                                {status.Note === 2 && t('status.note_required')}
                               </Text>
                             )}
                           </VStack>
