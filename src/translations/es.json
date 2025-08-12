@@ -327,6 +327,7 @@
     "share": "Compartir",
     "step": "Paso",
     "submit": "Enviar",
+    "submitting": "Enviando...",
     "tryAgainLater": "Por favor, inténtelo de nuevo más tarde",
     "unknown": "Desconocido",
     "upload": "Subir",
@@ -589,6 +590,7 @@
     "both_destinations_enabled": "Puede responder a llamadas o estaciones",
     "call_destination_enabled": "Puede responder a llamadas",
     "calls_tab": "Llamadas",
+    "failed_to_save_status": "Error al guardar el estado. Por favor, inténtelo de nuevo.",
     "general_status": "Estado general sin destino específico",
     "loading_stations": "Cargando estaciones...",
     "no_destination": "Sin Destino",
@@ -602,9 +604,11 @@
     "select_status": "Seleccionar Estado",
     "select_status_type": "¿Qué estado te gustaría establecer?",
     "selected_destination": "Destino Seleccionado",
+    "selected_status": "Estado Seleccionado",
     "set_status": "Establecer Estado",
     "station_destination_enabled": "Puede responder a estaciones",
-    "stations_tab": "Estaciones"
+    "stations_tab": "Estaciones",
+    "status_saved_successfully": "¡Estado guardado exitosamente!"
   },
   "tabs": {
     "calls": "Llamadas",

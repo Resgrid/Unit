@@ -327,6 +327,7 @@
     "share": "مشاركة",
     "step": "خطوة",
     "submit": "إرسال",
+    "submitting": "جاري الإرسال...",
     "tryAgainLater": "يرجى المحاولة مرة أخرى لاحقًا",
     "unknown": "غير معروف",
     "upload": "رفع",
@@ -589,6 +590,7 @@
     "both_destinations_enabled": "يمكن الاستجابة للمكالمات أو المحطات",
     "call_destination_enabled": "يمكن الاستجابة للمكالمات",
     "calls_tab": "المكالمات",
+    "failed_to_save_status": "فشل في حفظ الحالة. يرجى المحاولة مرة أخرى.",
     "general_status": "حالة عامة بدون وجهة محددة",
     "loading_stations": "جاري تحميل المحطات...",
     "no_destination": "بدون وجهة",
@@ -602,9 +604,11 @@
     "select_status": "اختر الحالة",
     "select_status_type": "ما الحالة التي تريد تعيينها؟",
     "selected_destination": "الوجهة المختارة",
+    "selected_status": "الحالة المختارة",
     "set_status": "تعيين الحالة",
     "station_destination_enabled": "يمكن الاستجابة للمحطات",
-    "stations_tab": "المحطات"
+    "stations_tab": "المحطات",
+    "status_saved_successfully": "تم حفظ الحالة بنجاح!"
   },
   "tabs": {
     "calls": "المكالمات",
