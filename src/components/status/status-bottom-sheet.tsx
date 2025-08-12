@@ -277,17 +277,16 @@ export const StatusBottomSheet = () => {
         hasPreselectedRef.current = true;
       }
     }
-  }, [isOpen, isLoading, selectedStatus, activeCallId, availableCalls, selectedCall, selectedDestinationType, setSelectedCall, setSelectedDestinationType]);
 
-  // Additional effect to set the actual call once it becomes available
-  React.useLayoutEffect(() => {
+    // Handle case where destination type is already 'call' but call hasn't been set yet
+    // This covers the scenario from the removed redundant effect
     if (isOpen && selectedStatus && (selectedStatus.Detail === 2 || selectedStatus.Detail === 3) && activeCallId && !selectedCall && selectedDestinationType === 'call' && !isLoading && availableCalls.length > 0) {
       const activeCall = availableCalls.find((call) => call.CallId === activeCallId);
       if (activeCall) {
         setSelectedCall(activeCall);
       }
     }
-  }, [isOpen, selectedStatus, activeCallId, selectedCall, selectedDestinationType, isLoading, availableCalls, setSelectedCall]);
+  }, [isOpen, isLoading, selectedStatus, activeCallId, availableCalls, selectedCall, selectedDestinationType, setSelectedCall, setSelectedDestinationType]);
 
   // Smart logic: only show "No Destination" as selected if we truly want no destination
   // Don't show it as selected if we're about to pre-select an active call or already have one selected
