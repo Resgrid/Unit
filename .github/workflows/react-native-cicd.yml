@@ -113,7 +113,7 @@ jobs:
     strategy:
       matrix:
         platform: [android, ios]
-    runs-on: ${{ matrix.platform == 'ios' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.platform == 'ios' && 'macos-14' || 'ubuntu-latest' }}
     environment: RNBuild
     steps:
       - name: 🏗 Checkout repository
@@ -268,7 +268,7 @@ jobs:
 
       - name: 📦 Upload Android artifact to Firebase App Distribution
         if: (matrix.platform == 'android')
-        run: | 
+        run: |
           firebase appdistribution:distribute ./ResgridUnit-prod.apk --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} --groups "testers"
 
       - name: 📦 Upload iOS artifact to Firebase App Distribution
@@ -306,11 +306,10 @@ jobs:
         if: ${{ matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-apk') }}
         uses: ncipollo/release-action@v1
         with:
-          tag: "7.${{ github.run_number }}"
+          tag: '7.${{ github.run_number }}'
           commit: ${{ github.sha }}
           makeLatest: true
           allowUpdates: true
-          name: "7.${{ github.run_number }}"
-          artifacts: "./ResgridUnit-prod.apk"
-          bodyFile: "RELEASE_NOTES.md"
-
+          name: '7.${{ github.run_number }}'
+          artifacts: './ResgridUnit-prod.apk'
+          bodyFile: 'RELEASE_NOTES.md'
