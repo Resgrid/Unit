@@ -277,7 +277,7 @@ jobs:
           firebase appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
 
       - name: 📋 Extract Release Notes from PR Body
-        if: ${{ github.event_name == 'pull_request' && matrix.platform == 'android' }}
+        if: ${{ matrix.platform == 'android' }}
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
@@ -303,7 +303,7 @@ jobs:
           } > RELEASE_NOTES.md
 
       - name: 📦 Create Release
-        if: ${{ matrix.platform == 'android' }}
+        if: ${{ matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-apk') }}
         uses: ncipollo/release-action@v1
         with:
           tag: "7.${{ github.run_number }}"
