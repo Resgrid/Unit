@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { LoginFormProps } from '@/app/login/login-form';
+import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
@@ -15,6 +16,7 @@ import { LoginForm } from './login-form';
 
 export default function Login() {
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
+  const [showServerUrl, setShowServerUrl] = useState(false);
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function Login() {
   return (
     <>
       <FocusAwareStatusBar />
-      <LoginForm onSubmit={onSubmit} isLoading={status === 'loading'} error={error ?? undefined} />
+      <LoginForm onSubmit={onSubmit} isLoading={status === 'loading'} error={error ?? undefined} onServerUrlPress={() => setShowServerUrl(true)} />
 
       <Modal
         isOpen={isErrorModalVisible}
@@ -89,6 +91,8 @@ export default function Login() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <ServerUrlBottomSheet isOpen={showServerUrl} onClose={() => setShowServerUrl(false)} />
     </>
   );
 }

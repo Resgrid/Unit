@@ -83,6 +83,14 @@ export const useCoreStore = create<CoreState>()(
         set({ isLoading: true, isInitializing: true, error: null });
 
         try {
+          // Fetch config first before anything else - this is critical for SignalR connections
+          await get().fetchConfig();
+
+          // If config fetch failed, don't continue initialization
+          if (get().error) {
+            throw new Error('Config fetch failed, cannot continue initialization');
+          }
+
           const activeUnitId = getActiveUnitId();
           const activeCallId = getActiveCallId();
 
@@ -236,13 +244,14 @@ export const useCoreStore = create<CoreState>()(
       fetchConfig: async () => {
         try {
           const config = await getConfig(Env.APP_KEY);
-          set({ config: config.Data });
+          set({ config: config.Data, error: null });
         } catch (error) {
           set({ error: 'Failed to fetch config', isLoading: false });
           logger.error({
             message: `Failed to fetch config: ${JSON.stringify(error)}`,
             context: { error },
           });
+          throw error; // Re-throw to allow calling code to handle
         }
       },
     }),

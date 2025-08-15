@@ -10,13 +10,21 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 const mockConfig: GetConfigResultData = {
   GoogleMapsKey: 'test-mapbox-key',
   W3WKey: 'test-api-key',
+  EventingUrl: '',
   LoggingKey: '',
   MapUrl: '',
   MapAttribution: '',
   OpenWeatherApiKey: '',
+  DirectionsMapKey: '',
+  PersonnelLocationStaleSeconds: 300,
+  UnitLocationStaleSeconds: 300,
+  PersonnelLocationMinMeters: 15,
+  UnitLocationMinMeters: 15,
   NovuBackendApiUrl: '',
   NovuSocketUrl: '',
   NovuApplicationId: '',
+  AnalyticsApiKey: '',
+  AnalyticsHost: '',
 };
 
 // Mock the core store
