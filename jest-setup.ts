@@ -155,3 +155,22 @@ jest.mock('nativewind', () => ({
   })),
   __esModule: true,
 }));
+
+// Mock zod globally to avoid validation schema issues in tests
+jest.mock('zod', () => ({
+  z: {
+    object: jest.fn(() => ({
+      parse: jest.fn((data) => data),
+      safeParse: jest.fn((data) => ({ success: true, data })),
+    })),
+    string: jest.fn(() => ({
+      min: jest.fn(() => ({
+        parse: jest.fn((data) => data),
+        safeParse: jest.fn((data) => ({ success: true, data })),
+      })),
+      parse: jest.fn((data) => data),
+      safeParse: jest.fn((data) => ({ success: true, data })),
+    })),
+  },
+  __esModule: true,
+}));

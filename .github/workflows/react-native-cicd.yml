@@ -276,4 +276,25 @@ jobs:
         run: |
           firebase appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
 
+      - name: 📋 Extract Release Notes from PR Body
+        run: |
+          PR_BODY="${{ github.event.pull_request.body }}"
+          RELEASE_NOTES=$(echo "$PR_BODY" | grep -A 100 "## Release Notes" | sed '1d')
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          echo "$RELEASE_NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: 📋 Update Release Notes File
+        run: |
+          echo "## Version X.Y.Z - $(date +%Y-%m-%d)" >> CHANGELOG.md
+          echo "${{ env.RELEASE_NOTES }}" >> CHANGELOG.md
+
+      - name: 📦 Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          commit: "master"
+          makeLatest: true
+          name: "7.${{ github.run_number }}"
+          artifacts: "./ResgridUnit-prod.apk"
+          bodyFile: "CHANGELOG.md"
 

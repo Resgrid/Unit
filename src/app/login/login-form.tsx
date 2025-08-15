@@ -16,18 +16,22 @@ import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
 
-const loginFormSchema = z.object({
-  username: z
-    .string({
-      required_error: 'Username is required',
-    })
-    .min(3, 'Username must be at least 3 characters'),
-  password: z
-    .string({
-      required_error: 'Password is required',
-    })
-    .min(6, 'Password must be at least 6 characters'),
-});
+// Function to create schema - makes it easier to mock for testing
+const createLoginFormSchema = () =>
+  z.object({
+    username: z
+      .string({
+        required_error: 'Username is required',
+      })
+      .min(3, 'Username must be at least 3 characters'),
+    password: z
+      .string({
+        required_error: 'Password is required',
+      })
+      .min(6, 'Password must be at least 6 characters'),
+  });
+
+const loginFormSchema = createLoginFormSchema();
 
 export type FormType = z.infer<typeof loginFormSchema>;
 
@@ -35,9 +39,10 @@ export type LoginFormProps = {
   onSubmit?: SubmitHandler<FormType>;
   isLoading?: boolean;
   error?: string;
+  onServerUrlPress?: () => void;
 };
 
-export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined }: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
   const { t } = useTranslation();
   const {
@@ -165,6 +170,12 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
         ) : (
           <Button className="mt-8 w-full" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
             <ButtonText>Log in</ButtonText>
+          </Button>
+        )}
+
+        {onServerUrlPress && (
+          <Button className="mt-4 w-full" variant="outline" action="secondary" onPress={onServerUrlPress}>
+            <ButtonText>{t('settings.server_url')}</ButtonText>
           </Button>
         )}
       </View>

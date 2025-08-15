@@ -61,9 +61,12 @@ jest.mock('@/lib/storage', () => ({
 // Import after mocks
 import { useCoreStore } from '../core-store';
 import { getActiveUnitId, getActiveCallId } from '@/lib/storage/app';
+import { getConfig } from '@/api/config/config';
+import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
 
 const mockGetActiveUnitId = getActiveUnitId as jest.MockedFunction<typeof getActiveUnitId>;
 const mockGetActiveCallId = getActiveCallId as jest.MockedFunction<typeof getActiveCallId>;
+const mockGetConfig = getConfig as jest.MockedFunction<typeof getConfig>;
 
 describe('Core Store', () => {
   beforeEach(() => {
@@ -92,6 +95,12 @@ describe('Core Store', () => {
     it('should prevent multiple simultaneous initializations', async () => {
       mockGetActiveUnitId.mockReturnValue(null);
       mockGetActiveCallId.mockReturnValue(null);
+      mockGetConfig.mockResolvedValue({
+        Data: {
+          EventingUrl: 'https://eventing.example.com/',
+          GoogleMapsKey: 'test-key',
+        } as GetConfigResultData,
+      } as any);
 
       const { result } = renderHook(() => useCoreStore());
 
@@ -109,11 +118,20 @@ describe('Core Store', () => {
       // Should be initialized only once
       expect(result.current.isInitialized).toBe(true);
       expect(result.current.isInitializing).toBe(false);
+      expect(result.current.config).toEqual({
+        EventingUrl: 'https://eventing.example.com/',
+        GoogleMapsKey: 'test-key',
+      });
     });
 
     it('should skip initialization if already initialized', async () => {
       mockGetActiveUnitId.mockReturnValue(null);
       mockGetActiveCallId.mockReturnValue(null);
+      mockGetConfig.mockResolvedValue({
+        Data: {
+          EventingUrl: 'https://eventing.example.com/',
+        } as GetConfigResultData,
+      } as any);
 
       const { result } = renderHook(() => useCoreStore());
 
@@ -124,6 +142,9 @@ describe('Core Store', () => {
 
       expect(result.current.isInitialized).toBe(true);
 
+      // Clear mock to verify second call doesn't happen
+      jest.clearAllMocks();
+
       // Second initialization should skip
       await act(async () => {
         await result.current.init();
@@ -131,11 +152,17 @@ describe('Core Store', () => {
 
       expect(result.current.isInitialized).toBe(true);
       expect(result.current.isInitializing).toBe(false);
+      expect(mockGetConfig).not.toHaveBeenCalled();
     });
 
     it('should handle initialization with no active unit or call', async () => {
       mockGetActiveUnitId.mockReturnValue(null);
       mockGetActiveCallId.mockReturnValue(null);
+      mockGetConfig.mockResolvedValue({
+        Data: {
+          EventingUrl: 'https://eventing.example.com/',
+        } as GetConfigResultData,
+      } as any);
 
       const { result } = renderHook(() => useCoreStore());
 
@@ -146,6 +173,118 @@ describe('Core Store', () => {
       expect(result.current.isInitialized).toBe(true);
       expect(result.current.isInitializing).toBe(false);
       expect(result.current.error).toBe(null);
+      expect(result.current.config).toEqual({
+        EventingUrl: 'https://eventing.example.com/',
+      });
+      expect(mockGetConfig).toHaveBeenCalledTimes(1);
+    });
+
+    it('should fetch config first during initialization', async () => {
+      mockGetActiveUnitId.mockReturnValue(null);
+      mockGetActiveCallId.mockReturnValue(null);
+      
+      const mockConfigData = {
+        EventingUrl: 'https://eventing.example.com/',
+        GoogleMapsKey: 'test-google-key',
+        OpenWeatherApiKey: 'test-weather-key',
+      } as GetConfigResultData;
+
+      mockGetConfig.mockResolvedValue({
+        Data: mockConfigData,
+      } as any);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await result.current.init();
+      });
+
+      expect(mockGetConfig).toHaveBeenCalledTimes(1);
+      expect(result.current.config).toEqual(mockConfigData);
+      expect(result.current.isInitialized).toBe(true);
+      expect(result.current.error).toBe(null);
+    });
+
+    it('should handle config fetch errors during initialization', async () => {
+      mockGetActiveUnitId.mockReturnValue(null);
+      mockGetActiveCallId.mockReturnValue(null);
+      
+      const configError = new Error('Failed to fetch config');
+      mockGetConfig.mockRejectedValue(configError);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await result.current.init();
+      });
+
+      expect(result.current.isInitialized).toBe(false);
+      expect(result.current.isInitializing).toBe(false);
+      expect(result.current.error).toBe('Failed to init core app data');
+      expect(result.current.config).toBe(null);
+    });
+  });
+
+  describe('Config Management', () => {
+    it('should fetch config successfully', async () => {
+      const mockConfigData = {
+        EventingUrl: 'https://eventing.example.com/',
+        GoogleMapsKey: 'test-google-key',
+        MapUrl: 'https://maps.example.com/',
+        LoggingKey: 'test-logging-key',
+      } as GetConfigResultData;
+
+      mockGetConfig.mockResolvedValue({
+        Data: mockConfigData,
+      } as any);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await result.current.fetchConfig();
+      });
+
+      expect(mockGetConfig).toHaveBeenCalledTimes(1);
+      expect(result.current.config).toEqual(mockConfigData);
+      expect(result.current.error).toBe(null);
+    });
+
+    it('should handle config fetch errors', async () => {
+      const configError = new Error('Config service unavailable');
+      mockGetConfig.mockRejectedValue(configError);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        try {
+          await result.current.fetchConfig();
+        } catch (error) {
+          // Expected to throw since fetchConfig re-throws the error
+          expect(error).toBe(configError);
+        }
+      });
+
+      expect(result.current.config).toBe(null);
+      expect(result.current.error).toBe('Failed to fetch config');
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should provide EventingUrl for SignalR connections', async () => {
+      const eventingUrl = 'https://eventing.resgrid.com/';
+      mockGetConfig.mockResolvedValue({
+        Data: {
+          EventingUrl: eventingUrl,
+          GoogleMapsKey: 'test-key',
+        } as GetConfigResultData,
+      } as any);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await result.current.fetchConfig();
+      });
+
+      expect(result.current.config?.EventingUrl).toBe(eventingUrl);
     });
   });
 

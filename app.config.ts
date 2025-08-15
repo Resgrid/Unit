@@ -38,6 +38,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   assetBundlePatterns: ['**/*'],
   ios: {
+    icon: './assets/ios-icon.png',
     version: packageJSON.version,
     buildNumber: packageJSON.version,
     supportsTablet: true,

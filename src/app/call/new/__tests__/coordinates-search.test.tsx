@@ -113,13 +113,21 @@ describe('Coordinates Search Logic', () => {
   const mockConfig: GetConfigResultData = {
     GoogleMapsKey: 'test-api-key',
     W3WKey: '',
+    EventingUrl: '',
     LoggingKey: '',
     MapUrl: '',
     MapAttribution: '',
     OpenWeatherApiKey: '',
+    DirectionsMapKey: '',
+    PersonnelLocationStaleSeconds: 300,
+    UnitLocationStaleSeconds: 300,
+    PersonnelLocationMinMeters: 15,
+    UnitLocationMinMeters: 15,
     NovuBackendApiUrl: '',
     NovuSocketUrl: '',
     NovuApplicationId: '',
+    AnalyticsApiKey: '',
+    AnalyticsHost: '',
   };
 
   beforeEach(() => {
@@ -249,13 +257,21 @@ describe('Coordinates Search Logic', () => {
       const configWithoutKey: GetConfigResultData = {
         GoogleMapsKey: '',
         W3WKey: '',
+        EventingUrl: '',
         LoggingKey: '',
         MapUrl: '',
         MapAttribution: '',
         OpenWeatherApiKey: '',
+        DirectionsMapKey: '',
+        PersonnelLocationStaleSeconds: 300,
+        UnitLocationStaleSeconds: 300,
+        PersonnelLocationMinMeters: 15,
+        UnitLocationMinMeters: 15,
         NovuBackendApiUrl: '',
         NovuSocketUrl: '',
         NovuApplicationId: '',
+        AnalyticsApiKey: '',
+        AnalyticsHost: '',
       };
 
       const result = await performCoordinatesSearch('40.7128, -74.0060', configWithoutKey);
