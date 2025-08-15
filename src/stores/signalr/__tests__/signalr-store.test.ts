@@ -1,12 +1,11 @@
 import { act, renderHook } from '@testing-library/react-native';
 
-// Simple mocks to avoid complex dependency issues
-const mockSignalRService = {
-  connectToHubWithEventingUrl: jest.fn().mockResolvedValue(undefined),
-  disconnectFromHub: jest.fn().mockResolvedValue(undefined),
-  invoke: jest.fn().mockResolvedValue(undefined),
-  on: jest.fn(),
-};
+// Create the mock before any imports
+const mockCoreStoreGetState = jest.fn(() => ({
+  config: {
+    EventingUrl: 'https://eventing.example.com/',
+  },
+}));
 
 const mockSecurityStore = {
   getState: jest.fn(() => ({
@@ -32,31 +31,21 @@ jest.mock('@/services/signalr.service', () => {
   };
 });
 
-jest.mock('@/stores/app/core-store', () => ({
-  useCoreStore: {
-    getState: jest.fn(() => ({
-      config: {
-        EventingUrl: 'https://eventing.example.com/',
-      },
-    })),
-    subscribe: jest.fn(),
-    setState: jest.fn(),
-    destroy: jest.fn(),
-  },
-}));
-
+// Mock the core store module directly - mock as a function that behaves like a Zustand store
 jest.mock('../../app/core-store', () => {
+  const createMockStore = () => {
+    const mockStore = () => mockCoreStoreGetState();
+    // Ensure getState always calls the current mock function
+    mockStore.getState = () => mockCoreStoreGetState();
+    mockStore.subscribe = jest.fn();
+    mockStore.setState = jest.fn();
+    mockStore.destroy = jest.fn();
+    
+    return mockStore;
+  };
+  
   return {
-    useCoreStore: {
-      getState: jest.fn(() => ({
-        config: {
-          EventingUrl: 'https://eventing.example.com/',
-        },
-      })),
-      subscribe: jest.fn(),
-      setState: jest.fn(),
-      destroy: jest.fn(),
-    },
+    useCoreStore: createMockStore(),
   };
 });
 
@@ -98,7 +87,6 @@ jest.mock('@/lib', () => ({
 // Import the store after all mocks are set up
 import { useSignalRStore } from '../signalr-store';
 import { logger } from '@/lib/logging';
-import { useCoreStore } from '../../app/core-store';
 import { signalRService } from '@/services/signalr.service';
 
 describe('useSignalRStore', () => {
@@ -108,8 +96,8 @@ describe('useSignalRStore', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Reset the mock function
-    (useCoreStore.getState as jest.Mock).mockReturnValue({
+    // Reset the mock function to default behavior
+    mockCoreStoreGetState.mockReturnValue({
       config: {
         EventingUrl: mockEventingUrl,
       },
@@ -152,12 +140,11 @@ describe('useSignalRStore', () => {
   describe('connectUpdateHub', () => {
     it('should handle missing EventingUrl', async () => {
       // Mock core store without EventingUrl
-      const stateWithoutUrl = {
+      mockCoreStoreGetState.mockReturnValue({
         config: {
           EventingUrl: undefined,
         } as any,
-      };
-      (useCoreStore.getState as jest.Mock).mockReturnValue(stateWithoutUrl);
+      });
 
       const { result } = renderHook(() => useSignalRStore());
 
@@ -177,10 +164,9 @@ describe('useSignalRStore', () => {
 
     it('should handle missing config', async () => {
       // Mock core store without config
-      const stateWithoutConfig = {
+      mockCoreStoreGetState.mockReturnValue({
         config: null as any,
-      };
-      (useCoreStore.getState as jest.Mock).mockReturnValue(stateWithoutConfig);
+      });
 
       const { result } = renderHook(() => useSignalRStore());
 
@@ -246,12 +232,11 @@ describe('useSignalRStore', () => {
   describe('connectGeolocationHub', () => {
     it('should handle missing EventingUrl', async () => {
       // Mock core store without EventingUrl
-      const stateWithoutUrl = {
+      mockCoreStoreGetState.mockReturnValue({
         config: {
           EventingUrl: undefined,
         } as any,
-      };
-      (useCoreStore.getState as jest.Mock).mockReturnValue(stateWithoutUrl);
+      });
 
       const { result } = renderHook(() => useSignalRStore());
 

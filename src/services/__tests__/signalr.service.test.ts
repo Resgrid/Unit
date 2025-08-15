@@ -11,7 +11,11 @@ jest.mock('@/lib/env', () => ({
 
 // Mock the auth store
 jest.mock('@/stores/auth/store', () => {
-  const mockGetState = jest.fn(() => ({ accessToken: 'mock-token' }));
+  const mockRefreshAccessToken = jest.fn().mockResolvedValue(undefined);
+  const mockGetState = jest.fn(() => ({ 
+    accessToken: 'mock-token',
+    refreshAccessToken: mockRefreshAccessToken,
+  }));
   return {
     __esModule: true,
     default: {
@@ -28,6 +32,7 @@ jest.mock('@microsoft/signalr');
 jest.mock('@/lib/logging');
 
 const mockGetState = (useAuthStore as any).getState;
+const mockRefreshAccessToken = jest.fn().mockResolvedValue(undefined);
 
 const mockHubConnectionBuilder = HubConnectionBuilder as jest.MockedClass<typeof HubConnectionBuilder>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
@@ -65,8 +70,15 @@ describe('SignalRService', () => {
 
     mockHubConnectionBuilder.mockImplementation(() => mockBuilderInstance);
 
+    // Reset refresh token mock
+    mockRefreshAccessToken.mockClear();
+    mockRefreshAccessToken.mockResolvedValue(undefined);
+
     // Mock auth store
-    mockGetState.mockReturnValue({ accessToken: 'mock-token' });
+    mockGetState.mockReturnValue({ 
+      accessToken: 'mock-token',
+      refreshAccessToken: mockRefreshAccessToken,
+    });
   });
 
   describe('connectToHubWithEventingUrl', () => {
@@ -109,7 +121,10 @@ describe('SignalRService', () => {
     });
 
     it('should throw error if no access token is available', async () => {
-      mockGetState.mockReturnValue({ accessToken: '' });
+      mockGetState.mockReturnValue({ 
+        accessToken: '',
+        refreshAccessToken: mockRefreshAccessToken,
+      });
 
       await expect(signalRService.connectToHubWithEventingUrl(mockConfig)).rejects.toThrow(
         'No authentication token available'
@@ -171,7 +186,10 @@ describe('SignalRService', () => {
 
     it('should properly encode access token in URL for geolocation hub', async () => {
       // Set up a token that needs encoding
-      mockGetState.mockReturnValue({ accessToken: 'token with spaces & special chars' });
+      mockGetState.mockReturnValue({ 
+        accessToken: 'token with spaces & special chars',
+        refreshAccessToken: mockRefreshAccessToken,
+      });
 
       const geoConfig: SignalRHubConnectConfig = {
         name: 'geoHub',
@@ -191,7 +209,10 @@ describe('SignalRService', () => {
 
     it('should properly URI encode complex access tokens for geolocation hub', async () => {
       // Set up a complex token with various characters that need encoding
-      mockGetState.mockReturnValue({ accessToken: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9+/=?#&' });
+      mockGetState.mockReturnValue({ 
+        accessToken: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9+/=?#&',
+        refreshAccessToken: mockRefreshAccessToken,
+      });
 
       const geoConfig: SignalRHubConnectConfig = {
         name: 'geoHub',
@@ -219,9 +240,9 @@ describe('SignalRService', () => {
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should append the token parameter correctly
+      // Should append the hub to the path and merge access_token with existing query parameters
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/path?existing=param/geolocationHub&access_token=mock-token',
+        'https://api.example.com/path/geolocationHub?existing=param&access_token=mock-token',
         {}
       );
     });
@@ -488,8 +509,14 @@ describe('SignalRService', () => {
       // Trigger connection close
       onCloseCallback();
       
-      // Fast-forward time to trigger reconnection
+      // Fast-forward time to trigger the setTimeout callback
       jest.advanceTimersByTime(5000);
+      
+      // Wait for all promises to resolve
+      await jest.runAllTicks();
+      
+      // Should have called refreshAccessToken
+      expect(mockRefreshAccessToken).toHaveBeenCalled();
       
       // Should have called connectToHubWithEventingUrl for reconnection
       expect(connectSpy).toHaveBeenCalledWith(mockConfig);
@@ -511,6 +538,7 @@ describe('SignalRService', () => {
       for (let i = 0; i < 6; i++) {
         onCloseCallback();
         jest.advanceTimersByTime(5000);
+        await jest.runAllTicks();
       }
       
       // Should log max attempts reached error
@@ -535,6 +563,47 @@ describe('SignalRService', () => {
         message: `Reconnected to hub: ${mockConfig.name}`,
         context: { connectionId: 'new-connection-id' },
       });
+    });
+
+    it('should handle token refresh failure during reconnection', async () => {
+      jest.useFakeTimers();
+      
+      // Setup refresh token to fail
+      mockRefreshAccessToken.mockRejectedValue(new Error('Token refresh failed'));
+      
+      // Connect to hub
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      // Spy on the connectToHubWithEventingUrl method to ensure it's not called when token refresh fails
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockResolvedValue();
+      
+      // Trigger connection close
+      onCloseCallback();
+      
+      // Fast-forward time to trigger the setTimeout callback
+      jest.advanceTimersByTime(5000);
+      
+      // Wait for all promises to resolve
+      await jest.runAllTicks();
+      
+      // Should have attempted to refresh token
+      expect(mockRefreshAccessToken).toHaveBeenCalled();
+      
+      // Should have logged the failure
+      expect(mockLogger.error).toHaveBeenCalledWith({
+        message: `Failed to refresh token or reconnect to hub: ${mockConfig.name}`,
+        context: { error: expect.any(Error), attempts: 1 },
+      });
+      
+      // Should NOT have called connectToHubWithEventingUrl due to token refresh failure
+      expect(connectSpy).not.toHaveBeenCalled();
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
     });
   });
 });

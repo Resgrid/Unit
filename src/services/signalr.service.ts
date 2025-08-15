@@ -58,16 +58,29 @@ class SignalRService {
         throw new Error('EventingUrl is required for SignalR connection');
       }
 
-      // Ensure EventingUrl has a trailing slash
-      const normalizedEventingUrl = config.eventingUrl.endsWith('/') ? config.eventingUrl : `${config.eventingUrl}/`;
+      // Parse the incoming eventingUrl into path and query components
+      const url = new URL(config.eventingUrl);
 
-      let fullUrl = `${normalizedEventingUrl}${config.hubName}`;
+      // Append the hub name to the path (ensuring a single slash)
+      const pathWithHub = url.pathname.endsWith('/') ? `${url.pathname}${config.hubName}` : `${url.pathname}/${config.hubName}`;
+
+      // Reassemble the URL with the hub in the path
+      let fullUrl = `${url.protocol}//${url.host}${pathWithHub}`;
 
       // For geolocation hub, add token as URL parameter instead of header
       const isGeolocationHub = config.hubName === Env.REALTIME_GEO_HUB_NAME;
+
+      // Merge existing query parameters with access_token if needed
+      const queryParams = new URLSearchParams(url.search);
       if (isGeolocationHub) {
-        const separator = fullUrl.includes('?') ? '&' : '?';
-        fullUrl = `${fullUrl}${separator}access_token=${encodeURIComponent(token)}`;
+        queryParams.set('access_token', token);
+      }
+
+      // Add query string if there are any parameters
+      if (queryParams.toString()) {
+        // Manually encode to ensure spaces are encoded as %20 instead of +
+        const queryString = queryParams.toString().replace(/\+/g, '%20');
+        fullUrl = `${fullUrl}?${queryString}`;
       }
 
       logger.info({
@@ -227,11 +240,40 @@ class SignalRService {
     const attempts = this.reconnectAttempts.get(hubName) || 0;
     if (attempts < this.MAX_RECONNECT_ATTEMPTS) {
       this.reconnectAttempts.set(hubName, attempts + 1);
+      const currentAttempts = attempts + 1;
 
       const hubConfig = this.hubConfigs.get(hubName);
       if (hubConfig) {
-        setTimeout(() => {
-          this.connectToHubWithEventingUrl(hubConfig);
+        setTimeout(async () => {
+          try {
+            // Refresh authentication token before reconnecting
+            logger.info({
+              message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
+            });
+
+            await useAuthStore.getState().refreshAccessToken();
+
+            // Verify we have a valid token after refresh
+            const token = useAuthStore.getState().accessToken;
+            if (!token) {
+              throw new Error('No valid authentication token available after refresh');
+            }
+
+            logger.info({
+              message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName}`,
+            });
+
+            await this.connectToHubWithEventingUrl(hubConfig);
+          } catch (error) {
+            logger.error({
+              message: `Failed to refresh token or reconnect to hub: ${hubName}`,
+              context: { error, attempts: currentAttempts },
+            });
+
+            // Don't attempt reconnection if token refresh failed
+            // The next reconnection attempt will be handled by the next connection close event
+            // if the token becomes available again
+          }
         }, this.RECONNECT_INTERVAL);
       } else {
         logger.error({

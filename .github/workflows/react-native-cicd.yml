@@ -277,24 +277,40 @@ jobs:
           firebase appdistribution:distribute ./ResgridUnit-ios-adhoc.ipa --app ${{ secrets.FIREBASE_IOS_APP_ID }} --groups "testers"
 
       - name: 📋 Extract Release Notes from PR Body
+        if: ${{ github.event_name == 'pull_request' && matrix.platform == 'android' }}
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          PR_BODY="${{ github.event.pull_request.body }}"
-          RELEASE_NOTES=$(echo "$PR_BODY" | grep -A 100 "## Release Notes" | sed '1d')
-          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
-          echo "$RELEASE_NOTES" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          set -eo pipefail
+          # Grab lines after "## Release Notes" until the next header
+          RELEASE_NOTES="$(printf '%s\n' "$PR_BODY" \
+            | awk 'f && /^## /{f=0} /^## Release Notes/{f=1; next} f')"
+          # Use a unique delimiter to write multiline into GITHUB_ENV
+          delimiter="EOF_$(date +%s)_$RANDOM"
+          {
+            echo "RELEASE_NOTES<<$delimiter"
+            printf '%s\n' "${RELEASE_NOTES:-No release notes provided.}"
+            echo "$delimiter"
+          } >> "$GITHUB_ENV"
 
-      - name: 📋 Update Release Notes File
+      - name: 📋 Prepare Release Notes file
+        if: ${{ matrix.platform == 'android' }}
         run: |
-          echo "## Version X.Y.Z - $(date +%Y-%m-%d)" >> CHANGELOG.md
-          echo "${{ env.RELEASE_NOTES }}" >> CHANGELOG.md
+          {
+            echo "## Version 7.${{ github.run_number }} - $(date +%Y-%m-%d)"
+            echo
+            printf '%s\n' "${RELEASE_NOTES:-No release notes provided.}"
+          } > RELEASE_NOTES.md
 
       - name: 📦 Create Release
+        if: ${{ matrix.platform == 'android' }}
         uses: ncipollo/release-action@v1
         with:
-          commit: "master"
+          tag: "7.${{ github.run_number }}"
+          commit: ${{ github.sha }}
           makeLatest: true
+          allowUpdates: true
           name: "7.${{ github.run_number }}"
           artifacts: "./ResgridUnit-prod.apk"
-          bodyFile: "CHANGELOG.md"
+          bodyFile: "RELEASE_NOTES.md"
 

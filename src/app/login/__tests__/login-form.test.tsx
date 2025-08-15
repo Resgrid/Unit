@@ -310,11 +310,12 @@ describe('LoginForm', () => {
     // Toggle visibility
     fireEvent.press(toggleButton);
 
-    // Should now be visible (this test assumes the implementation correctly updates the state)
-    // Note: In real testing, you might need to check the icon change or other visual indicators
+    // Re-query the password field and verify it's now visible
+    const updatedPasswordField = screen.getByPlaceholderText('Enter password');
+    expect(updatedPasswordField.props.secureTextEntry).toBe(false);
   });
 
-  it('calls onSubmit with form data when form is submitted', () => {
+  it('calls onSubmit with form data when form is submitted', async () => {
     const onSubmit = jest.fn();
     render(<LoginForm {...defaultProps} onSubmit={onSubmit} />);
 
@@ -327,21 +328,17 @@ describe('LoginForm', () => {
 
     if (submitButton) {
       fireEvent.press(submitButton);
-      // Note: Due to form validation and react-hook-form, the exact call verification
-      // might need adjustment based on the actual form validation behavior
-    }
-  });
 
-  it('shows validation errors for empty fields', () => {
-    render(<LoginForm {...defaultProps} />);
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+      });
 
-    const submitButton = screen.getByText('Log in').parent;
-
-    if (submitButton) {
-      fireEvent.press(submitButton);
-
-      // Note: These tests depend on the form validation behavior
-      // and may need adjustment based on how validation errors are displayed
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          username: 'testuser',
+          password: 'testpass'
+        })
+      );
     }
   });
 
@@ -350,6 +347,6 @@ describe('LoginForm', () => {
 
     // When loading, the submit button should show loading state
     expect(screen.getByTestId('button-spinner')).toBeTruthy();
-    expect(screen.queryByText('Log in')).toBeNull();
+    expect(screen.queryByText('Signing in...')).toBeTruthy();
   });
 });
