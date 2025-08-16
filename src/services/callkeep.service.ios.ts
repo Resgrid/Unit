@@ -9,8 +9,8 @@ let currentCallUUID: string | null = null;
 
 export interface CallKeepConfig {
   appName: string;
-  maximumCallGroups: string;
-  maximumCallsPerCallGroup: string;
+  maximumCallGroups: number;
+  maximumCallsPerCallGroup: number;
   includesCallsInRecents: boolean;
   supportsVideo: boolean;
   ringtoneSound?: string;
@@ -54,8 +54,8 @@ export class CallKeepService {
       const options = {
         ios: {
           appName: config.appName,
-          maximumCallGroups: config.maximumCallGroups,
-          maximumCallsPerCallGroup: config.maximumCallsPerCallGroup,
+          maximumCallGroups: config.maximumCallGroups.toString(),
+          maximumCallsPerCallGroup: config.maximumCallsPerCallGroup.toString(),
           includesCallsInRecents: config.includesCallsInRecents,
           supportsVideo: config.supportsVideo,
           ringtoneSound: config.ringtoneSound,
@@ -69,7 +69,7 @@ export class CallKeepService {
         },
       };
 
-      RNCallKeep.setup(options);
+      await RNCallKeep.setup(options);
       this.setupEventListeners();
       this.isSetup = true;
 
@@ -103,9 +103,9 @@ export class CallKeepService {
       throw new Error('CallKeep not setup. Call setup() first.');
     }
 
-    if (this.isCallActive && currentCallUUID) {
+    if (currentCallUUID) {
       logger.debug({
-        message: 'Call already active, ending existing call first',
+        message: 'Existing call UUID found, ending before starting a new one',
         context: { currentCallUUID },
       });
       await this.endCall();
@@ -268,7 +268,11 @@ export class CallKeepService {
    * Generate a UUID for CallKeep calls
    */
   private generateUUID(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    // RN 0.76 typically provides global crypto.randomUUID via Hermes/JSI
+    const rndUUID = (global as any)?.crypto?.randomUUID?.();
+    if (typeof rndUUID === 'string') return rndUUID;
+    // Fallback
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
       const v = c === 'x' ? r : (r & 0x3) | 0x8;
       return v.toString(16);

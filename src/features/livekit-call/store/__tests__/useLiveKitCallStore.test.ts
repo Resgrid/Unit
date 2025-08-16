@@ -17,6 +17,16 @@ jest.mock('../../../../services/callkeep.service.ios', () => ({
   },
 }));
 
+// Mock logger
+jest.mock('../../../../lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Mock livekit-client
 const mockRoom = {
   on: jest.fn(),
@@ -47,9 +57,11 @@ jest.mock('livekit-client', () => ({
 }));
 
 import { useLiveKitCallStore } from '../useLiveKitCallStore';
+import { logger } from '../../../../lib/logging';
 
 // Get the mocked service after the import
 const mockCallKeepService = require('../../../../services/callkeep.service.ios').callKeepService;
+const mockLogger = logger as jest.Mocked<typeof logger>;
 
 describe('useLiveKitCallStore with CallKeep Integration', () => {
   // Mock environment variable for successful token fetching
@@ -82,6 +94,12 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     mockRoom.localParticipant.setMicrophoneEnabled.mockResolvedValue(undefined);
     mockRoom.localParticipant.setCameraEnabled.mockResolvedValue(undefined);
     
+    // Clear logger mocks
+    mockLogger.debug.mockClear();
+    mockLogger.info.mockClear();
+    mockLogger.warn.mockClear();
+    mockLogger.error.mockClear();
+    
     // Reset the store to initial state
     useLiveKitCallStore.setState({
       availableRooms: [
@@ -110,8 +128,8 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
 
       expect(mockCallKeepService.setup).toHaveBeenCalledWith({
         appName: 'Resgrid Unit',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       });
@@ -181,8 +199,6 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       const error = new Error('Failed to start call');
       mockCallKeepService.startCall.mockRejectedValueOnce(error);
       
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      
       const { result } = renderHook(() => useLiveKitCallStore());
       
       await act(async () => {
@@ -191,12 +207,10 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to start CallKeep call (background audio may not work):',
-        error
-      );
-      
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Failed to start CallKeep call (background audio may not work)',
+        context: { error, roomId: 'emergency-channel' },
+      });
     });
   });
 
@@ -240,8 +254,6 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       const error = new Error('Failed to end call');
       mockCallKeepService.endCall.mockRejectedValueOnce(error);
       
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      
       const { result } = renderHook(() => useLiveKitCallStore());
       
       // First set up a connected state
@@ -255,12 +267,10 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       });
 
       expect(mockRoom.disconnect).toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to end CallKeep call:',
-        error
-      );
-      
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Failed to end CallKeep call',
+        context: { error },
+      });
     });
 
     it('should handle disconnection when no room instance exists', async () => {
@@ -411,8 +421,6 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       const error = new Error('Microphone error');
       mockRoom.localParticipant.setMicrophoneEnabled.mockRejectedValueOnce(error);
       
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
       const { result } = renderHook(() => useLiveKitCallStore());
       
       // Set up connected state
@@ -425,10 +433,11 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
         await result.current.actions.setMicrophoneEnabled(true);
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Error setting microphone state:', error);
+      expect(mockLogger.error).toHaveBeenCalledWith({
+        message: 'Error setting microphone state',
+        context: { error, enabled: true },
+      });
       expect(result.current.error).toBe('Could not change microphone state.');
-      
-      consoleSpy.mockRestore();
     });
 
     it('should handle microphone control when not connected', async () => {
@@ -446,11 +455,9 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     it('should prevent connection when already connecting', async () => {
       const { result } = renderHook(() => useLiveKitCallStore());
       
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      
       // Set connecting state
       act(() => {
-        result.current.actions._setIsConnected(false);
+        result.current.actions._setIsConnecting(true);
       });
       
       // First connection attempt should succeed
@@ -463,15 +470,19 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
         await result.current.actions.connectToRoom('test-room', 'test-participant');
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Connection attempt while already connecting or connected.');
-      
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Connection attempt while already connecting or connected',
+        context: { 
+          roomId: 'test-room', 
+          participantIdentity: 'test-participant', 
+          isConnecting: true, 
+          isConnected: false 
+        },
+      });
     });
 
     it('should prevent connection when already connected', async () => {
       const { result } = renderHook(() => useLiveKitCallStore());
-      
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       
       // Set connected state
       act(() => {
@@ -483,9 +494,15 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
         await result.current.actions.connectToRoom('test-room', 'test-participant');
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Connection attempt while already connecting or connected.');
-      
-      consoleSpy.mockRestore();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Connection attempt while already connecting or connected',
+        context: { 
+          roomId: 'test-room', 
+          participantIdentity: 'test-participant', 
+          isConnecting: false, 
+          isConnected: true 
+        },
+      });
     });
   });
 
@@ -494,26 +511,23 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       const error = new Error('Connection failed');
       mockRoom.connect.mockRejectedValueOnce(error);
       
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      
       const { result } = renderHook(() => useLiveKitCallStore());
 
       await act(async () => {
         await result.current.actions.connectToRoom('test-room', 'test-participant');
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to connect to LiveKit room:', error);
+      expect(mockLogger.error).toHaveBeenCalledWith({
+        message: 'Failed to connect to LiveKit room',
+        context: { error, roomId: 'test-room', participantIdentity: 'test-participant' },
+      });
       expect(result.current.error).toBe('Connection failed');
-      
-      consoleSpy.mockRestore();
     });
 
     it('should handle token fetch errors', async () => {
       // Mock environment to simulate missing token
       const originalEnv = process.env.STORYBOOK_LIVEKIT_TOKEN;
       delete process.env.STORYBOOK_LIVEKIT_TOKEN;
-      
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       
       const { result } = renderHook(() => useLiveKitCallStore());
 
@@ -531,8 +545,6 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
       if (originalEnv) {
         process.env.STORYBOOK_LIVEKIT_TOKEN = originalEnv;
       }
-      
-      consoleSpy.mockRestore();
     });
   });
 });

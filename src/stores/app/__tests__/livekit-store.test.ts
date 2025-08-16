@@ -405,15 +405,13 @@ describe('LiveKit Store - Permission Management', () => {
 
     it('should handle CallKeep setup calls', async () => {
       // Test that the CallKeep service methods can be called
-      await mockCallKeepService.setup({
-        appName: 'Resgrid Unit',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
-        includesCallsInRecents: false,
-        supportsVideo: false,
-      });
-      
-      expect(mockCallKeepService.setup).toHaveBeenCalled();
+  await mockCallKeepService.setup({
+    appName: 'Resgrid Unit',
+    maximumCallGroups: 1,
+    maximumCallsPerCallGroup: 1,
+    includesCallsInRecents: false,
+    supportsVideo: false,
+  });      expect(mockCallKeepService.setup).toHaveBeenCalled();
     });
 
     it('should handle CallKeep start and end call operations', async () => {

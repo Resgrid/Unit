@@ -2,6 +2,7 @@ import { ConnectionState, type LocalParticipant, type Participant, type RemotePa
 import { Platform } from 'react-native';
 import create from 'zustand';
 
+import { logger } from '../../../lib/logging';
 import { callKeepService } from '../../../services/callkeep.service.ios';
 
 // Configuration - Replace with your actual URL and token fetching logic
@@ -10,7 +11,10 @@ const LIVEKIT_URL = 'wss://your-livekit-server-url.com'; // TODO: Replace with y
 // This is a MOCK token fetching function.
 // In a real app, this would involve an async call to your backend.
 const fetchLiveKitToken = async (roomId: string, participantIdentity: string): Promise<string> => {
-  console.log(`Fetching token for room: ${roomId}, participant: ${participantIdentity}`);
+  logger.debug({
+    message: 'Fetching LiveKit token',
+    context: { roomId, participantIdentity },
+  });
   // Simulate API call
   await new Promise((resolve) => setTimeout(resolve, 500));
   // IMPORTANT: This is a placeholder. Never hardcode tokens or generate them client-side in production.
@@ -19,9 +23,15 @@ const fetchLiveKitToken = async (roomId: string, participantIdentity: string): P
   // For testing, you can generate one from LiveKit CLI or a server SDK.
   // return "mock-token-generated-by-server-for-" + roomId + "-" + participantIdentity;
   if (!process.env.STORYBOOK_LIVEKIT_TOKEN && LIVEKIT_URL === 'wss://your-livekit-server-url.com') {
-    console.warn(
-      'LIVEKIT_URL is not set, and no STORYBOOK_LIVEKIT_TOKEN is available. LiveKit connection will likely fail. Please update LIVEKIT_URL in useLiveKitCallStore.ts or provide a token via environment variables for local development if your server requires it.'
-    );
+    logger.warn({
+      message: 'LIVEKIT_URL is not set, and no STORYBOOK_LIVEKIT_TOKEN is available. LiveKit connection will likely fail.',
+      context: { 
+        livekitUrl: LIVEKIT_URL,
+        hasStorybookToken: !!process.env.STORYBOOK_LIVEKIT_TOKEN,
+        roomId,
+        participantIdentity,
+      },
+    });
     // Throw an error or return a dummy token that you know will fail, to make it clear.
     // return "INVALID_TOKEN_SETUP_MISSING"; // This will cause connection to fail.
   }
@@ -54,6 +64,7 @@ interface LiveKitCallState {
     // Internal actions - not typically called directly from UI
     _setRoomInstance: (room: Room | null) => void;
     _setIsConnected: (isConnected: boolean) => void;
+    _setIsConnecting: (isConnecting: boolean) => void;
     _addParticipant: (participant: Participant) => void;
     _removeParticipant: (participantId: string) => void;
     _updateParticipants: () => void;
@@ -84,14 +95,19 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
         try {
           await callKeepService.setup({
             appName: 'Resgrid Unit',
-            maximumCallGroups: '1',
-            maximumCallsPerCallGroup: '1',
+            maximumCallGroups: 1,
+            maximumCallsPerCallGroup: 1,
             includesCallsInRecents: false,
             supportsVideo: false,
           });
-          console.log('CallKeep setup completed successfully');
+          logger.info({
+            message: 'CallKeep setup completed successfully',
+          });
         } catch (error) {
-          console.error('Failed to setup CallKeep:', error);
+          logger.error({
+            message: 'Failed to setup CallKeep',
+            context: { error },
+          });
           set({ error: 'Failed to setup background audio support' });
         }
       }
@@ -101,7 +117,10 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
 
     connectToRoom: async (roomId, participantIdentity) => {
       if (get().isConnecting || get().isConnected) {
-        console.warn('Connection attempt while already connecting or connected.');
+        logger.warn({
+          message: 'Connection attempt while already connecting or connected',
+          context: { roomId, participantIdentity, isConnecting: get().isConnecting, isConnected: get().isConnected },
+        });
         return;
       }
 
@@ -121,7 +140,10 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
 
         newRoom
           .on(RoomEvent.ConnectionStateChanged, (state: ConnectionState) => {
-            console.log('LiveKit Connection State Changed:', state);
+            logger.info({
+              message: 'LiveKit Connection State Changed',
+              context: { state, roomId },
+            });
             if (state === ConnectionState.Connected) {
               set({
                 isConnected: true,
@@ -140,10 +162,16 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
                 callKeepService
                   .startCall(roomId)
                   .then((callUUID) => {
-                    console.log('CallKeep call started successfully:', callUUID);
+                    logger.info({
+                      message: 'CallKeep call started successfully',
+                      context: { callUUID, roomId },
+                    });
                   })
                   .catch((error) => {
-                    console.warn('Failed to start CallKeep call (background audio may not work):', error);
+                    logger.warn({
+                      message: 'Failed to start CallKeep call (background audio may not work)',
+                      context: { error, roomId },
+                    });
                   });
               }
             } else if (state === ConnectionState.Disconnected) {
@@ -162,10 +190,16 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
                 callKeepService
                   .endCall()
                   .then(() => {
-                    console.log('CallKeep call ended on disconnect');
+                    logger.info({
+                      message: 'CallKeep call ended on disconnect',
+                      context: { roomId },
+                    });
                   })
                   .catch((error) => {
-                    console.warn('Failed to end CallKeep call on disconnect:', error);
+                    logger.warn({
+                      message: 'Failed to end CallKeep call on disconnect',
+                      context: { error, roomId },
+                    });
                   });
               }
             } else if (state === ConnectionState.Connecting) {
@@ -175,30 +209,60 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
             }
           })
           .on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
-            console.log('Participant connected:', participant.identity);
+            logger.info({
+              message: 'Participant connected',
+              context: { participantIdentity: participant.identity, roomId },
+            });
             get().actions._addParticipant(participant);
           })
           .on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
-            console.log('Participant disconnected:', participant.identity);
+            logger.info({
+              message: 'Participant disconnected',
+              context: { participantIdentity: participant.identity, roomId },
+            });
             get().actions._removeParticipant(participant.sid);
           })
           .on(RoomEvent.LocalTrackPublished, (trackPublication, participant) => {
-            console.log('Local track published:', trackPublication.kind, 'by', participant.identity);
+            logger.debug({
+              message: 'Local track published',
+              context: { trackKind: trackPublication.kind, participantIdentity: participant.identity, roomId },
+            });
             get().actions._updateParticipants(); // Ensure local participant updates reflect
           })
           .on(RoomEvent.LocalTrackUnpublished, (trackPublication, participant) => {
-            console.log('Local track unpublished:', trackPublication.kind, 'by', participant.identity);
+            logger.debug({
+              message: 'Local track unpublished',
+              context: { trackKind: trackPublication.kind, participantIdentity: participant.identity, roomId },
+            });
             get().actions._updateParticipants();
           })
           .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-            console.log(`Subscribed to track ${publication.trackSid} kind ${track.kind} from ${participant.identity}`);
+            logger.debug({
+              message: 'Subscribed to track',
+              context: { 
+                trackSid: publication.trackSid, 
+                trackKind: track.kind, 
+                participantIdentity: participant.identity,
+                roomId,
+              },
+            });
             // Audio tracks are usually auto-played. No specific handling needed here for audio only.
           })
           .on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-            console.log(`Unsubscribed from track ${publication.trackSid} from ${participant.identity}`);
+            logger.debug({
+              message: 'Unsubscribed from track',
+              context: { 
+                trackSid: publication.trackSid, 
+                participantIdentity: participant.identity,
+                roomId,
+              },
+            });
           })
           .on(RoomEvent.Disconnected, (reason) => {
-            console.log('Disconnected from room, reason:', reason);
+            logger.info({
+              message: 'Disconnected from room',
+              context: { reason: String(reason), roomId },
+            });
             // DisconnectReason is an enum of strings like 'CLIENT_INITIATED', etc.
             const reasonMsg = reason ? String(reason) : 'Unknown reason';
             set({ error: `Disconnected: ${reasonMsg}` });
@@ -212,7 +276,10 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
         await newRoom.connect(LIVEKIT_URL, token, connectOptions);
         // Connection success is handled by the ConnectionStateChanged event listener
       } catch (err: any) {
-        console.error('Failed to connect to LiveKit room:', err);
+        logger.error({
+          message: 'Failed to connect to LiveKit room',
+          context: { error: err, roomId, participantIdentity },
+        });
         set({
           error: err.message || 'An unknown error occurred during connection.',
           isConnecting: false,
@@ -231,7 +298,10 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
     disconnectFromRoom: async () => {
       const room = get().roomInstance;
       if (room) {
-        console.log('Disconnecting from room:', room.name);
+        logger.info({
+          message: 'Disconnecting from room',
+          context: { roomName: room.name, currentRoomId: get().currentRoomId },
+        });
         await room.disconnect();
         // State updates (isConnected, currentRoomId, etc.) are handled by RoomEvent.Disconnected
         // and ConnectionState.Disconnected listeners.
@@ -249,9 +319,14 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
         if (Platform.OS === 'ios') {
           try {
             await callKeepService.endCall();
-            console.log('CallKeep call ended successfully');
+            logger.info({
+              message: 'CallKeep call ended successfully',
+            });
           } catch (error) {
-            console.warn('Failed to end CallKeep call:', error);
+            logger.warn({
+              message: 'Failed to end CallKeep call',
+              context: { error },
+            });
           }
         }
       }
@@ -263,9 +338,15 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
         try {
           await room.localParticipant.setMicrophoneEnabled(enabled);
           get().actions._updateParticipants(); // reflect change in participant state
-          console.log(`Microphone ${enabled ? 'enabled' : 'disabled'}`);
+          logger.info({
+            message: 'Microphone state changed',
+            context: { enabled, participantIdentity: room.localParticipant.identity },
+          });
         } catch (e) {
-          console.error('Error setting microphone state:', e);
+          logger.error({
+            message: 'Error setting microphone state',
+            context: { error: e, enabled },
+          });
           set({ error: 'Could not change microphone state.' });
         }
       }
@@ -273,6 +354,7 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
 
     _setRoomInstance: (room) => set({ roomInstance: room }),
     _setIsConnected: (isConnected) => set({ isConnected }),
+    _setIsConnecting: (isConnecting) => set({ isConnecting }),
 
     _addParticipant: (participant) => {
       set((state) => {
