@@ -14,6 +14,7 @@ jest.mock('../../../../services/callkeep.service.ios', () => ({
     isCallActiveNow: jest.fn(),
     getCurrentCallUUID: jest.fn(),
     cleanup: jest.fn(),
+    setMuteStateCallback: jest.fn(),
   },
 }));
 
@@ -59,25 +60,12 @@ jest.mock('livekit-client', () => ({
 import { useLiveKitCallStore } from '../useLiveKitCallStore';
 import { logger } from '../../../../lib/logging';
 
-// Get the mocked service after the import
+// Get the mocked constructors after the imports
 const mockCallKeepService = require('../../../../services/callkeep.service.ios').callKeepService;
 const mockLogger = logger as jest.Mocked<typeof logger>;
+const MockedRoom = require('livekit-client').Room as jest.MockedClass<any>;
 
 describe('useLiveKitCallStore with CallKeep Integration', () => {
-  // Mock environment variable for successful token fetching
-  const originalEnv = process.env.STORYBOOK_LIVEKIT_TOKEN;
-  
-  beforeAll(() => {
-    process.env.STORYBOOK_LIVEKIT_TOKEN = 'mock-test-token';
-  });
-  
-  afterAll(() => {
-    if (originalEnv) {
-      process.env.STORYBOOK_LIVEKIT_TOKEN = originalEnv;
-    } else {
-      delete process.env.STORYBOOK_LIVEKIT_TOKEN;
-    }
-  });
   beforeEach(() => {
     jest.clearAllMocks();
     mockPlatform.OS = 'ios';
@@ -88,6 +76,10 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     mockCallKeepService.endCall.mockResolvedValue(undefined);
     mockCallKeepService.isCallActiveNow.mockReturnValue(false);
     mockCallKeepService.getCurrentCallUUID.mockReturnValue(null);
+    mockCallKeepService.setMuteStateCallback.mockReturnValue(undefined);
+    
+    // Reset the Room mock to return mockRoom by default
+    MockedRoom.mockImplementation(() => mockRoom);
     
     mockRoom.connect.mockResolvedValue(undefined);
     mockRoom.disconnect.mockResolvedValue(undefined);
@@ -118,45 +110,46 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     });
   });
 
-  describe('Platform Checks', () => {
-    it('should setup CallKeep only on iOS', async () => {
+  describe('CallKeep Mute State Callback', () => {
+    beforeEach(() => {
+      mockPlatform.OS = 'ios';
+    });
+
+    it('should register mute state callback when connecting on iOS', async () => {
       const { result } = renderHook(() => useLiveKitCallStore());
       
       await act(async () => {
-        await result.current.actions.setupCallKeep();
+        await result.current.actions.connectToRoom('test-room', 'test-participant');
       });
 
-      expect(mockCallKeepService.setup).toHaveBeenCalledWith({
-        appName: 'Resgrid Unit',
-        maximumCallGroups: 1,
-        maximumCallsPerCallGroup: 1,
-        includesCallsInRecents: false,
-        supportsVideo: false,
-      });
+      expect(mockCallKeepService.setMuteStateCallback).toHaveBeenCalledWith(expect.any(Function));
     });
 
-    it('should skip CallKeep setup on Android', async () => {
+    it('should clear mute state callback when disconnecting on iOS', async () => {
+      const { result } = renderHook(() => useLiveKitCallStore());
+      
+      // Set up connected state
+      act(() => {
+        result.current.actions._setRoomInstance(mockRoom);
+        result.current.actions._setIsConnected(true);
+      });
+      
+      await act(async () => {
+        await result.current.actions.disconnectFromRoom();
+      });
+
+      expect(mockCallKeepService.setMuteStateCallback).toHaveBeenCalledWith(null);
+    });
+
+    it('should not register callback on non-iOS platforms', async () => {
       mockPlatform.OS = 'android';
       const { result } = renderHook(() => useLiveKitCallStore());
       
       await act(async () => {
-        await result.current.actions.setupCallKeep();
+        await result.current.actions.connectToRoom('test-room', 'test-participant');
       });
 
-      expect(mockCallKeepService.setup).not.toHaveBeenCalled();
-    });
-
-    it('should handle CallKeep setup errors', async () => {
-      const error = new Error('Setup failed');
-      mockCallKeepService.setup.mockRejectedValueOnce(error);
-      
-      const { result } = renderHook(() => useLiveKitCallStore());
-      
-      await act(async () => {
-        await result.current.actions.setupCallKeep();
-      });
-
-      expect(result.current.error).toBe('Failed to setup background audio support');
+      expect(mockCallKeepService.setMuteStateCallback).not.toHaveBeenCalled();
     });
   });
 
@@ -507,9 +500,12 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle connection errors', async () => {
-      const error = new Error('Connection failed');
-      mockRoom.connect.mockRejectedValueOnce(error);
+    describe('Error Handling', () => {
+    it('should handle room initialization errors', async () => {
+      // Make the Room constructor throw an error
+      MockedRoom.mockImplementationOnce(() => {
+        throw new Error('Failed to initialize room');
+      });
       
       const { result } = renderHook(() => useLiveKitCallStore());
 
@@ -519,32 +515,36 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
 
       expect(mockLogger.error).toHaveBeenCalledWith({
         message: 'Failed to connect to LiveKit room',
-        context: { error, roomId: 'test-room', participantIdentity: 'test-participant' },
+        context: { error: expect.any(Error), roomId: 'test-room', participantIdentity: 'test-participant' },
       });
-      expect(result.current.error).toBe('Connection failed');
-    });
-
-    it('should handle token fetch errors', async () => {
-      // Mock environment to simulate missing token
-      const originalEnv = process.env.STORYBOOK_LIVEKIT_TOKEN;
-      delete process.env.STORYBOOK_LIVEKIT_TOKEN;
-      
-      const { result } = renderHook(() => useLiveKitCallStore());
-
-      await act(async () => {
-        await result.current.actions.connectToRoom('test-room', 'test-participant');
-      });
-
-      expect(result.current.error).toBe('Failed to fetch a valid connection token.');
+      expect(result.current.error).toBe('Failed to initialize room');
       expect(result.current.isConnecting).toBe(false);
       expect(result.current.isConnected).toBe(false);
-      expect(result.current.roomInstance).toBeNull();
-      expect(result.current.currentRoomId).toBeNull();
-      
-      // Restore original environment
-      if (originalEnv) {
-        process.env.STORYBOOK_LIVEKIT_TOKEN = originalEnv;
-      }
+    });
+
+    it('should handle basic error state management', async () => {
+      const { result } = renderHook(() => useLiveKitCallStore());
+
+      // Test basic error clearing functionality since token fetching isn't implemented
+      act(() => {
+        // Set an error state and then clear it
+        result.current.actions._clearError();
+      });
+
+      expect(result.current.error).toBeNull();
+    });
+  });
+
+    it('should handle basic error state management', async () => {
+      const { result } = renderHook(() => useLiveKitCallStore());
+
+      // Test basic error clearing functionality since token fetching isn't implemented
+      act(() => {
+        // Set an error state and then clear it
+        result.current.actions._clearError();
+      });
+
+      expect(result.current.error).toBeNull();
     });
   });
 });

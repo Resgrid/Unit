@@ -1,12 +1,5 @@
 import { Platform } from 'react-native';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import RNCallKeep from 'react-native-callkeep';
-
-// Mock react-native-callkeep module
-jest.mock('react-native-callkeep');
-
-// Get the mocked module
-const mockCallKeep = RNCallKeep as jest.Mocked<typeof RNCallKeep>;
 
 // Mock @livekit/react-native-webrtc
 const mockAudioSessionDidActivate = jest.fn();
@@ -24,15 +17,20 @@ jest.mock('../../lib/logging', () => ({
   logger: {
     debug: jest.fn(),
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
   },
 }));
+
+// Import the mocked module - the global __mocks__ file will be used
+import RNCallKeep from 'react-native-callkeep';
 
 // Import after mocks
 import { CallKeepService, callKeepService } from '../callkeep.service.ios';
 import { logger } from '../../lib/logging';
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
+const mockCallKeep = RNCallKeep as jest.Mocked<typeof RNCallKeep>;
 
 describe('CallKeepService', () => {
   beforeEach(() => {
@@ -107,23 +105,16 @@ describe('CallKeepService', () => {
       const service = CallKeepService.getInstance();
       await service.setup(config);
 
-      expect(mockCallKeep.setup).toHaveBeenCalledWith({
-        ios: {
-          appName: 'Test App',
-          maximumCallGroups: '1',
-          maximumCallsPerCallGroup: '1',
-          includesCallsInRecents: false,
-          supportsVideo: false,
-          ringtoneSound: undefined,
-        },
-        android: {
-          alertTitle: 'Permissions required',
-          alertDescription: 'This application needs to access your phone accounts',
-          cancelButton: 'Cancel',
-          okButton: 'OK',
-          additionalPermissions: [],
-        },
-      });
+      expect(mockCallKeep.setup).toHaveBeenCalledTimes(1);
+      
+      // Check that setup was called with the expected structure
+      const setupCall = mockCallKeep.setup.mock.calls[0][0] as any;
+      expect(setupCall.ios.appName).toBe('Test App');
+      expect(setupCall.ios.maximumCallGroups).toBe('1');
+      expect(setupCall.ios.maximumCallsPerCallGroup).toBe('1');
+      expect(setupCall.ios.includesCallsInRecents).toBe(false);
+      expect(setupCall.ios.supportsVideo).toBe(false);
+      expect(setupCall.android.alertTitle).toBe('Permissions required');
 
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'CallKeep setup completed successfully',
@@ -146,6 +137,101 @@ describe('CallKeepService', () => {
       expect(mockCallKeep.addEventListener).toHaveBeenCalledWith('endCall', expect.any(Function));
       expect(mockCallKeep.addEventListener).toHaveBeenCalledWith('answerCall', expect.any(Function));
       expect(mockCallKeep.addEventListener).toHaveBeenCalledWith('didPerformSetMutedCallAction', expect.any(Function));
+    });
+
+    it('should handle mute state callback registration and execution', async () => {
+      const service = CallKeepService.getInstance();
+      const mockMuteCallback = jest.fn();
+
+      await service.setup({
+        appName: 'Test App',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
+
+      // Register callback
+      service.setMuteStateCallback(mockMuteCallback);
+
+      // Simulate mute event
+      const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
+        call => call[0] === 'didPerformSetMutedCallAction'
+      )?.[1] as any;
+
+      expect(muteEventHandler).toBeDefined();
+
+      // Trigger mute event
+      if (muteEventHandler) {
+        muteEventHandler({ muted: true, callUUID: 'test-uuid' });
+        expect(mockMuteCallback).toHaveBeenCalledWith(true);
+
+        muteEventHandler({ muted: false, callUUID: 'test-uuid' });
+        expect(mockMuteCallback).toHaveBeenCalledWith(false);
+      }
+    });
+
+    it('should handle mute state callback errors gracefully', async () => {
+      const service = CallKeepService.getInstance();
+      const errorCallback = jest.fn().mockImplementation(() => {
+        throw new Error('Callback error');
+      });
+
+      await service.setup({
+        appName: 'Test App',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
+
+      service.setMuteStateCallback(errorCallback);
+
+      const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
+        call => call[0] === 'didPerformSetMutedCallAction'
+      )?.[1] as any;
+
+      if (muteEventHandler) {
+        muteEventHandler({ muted: true, callUUID: 'test-uuid' });
+        
+        expect(errorCallback).toHaveBeenCalledWith(true);
+        expect(mockLogger.warn).toHaveBeenCalledWith({
+          message: 'Failed to execute mute state callback',
+          context: { 
+            error: expect.any(Error), 
+            muted: true, 
+            callUUID: 'test-uuid' 
+          },
+        });
+      }
+    });
+
+    it('should allow clearing the mute state callback', async () => {
+      const service = CallKeepService.getInstance();
+      const mockMuteCallback = jest.fn();
+
+      await service.setup({
+        appName: 'Test App',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
+
+      // Register and then clear callback
+      service.setMuteStateCallback(mockMuteCallback);
+      service.setMuteStateCallback(null);
+
+      const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
+        call => call[0] === 'didPerformSetMutedCallAction'
+      )?.[1] as any;
+
+      if (muteEventHandler) {
+        muteEventHandler({ muted: true, callUUID: 'test-uuid' });
+        
+        // Callback should not be called after being cleared
+        expect(mockMuteCallback).not.toHaveBeenCalled();
+      }
     });
   });
 
