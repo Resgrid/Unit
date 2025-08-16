@@ -22,6 +22,9 @@ jest.mock('../../lib/logging', () => ({
   },
 }));
 
+// Mock react-native-callkeep to ensure manual mock is used
+jest.mock('react-native-callkeep');
+
 // Import the mocked module - the global __mocks__ file will be used
 import RNCallKeep from 'react-native-callkeep';
 

@@ -11,6 +11,9 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
   const { colorScheme } = useColorScheme();
 
   React.useEffect(() => {
+    // Early return if screen is not focused to prevent off-screen instances from overriding UI
+    if (!isFocused) return;
+
     // Only call platform-specific methods when they are supported
     if (Platform.OS === 'android') {
       try {
@@ -50,7 +53,7 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
         // Silently handle errors if StatusBar methods are not available
       }
     }
-  }, [hidden, colorScheme]);
+  }, [hidden, colorScheme, isFocused]);
 
   // Don't render anything on web
   if (Platform.OS === 'web') return null;
