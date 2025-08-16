@@ -26,10 +26,10 @@ import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { loadSelectedTheme } from '@/lib/hooks/use-selected-theme';
 import { logger } from '@/lib/logging';
-import { getDeviceUuid } from '@/lib/storage/app';
-import { setDeviceUuid } from '@/lib/storage/app';
+import { getDeviceUuid, setDeviceUuid } from '@/lib/storage/app';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { uuidv4 } from '@/lib/utils';
+import { appInitializationService } from '@/services/app-initialization.service';
 
 export { ErrorBoundary } from 'expo-router';
 export const navigationRef = createNavigationContainerRef();
@@ -138,6 +138,21 @@ function RootLayout() {
       .catch((error) => {
         logger.error({
           message: 'Failed to load background geolocation state on startup',
+          context: { error },
+        });
+      });
+
+    // Initialize global app services (including CallKeep for iOS)
+    appInitializationService
+      .initialize()
+      .then(() => {
+        logger.info({
+          message: 'Global app services initialized successfully',
+        });
+      })
+      .catch((error) => {
+        logger.error({
+          message: 'Failed to initialize global app services',
           context: { error },
         });
       });

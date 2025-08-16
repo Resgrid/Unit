@@ -1,4 +1,4 @@
-export default {
+const mockMethods = {
   setup: jest.fn().mockResolvedValue(undefined),
   startCall: jest.fn().mockResolvedValue(undefined),
   reportConnectingOutgoingCallWithUUID: jest.fn().mockResolvedValue(undefined),
@@ -12,6 +12,17 @@ export default {
   backToForeground: jest.fn(),
 };
 
-export const AudioSessionCategoryOption = {};
-export const AudioSessionMode = {};
+export default mockMethods;
+
+export const AudioSessionCategoryOption = {
+  allowAirPlay: 1,
+  allowBluetooth: 2,
+  allowBluetoothA2DP: 4,
+  defaultToSpeaker: 8,
+};
+
+export const AudioSessionMode = {
+  voiceChat: 1,
+};
+
 export const CONSTANTS = {};

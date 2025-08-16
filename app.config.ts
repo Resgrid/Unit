@@ -47,7 +47,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     infoPlist: {
       UIBackgroundModes: ['remote-notification', 'audio', 'bluetooth-central', 'voip'],
       ITSAppUsesNonExemptEncryption: false,
+      UIViewControllerBasedStatusBarAppearance: false,
       NSBluetoothAlwaysUsageDescription: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
+    },
+    entitlements: {
+      ...((Env.APP_ENV === 'production' || Env.APP_ENV === 'internal') && {
+        'com.apple.developer.usernotifications.critical-alerts': true,
+        'com.apple.developer.usernotifications.time-sensitive': true,
+      }),
     },
   },
   experiments: {

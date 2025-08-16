@@ -42,7 +42,7 @@ export type LoginFormProps = {
   onServerUrlPress?: () => void;
 };
 
-export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress }: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined, onServerUrlPress }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
   const { t } = useTranslation();
   const {

@@ -38,6 +38,7 @@ jest.mock('../../../services/callkeep.service.ios', () => ({
     isCallActiveNow: jest.fn(),
     getCurrentCallUUID: jest.fn(),
     cleanup: jest.fn(),
+    setMuteStateCallback: jest.fn(),
   },
 }));
 
@@ -392,6 +393,7 @@ describe('LiveKit Store - Permission Management', () => {
       mockCallKeepService.endCall.mockResolvedValue(undefined);
       mockCallKeepService.isCallActiveNow.mockReturnValue(false);
       mockCallKeepService.getCurrentCallUUID.mockReturnValue(null);
+      mockCallKeepService.setMuteStateCallback.mockReturnValue(undefined);
     });
 
     it('should have CallKeep service available for iOS integration', () => {
@@ -401,17 +403,20 @@ describe('LiveKit Store - Permission Management', () => {
       expect(typeof mockCallKeepService.setup).toBe('function');
       expect(typeof mockCallKeepService.startCall).toBe('function');
       expect(typeof mockCallKeepService.endCall).toBe('function');
+      expect(typeof mockCallKeepService.setMuteStateCallback).toBe('function');
     });
 
     it('should handle CallKeep setup calls', async () => {
-      // Test that the CallKeep service methods can be called
-  await mockCallKeepService.setup({
-    appName: 'Resgrid Unit',
-    maximumCallGroups: 1,
-    maximumCallsPerCallGroup: 1,
-    includesCallsInRecents: false,
-    supportsVideo: false,
-  });      expect(mockCallKeepService.setup).toHaveBeenCalled();
+      // Note: setupCallKeep is now handled globally via app initialization service
+      // This test just verifies the CallKeep service methods can be called
+      await mockCallKeepService.setup({
+        appName: 'Resgrid Unit',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
+      expect(mockCallKeepService.setup).toHaveBeenCalled();
     });
 
     it('should handle CallKeep start and end call operations', async () => {

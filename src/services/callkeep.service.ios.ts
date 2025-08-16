@@ -20,6 +20,7 @@ export class CallKeepService {
   private static instance: CallKeepService | null = null;
   private isSetup = false;
   private isCallActive = false;
+  private muteStateCallback: ((muted: boolean) => void) | null = null;
 
   private constructor() {}
 
@@ -59,6 +60,10 @@ export class CallKeepService {
           includesCallsInRecents: config.includesCallsInRecents,
           supportsVideo: config.supportsVideo,
           ringtoneSound: config.ringtoneSound,
+          audioSession: {
+            categoryOptions: AudioSessionCategoryOption.allowAirPlay + AudioSessionCategoryOption.allowBluetooth + AudioSessionCategoryOption.allowBluetoothA2DP + AudioSessionCategoryOption.defaultToSpeaker,
+            mode: AudioSessionMode.voiceChat,
+          },
         },
         android: {
           alertTitle: 'Permissions required',
@@ -200,6 +205,14 @@ export class CallKeepService {
   }
 
   /**
+   * Set a callback to handle mute state changes from CallKit
+   * This should be called by the LiveKit store to sync mute state
+   */
+  setMuteStateCallback(callback: ((muted: boolean) => void) | null): void {
+    this.muteStateCallback = callback;
+  }
+
+  /**
    * Check if there's an active CallKit call
    */
   isCallActiveNow(): boolean {
@@ -260,7 +273,18 @@ export class CallKeepService {
         message: 'CallKeep mute state changed',
         context: { muted, callUUID },
       });
-      // You can hook this into your LiveKit mute/unmute logic
+
+      // Call the registered callback if available
+      if (this.muteStateCallback) {
+        try {
+          this.muteStateCallback(muted);
+        } catch (error) {
+          logger.warn({
+            message: 'Failed to execute mute state callback',
+            context: { error, muted, callUUID },
+          });
+        }
+      }
     });
   }
 

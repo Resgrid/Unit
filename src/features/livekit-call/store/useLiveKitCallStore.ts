@@ -5,40 +5,6 @@ import create from 'zustand';
 import { logger } from '../../../lib/logging';
 import { callKeepService } from '../../../services/callkeep.service.ios';
 
-// Configuration - Replace with your actual URL and token fetching logic
-const LIVEKIT_URL = 'wss://your-livekit-server-url.com'; // TODO: Replace with your LiveKit server URL
-
-// This is a MOCK token fetching function.
-// In a real app, this would involve an async call to your backend.
-const fetchLiveKitToken = async (roomId: string, participantIdentity: string): Promise<string> => {
-  logger.debug({
-    message: 'Fetching LiveKit token',
-    context: { roomId, participantIdentity },
-  });
-  // Simulate API call
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  // IMPORTANT: This is a placeholder. Never hardcode tokens or generate them client-side in production.
-  // Your backend should generate this token.
-  // Example token structure (simplified): create a JWT with video grants
-  // For testing, you can generate one from LiveKit CLI or a server SDK.
-  // return "mock-token-generated-by-server-for-" + roomId + "-" + participantIdentity;
-  if (!process.env.STORYBOOK_LIVEKIT_TOKEN && LIVEKIT_URL === 'wss://your-livekit-server-url.com') {
-    logger.warn({
-      message: 'LIVEKIT_URL is not set, and no STORYBOOK_LIVEKIT_TOKEN is available. LiveKit connection will likely fail.',
-      context: { 
-        livekitUrl: LIVEKIT_URL,
-        hasStorybookToken: !!process.env.STORYBOOK_LIVEKIT_TOKEN,
-        roomId,
-        participantIdentity,
-      },
-    });
-    // Throw an error or return a dummy token that you know will fail, to make it clear.
-    // return "INVALID_TOKEN_SETUP_MISSING"; // This will cause connection to fail.
-  }
-  // Prioritize env var for local dev/testing if available
-  return process.env.STORYBOOK_LIVEKIT_TOKEN || '';
-};
-
 export interface RoomInfo {
   id: string;
   name: string;
@@ -56,7 +22,6 @@ interface LiveKitCallState {
   localParticipant: LocalParticipant | null;
 
   actions: {
-    setupCallKeep: () => Promise<void>;
     setSelectedRoomForJoining: (roomId: string | null) => void;
     connectToRoom: (roomId: string, participantIdentity: string) => Promise<void>;
     disconnectFromRoom: () => Promise<void>;
@@ -90,28 +55,6 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
   localParticipant: null,
 
   actions: {
-    setupCallKeep: async () => {
-      if (Platform.OS === 'ios') {
-        try {
-          await callKeepService.setup({
-            appName: 'Resgrid Unit',
-            maximumCallGroups: 1,
-            maximumCallsPerCallGroup: 1,
-            includesCallsInRecents: false,
-            supportsVideo: false,
-          });
-          logger.info({
-            message: 'CallKeep setup completed successfully',
-          });
-        } catch (error) {
-          logger.error({
-            message: 'Failed to setup CallKeep',
-            context: { error },
-          });
-          set({ error: 'Failed to setup background audio support' });
-        }
-      }
-    },
     setSelectedRoomForJoining: (roomId) => set({ selectedRoomForJoining: roomId, error: null }),
     _clearError: () => set({ error: null }),
 
@@ -126,12 +69,17 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
 
       set({ isConnecting: true, error: null, selectedRoomForJoining: roomId });
 
-      try {
-        const token = await fetchLiveKitToken(roomId, participantIdentity);
-        if (!token || token === 'INVALID_TOKEN_SETUP_MISSING') {
-          throw new Error('Failed to fetch a valid connection token.');
-        }
+      // Register CallKeep mute callback for iOS
+      if (Platform.OS === 'ios') {
+        callKeepService.setMuteStateCallback((muted: boolean) => {
+          const currentState = get();
+          if (currentState.isConnected && currentState.roomInstance) {
+            currentState.actions.setMicrophoneEnabled(!muted);
+          }
+        });
+      }
 
+      try {
         const roomOptions: RoomOptions = {
           adaptiveStream: true,
           dynacast: true, // Enable dynamic simulcast
@@ -239,9 +187,9 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
           .on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
             logger.debug({
               message: 'Subscribed to track',
-              context: { 
-                trackSid: publication.trackSid, 
-                trackKind: track.kind, 
+              context: {
+                trackSid: publication.trackSid,
+                trackKind: track.kind,
                 participantIdentity: participant.identity,
                 roomId,
               },
@@ -251,8 +199,8 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
           .on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
             logger.debug({
               message: 'Unsubscribed from track',
-              context: { 
-                trackSid: publication.trackSid, 
+              context: {
+                trackSid: publication.trackSid,
                 participantIdentity: participant.identity,
                 roomId,
               },
@@ -273,7 +221,7 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
           autoSubscribe: true, // Subscribe to all tracks by default
         };
 
-        await newRoom.connect(LIVEKIT_URL, token, connectOptions);
+        //await newRoom.connect(LIVEKIT_URL, token, connectOptions);
         // Connection success is handled by the ConnectionStateChanged event listener
       } catch (err: any) {
         logger.error({
@@ -319,6 +267,8 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
         if (Platform.OS === 'ios') {
           try {
             await callKeepService.endCall();
+            // Clear the mute state callback
+            callKeepService.setMuteStateCallback(null);
             logger.info({
               message: 'CallKeep call ended successfully',
             });
