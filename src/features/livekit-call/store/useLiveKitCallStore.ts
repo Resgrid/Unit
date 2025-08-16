@@ -1,5 +1,8 @@
 import { ConnectionState, type LocalParticipant, type Participant, type RemoteParticipant, Room, type RoomConnectOptions, RoomEvent, type RoomOptions } from 'livekit-client'; // livekit-react-native re-exports these
+import { Platform } from 'react-native';
 import create from 'zustand';
+
+import { callKeepService } from '../../../services/callkeep.service.ios';
 
 // Configuration - Replace with your actual URL and token fetching logic
 const LIVEKIT_URL = 'wss://your-livekit-server-url.com'; // TODO: Replace with your LiveKit server URL
@@ -43,6 +46,7 @@ interface LiveKitCallState {
   localParticipant: LocalParticipant | null;
 
   actions: {
+    setupCallKeep: () => Promise<void>;
     setSelectedRoomForJoining: (roomId: string | null) => void;
     connectToRoom: (roomId: string, participantIdentity: string) => Promise<void>;
     disconnectFromRoom: () => Promise<void>;
@@ -75,6 +79,23 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
   localParticipant: null,
 
   actions: {
+    setupCallKeep: async () => {
+      if (Platform.OS === 'ios') {
+        try {
+          await callKeepService.setup({
+            appName: 'Resgrid Unit',
+            maximumCallGroups: '1',
+            maximumCallsPerCallGroup: '1',
+            includesCallsInRecents: false,
+            supportsVideo: false,
+          });
+          console.log('CallKeep setup completed successfully');
+        } catch (error) {
+          console.error('Failed to setup CallKeep:', error);
+          set({ error: 'Failed to setup background audio support' });
+        }
+      }
+    },
     setSelectedRoomForJoining: (roomId) => set({ selectedRoomForJoining: roomId, error: null }),
     _clearError: () => set({ error: null }),
 
@@ -113,6 +134,18 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
               get().actions._updateParticipants(); // Initial participant list
               newRoom.localParticipant.setMicrophoneEnabled(true);
               newRoom.localParticipant.setCameraEnabled(false); // No video
+
+              // Start CallKeep call for iOS background audio support
+              if (Platform.OS === 'ios') {
+                callKeepService
+                  .startCall(roomId)
+                  .then((callUUID) => {
+                    console.log('CallKeep call started successfully:', callUUID);
+                  })
+                  .catch((error) => {
+                    console.warn('Failed to start CallKeep call (background audio may not work):', error);
+                  });
+              }
             } else if (state === ConnectionState.Disconnected) {
               set({
                 isConnected: false,
@@ -123,6 +156,18 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
                 localParticipant: null,
                 // Keep error if there was one leading to disconnect
               });
+
+              // End CallKeep call for iOS when disconnected
+              if (Platform.OS === 'ios') {
+                callKeepService
+                  .endCall()
+                  .then(() => {
+                    console.log('CallKeep call ended on disconnect');
+                  })
+                  .catch((error) => {
+                    console.warn('Failed to end CallKeep call on disconnect:', error);
+                  });
+              }
             } else if (state === ConnectionState.Connecting) {
               set({ isConnecting: true });
             } else if (state === ConnectionState.Reconnecting) {
@@ -199,6 +244,16 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
           localParticipant: null,
           selectedRoomForJoining: null, // Reset selection
         });
+
+        // End CallKeep call for iOS
+        if (Platform.OS === 'ios') {
+          try {
+            await callKeepService.endCall();
+            console.log('CallKeep call ended successfully');
+          } catch (error) {
+            console.warn('Failed to end CallKeep call:', error);
+          }
+        }
       }
     },
 

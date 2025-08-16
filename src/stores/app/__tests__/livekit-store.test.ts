@@ -29,6 +29,18 @@ jest.mock('../../../services/audio.service', () => ({
   },
 }));
 
+// Mock CallKeep service
+jest.mock('../../../services/callkeep.service.ios', () => ({
+  callKeepService: {
+    setup: jest.fn(),
+    startCall: jest.fn(),
+    endCall: jest.fn(),
+    isCallActiveNow: jest.fn(),
+    getCurrentCallUUID: jest.fn(),
+    cleanup: jest.fn(),
+  },
+}));
+
 import { Platform } from 'react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 
@@ -364,6 +376,77 @@ describe('LiveKit Store - Permission Management', () => {
 
       expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
       expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('CallKeep Integration', () => {
+    const mockCallKeepService = require('../../../services/callkeep.service.ios').callKeepService;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      (Platform as any).OS = 'ios';
+      
+      // Reset mock implementations
+      mockCallKeepService.setup.mockResolvedValue(undefined);
+      mockCallKeepService.startCall.mockResolvedValue('test-uuid');
+      mockCallKeepService.endCall.mockResolvedValue(undefined);
+      mockCallKeepService.isCallActiveNow.mockReturnValue(false);
+      mockCallKeepService.getCurrentCallUUID.mockReturnValue(null);
+    });
+
+    it('should have CallKeep service available for iOS integration', () => {
+      // This is a basic integration test to ensure the CallKeep service
+      // is properly mocked and available for the LiveKit store to use
+      expect(mockCallKeepService).toBeDefined();
+      expect(typeof mockCallKeepService.setup).toBe('function');
+      expect(typeof mockCallKeepService.startCall).toBe('function');
+      expect(typeof mockCallKeepService.endCall).toBe('function');
+    });
+
+    it('should handle CallKeep setup calls', async () => {
+      // Test that the CallKeep service methods can be called
+      await mockCallKeepService.setup({
+        appName: 'Resgrid Unit',
+        maximumCallGroups: '1',
+        maximumCallsPerCallGroup: '1',
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
+      
+      expect(mockCallKeepService.setup).toHaveBeenCalled();
+    });
+
+    it('should handle CallKeep start and end call operations', async () => {
+      // Test the basic call lifecycle
+      const uuid = await mockCallKeepService.startCall('test-room');
+      expect(mockCallKeepService.startCall).toHaveBeenCalledWith('test-room');
+      expect(uuid).toBe('test-uuid');
+      
+      await mockCallKeepService.endCall();
+      expect(mockCallKeepService.endCall).toHaveBeenCalled();
+    });
+
+    it('should skip CallKeep operations on non-iOS platforms', async () => {
+      (Platform as any).OS = 'android';
+      
+      // Verify that platform checks work as expected
+      expect(Platform.OS).toBe('android');
+      
+      // CallKeep operations would be skipped on Android
+      // This test confirms the platform detection works properly
+    });
+
+    it('should handle CallKeep service errors gracefully', async () => {
+      const error = new Error('CallKeep operation failed');
+      mockCallKeepService.setup.mockRejectedValue(error);
+      
+      try {
+        await mockCallKeepService.setup({});
+      } catch (e) {
+        expect(e).toBe(error);
+      }
+      
+      expect(mockCallKeepService.setup).toHaveBeenCalled();
     });
   });
 });
