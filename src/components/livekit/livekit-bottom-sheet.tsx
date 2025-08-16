@@ -216,7 +216,7 @@ export const LiveKitBottomSheet = () => {
 
         <Card className="mb-4 w-full p-4">
           <VStack space="sm">
-            <Text className="text-center text-lg font-medium">{currentRoomInfo?.Name}</Text>
+            <Text className="text-center text-lg font-medium">{currentRoomInfo?.Name || ''}</Text>
             {isTalking && <Text className="text-center text-green-500">{t('livekit.speaking')}</Text>}
 
             {/* Audio Device Info */}
@@ -264,7 +264,7 @@ export const LiveKitBottomSheet = () => {
             <Text className="font-medium text-blue-500">{t('common.back')}</Text>
           </TouchableOpacity>
           <Text className="text-lg font-bold">{t('livekit.audio_settings')}</Text>
-          <View style={{ width: 50 }} /> {/* Spacer for centering */}
+          <View style={styles.spacer} />
         </HStack>
 
         <AudioDeviceSelection showTitle={false} />
@@ -350,5 +350,8 @@ const styles = StyleSheet.create({
   joinButtonText: {
     color: 'white',
     fontWeight: '600',
+  },
+  spacer: {
+    width: 50,
   },
 });

@@ -112,11 +112,11 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   preferredDevice: null,
   availableAudioDevices: [
     { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
-    { id: 'default-speaker', name: 'Default Speaker', type: 'default', isAvailable: true },
+    { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
   ],
   selectedAudioDevices: {
     microphone: { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
-    speaker: { id: 'default-speaker', name: 'Default Speaker', type: 'default', isAvailable: true },
+    speaker: { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
   },
   connectionError: null,
   isAudioRoutingActive: false,
