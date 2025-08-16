@@ -174,7 +174,7 @@ export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = und
         )}
 
         {onServerUrlPress && (
-          <Button className="mt-4 w-full" variant="outline" action="secondary" onPress={onServerUrlPress}>
+          <Button className="mt-14 w-full" variant="outline" action="secondary" onPress={onServerUrlPress}>
             <ButtonText>{t('settings.server_url')}</ButtonText>
           </Button>
         )}
