@@ -53,8 +53,8 @@ describe('CallKeepService', () => {
       const service = CallKeepService.getInstance();
       await service.setup({
         appName: 'Test App',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       });
@@ -98,8 +98,8 @@ describe('CallKeepService', () => {
     it('should setup CallKeep with correct configuration', async () => {
       const config = {
         appName: 'Test App',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       };
@@ -135,8 +135,8 @@ describe('CallKeepService', () => {
       const service = CallKeepService.getInstance();
       await service.setup({
         appName: 'Test App',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       });
@@ -155,8 +155,8 @@ describe('CallKeepService', () => {
       const service = CallKeepService.getInstance();
       await service.setup({
         appName: 'Test App',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       });
@@ -202,8 +202,8 @@ describe('CallKeepService', () => {
       const service = CallKeepService.getInstance();
       await service.setup({
         appName: 'Test App',
-        maximumCallGroups: '1',
-        maximumCallsPerCallGroup: '1',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
         includesCallsInRecents: false,
         supportsVideo: false,
       });
