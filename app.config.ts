@@ -49,6 +49,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ITSAppUsesNonExemptEncryption: false,
       NSBluetoothAlwaysUsageDescription: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
     },
+    entitlements: {
+      'com.apple.developer.usernotifications.time-sensitive': true,
+      'com.apple.developer.usernotifications.critical-alerts': true,
+    },
   },
   experiments: {
     typedRoutes: true,
