@@ -162,10 +162,6 @@ class PushNotificationService {
             allowSound: true,
             allowCriticalAlerts: true,
           },
-          android: {
-            priority: 'high',
-            vibrate: true,
-          },
         });
         finalStatus = status;
       }
