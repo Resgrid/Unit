@@ -260,6 +260,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'react-native-ble-manager',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
+    '@config-plugins/react-native-callkeep',
     './customGradle.plugin.js',
     './customManifest.plugin.js',
     ['app-icon-badge', appIconBadgeConfig],

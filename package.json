@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@aptabase/react-native": "^0.3.10",
+    "@config-plugins/react-native-callkeep": "^11.0.0",
     "@config-plugins/react-native-webrtc": "~12.0.0",
     "@dev-plugins/react-query": "~0.2.0",
     "@expo/config-plugins": "~9.0.0",
@@ -144,7 +145,7 @@
     "react-native": "0.76.9",
     "react-native-base64": "~0.2.1",
     "react-native-ble-manager": "^12.1.5",
-    "react-native-callkeep": "^4.3.16",
+    "react-native-callkeep": "https://github.com/Irfanwani/react-native-callkeep",
     "react-native-edge-to-edge": "~1.1.2",
     "react-native-flash-message": "~0.4.2",
     "react-native-gesture-handler": "~2.20.2",
