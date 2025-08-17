@@ -15,7 +15,7 @@ const getSystemConfigApi = createCachedApiEndpoint('/Config/GetSystemConfig', {
 
 export const getConfig = async (key: string) => {
   const response = await getConfigApi.get<GetConfigResult>({
-    key: encodeURIComponent(key),
+    key: key,
   });
   return response.data;
 };

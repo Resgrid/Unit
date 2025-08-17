@@ -2,7 +2,7 @@ import { AlertTriangleIcon, CalendarIcon, ClockIcon, EyeIcon, EyeOffIcon, Shield
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Linking, ScrollView, StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 import { useAnalytics } from '@/hooks/use-analytics';
@@ -85,15 +85,35 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
           ) : (
             <WebView
               style={styles.webView}
-              originWhitelist={['*']}
+              // Security: Only allow local content, no external origins
+              originWhitelist={['about:']}
               scrollEnabled={true}
               showsVerticalScrollIndicator={true}
               showsHorizontalScrollIndicator={false}
               androidLayerType="software"
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
+              // Security: Disable JavaScript and DOM storage by default
+              // Only re-enable for pre-sanitized, trusted content that requires it
+              javaScriptEnabled={false}
+              domStorageEnabled={false}
               startInLoadingState={false}
               mixedContentMode="compatibility"
+              // Security: Handle navigation to prevent in-WebView navigation and open external links safely
+              onShouldStartLoadWithRequest={(request) => {
+                // Allow initial load of our HTML content
+                if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
+                  return true;
+                }
+
+                // For any external links, open in system browser instead
+                Linking.openURL(request.url);
+                return false;
+              }}
+              onNavigationStateChange={(navState) => {
+                // Additional protection: if navigation occurs to external URL, open in system browser
+                if (navState.url && !navState.url.startsWith('about:') && !navState.url.startsWith('data:')) {
+                  Linking.openURL(navState.url);
+                }
+              }}
               source={{
                 html: `
                   <!DOCTYPE html>

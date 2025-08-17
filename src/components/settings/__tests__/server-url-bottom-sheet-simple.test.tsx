@@ -20,13 +20,13 @@ jest.mock('react-native/Libraries/Settings/NativeSettingsManager', () => ({
   set: jest.fn(),
 }));
 
-// Mock specific React Native modules
-// Mock React Native components
+// Partial mock of React Native - preserve all original exports and only override Platform.OS
 jest.mock('react-native', () => ({
+  ...jest.requireActual('react-native'),
   Platform: {
+    ...jest.requireActual('react-native').Platform,
     OS: 'ios',
   },
-  ScrollView: 'ScrollView',
 }));
 
 jest.mock('react-hook-form', () => ({

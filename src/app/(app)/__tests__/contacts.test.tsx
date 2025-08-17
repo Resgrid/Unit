@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react-native';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react-native';
 import React from 'react';
+import { RefreshControl } from 'react-native';
 
 import { ContactType } from '@/models/v4/contacts/contactResultData';
 
@@ -315,15 +316,17 @@ describe('Contacts Page', () => {
     // Reset the mock to only track refresh calls
     mockFetchContacts.mockClear();
 
-    // Find the FlatList and simulate refresh
+    // Find the FlatList and get its refreshControl prop
     const flatList = getByTestId('contacts-list');
+    const refreshControl = flatList.props.refreshControl;
 
-    // Since we can't easily test RefreshControl directly, we'll test that the handleRefresh
-    // function is properly configured by verifying the component renders correctly
-    expect(flatList).toBeTruthy();
+    // Simulate pull-to-refresh by calling onRefresh inside act
+    await act(async () => {
+      refreshControl.props.onRefresh();
+    });
 
-    // The initial mount call should not use force refresh
-    expect(mockFetchContacts).not.toHaveBeenCalledWith(true);
+    // Assert that fetchContacts was called with true (force refresh)
+    expect(mockFetchContacts).toHaveBeenCalledWith(true);
   });
 
   it('should not show loading when contacts are already loaded during refresh', () => {
