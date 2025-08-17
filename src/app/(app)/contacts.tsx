@@ -34,7 +34,7 @@ export default function Contacts() {
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await fetchContacts();
+    await fetchContacts(true); // Force refresh to bypass cache
     setRefreshing(false);
   }, [fetchContacts]);
 

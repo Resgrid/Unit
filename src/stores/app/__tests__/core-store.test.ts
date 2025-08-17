@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react-native';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // Mock all async dependencies that cause the overlapping act() calls
-jest.mock('@/api/config/config', () => ({
+jest.mock('@/api/config', () => ({
   getConfig: jest.fn(),
 }));
 
@@ -61,7 +61,7 @@ jest.mock('@/lib/storage', () => ({
 // Import after mocks
 import { useCoreStore } from '../core-store';
 import { getActiveUnitId, getActiveCallId } from '@/lib/storage/app';
-import { getConfig } from '@/api/config/config';
+import { getConfig } from '@/api/config';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
 
 const mockGetActiveUnitId = getActiveUnitId as jest.MockedFunction<typeof getActiveUnitId>;

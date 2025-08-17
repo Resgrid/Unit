@@ -2,8 +2,8 @@ import { AlertTriangleIcon, CalendarIcon, ClockIcon, EyeIcon, EyeOffIcon, Shield
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet } from 'react-native';
-import WebView from 'react-native-webview';
+import { ScrollView, StyleSheet } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
@@ -32,6 +32,7 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
 
   const { colorScheme } = useColorScheme();
   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
+  const backgroundColor = colorScheme === 'dark' ? '#374151' : '#F9FAFB';
 
   const formatDate = (dateString: string) => {
     try {
@@ -40,6 +41,10 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
       return dateString;
     }
   };
+
+  // Fallback display for empty or plain text notes
+  const isPlainText = !note.Note || !note.Note.includes('<');
+  const noteContent = note.Note || '(No content)';
 
   return (
     <Card className={`mb-3 p-4 ${isExpired ? 'opacity-60' : ''}`}>
@@ -72,37 +77,109 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
         </HStack>
 
         {/* Note content */}
-        <WebView
-          style={[styles.container, { height: 80 }]}
-          originWhitelist={['*']}
-          scrollEnabled={false}
-          showsVerticalScrollIndicator={false}
-          source={{
-            html: `
-                                <!DOCTYPE html>
-                                <html>
-                                  <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                                    <style>
-                                      body {
-                                        color: ${textColor};
-                                        font-family: system-ui, -apple-system, sans-serif;
-                                        margin: 0;
-                                        padding: 0;
-                                        font-size: 16px;
-                                        line-height: 1.5;
-                                      }
-                                      * {
-                                        max-width: 100%;
-                                      }
-                                    </style>
-                                  </head>
-                                  <body>${note.Note}</body>
-                                </html>
-                              `,
-          }}
-          androidLayerType="software"
-        />
+        <Box className="min-h-[200px] rounded bg-gray-50 p-3 dark:bg-gray-800">
+          {isPlainText ? (
+            <Text className="text-gray-800 dark:text-gray-200" selectable>
+              {noteContent}
+            </Text>
+          ) : (
+            <WebView
+              style={styles.webView}
+              originWhitelist={['*']}
+              scrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+              showsHorizontalScrollIndicator={false}
+              androidLayerType="software"
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              startInLoadingState={false}
+              mixedContentMode="compatibility"
+              source={{
+                html: `
+                  <!DOCTYPE html>
+                  <html>
+                    <head>
+                      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+                      <style>
+                        html, body {
+                          margin: 0;
+                          padding: 12px;
+                          width: 100%;
+                          height: auto;
+                          min-height: 100%;
+                          color: ${textColor};
+                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                          font-size: 16px;
+                          line-height: 1.6;
+                          word-wrap: break-word;
+                          overflow-wrap: break-word;
+                          background-color: transparent;
+                          box-sizing: border-box;
+                        }
+                        * {
+                          max-width: 100%;
+                          box-sizing: border-box;
+                        }
+                        p, div, span {
+                          margin: 0 0 12px 0;
+                        }
+                        p:last-child, div:last-child {
+                          margin-bottom: 0;
+                        }
+                        img {
+                          max-width: 100%;
+                          height: auto;
+                        }
+                        a {
+                          color: ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
+                          text-decoration: none;
+                        }
+                        a:hover {
+                          text-decoration: underline;
+                        }
+                        ul, ol {
+                          padding-left: 20px;
+                          margin: 12px 0;
+                        }
+                        li {
+                          margin: 4px 0;
+                        }
+                        blockquote {
+                          border-left: 4px solid ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
+                          margin: 12px 0;
+                          padding-left: 16px;
+                          font-style: italic;
+                        }
+                        pre, code {
+                          background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F3F4F6'};
+                          padding: 8px;
+                          border-radius: 4px;
+                          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                          font-size: 14px;
+                        }
+                        table {
+                          width: 100%;
+                          border-collapse: collapse;
+                          margin: 12px 0;
+                        }
+                        th, td {
+                          border: 1px solid ${colorScheme === 'dark' ? '#374151' : '#E5E7EB'};
+                          padding: 8px;
+                          text-align: left;
+                        }
+                        th {
+                          background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F9FAFB'};
+                          font-weight: bold;
+                        }
+                      </style>
+                    </head>
+                    <body>${noteContent}</body>
+                  </html>
+                `,
+              }}
+            />
+          )}
+        </Box>
 
         {/* Expiration warning */}
         {isExpired ? (
@@ -207,5 +284,10 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     backgroundColor: 'transparent',
+  },
+  webView: {
+    height: 200, // Fixed height with scroll capability
+    backgroundColor: 'transparent',
+    width: '100%',
   },
 });

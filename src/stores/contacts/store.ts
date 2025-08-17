@@ -15,7 +15,7 @@ interface ContactsState {
   isNotesLoading: boolean;
   error: string | null;
   // Actions
-  fetchContacts: () => Promise<void>;
+  fetchContacts: (forceRefresh?: boolean) => Promise<void>;
   fetchContactNotes: (contactId: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
   selectContact: (id: string) => void;
@@ -32,10 +32,10 @@ export const useContactsStore = create<ContactsState>((set, get) => ({
   isNotesLoading: false,
   error: null,
 
-  fetchContacts: async () => {
+  fetchContacts: async (forceRefresh: boolean = false) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await getAllContacts();
+      const response = await getAllContacts(forceRefresh);
       set({ contacts: response.Data, isLoading: false });
     } catch (error) {
       set({ isLoading: false, error: error instanceof Error ? error.message : 'An unknown error occurred' });
