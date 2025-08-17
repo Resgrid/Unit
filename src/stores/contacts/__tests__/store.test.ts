@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { getAllContacts } from '@/api/contacts/contacts';
 import { getContactNotes } from '@/api/contacts/contactNotes';
+import { cacheManager } from '@/lib/cache/cache-manager';
 import { type ContactResultData } from '@/models/v4/contacts/contactResultData';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
 import { type ContactsResult } from '@/models/v4/contacts/contactsResult';
@@ -12,9 +13,11 @@ import { useContactsStore } from '../store';
 // Mock the API functions
 jest.mock('@/api/contacts/contacts');
 jest.mock('@/api/contacts/contactNotes');
+jest.mock('@/lib/cache/cache-manager');
 
 const mockGetAllContacts = getAllContacts as jest.MockedFunction<typeof getAllContacts>;
 const mockGetContactNotes = getContactNotes as jest.MockedFunction<typeof getContactNotes>;
+const mockCacheManager = cacheManager as jest.Mocked<typeof cacheManager>;
 
 // Sample test data
 const mockContact: ContactResultData = {
@@ -117,6 +120,23 @@ describe('useContactsStore', () => {
       });
 
       expect(mockGetAllContacts).toHaveBeenCalledTimes(1);
+      expect(mockGetAllContacts).toHaveBeenCalledWith(false);
+      expect(result.current.contacts).toEqual([mockContact]);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBe(null);
+    });
+
+    it('should fetch contacts with force refresh', async () => {
+      mockGetAllContacts.mockResolvedValueOnce(mockContactsResult);
+
+      const { result } = renderHook(() => useContactsStore());
+
+      await act(async () => {
+        await result.current.fetchContacts(true);
+      });
+
+      expect(mockGetAllContacts).toHaveBeenCalledTimes(1);
+      expect(mockGetAllContacts).toHaveBeenCalledWith(true);
       expect(result.current.contacts).toEqual([mockContact]);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBe(null);

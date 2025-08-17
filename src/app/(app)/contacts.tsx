@@ -34,8 +34,11 @@ export default function Contacts() {
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await fetchContacts();
-    setRefreshing(false);
+    try {
+      await fetchContacts(true); // Force refresh to bypass cache
+    } finally {
+      setRefreshing(false);
+    }
   }, [fetchContacts]);
 
   const filteredContacts = React.useMemo(() => {

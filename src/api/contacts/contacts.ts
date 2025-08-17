@@ -1,3 +1,4 @@
+import { cacheManager } from '@/lib/cache/cache-manager';
 import { type ContactResult } from '@/models/v4/contacts/contactResult';
 import { type ContactsCategoriesResult } from '@/models/v4/contacts/contactsCategoriesResult';
 import { type ContactsResult } from '@/models/v4/contacts/contactsResult';
@@ -18,7 +19,12 @@ const getAllContactCategoriesApi = createCachedApiEndpoint('/Contacts/GetAllCont
 
 const getContactApi = createApiEndpoint('/Contacts/GetContactById');
 
-export const getAllContacts = async () => {
+export const getAllContacts = async (forceRefresh: boolean = false) => {
+  if (forceRefresh) {
+    // Clear cache before making the request
+    cacheManager.remove('/Contacts/GetAllContacts');
+  }
+
   const response = await getAllContactsApi.get<ContactsResult>();
   return response.data;
 };
