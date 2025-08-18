@@ -8,20 +8,26 @@ const TouchableOpacity = (props: any) => React.createElement('button', { ...prop
 // --- End of Robust Mocks ---
 
 // Create a mock component that maintains state
-const MockCallDetailMenu = ({ onEditCall, onCloseCall }: any) => {
+const MockCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = true }: any) => {
   const [isOpen, setIsOpen] = useState(false);
 
-  const HeaderRightMenu = () => (
-    <TouchableOpacity
-      testID="kebab-menu-button"
-      onPress={() => setIsOpen(true)}
-    >
-      <Text>Open Menu</Text>
-    </TouchableOpacity>
-  );
+  const HeaderRightMenu = () => {
+    if (!canUserCreateCalls) {
+      return null;
+    }
+
+    return (
+      <TouchableOpacity
+        testID="kebab-menu-button"
+        onPress={() => setIsOpen(true)}
+      >
+        <Text>Open Menu</Text>
+      </TouchableOpacity>
+    );
+  };
 
   const CallDetailActionSheet = () => {
-    if (!isOpen) return null;
+    if (!isOpen || !canUserCreateCalls) return null;
     return (
       <View testID="actionsheet">
         <TouchableOpacity
@@ -58,10 +64,11 @@ describe('useCallDetailMenu', () => {
   const mockOnCloseCall = jest.fn();
   const { useCallDetailMenu } = require('../call-detail-menu');
 
-  const TestComponent = () => {
+  const TestComponent = ({ canUserCreateCalls = true }: { canUserCreateCalls?: boolean }) => {
     const { HeaderRightMenu, CallDetailActionSheet } = useCallDetailMenu({
       onEditCall: mockOnEditCall,
       onCloseCall: mockOnCloseCall,
+      canUserCreateCalls,
     });
 
     return (
@@ -76,50 +83,73 @@ describe('useCallDetailMenu', () => {
     jest.clearAllMocks();
   });
 
-  it('renders the header menu button', () => {
-    render(<TestComponent />);
-    expect(screen.getByTestId('kebab-menu-button')).toBeTruthy();
-  });
+  describe('when user has create calls permission', () => {
+    it('renders the header menu button', () => {
+      render(<TestComponent canUserCreateCalls={true} />);
+      expect(screen.getByTestId('kebab-menu-button')).toBeTruthy();
+    });
 
-  it('opens the action sheet when menu button is pressed', async () => {
-    render(<TestComponent />);
-    fireEvent.press(screen.getByTestId('kebab-menu-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('actionsheet')).toBeTruthy();
-      expect(screen.getByTestId('edit-call-button')).toBeTruthy();
-      expect(screen.getByTestId('close-call-button')).toBeTruthy();
+    it('opens the action sheet when menu button is pressed', async () => {
+      render(<TestComponent canUserCreateCalls={true} />);
+      fireEvent.press(screen.getByTestId('kebab-menu-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('actionsheet')).toBeTruthy();
+        expect(screen.getByTestId('edit-call-button')).toBeTruthy();
+        expect(screen.getByTestId('close-call-button')).toBeTruthy();
+      });
+    });
+
+    it('calls onEditCall when edit option is pressed', async () => {
+      render(<TestComponent canUserCreateCalls={true} />);
+      fireEvent.press(screen.getByTestId('kebab-menu-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-call-button')).toBeTruthy();
+      });
+      fireEvent.press(screen.getByTestId('edit-call-button'));
+      expect(mockOnEditCall).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls onCloseCall when close option is pressed', async () => {
+      render(<TestComponent canUserCreateCalls={true} />);
+      fireEvent.press(screen.getByTestId('kebab-menu-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('close-call-button')).toBeTruthy();
+      });
+      fireEvent.press(screen.getByTestId('close-call-button'));
+      expect(mockOnCloseCall).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the action sheet after selecting an option', async () => {
+      render(<TestComponent canUserCreateCalls={true} />);
+      fireEvent.press(screen.getByTestId('kebab-menu-button'));
+      await waitFor(() => {
+        expect(screen.getByTestId('actionsheet')).toBeTruthy();
+      });
+      fireEvent.press(screen.getByTestId('edit-call-button'));
+      await waitFor(() => {
+        expect(screen.queryByTestId('actionsheet')).toBeNull();
+      });
     });
   });
 
-  it('calls onEditCall when edit option is pressed', async () => {
-    render(<TestComponent />);
-    fireEvent.press(screen.getByTestId('kebab-menu-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('edit-call-button')).toBeTruthy();
+  describe('when user does not have create calls permission', () => {
+    it('does not render the header menu button', () => {
+      render(<TestComponent canUserCreateCalls={false} />);
+      expect(screen.queryByTestId('kebab-menu-button')).toBeNull();
     });
-    fireEvent.press(screen.getByTestId('edit-call-button'));
-    expect(mockOnEditCall).toHaveBeenCalledTimes(1);
-  });
 
-  it('calls onCloseCall when close option is pressed', async () => {
-    render(<TestComponent />);
-    fireEvent.press(screen.getByTestId('kebab-menu-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('close-call-button')).toBeTruthy();
-    });
-    fireEvent.press(screen.getByTestId('close-call-button'));
-    expect(mockOnCloseCall).toHaveBeenCalledTimes(1);
-  });
-
-  it('closes the action sheet after selecting an option', async () => {
-    render(<TestComponent />);
-    fireEvent.press(screen.getByTestId('kebab-menu-button'));
-    await waitFor(() => {
-      expect(screen.getByTestId('actionsheet')).toBeTruthy();
-    });
-    fireEvent.press(screen.getByTestId('edit-call-button'));
-    await waitFor(() => {
+    it('does not render the action sheet', () => {
+      render(<TestComponent canUserCreateCalls={false} />);
       expect(screen.queryByTestId('actionsheet')).toBeNull();
+    });
+
+    it('does not allow opening action sheet even if somehow triggered', () => {
+      // This test ensures that even if the state changed externally, 
+      // the action sheet won't render without permission
+      render(<TestComponent canUserCreateCalls={false} />);
+      expect(screen.queryByTestId('actionsheet')).toBeNull();
+      expect(screen.queryByTestId('edit-call-button')).toBeNull();
+      expect(screen.queryByTestId('close-call-button')).toBeNull();
     });
   });
 });

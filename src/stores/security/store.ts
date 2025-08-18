@@ -41,7 +41,7 @@ export const useSecurityStore = () => {
   return {
     getRights: store.getRights,
     isUserDepartmentAdmin: store.rights?.IsAdmin,
-    isUserGroupAdmin: (groupId: number) => store.rights?.Groups.some((right) => right.GroupId === groupId && right.IsGroupAdmin),
+    isUserGroupAdmin: (groupId: number) => store.rights?.Groups?.some((right) => right.GroupId === groupId && right.IsGroupAdmin) ?? false,
     canUserCreateCalls: store.rights?.CanCreateCalls,
     canUserCreateNotes: store.rights?.CanAddNote,
     canUserCreateMessages: store.rights?.CanCreateMessage,

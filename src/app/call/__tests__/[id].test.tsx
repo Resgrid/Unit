@@ -79,6 +79,82 @@ jest.mock('@/components/ui/vstack', () => ({
 // Type the mock
 const mockUseWindowDimensions = useWindowDimensions as jest.MockedFunction<typeof useWindowDimensions>;
 
+// Mock expo-constants first before any other imports
+jest.mock('expo-constants', () => ({
+  expoConfig: {
+    extra: {
+      IS_MOBILE_APP: true,
+    },
+  },
+  default: {
+    expoConfig: {
+      extra: {
+        IS_MOBILE_APP: true,
+      },
+    },
+  },
+}));
+
+// Mock @env to prevent expo-constants issues
+jest.mock('@env', () => ({
+  Env: {
+    IS_MOBILE_APP: true,
+  },
+}));
+
+// Mock axios
+jest.mock('axios', () => {
+  const axiosMock: any = {
+    create: jest.fn(() => axiosMock),
+    get: jest.fn(() => Promise.resolve({ data: {} })),
+    post: jest.fn(() => Promise.resolve({ data: {} })),
+    put: jest.fn(() => Promise.resolve({ data: {} })),
+    delete: jest.fn(() => Promise.resolve({ data: {} })),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() },
+    },
+    defaults: {
+      headers: {
+        common: {},
+      },
+    },
+  };
+  return axiosMock;
+});
+
+// Mock query-string
+jest.mock('query-string', () => ({
+  stringify: jest.fn((obj) => Object.keys(obj).map(key => `${key}=${obj[key]}`).join('&')),
+}));
+
+// Mock auth store
+jest.mock('@/stores/auth/store', () => ({
+  __esModule: true,
+  default: {
+    getState: jest.fn(() => ({
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      status: 'signedIn',
+      error: null,
+    })),
+    setState: jest.fn(),
+  },
+}));
+
+// Mock storage modules
+jest.mock('@/lib/storage/app', () => ({
+  getBaseApiUrl: jest.fn(() => 'https://api.mock.com'),
+}));
+
+jest.mock('@/lib/storage', () => ({
+  zustandStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
+}));
+
 // Mock all the dependencies
 jest.mock('expo-router', () => ({
   Stack: {
@@ -349,6 +425,7 @@ describe('CallDetail', () => {
 
     mockUseCoreStore.mockReturnValue({
       activeCall: null,
+      activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Mock active unit
       activeStatuses: {
         UnitType: '1',
         StatusId: '1',
@@ -523,6 +600,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' }, // Different call is active
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -561,6 +639,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'test-call-id' }, // Same call is active
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -575,6 +654,37 @@ describe('CallDetail', () => {
 
       // Should not show "Set Active" button
       expect(queryByText('call_detail.set_active')).toBeNull();
+    });
+
+    it('should not show "Set Active" button when there is no active unit', () => {
+      mockUseCallDetailStore.mockReturnValue({
+        call: mockCall,
+        callExtraData: null,
+        callPriority: null,
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      });
+
+      mockUseCoreStore.mockReturnValue({
+        activeCall: { CallId: 'different-call-id' }, // Different call is active
+        activeUnit: null, // No active unit
+        activeStatuses: {
+          UnitType: '1',
+          StatusId: '1',
+          Statuses: [
+            { Id: 1, Type: 1, StateId: 1, Text: 'Available', BColor: '#449d44', Color: '#fff', Gps: false, Note: 0, Detail: 0 },
+            { Id: 2, Type: 1, StateId: 2, Text: 'En Route', BColor: '#f8ac59', Color: '#fff', Gps: false, Note: 0, Detail: 0 },
+          ],
+        },
+      });
+
+      const { queryByText, queryByTestId } = render(<CallDetail />);
+
+      // Should not show "Set Active" button when no active unit
+      expect(queryByText('call_detail.set_active')).toBeNull();
+      expect(queryByTestId('button-call_detail.set_active')).toBeNull();
     });
 
     it('should open status bottom sheet when "Set Active" button is pressed', async () => {
@@ -595,6 +705,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' }, // Different call is active
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -662,6 +773,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' },
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -726,6 +838,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' },
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -783,6 +896,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' }, // Different call is active
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
@@ -843,6 +957,7 @@ describe('CallDetail', () => {
 
       mockUseCoreStore.mockReturnValue({
         activeCall: { CallId: 'different-call-id' }, // Different call is active
+        activeUnit: { UnitId: 'test-unit-id', Name: 'Unit 1' }, // Active unit exists
         activeStatuses: {
           UnitType: '1',
           StatusId: '1',
