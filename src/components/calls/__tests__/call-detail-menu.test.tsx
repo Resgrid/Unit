@@ -8,7 +8,7 @@ const TouchableOpacity = (props: any) => React.createElement('button', { ...prop
 // --- End of Robust Mocks ---
 
 // Create a mock component that maintains state
-const MockCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = true }: any) => {
+const MockCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = false }: any) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const HeaderRightMenu = () => {
@@ -64,7 +64,7 @@ describe('useCallDetailMenu', () => {
   const mockOnCloseCall = jest.fn();
   const { useCallDetailMenu } = require('../call-detail-menu');
 
-  const TestComponent = ({ canUserCreateCalls = true }: { canUserCreateCalls?: boolean }) => {
+  const TestComponent = ({ canUserCreateCalls = false }: { canUserCreateCalls?: boolean }) => {
     const { HeaderRightMenu, CallDetailActionSheet } = useCallDetailMenu({
       onEditCall: mockOnEditCall,
       onCloseCall: mockOnCloseCall,

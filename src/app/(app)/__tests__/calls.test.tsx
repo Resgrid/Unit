@@ -112,9 +112,20 @@ jest.mock('@/components/ui/box', () => ({
 }));
 
 jest.mock('@/components/ui/fab', () => ({
-  Fab: ({ children, onPress, testID, ...props }: any) => (
-    <button data-testid={testID} onClick={onPress} role="button" {...props}>{children}</button>
-  ),
+  Fab: ({ children, onPress, testID = 'fab', ...props }: any) => {
+    const handleClick = onPress;
+    return (
+      <button
+        data-testid={testID}
+        onClick={handleClick}
+        onPress={handleClick}
+        role="button"
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  },
   FabIcon: ({ as: IconComponent, ...props }: any) => <IconComponent {...props} />,
 }));
 

@@ -73,6 +73,7 @@ describe('Call Detail Menu Integration Test', () => {
     const { HeaderRightMenu, CallDetailActionSheet } = useCallDetailMenu({
       onEditCall: mockOnEditCall,
       onCloseCall: mockOnCloseCall,
+      canUserCreateCalls: true, // Explicitly set to true for integration tests
     });
 
     return (

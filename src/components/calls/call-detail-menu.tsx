@@ -13,7 +13,7 @@ interface CallDetailMenuProps {
   canUserCreateCalls?: boolean;
 }
 
-export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = true }: CallDetailMenuProps) => {
+export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = false }: CallDetailMenuProps) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
