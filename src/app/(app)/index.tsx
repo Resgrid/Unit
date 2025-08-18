@@ -1,6 +1,7 @@
 import Mapbox from '@rnmapbox/maps';
 import { Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -26,6 +27,7 @@ Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 export default function Map() {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
+  const { colorScheme } = useColorScheme();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -50,10 +52,21 @@ export default function Map() {
     })
     .sort(onSortOptions);
 
-  const [styleURL] = useState({ styleURL: _mapOptions[0].data });
+  // Get map style based on current theme
+  const getMapStyle = useCallback(() => {
+    return colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
+  }, [colorScheme]);
+
+  const [styleURL, setStyleURL] = useState({ styleURL: getMapStyle() });
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    const newStyle = getMapStyle();
+    setStyleURL({ styleURL: newStyle });
+  }, [getMapStyle]);
 
   // Handle navigation focus - reset map state when user navigates back to map page
   useFocusEffect(
@@ -211,8 +224,9 @@ export default function Map() {
       hasMapPins: mapPins.length > 0,
       mapPinsCount: mapPins.length,
       isMapLocked: location.isMapLocked,
+      theme: colorScheme || 'light',
     });
-  }, [trackEvent, mapPins.length, location.isMapLocked]);
+  }, [trackEvent, mapPins.length, location.isMapLocked, colorScheme]);
 
   const onCameraChanged = (event: any) => {
     // Only register user interaction if map is not locked
@@ -279,6 +293,52 @@ export default function Map() {
   // Show recenter button only when map is not locked and user has moved the map
   const showRecenterButton = !location.isMapLocked && hasUserMovedMap && location.latitude && location.longitude;
 
+  // Create dynamic styles based on theme
+  const getThemedStyles = useCallback(() => {
+    const isDark = colorScheme === 'dark';
+    return {
+      markerInnerContainer: {
+        width: 24,
+        height: 24,
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+        backgroundColor: '#3b82f6',
+        borderRadius: 12,
+        borderWidth: 3,
+        borderColor: isDark ? '#1f2937' : '#ffffff',
+        elevation: 5,
+        shadowColor: isDark ? '#ffffff' : '#000000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: isDark ? 0.1 : 0.25,
+        shadowRadius: 3.84,
+      },
+      recenterButton: {
+        position: 'absolute' as const,
+        bottom: 20,
+        right: 20,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#3b82f6',
+        justifyContent: 'center' as const,
+        alignItems: 'center' as const,
+        elevation: 5,
+        shadowColor: isDark ? '#ffffff' : '#000000',
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: isDark ? 0.1 : 0.25,
+        shadowRadius: 3.84,
+      },
+    };
+  }, [colorScheme]);
+
+  const themedStyles = getThemedStyles();
+
   return (
     <>
       <Stack.Screen
@@ -322,7 +382,7 @@ export default function Map() {
                 ]}
               >
                 <View style={styles.markerOuterRing} />
-                <View style={styles.markerInnerContainer}>
+                <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
                   <View style={styles.markerDot} />
                   {location.heading !== null && location.heading !== undefined && (
                     <View
@@ -343,7 +403,7 @@ export default function Map() {
 
         {/* Recenter Button - only show when map is not locked and user has moved the map */}
         {showRecenterButton && (
-          <TouchableOpacity style={styles.recenterButton} onPress={handleRecenterMap} testID="recenter-button">
+          <TouchableOpacity style={[styles.recenterButton, themedStyles.recenterButton]} onPress={handleRecenterMap} testID="recenter-button">
             <NavigationIcon size={20} color="#ffffff" />
           </TouchableOpacity>
         )}
@@ -386,15 +446,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     borderRadius: 12,
     borderWidth: 3,
-    borderColor: '#ffffff',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    // borderColor and shadow properties are handled by themedStyles
   },
   markerDot: {
     width: 8,
@@ -426,13 +478,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    // elevation and shadow properties are handled by themedStyles
   },
 });

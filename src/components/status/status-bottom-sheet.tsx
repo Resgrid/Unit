@@ -4,6 +4,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
 
+import { invertColor } from '@/lib/utils';
 import { type CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
@@ -463,12 +464,15 @@ export const StatusBottomSheet = () => {
                       <TouchableOpacity
                         key={status.Id}
                         onPress={() => handleStatusSelect(status.Id.toString())}
-                        className={`mb-3 rounded-lg border-2 p-3 ${selectedStatus?.Id.toString() === status.Id.toString() ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
+                        className={`mb-3 rounded-lg border-2 p-3 ${selectedStatus?.Id.toString() === status.Id.toString() ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
+                        style={{
+                          backgroundColor: status.BColor || (selectedStatus?.Id.toString() === status.Id.toString() ? '#dbeafe' : '#ffffff'),
+                        }}
                       >
                         <HStack space="sm" className="items-center">
                           <Check size={20} color={selectedStatus?.Id.toString() === status.Id.toString() ? '#3b82f6' : 'transparent'} />
                           <VStack className="flex-1">
-                            <Text className="font-bold" style={{ color: status.Color || undefined }}>
+                            <Text className="font-bold" style={{ color: invertColor(status.BColor || '#ffffff', true) }}>
                               {status.Text}
                             </Text>
                             {status.Detail > 0 && (
@@ -636,9 +640,11 @@ export const StatusBottomSheet = () => {
               {/* Selected Status */}
               <VStack space="sm">
                 <Text className="font-medium">{t('status.selected_status')}:</Text>
-                <Text className="text-sm text-gray-600 dark:text-gray-400" style={{ color: selectedStatus?.Color || undefined }}>
-                  {selectedStatus?.Text}
-                </Text>
+                <VStack className="rounded-lg p-2" style={{ backgroundColor: selectedStatus?.BColor || '#f3f4f6' }}>
+                  <Text className="font-bold" style={{ color: invertColor(selectedStatus?.BColor || '#f3f4f6', true) }}>
+                    {selectedStatus?.Text}
+                  </Text>
+                </VStack>
               </VStack>
 
               {/* Selected Destination */}

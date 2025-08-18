@@ -92,6 +92,7 @@ describe('useCallDetailMenu Analytics', () => {
       useCallDetailMenu({
         onEditCall: mockOnEditCall,
         onCloseCall: mockOnCloseCall,
+        canUserCreateCalls: true, // Explicitly set to true for this test
       })
     );
 
@@ -116,6 +117,7 @@ describe('useCallDetailMenu Analytics', () => {
       useCallDetailMenu({
         onEditCall: mockOnEditCall,
         onCloseCall: mockOnCloseCall,
+        canUserCreateCalls: true, // Explicitly set to true for this test
       })
     );
 
@@ -138,6 +140,7 @@ describe('useCallDetailMenu Analytics', () => {
       useCallDetailMenu({
         onEditCall: mockOnEditCall,
         onCloseCall: mockOnCloseCall,
+        canUserCreateCalls: true, // Explicitly set to true for this test
       })
     );
 
@@ -178,6 +181,7 @@ describe('useCallDetailMenu Analytics', () => {
       useCallDetailMenu({
         onEditCall: mockOnEditCall,
         onCloseCall: mockOnCloseCall,
+        canUserCreateCalls: true, // Explicitly set to true for this test
       })
     );
 
@@ -202,6 +206,7 @@ describe('useCallDetailMenu Analytics', () => {
       useCallDetailMenu({
         onEditCall: mockOnEditCall,
         onCloseCall: mockOnCloseCall,
+        canUserCreateCalls: true, // Explicitly set to true for this test
       })
     );
 

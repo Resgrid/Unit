@@ -25,6 +25,7 @@ import { openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useSecurityStore } from '@/stores/security/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -51,7 +52,8 @@ export default function CallDetail() {
     longitude: null,
   });
   const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } = useCallDetailStore();
-  const { activeCall, activeStatuses } = useCoreStore();
+  const { canUserCreateCalls } = useSecurityStore();
+  const { activeCall, activeStatuses, activeUnit } = useCoreStore();
   const { setIsOpen: setStatusBottomSheetOpen, setSelectedCall } = useStatusBottomSheetStore();
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
@@ -124,6 +126,7 @@ export default function CallDetail() {
   const { HeaderRightMenu, CallDetailActionSheet } = useCallDetailMenu({
     onEditCall: handleEditCall,
     onCloseCall: handleCloseCall,
+    canUserCreateCalls,
   });
 
   useEffect(() => {
@@ -486,8 +489,8 @@ export default function CallDetail() {
             <Heading size="md">
               {call.Name} ({call.Number})
             </Heading>
-            {/* Show "Set Active" button if this call is not the active call */}
-            {activeCall?.CallId !== call.CallId && (
+            {/* Show "Set Active" button if this call is not the active call and there is an active unit */}
+            {activeUnit && activeCall?.CallId !== call.CallId && (
               <Button variant="solid" size="sm" onPress={handleSetActive} disabled={isSettingActive} className={`${isSettingActive ? 'bg-primary-400 opacity-80' : 'bg-primary-500'} shadow-lg`}>
                 {isSettingActive && <ButtonIcon as={LoaderIcon} className="mr-1 animate-spin text-white" />}
                 <ButtonText className="font-medium text-white">{isSettingActive ? t('call_detail.setting_active') : t('call_detail.set_active')}</ButtonText>

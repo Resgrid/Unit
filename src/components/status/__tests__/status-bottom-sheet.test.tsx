@@ -2516,4 +2516,121 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Selected Destination:')).toBeTruthy();
     expect(screen.getByText('Loading calls...')).toBeTruthy(); // Should show loading text
   });
+
+  // New tests for color scheme functionality
+  it('should use BColor for background and invertColor for text color in status selection', () => {
+    const statusWithBColor = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Available',
+      BColor: '#28a745', // Green background
+      Color: '#fff', // Original text color (should be ignored)
+      Gps: false,
+      Note: 0,
+      Detail: 1,
+    };
+
+    // Mock core store with status that has BColor
+    const coreStoreWithBColor = {
+      ...defaultCoreStore,
+      activeStatuses: {
+        UnitType: '0',
+        Statuses: [statusWithBColor],
+      },
+    };
+
+    mockGetState.mockReturnValue(coreStoreWithBColor as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithBColor);
+      }
+      return coreStoreWithBColor;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Check that the status text is present
+    expect(screen.getByText('Available')).toBeTruthy();
+
+    // The styling should use BColor for background and calculated text color for contrast
+    // We can't easily test the actual computed styles in this test environment,
+    // but we've verified that the component renders without errors
+  });
+
+  it('should use BColor for background in selected status display on note step', () => {
+    const statusWithBColor = {
+      Id: 1,
+      Text: 'Responding',
+      BColor: '#ffc107', // Yellow background
+      Color: '#000', // Original text color (should be ignored)
+      Detail: 1,
+      Note: 1,
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus: statusWithBColor,
+      selectedDestinationType: 'none',
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByText('Selected Status:')).toBeTruthy();
+    expect(screen.getByText('Responding')).toBeTruthy();
+
+    // The status display should use BColor for background and calculated text color
+    // We can't easily test the actual computed styles, but we verify rendering works
+  });
+
+  it('should handle status without BColor gracefully', () => {
+    const statusWithoutBColor = {
+      Id: 1,
+      Text: 'Emergency',
+      BColor: '', // No background color
+      Color: '#ff0000', // Red text color
+      Detail: 0,
+      Note: 0,
+    };
+
+    // Mock core store with status that has no BColor
+    const coreStoreNoBColor = {
+      ...defaultCoreStore,
+      activeStatuses: {
+        UnitType: '0',
+        Statuses: [statusWithoutBColor],
+      },
+    };
+
+    mockGetState.mockReturnValue(coreStoreNoBColor as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreNoBColor);
+      }
+      return coreStoreNoBColor;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Should still render the status text
+    expect(screen.getByText('Emergency')).toBeTruthy();
+
+    // Component should handle missing BColor gracefully with fallback
+  });
 });

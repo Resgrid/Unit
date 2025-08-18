@@ -265,9 +265,15 @@ export default function TabLayout() {
                 paddingBottom: 5,
                 paddingTop: 5,
                 height: isLandscape ? 65 : 60,
-                elevation: 8, // Ensure tab bar is above other elements on Android
+                elevation: 2, // Reduced shadow on Android
+                shadowColor: '#000', // iOS shadow color
+                shadowOffset: { width: 0, height: -1 }, // iOS shadow offset
+                shadowOpacity: 0.1, // iOS shadow opacity (subtle)
+                shadowRadius: 2, // iOS shadow blur radius
                 zIndex: 100, // Ensure tab bar is above other elements on iOS
                 backgroundColor: 'transparent', // Ensure proper touch event handling
+                borderTopWidth: 0.5, // Add subtle border instead of heavy shadow
+                borderTopColor: 'rgba(0, 0, 0, 0.1)', // Light border color
               },
             }}
           >
