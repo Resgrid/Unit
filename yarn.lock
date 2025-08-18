@@ -12456,9 +12456,9 @@ react-native-ble-manager@^12.1.5:
   resolved "https://registry.yarnpkg.com/react-native-ble-manager/-/react-native-ble-manager-12.1.5.tgz#84d3a521c1e51eb0a30f1bbb0c00c3930b62b00a"
   integrity sha512-kTt2nYBnouyOyw9TN37dDuUAdhtcg1pduF+XSRCBXoBEWp6F5u4P16ISoo25rpc19R9dE2hSovoMSDwwwCaWsw==
 
-"react-native-callkeep@https://github.com/Irfanwani/react-native-callkeep":
+"react-native-callkeep@github:Irfanwani/react-native-callkeep#957193d0716f1c2dfdc18e627cbff0f8a0800971":
   version "4.3.16"
-  resolved "https://github.com/Irfanwani/react-native-callkeep#957193d0716f1c2dfdc18e627cbff0f8a0800971"
+  resolved "https://codeload.github.com/Irfanwani/react-native-callkeep/tar.gz/957193d0716f1c2dfdc18e627cbff0f8a0800971"
 
 react-native-css-interop@0.1.22:
   version "0.1.22"
