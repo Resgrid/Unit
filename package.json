@@ -162,7 +162,7 @@
     "react-query-kit": "~3.3.0",
     "tailwind-variants": "~0.2.1",
     "zod": "~3.23.8",
-    "zustand": "~4.5.5"
+    "zustand": "~5.0.8"
   },
   "devDependencies": {
     "@babel/core": "~7.26.0",
