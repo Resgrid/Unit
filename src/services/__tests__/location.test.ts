@@ -42,12 +42,14 @@ jest.mock('@/stores/app/location-store', () => ({
 jest.mock('expo-location', () => {
   const mockRequestForegroundPermissions = jest.fn();
   const mockRequestBackgroundPermissions = jest.fn();
+  const mockGetBackgroundPermissions = jest.fn();
   const mockWatchPositionAsync = jest.fn();
   const mockStartLocationUpdatesAsync = jest.fn();
   const mockStopLocationUpdatesAsync = jest.fn();
   return {
     requestForegroundPermissionsAsync: mockRequestForegroundPermissions,
     requestBackgroundPermissionsAsync: mockRequestBackgroundPermissions,
+    getBackgroundPermissionsAsync: mockGetBackgroundPermissions,
     watchPositionAsync: mockWatchPositionAsync,
     startLocationUpdatesAsync: mockStartLocationUpdatesAsync,
     stopLocationUpdatesAsync: mockStopLocationUpdatesAsync,
@@ -160,6 +162,13 @@ describe('LocationService', () => {
       canAskAgain: true,
     });
 
+    mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+      status: 'granted' as any,
+      expires: 'never',
+      granted: true,
+      canAskAgain: true,
+    });
+
     mockLocation.watchPositionAsync.mockResolvedValue(mockLocationSubscription);
     mockLocation.startLocationUpdatesAsync.mockResolvedValue();
     mockLocation.stopLocationUpdatesAsync.mockResolvedValue();
@@ -212,7 +221,7 @@ describe('LocationService', () => {
       expect(result).toBe(false);
     });
 
-    it('should return false if background permission is denied', async () => {
+    it('should return true if foreground is granted but background is denied', async () => {
       mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         expires: 'never',
@@ -221,7 +230,7 @@ describe('LocationService', () => {
       });
 
       const result = await locationService.requestPermissions();
-      expect(result).toBe(false);
+      expect(result).toBe(true); // Should still work with just foreground permissions
     });
 
     it('should log permission status', async () => {
@@ -232,6 +241,25 @@ describe('LocationService', () => {
         context: {
           foregroundStatus: 'granted',
           backgroundStatus: 'granted',
+        },
+      });
+    });
+
+    it('should log permission status when background is denied', async () => {
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+
+      await locationService.requestPermissions();
+
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'Location permissions requested',
+        context: {
+          foregroundStatus: 'granted',
+          backgroundStatus: 'denied',
         },
       });
     });
@@ -252,11 +280,56 @@ describe('LocationService', () => {
 
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Foreground location updates started',
-        context: { backgroundEnabled: false },
+        context: {
+          backgroundEnabled: false,
+          backgroundPermissions: true,
+          backgroundSetting: false,
+        },
       });
     });
 
-    it('should throw error if permissions are not granted', async () => {
+    it('should start foreground updates even when background permissions are denied', async () => {
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+
+      await locationService.startLocationUpdates();
+
+      expect(mockLocation.watchPositionAsync).toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'Foreground location updates started',
+        context: {
+          backgroundEnabled: false,
+          backgroundPermissions: false,
+          backgroundSetting: false,
+        },
+      });
+    });
+
+    it('should warn when background geolocation is enabled but permissions denied', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(true);
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+
+      await locationService.startLocationUpdates();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Background geolocation enabled but permissions denied, running in foreground-only mode',
+        context: {
+          backgroundStatus: 'denied',
+          settingEnabled: true,
+        },
+      });
+    });
+
+    it('should throw error if foreground permissions are not granted', async () => {
       mockLocation.requestForegroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         expires: 'never',
@@ -267,7 +340,7 @@ describe('LocationService', () => {
       await expect(locationService.startLocationUpdates()).rejects.toThrow('Location permissions not granted');
     });
 
-    it('should register background task if background geolocation is enabled', async () => {
+    it('should register background task if background geolocation is enabled and permissions granted', async () => {
       mockLoadBackgroundGeolocationState.mockResolvedValue(true);
 
       await locationService.startLocationUpdates();
@@ -281,6 +354,29 @@ describe('LocationService', () => {
           notificationBody: 'Tracking your location in the background',
         },
       });
+
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'Foreground location updates started',
+        context: {
+          backgroundEnabled: true,
+          backgroundPermissions: true,
+          backgroundSetting: true,
+        },
+      });
+    });
+
+    it('should not register background task if background permissions are denied', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(true);
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+
+      await locationService.startLocationUpdates();
+
+      expect(mockLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
     });
 
     it('should not register background task if already registered', async () => {
@@ -482,7 +578,7 @@ describe('LocationService', () => {
   });
 
   describe('Background Geolocation Setting Updates', () => {
-    it('should enable background tracking and register task', async () => {
+    it('should enable background tracking and register task when permissions are granted', async () => {
       await locationService.updateBackgroundGeolocationSetting(true);
 
       expect(mockLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
@@ -493,6 +589,23 @@ describe('LocationService', () => {
           distanceInterval: 10,
         })
       );
+    });
+
+    it('should warn and not register task when background permissions are denied', async () => {
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+
+      await locationService.updateBackgroundGeolocationSetting(true);
+
+      expect(mockLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Cannot enable background geolocation: background permissions not granted',
+        context: { backgroundStatus: 'denied' },
+      });
     });
 
     it('should disable background tracking and unregister task', async () => {
@@ -510,6 +623,15 @@ describe('LocationService', () => {
       await locationService.updateBackgroundGeolocationSetting(true);
 
       expect(startBackgroundUpdatesSpy).toHaveBeenCalled();
+    });
+
+    it('should not start background updates if app is active when enabled', async () => {
+      (AppState as any).currentState = 'active';
+      const startBackgroundUpdatesSpy = jest.spyOn(locationService, 'startBackgroundUpdates');
+
+      await locationService.updateBackgroundGeolocationSetting(true);
+
+      expect(startBackgroundUpdatesSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -540,6 +662,80 @@ describe('LocationService', () => {
       (locationService as any).appStateSubscription = null;
 
       expect(() => locationService.cleanup()).not.toThrow();
+    });
+  });
+
+  describe('Foreground-only Mode (Background Permissions Denied)', () => {
+    beforeEach(() => {
+      // Mock background permissions as denied for these tests
+      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
+        status: 'denied' as any,
+        expires: 'never',
+        granted: false,
+        canAskAgain: true,
+      });
+    });
+
+    it('should allow location tracking with only foreground permissions', async () => {
+      const result = await locationService.requestPermissions();
+      expect(result).toBe(true);
+
+      await expect(locationService.startLocationUpdates()).resolves.not.toThrow();
+      expect(mockLocation.watchPositionAsync).toHaveBeenCalled();
+    });
+
+    it('should log correct permission status when background is denied', async () => {
+      await locationService.requestPermissions();
+
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'Location permissions requested',
+        context: {
+          foregroundStatus: 'granted',
+          backgroundStatus: 'denied',
+        },
+      });
+    });
+
+    it('should start foreground updates and warn about background limitations', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(true); // User wants background but can't have it
+
+      await locationService.startLocationUpdates();
+
+      expect(mockLocation.watchPositionAsync).toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Background geolocation enabled but permissions denied, running in foreground-only mode',
+        context: {
+          backgroundStatus: 'denied',
+          settingEnabled: true,
+        },
+      });
+      expect(mockLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
+    });
+
+    it('should handle location updates in foreground-only mode', async () => {
+      await locationService.startLocationUpdates();
+
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockLocationStoreState.setLocation).toHaveBeenCalledWith(mockLocationObject);
+      expect(mockSetUnitLocation).toHaveBeenCalledWith(expect.any(SaveUnitLocationInput));
+    });
+
+    it('should not enable background geolocation when permissions are denied', async () => {
+      await locationService.updateBackgroundGeolocationSetting(true);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Cannot enable background geolocation: background permissions not granted',
+        context: { backgroundStatus: 'denied' },
+      });
+      expect(mockLocation.startLocationUpdatesAsync).not.toHaveBeenCalled();
     });
   });
 

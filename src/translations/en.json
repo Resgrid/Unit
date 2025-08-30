@@ -548,6 +548,7 @@
     "background_geolocation_warning": "This feature allows the app to track your location in the background. It helps with emergency response coordination but may impact battery life.",
     "background_location": "Background Location",
     "contact_us": "Contact Us",
+    "current_unit": "Current Unit",
     "english": "English",
     "enter_password": "Enter your password",
     "enter_server_url": "Enter Resgrid API URL (e.g., https://api.resgrid.com)",

@@ -309,7 +309,11 @@ describe('StatusesStore', () => {
     input.Type = '1';
 
     await act(async () => {
-      await result.current.saveUnitStatus(input);
+      try {
+        await result.current.saveUnitStatus(input);
+      } catch (error) {
+        // Expected to throw now since we re-throw critical errors
+      }
     });
 
     expect(result.current.isLoading).toBe(false);

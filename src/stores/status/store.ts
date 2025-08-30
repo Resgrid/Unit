@@ -150,18 +150,28 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         // Try to save directly first
         await saveUnitStatus(input);
 
-        // Refresh the active unit status after saving
-        const activeUnit = useCoreStore.getState().activeUnit;
-        if (activeUnit) {
-          await useCoreStore.getState().setActiveUnitWithFetch(activeUnit.UnitId);
-        }
+        // Set loading to false immediately after successful save
+        set({ isLoading: false });
 
         logger.info({
           message: 'Unit status saved successfully',
           context: { unitId: input.Id, statusType: input.Type },
         });
 
-        set({ isLoading: false });
+        // Refresh the active unit status in the background (don't await)
+        // This allows the UI to be responsive while the data refreshes
+        const activeUnit = useCoreStore.getState().activeUnit;
+        if (activeUnit) {
+          useCoreStore
+            .getState()
+            .setActiveUnitWithFetch(activeUnit.UnitId)
+            .catch((error) => {
+              logger.error({
+                message: 'Failed to refresh unit data after status save',
+                context: { unitId: activeUnit.UnitId, error },
+              });
+            });
+        }
       } catch (error) {
         // If direct save fails, queue for offline processing
         logger.warn({
@@ -220,6 +230,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         context: { error },
       });
       set({ error: 'Failed to save unit status', isLoading: false });
+      throw error; // Re-throw to allow calling code to handle error
     }
   },
 }));

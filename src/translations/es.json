@@ -548,6 +548,7 @@
     "background_geolocation_warning": "Esta función permite que la aplicación rastree tu ubicación en segundo plano. Ayuda con la coordinación de respuesta de emergencia pero puede impactar la duración de la batería.",
     "background_location": "Ubicación en segundo plano",
     "contact_us": "Contáctanos",
+    "current_unit": "Unidad Actual",
     "english": "Inglés",
     "enter_password": "Introduce tu contraseña",
     "enter_server_url": "Introduce la URL de la API de Resgrid (ej: https://api.resgrid.com)",

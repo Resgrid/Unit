@@ -4,7 +4,6 @@ import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Text } from '@/components/ui/text';
-import { useAnalytics } from '@/hooks/use-analytics';
 import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
@@ -16,7 +15,6 @@ import { VStack } from '../ui/vstack';
 export const AudioStreamBottomSheet = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
-  const { trackEvent } = useAnalytics();
 
   const { isBottomSheetVisible, setIsBottomSheetVisible, availableStreams, currentStream, isLoadingStreams, isPlaying, isLoading, isBuffering, fetchAvailableStreams, playStream, stopStream } = useAudioStreamStore();
 
@@ -26,18 +24,6 @@ export const AudioStreamBottomSheet = () => {
       fetchAvailableStreams();
     }
   }, [isBottomSheetVisible, availableStreams.length, fetchAvailableStreams]);
-
-  // Track when audio stream bottom sheet is opened/rendered
-  useEffect(() => {
-    if (isBottomSheetVisible) {
-      trackEvent('audio_stream_bottom_sheet_opened', {
-        availableStreamsCount: availableStreams.length,
-        hasCurrentStream: !!currentStream,
-        isCurrentlyPlaying: isPlaying,
-        currentStreamType: currentStream?.Type || 'none',
-      });
-    }
-  }, [isBottomSheetVisible, trackEvent, availableStreams.length, currentStream, isPlaying]);
 
   const handleStreamSelection = React.useCallback(
     async (streamId: string) => {

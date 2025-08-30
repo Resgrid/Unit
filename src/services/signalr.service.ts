@@ -26,21 +26,83 @@ class SignalRService {
   private connections: Map<string, HubConnection> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private hubConfigs: Map<string, SignalRHubConnectConfig> = new Map();
+  private connectionLocks: Map<string, Promise<void>> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_INTERVAL = 5000; // 5 seconds
 
-  private static instance: SignalRService;
+  private static instance: SignalRService | null = null;
+  private static isCreating = false;
 
   private constructor() {}
 
   public static getInstance(): SignalRService {
-    if (!SignalRService.instance) {
-      SignalRService.instance = new SignalRService();
+    // Prevent multiple instances even in race conditions
+    if (SignalRService.instance) {
+      return SignalRService.instance;
     }
+
+    // Check if another thread is already creating the instance
+    if (SignalRService.isCreating) {
+      // Wait for the instance to be created by polling
+      const pollInterval = 10; // 10ms
+      const maxWaitTime = 5000; // 5 seconds
+      let waitTime = 0;
+
+      while (!SignalRService.instance && waitTime < maxWaitTime) {
+        // Synchronous wait (not ideal in production, but prevents race conditions)
+        const start = Date.now();
+        while (Date.now() - start < pollInterval) {
+          // Busy wait
+        }
+        waitTime += pollInterval;
+      }
+
+      if (SignalRService.instance) {
+        return SignalRService.instance;
+      }
+    }
+
+    // Set flag to indicate instance creation is in progress
+    SignalRService.isCreating = true;
+
+    try {
+      if (!SignalRService.instance) {
+        SignalRService.instance = new SignalRService();
+        logger.info({
+          message: 'SignalR service singleton instance created',
+        });
+      }
+    } finally {
+      SignalRService.isCreating = false;
+    }
+
     return SignalRService.instance;
   }
 
   public async connectToHubWithEventingUrl(config: SignalRHubConnectConfig): Promise<void> {
+    // Check for existing lock to prevent concurrent connections to the same hub
+    const existingLock = this.connectionLocks.get(config.name);
+    if (existingLock) {
+      logger.info({
+        message: `Connection to hub ${config.name} is already in progress, waiting...`,
+      });
+      await existingLock;
+      return;
+    }
+
+    // Create a new connection promise and store it as a lock
+    const connectionPromise = this._connectToHubWithEventingUrlInternal(config);
+    this.connectionLocks.set(config.name, connectionPromise);
+
+    try {
+      await connectionPromise;
+    } finally {
+      // Remove the lock after connection completes (success or failure)
+      this.connectionLocks.delete(config.name);
+    }
+  }
+
+  private async _connectToHubWithEventingUrlInternal(config: SignalRHubConnectConfig): Promise<void> {
     try {
       if (this.connections.has(config.name)) {
         logger.info({
@@ -158,6 +220,29 @@ class SignalRService {
   }
 
   public async connectToHub(config: SignalRHubConfig): Promise<void> {
+    // Check for existing lock to prevent concurrent connections to the same hub
+    const existingLock = this.connectionLocks.get(config.name);
+    if (existingLock) {
+      logger.info({
+        message: `Connection to hub ${config.name} is already in progress, waiting...`,
+      });
+      await existingLock;
+      return;
+    }
+
+    // Create a new connection promise and store it as a lock
+    const connectionPromise = this._connectToHubInternal(config);
+    this.connectionLocks.set(config.name, connectionPromise);
+
+    try {
+      await connectionPromise;
+    } finally {
+      // Remove the lock after connection completes (success or failure)
+      this.connectionLocks.delete(config.name);
+    }
+  }
+
+  private async _connectToHubInternal(config: SignalRHubConfig): Promise<void> {
     try {
       if (this.connections.has(config.name)) {
         logger.info({
@@ -244,8 +329,20 @@ class SignalRService {
 
       const hubConfig = this.hubConfigs.get(hubName);
       if (hubConfig) {
+        logger.info({
+          message: `Scheduling reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} for hub: ${hubName}`,
+        });
+
         setTimeout(async () => {
           try {
+            // Check if connection was re-established during the delay
+            if (this.connections.has(hubName)) {
+              logger.debug({
+                message: `Hub ${hubName} is already connected, skipping reconnection attempt`,
+              });
+              return;
+            }
+
             // Refresh authentication token before reconnecting
             logger.info({
               message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
@@ -260,30 +357,41 @@ class SignalRService {
             }
 
             logger.info({
-              message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName}`,
+              message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName} (attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
             });
 
+            // Remove the connection from our maps to allow fresh connection
+            this.connections.delete(hubName);
+
             await this.connectToHubWithEventingUrl(hubConfig);
+
+            logger.info({
+              message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
+            });
           } catch (error) {
             logger.error({
               message: `Failed to refresh token or reconnect to hub: ${hubName}`,
-              context: { error, attempts: currentAttempts },
+              context: { error, attempts: currentAttempts, maxAttempts: this.MAX_RECONNECT_ATTEMPTS },
             });
 
-            // Don't attempt reconnection if token refresh failed
-            // The next reconnection attempt will be handled by the next connection close event
-            // if the token becomes available again
+            // Don't immediately retry; let the next connection close event trigger another attempt
+            // This prevents rapid retry loops that could overwhelm the server
           }
         }, this.RECONNECT_INTERVAL);
       } else {
         logger.error({
-          message: `No stored config found for hub: ${hubName}`,
+          message: `No stored config found for hub: ${hubName}, cannot attempt reconnection`,
         });
       }
     } else {
       logger.error({
-        message: `Max reconnection attempts reached for hub: ${hubName}`,
+        message: `Max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached for hub: ${hubName}`,
       });
+
+      // Clean up resources for this failed connection
+      this.connections.delete(hubName);
+      this.reconnectAttempts.delete(hubName);
+      this.hubConfigs.delete(hubName);
     }
   }
 
@@ -297,6 +405,23 @@ class SignalRService {
   }
 
   public async disconnectFromHub(hubName: string): Promise<void> {
+    // Wait for any ongoing connection attempt to complete
+    const existingLock = this.connectionLocks.get(hubName);
+    if (existingLock) {
+      logger.info({
+        message: `Waiting for ongoing connection to hub ${hubName} to complete before disconnecting`,
+      });
+      try {
+        await existingLock;
+      } catch (error) {
+        // Ignore connection errors when we're trying to disconnect
+        logger.debug({
+          message: `Connection attempt failed while waiting to disconnect from hub ${hubName}`,
+          context: { error },
+        });
+      }
+    }
+
     const connection = this.connections.get(hubName);
     if (connection) {
       try {
@@ -318,6 +443,16 @@ class SignalRService {
   }
 
   public async invoke(hubName: string, method: string, data: unknown): Promise<void> {
+    // Wait for any ongoing connection attempt to complete
+    const existingLock = this.connectionLocks.get(hubName);
+    if (existingLock) {
+      logger.debug({
+        message: `Waiting for ongoing connection to hub ${hubName} to complete before invoking method`,
+        context: { method },
+      });
+      await existingLock;
+    }
+
     const connection = this.connections.get(hubName);
     if (connection) {
       try {
@@ -330,6 +465,24 @@ class SignalRService {
         throw error;
       }
     }
+  }
+
+  // Method to reset the singleton instance (primarily for testing)
+  public static resetInstance(): void {
+    if (SignalRService.instance) {
+      // Disconnect all connections before resetting
+      SignalRService.instance.disconnectAll().catch((error) => {
+        logger.error({
+          message: 'Error disconnecting all hubs during instance reset',
+          context: { error },
+        });
+      });
+    }
+    SignalRService.instance = null;
+    SignalRService.isCreating = false;
+    logger.debug({
+      message: 'SignalR service singleton instance reset',
+    });
   }
 
   public async disconnectAll(): Promise<void> {
@@ -357,3 +510,4 @@ class SignalRService {
 }
 
 export const signalRService = SignalRService.getInstance();
+export { SignalRService };

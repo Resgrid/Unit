@@ -12,22 +12,12 @@ jest.mock('nativewind', () => ({
   useColorScheme: () => ({ colorScheme: 'light' }),
 }));
 
-// Mock React Native APIs with isolated mocking
-jest.mock('react-native/Libraries/Settings/Settings.ios', () => ({}));
-jest.mock('react-native/Libraries/Settings/NativeSettingsManager', () => ({
-  getConstants: () => ({}),
-  get: jest.fn(),
-  set: jest.fn(),
-}));
-
-// Partial mock of React Native - preserve all original exports and only override Platform.OS
-jest.mock('react-native', () => ({
-  ...jest.requireActual('react-native'),
-  Platform: {
-    ...jest.requireActual('react-native').Platform,
-    OS: 'ios',
-  },
-}));
+// Mock ScrollView specifically to avoid TurboModuleRegistry issues
+jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return ({ children, ...props }: any) => React.createElement(View, props, children);
+});
 
 jest.mock('react-hook-form', () => ({
   useForm: () => ({

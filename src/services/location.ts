@@ -138,7 +138,9 @@ class LocationService {
       },
     });
 
-    return foregroundStatus === 'granted' && backgroundStatus === 'granted';
+    // Only require foreground permissions for basic functionality
+    // Background permissions are optional and will be handled separately
+    return foregroundStatus === 'granted';
   }
 
   async startLocationUpdates(): Promise<void> {
@@ -147,23 +149,40 @@ class LocationService {
       throw new Error('Location permissions not granted');
     }
 
+    // Check if we have background permissions for background tracking
+    const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+    const hasBackgroundPermissions = backgroundStatus === 'granted';
+
     // Load background geolocation setting
     this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
 
-    // Check if task is already registered for background updates
-    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (!isTaskRegistered && this.isBackgroundGeolocationEnabled) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15000,
-        distanceInterval: 10,
-        foregroundService: {
-          notificationTitle: 'Location Tracking',
-          notificationBody: 'Tracking your location in the background',
+    // Only register background task if both setting is enabled AND we have background permissions
+    const shouldEnableBackground = this.isBackgroundGeolocationEnabled && hasBackgroundPermissions;
+
+    if (shouldEnableBackground) {
+      // Check if task is already registered for background updates
+      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (!isTaskRegistered) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 10,
+          foregroundService: {
+            notificationTitle: 'Location Tracking',
+            notificationBody: 'Tracking your location in the background',
+          },
+        });
+        logger.info({
+          message: 'Background location task registered',
+        });
+      }
+    } else if (this.isBackgroundGeolocationEnabled && !hasBackgroundPermissions) {
+      logger.warn({
+        message: 'Background geolocation enabled but permissions denied, running in foreground-only mode',
+        context: {
+          backgroundStatus,
+          settingEnabled: this.isBackgroundGeolocationEnabled,
         },
-      });
-      logger.info({
-        message: 'Background location task registered',
       });
     }
 
@@ -190,7 +209,11 @@ class LocationService {
 
     logger.info({
       message: 'Foreground location updates started',
-      context: { backgroundEnabled: this.isBackgroundGeolocationEnabled },
+      context: {
+        backgroundEnabled: shouldEnableBackground,
+        backgroundPermissions: hasBackgroundPermissions,
+        backgroundSetting: this.isBackgroundGeolocationEnabled,
+      },
     });
   }
 
@@ -241,6 +264,18 @@ class LocationService {
     this.isBackgroundGeolocationEnabled = enabled;
 
     if (enabled) {
+      // Check if we have background permissions before enabling
+      const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+      const hasBackgroundPermissions = backgroundStatus === 'granted';
+
+      if (!hasBackgroundPermissions) {
+        logger.warn({
+          message: 'Cannot enable background geolocation: background permissions not granted',
+          context: { backgroundStatus },
+        });
+        return;
+      }
+
       // Register the task if not already registered
       const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
       if (!isTaskRegistered) {

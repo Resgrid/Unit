@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 
-import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
