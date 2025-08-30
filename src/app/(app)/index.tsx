@@ -190,15 +190,37 @@ export default function Map() {
   }, [isMapReady, location.isMapLocked, location.latitude, location.longitude]);
 
   useEffect(() => {
-    const fetchMapDataAndMarkers = async () => {
-      const mapDataAndMarkers = await getMapDataAndMarkers();
+    const abortController = new AbortController();
 
-      if (mapDataAndMarkers && mapDataAndMarkers.Data) {
-        setMapPins(mapDataAndMarkers.Data.MapMakerInfos);
+    const fetchMapDataAndMarkers = async () => {
+      try {
+        const mapDataAndMarkers = await getMapDataAndMarkers(abortController.signal);
+
+        if (mapDataAndMarkers && mapDataAndMarkers.Data) {
+          setMapPins(mapDataAndMarkers.Data.MapMakerInfos);
+        }
+      } catch (error) {
+        // Don't log aborted requests as errors
+        if (error instanceof Error && (error.name === 'AbortError' || error.message === 'canceled')) {
+          logger.debug({
+            message: 'Map data fetch was aborted during component unmount',
+          });
+          return;
+        }
+
+        logger.error({
+          message: 'Failed to fetch initial map data and markers',
+          context: { error },
+        });
       }
     };
 
     fetchMapDataAndMarkers();
+
+    // Cleanup function to abort request if component unmounts
+    return () => {
+      abortController.abort();
+    };
   }, []);
 
   useEffect(() => {

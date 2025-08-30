@@ -113,6 +113,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
             allowAlert: true,
             allowBadge: true,
             allowSound: true,
+            allowCriticalAlerts: true,
           },
         },
         sounds: [

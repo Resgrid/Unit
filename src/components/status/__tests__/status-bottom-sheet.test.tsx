@@ -2199,7 +2199,219 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('No statuses available')).toBeTruthy();
   });
 
-  // NEW TESTS FOR ENHANCED FUNCTIONALITY
+  // NEW TESTS FOR LAYOUT IMPROVEMENTS
+
+  it('should show "Committed" status with both calls and stations without pushing Next button off screen', () => {
+    const committedStatus = {
+      Id: 'committed-status',
+      Text: 'Committed',
+      Detail: 3, // Both calls and stations enabled
+      Note: 1, // Note optional
+    };
+
+    const mockCalls = Array.from({ length: 5 }, (_, index) => ({
+      CallId: `call-${index + 1}`,
+      Number: `C${String(index + 1).padStart(3, '0')}`,
+      Name: `Emergency Call ${index + 1}`,
+      Address: `${100 + index} Main Street`,
+    }));
+
+    const mockStations = Array.from({ length: 3 }, (_, index) => ({
+      GroupId: `station-${index + 1}`,
+      Name: `Fire Station ${index + 1}`,
+      Address: `${200 + index} Oak Avenue`,
+      GroupType: 'Station',
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus: committedStatus,
+      currentStep: 'select-destination',
+      availableCalls: mockCalls,
+      availableStations: mockStations,
+      isLoading: false,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Should show tabs for both calls and stations
+    expect(screen.getByText('Calls')).toBeTruthy();
+    expect(screen.getByText('Stations')).toBeTruthy();
+
+    // Should show No Destination option
+    expect(screen.getByText('No Destination')).toBeTruthy();
+
+    // Next button should be visible and accessible
+    expect(screen.getByText('Next')).toBeTruthy();
+
+    // Should show some calls on the Calls tab (default)
+    expect(screen.getByText('C001 - Emergency Call 1')).toBeTruthy();
+
+    // Switch to Stations tab
+    const stationsTab = screen.getByText('Stations');
+    fireEvent.press(stationsTab);
+
+    // Should show stations
+    expect(screen.getByText('Fire Station 1')).toBeTruthy();
+
+    // Next button should still be accessible
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
+
+  it('should maintain Next button visibility with many calls and stations in Committed status', () => {
+    const committedStatus = {
+      Id: 'committed-status',
+      Text: 'Committed',
+      Detail: 3, // Both calls and stations enabled
+      Note: 0, // No note required
+    };
+
+    // Create many calls and stations to test scrolling
+    const manyCalls = Array.from({ length: 15 }, (_, index) => ({
+      CallId: `call-${index + 1}`,
+      Number: `C${String(index + 1).padStart(3, '0')}`,
+      Name: `Emergency Call ${index + 1}`,
+      Address: `${100 + index} Main Street`,
+    }));
+
+    const manyStations = Array.from({ length: 10 }, (_, index) => ({
+      GroupId: `station-${index + 1}`,
+      Name: `Fire Station ${index + 1}`,
+      Address: `${200 + index} Oak Avenue`,
+      GroupType: 'Station',
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus: committedStatus,
+      currentStep: 'select-destination',
+      availableCalls: manyCalls,
+      availableStations: manyStations,
+      isLoading: false,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Should show first few calls
+    expect(screen.getByText('C001 - Emergency Call 1')).toBeTruthy();
+    expect(screen.getByText('C005 - Emergency Call 5')).toBeTruthy();
+
+    // Next button should still be visible and functional
+    const nextButton = screen.getByText('Next');
+    expect(nextButton).toBeTruthy();
+
+    // Should be able to click Next button without scrolling
+    fireEvent.press(nextButton);
+
+    // Since no note is required, this should trigger submit
+    expect(mockSaveUnitStatus).toHaveBeenCalled();
+  });
+
+  it('should handle status selection with many statuses without pushing Next button off screen', () => {
+    const manyStatuses = [
+      { Id: 1, Type: 1, StateId: 1, Text: 'Available', BColor: '#28a745', Color: '#fff', Gps: false, Note: 0, Detail: 1 },
+      { Id: 2, Type: 2, StateId: 2, Text: 'Responding', BColor: '#ffc107', Color: '#000', Gps: true, Note: 1, Detail: 2 },
+      { Id: 3, Type: 3, StateId: 3, Text: 'On Scene', BColor: '#dc3545', Color: '#fff', Gps: true, Note: 2, Detail: 3 },
+      { Id: 4, Type: 4, StateId: 4, Text: 'Committed', BColor: '#17a2b8', Color: '#fff', Gps: true, Note: 1, Detail: 3 },
+      { Id: 5, Type: 5, StateId: 5, Text: 'Transporting', BColor: '#6f42c1', Color: '#fff', Gps: true, Note: 1, Detail: 2 },
+      { Id: 6, Type: 6, StateId: 6, Text: 'At Hospital', BColor: '#e83e8c', Color: '#fff', Gps: false, Note: 2, Detail: 1 },
+      { Id: 7, Type: 7, StateId: 7, Text: 'Clearing', BColor: '#fd7e14', Color: '#000', Gps: false, Note: 0, Detail: 0 },
+      { Id: 8, Type: 8, StateId: 8, Text: 'Out of Service', BColor: '#6c757d', Color: '#fff', Gps: false, Note: 2, Detail: 0 },
+    ];
+
+    // Update core store with many statuses
+    const coreStoreWithManyStatuses = {
+      ...defaultCoreStore,
+      activeStatuses: {
+        UnitType: '0',
+        Statuses: manyStatuses,
+      },
+    };
+
+    mockGetState.mockReturnValue(coreStoreWithManyStatuses as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithManyStatuses);
+      }
+      return coreStoreWithManyStatuses;
+    });
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-status',
+      selectedStatus: null,
+      cameFromStatusSelection: true,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Should show all statuses
+    expect(screen.getByText('Available')).toBeTruthy();
+    expect(screen.getByText('Committed')).toBeTruthy();
+    expect(screen.getByText('Out of Service')).toBeTruthy();
+
+    // Next button should be visible but disabled since no status is selected
+    const nextButton = screen.getByText('Next');
+    expect(nextButton).toBeTruthy();
+
+    // Select a status
+    const committedStatus = screen.getByText('Committed');
+    fireEvent.press(committedStatus);
+
+    // Next button should still be accessible after selection
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
+
+  it('should show proper layout spacing in destination step with reduced margins', () => {
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Responding',
+      Detail: 3, // Both calls and stations
+      Note: 1,
+    };
+
+    const mockCall = {
+      CallId: 'call-1',
+      Number: 'C001',
+      Name: 'Emergency Call',
+      Address: '123 Main St',
+    };
+
+    const mockStation = {
+      GroupId: 'station-1',
+      Name: 'Fire Station 1',
+      Address: '456 Oak Ave',
+      GroupType: 'Station',
+    };
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+      currentStep: 'select-destination',
+      availableCalls: [mockCall],
+      availableStations: [mockStation],
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Check that the layout components are rendered
+    expect(screen.getByText('No Destination')).toBeTruthy();
+    expect(screen.getByText('Calls')).toBeTruthy();
+    expect(screen.getByText('Stations')).toBeTruthy();
+    expect(screen.getByText('C001 - Emergency Call')).toBeTruthy();
+    expect(screen.getByText('Next')).toBeTruthy();
+
+    // Verify we can select a call and the Next button remains accessible
+    const callOption = screen.getByText('C001 - Emergency Call');
+    fireEvent.press(callOption);
+
+    expect(mockSetSelectedCall).toHaveBeenCalledWith(mockCall);
+    expect(screen.getByText('Next')).toBeTruthy();
+  });
 
   it('should show selected status and destination on note step', () => {
     const selectedStatus = {
@@ -2298,6 +2510,7 @@ describe('StatusBottomSheet', () => {
     await waitFor(() => {
       expect(mockSaveUnitStatus).toHaveBeenCalled();
       expect(mockShowToast).toHaveBeenCalledWith('success', 'Status saved successfully');
+      expect(mockReset).toHaveBeenCalled();
     });
   });
 
@@ -2334,6 +2547,11 @@ describe('StatusBottomSheet', () => {
       expect(errorSaveUnitStatus).toHaveBeenCalled();
       expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to save status');
     });
+
+    // Button should stop spinning even on error
+    await waitFor(() => {
+      expect(screen.getByText('Submit')).toBeTruthy(); // Should be back to normal state
+    });
   });
 
   it('should prevent double submission when submit is pressed multiple times', async () => {
@@ -2365,6 +2583,52 @@ describe('StatusBottomSheet', () => {
     await waitFor(() => {
       // Should only call save once despite multiple presses
       expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('should stop spinning immediately after status save completes', async () => {
+    const selectedStatus = {
+      Id: 1,
+      Text: 'Available',
+      Color: '#00FF00',
+      Detail: 0,
+      Note: 0,
+    };
+
+    // Create a mock that resolves after a short delay to simulate API call
+    const fastSaveUnitStatus = jest.fn().mockImplementation(() => Promise.resolve());
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'add-note',
+      selectedStatus,
+      selectedDestinationType: 'none',
+    });
+
+    mockUseStatusesStore.mockReturnValue({
+      ...defaultStatusesStore,
+      saveUnitStatus: fastSaveUnitStatus,
+    });
+
+    render(<StatusBottomSheet />);
+
+    const submitButton = screen.getByText('Submit');
+
+    // Initially should show "Submit"
+    expect(screen.getByText('Submit')).toBeTruthy();
+
+    fireEvent.press(submitButton);
+
+    // Should immediately show "Submitting"
+    await waitFor(() => {
+      expect(screen.getByText('Submitting')).toBeTruthy();
+    });
+
+    // After the save completes, should go back to "Submit" and modal should close
+    await waitFor(() => {
+      expect(fastSaveUnitStatus).toHaveBeenCalled();
+      expect(mockReset).toHaveBeenCalled(); // Modal should close immediately after save
     });
   });
 
@@ -2632,5 +2896,57 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Emergency')).toBeTruthy();
 
     // Component should handle missing BColor gracefully with fallback
+  });
+
+  it('should show Next button when tabs are visible with reduced ScrollView height', () => {
+    const committedStatus = {
+      Id: 4,
+      Text: 'Committed',
+      Color: '#FF6600',
+      Detail: 3, // Both calls and stations
+      Note: 0,
+    };
+
+    // Mock lots of calls and stations to ensure content would overflow
+    const manyCalls = Array.from({ length: 20 }, (_, i) => ({
+      CallId: `call-${i}`,
+      Number: `C-${i.toString().padStart(3, '0')}`,
+      Name: `Emergency Call ${i}`,
+      Address: `${100 + i} Test Street`,
+    }));
+
+    const manyStations = Array.from({ length: 15 }, (_, i) => ({
+      GroupId: `station-${i}`,
+      Name: `Station ${i}`,
+      Address: `${200 + i} Station Road`,
+      GroupType: 'Fire Station',
+    }));
+
+    mockUseStatusBottomSheetStore.mockReturnValue({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      currentStep: 'select-destination',
+      selectedStatus: committedStatus,
+      availableCalls: manyCalls,
+      availableStations: manyStations,
+      isLoading: false,
+    });
+
+    render(<StatusBottomSheet />);
+
+    // Should show tab headers for calls and stations
+    expect(screen.getByText('Calls')).toBeTruthy();
+    expect(screen.getByText('Stations')).toBeTruthy();
+
+    // Should show some calls (even with many items)
+    expect(screen.getByText('C-000 - Emergency Call 0')).toBeTruthy();
+
+    // Next button should still be visible and accessible
+    const nextButton = screen.getByText('Next');
+    expect(nextButton).toBeTruthy();
+
+    // Button should be enabled (can proceed)
+    fireEvent.press(nextButton);
+    // Should not throw or fail to find the button
   });
 });

@@ -548,6 +548,7 @@
     "background_geolocation_warning": "تسمح هذه الميزة للتطبيق بتتبع موقعك في الخلفية. تساعد في تنسيق الاستجابة للطوارئ ولكن قد تؤثر على عمر البطارية.",
     "background_location": "الموقع في الخلفية",
     "contact_us": "اتصل بنا",
+    "current_unit": "الوحدة الحالية",
     "english": "إنجليزي",
     "enter_password": "أدخل كلمة المرور الخاصة بك",
     "enter_server_url": "أدخل عنوان URL لواجهة برمجة تطبيقات Resgrid (مثال: https://api.resgrid.com)",
@@ -593,7 +594,9 @@
       "title": "المظهر"
     },
     "title": "الإعدادات",
+    "unit_selected_successfully": "تم اختيار {{unitName}} بنجاح",
     "unit_selection": "اختيار الوحدة",
+    "unit_selection_failed": "فشل في اختيار الوحدة. يرجى المحاولة مرة أخرى.",
     "username": "اسم المستخدم",
     "version": "الإصدار",
     "website": "الموقع الإلكتروني"

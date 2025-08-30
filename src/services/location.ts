@@ -126,76 +126,122 @@ class LocationService {
     }
   };
 
-  async requestPermissions(): Promise<boolean> {
+  async requestPermissions(requestBackground = false): Promise<boolean> {
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+
+    let backgroundStatus = 'undetermined';
+    if (requestBackground) {
+      const result = await Location.requestBackgroundPermissionsAsync();
+      backgroundStatus = result.status;
+    }
 
     logger.info({
       message: 'Location permissions requested',
       context: {
         foregroundStatus,
-        backgroundStatus,
+        backgroundStatus: requestBackground ? backgroundStatus : 'not requested',
+        backgroundRequested: requestBackground,
       },
     });
 
-    return foregroundStatus === 'granted' && backgroundStatus === 'granted';
+    // Only require foreground permissions for basic functionality
+    // Background permissions are optional and will be handled separately
+    return foregroundStatus === 'granted';
   }
 
   async startLocationUpdates(): Promise<void> {
-    const hasPermissions = await this.requestPermissions();
+    // Load background geolocation setting first
+    this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
+
+    // Only request background permissions if the user has enabled background geolocation
+    const hasPermissions = await this.requestPermissions(this.isBackgroundGeolocationEnabled);
     if (!hasPermissions) {
       throw new Error('Location permissions not granted');
     }
 
-    // Load background geolocation setting
-    this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
+    // Check if we have background permissions for background tracking
+    const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+    const hasBackgroundPermissions = backgroundStatus === 'granted';
 
-    // Check if task is already registered for background updates
-    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (!isTaskRegistered && this.isBackgroundGeolocationEnabled) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15000,
-        distanceInterval: 10,
-        foregroundService: {
-          notificationTitle: 'Location Tracking',
-          notificationBody: 'Tracking your location in the background',
+    // Only register background task if both setting is enabled AND we have background permissions
+    const shouldEnableBackground = this.isBackgroundGeolocationEnabled && hasBackgroundPermissions;
+
+    if (shouldEnableBackground) {
+      // Check if task is already registered for background updates
+      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (!isTaskRegistered) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 10,
+          foregroundService: {
+            notificationTitle: 'Location Tracking',
+            notificationBody: 'Tracking your location in the background',
+          },
+        });
+        logger.info({
+          message: 'Background location task registered',
+        });
+      }
+    } else if (this.isBackgroundGeolocationEnabled && !hasBackgroundPermissions) {
+      logger.warn({
+        message: 'Background geolocation enabled but permissions denied, running in foreground-only mode',
+        context: {
+          backgroundStatus,
+          settingEnabled: this.isBackgroundGeolocationEnabled,
         },
-      });
-      logger.info({
-        message: 'Background location task registered',
       });
     }
 
-    // Start foreground updates
-    this.locationSubscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15000,
-        distanceInterval: 10,
-      },
-      (location) => {
-        logger.info({
-          message: 'Foreground location update received',
-          context: {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            heading: location.coords.heading,
-          },
-        });
-        useLocationStore.getState().setLocation(location);
-        sendLocationToAPI(location); // Send to API for foreground updates
-      }
-    );
+    // Start foreground updates (idempotent - check if already subscribed)
+    if (!this.locationSubscription) {
+      this.locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          logger.info({
+            message: 'Foreground location update received',
+            context: {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              heading: location.coords.heading,
+            },
+          });
+          useLocationStore.getState().setLocation(location);
+          sendLocationToAPI(location); // Send to API for foreground updates
+        }
+      );
+    } else {
+      logger.info({
+        message: 'Foreground location subscription already active, skipping duplicate subscription',
+      });
+    }
 
     logger.info({
       message: 'Foreground location updates started',
-      context: { backgroundEnabled: this.isBackgroundGeolocationEnabled },
+      context: {
+        backgroundEnabled: shouldEnableBackground,
+        backgroundPermissions: hasBackgroundPermissions,
+        backgroundSetting: this.isBackgroundGeolocationEnabled,
+      },
     });
   }
 
   async startBackgroundUpdates(): Promise<void> {
     if (this.backgroundSubscription || !this.isBackgroundGeolocationEnabled) {
+      return;
+    }
+
+    // Check if OS-managed background task is already registered
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (isTaskRegistered) {
+      logger.info({
+        message: 'OS-managed background location task is registered, skipping watchPositionAsync subscription',
+      });
+      useLocationStore.getState().setBackgroundEnabled(true);
       return;
     }
 
@@ -241,6 +287,18 @@ class LocationService {
     this.isBackgroundGeolocationEnabled = enabled;
 
     if (enabled) {
+      // Request background permissions when enabling background geolocation
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      const hasBackgroundPermissions = backgroundStatus === 'granted';
+
+      if (!hasBackgroundPermissions) {
+        logger.warn({
+          message: 'Cannot enable background geolocation: background permissions not granted',
+          context: { backgroundStatus },
+        });
+        return;
+      }
+
       // Register the task if not already registered
       const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
       if (!isTaskRegistered) {
@@ -260,7 +318,16 @@ class LocationService {
 
       // Start background updates if app is currently backgrounded
       if (AppState.currentState === 'background') {
-        await this.startBackgroundUpdates();
+        // Check if OS-managed background task is already registered before starting watchPositionAsync
+        const isTaskRegisteredForWatch = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+        if (isTaskRegisteredForWatch) {
+          logger.info({
+            message: 'OS-managed background location task is registered, skipping watchPositionAsync subscription in updateBackgroundGeolocationSetting',
+          });
+          useLocationStore.getState().setBackgroundEnabled(true);
+        } else {
+          await this.startBackgroundUpdates();
+        }
       }
     } else {
       // Stop background updates and unregister task

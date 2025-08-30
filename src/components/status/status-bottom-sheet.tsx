@@ -65,12 +65,17 @@ export const StatusBottomSheet = () => {
 
   // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
-    <T extends keyof CustomStatusResultData>(prop: T, defaultValue: CustomStatusResultData[T]): CustomStatusResultData[T] => {
+    (prop: 'Detail' | 'Note', defaultValue: number): number => {
       if (!selectedStatus) return defaultValue;
-      return (selectedStatus as any)[prop] ?? defaultValue;
+      return selectedStatus[prop] ?? defaultValue;
     },
     [selectedStatus]
   );
+
+  const getStatusId = React.useCallback((): string => {
+    if (!selectedStatus) return '0';
+    return selectedStatus.Id.toString();
+  }, [selectedStatus]);
 
   const handleClose = () => {
     reset();
@@ -166,7 +171,7 @@ export const StatusBottomSheet = () => {
 
       const input = new SaveUnitStatusInput();
       input.Id = activeUnit.UnitId;
-      input.Type = getStatusProperty('Id', '0');
+      input.Type = getStatusId();
       input.Note = note;
 
       // Set RespondingTo based on destination selection
@@ -230,7 +235,7 @@ export const StatusBottomSheet = () => {
     unitRoleAssignments,
     saveUnitStatus,
     reset,
-    getStatusProperty,
+    getStatusId,
     latitude,
     longitude,
     heading,
@@ -434,7 +439,7 @@ export const StatusBottomSheet = () => {
   };
 
   return (
-    <Actionsheet isOpen={isOpen} onClose={handleClose} snapPoints={[85]}>
+    <Actionsheet isOpen={isOpen} onClose={handleClose} snapPoints={[90]}>
       <ActionsheetBackdrop />
       <ActionsheetContent className="bg-white dark:bg-gray-900">
         <ActionsheetDragIndicatorWrapper>
@@ -498,10 +503,10 @@ export const StatusBottomSheet = () => {
                 </VStack>
               </ScrollView>
 
-              <HStack space="sm" className="mt-4 justify-end">
-                <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600">
-                  <ButtonText>{t('common.next')}</ButtonText>
-                  <ArrowRight size={16} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
+              <HStack space="sm" className="mt-2 justify-end px-4">
+                <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
+                  <ButtonText className="text-sm">{t('common.next')}</ButtonText>
+                  <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
                 </Button>
               </HStack>
             </VStack>
@@ -541,7 +546,7 @@ export const StatusBottomSheet = () => {
                   )}
 
                   {/* Tab Content */}
-                  <ScrollView className="max-h-[300px]">
+                  <ScrollView className={detailLevel === 3 ? 'max-h-[200px]' : 'max-h-[300px]'}>
                     {/* Show calls if detailLevel 2 or 3, and either no tabs or calls tab selected */}
                     {(detailLevel === 2 || (detailLevel === 3 && selectedTab === 'calls')) && (
                       <VStack space="sm">
@@ -608,10 +613,10 @@ export const StatusBottomSheet = () => {
                 </>
               )}
 
-              <HStack space="sm" className="mt-4 justify-end">
-                <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600">
-                  <ButtonText>{t('common.next')}</ButtonText>
-                  <ArrowRight size={16} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
+              <HStack space="sm" className="mt-2 justify-end px-4">
+                <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
+                  <ButtonText className="text-sm">{t('common.next')}</ButtonText>
+                  <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
                 </Button>
               </HStack>
             </VStack>
@@ -628,9 +633,9 @@ export const StatusBottomSheet = () => {
                   </Textarea>
                 </>
               ) : null}
-              <Button onPress={handleSubmit} className="w-full bg-blue-600" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
+              <Button onPress={handleSubmit} className="self-end bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
                 {isSubmitting && <Spinner size="small" color="white" />}
-                <ButtonText>{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
+                <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
               </Button>
             </VStack>
           )}
@@ -662,14 +667,14 @@ export const StatusBottomSheet = () => {
                 </Textarea>
               </VStack>
 
-              <HStack space="sm" className="mt-4 justify-between">
-                <Button variant="outline" onPress={handlePrevious} className="flex-1" isDisabled={isSubmitting}>
-                  <ArrowLeft size={16} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
-                  <ButtonText>{t('common.previous')}</ButtonText>
+              <HStack space="xs" className="justify-between px-2">
+                <Button variant="outline" onPress={handlePrevious} className="px-3" isDisabled={isSubmitting}>
+                  <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                  <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
                 </Button>
-                <Button onPress={handleSubmit} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="flex-1 bg-blue-600">
+                <Button onPress={handleSubmit} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
                   {isSubmitting && <Spinner size="small" color="white" />}
-                  <ButtonText>{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
+                  <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
                 </Button>
               </HStack>
             </VStack>
