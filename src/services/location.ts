@@ -235,6 +235,16 @@ class LocationService {
       return;
     }
 
+    // Check if OS-managed background task is already registered
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (isTaskRegistered) {
+      logger.info({
+        message: 'OS-managed background location task is registered, skipping watchPositionAsync subscription',
+      });
+      useLocationStore.getState().setBackgroundEnabled(true);
+      return;
+    }
+
     logger.info({
       message: 'Starting background location updates',
     });
@@ -308,7 +318,16 @@ class LocationService {
 
       // Start background updates if app is currently backgrounded
       if (AppState.currentState === 'background') {
-        await this.startBackgroundUpdates();
+        // Check if OS-managed background task is already registered before starting watchPositionAsync
+        const isTaskRegisteredForWatch = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+        if (isTaskRegisteredForWatch) {
+          logger.info({
+            message: 'OS-managed background location task is registered, skipping watchPositionAsync subscription in updateBackgroundGeolocationSetting',
+          });
+          useLocationStore.getState().setBackgroundEnabled(true);
+        } else {
+          await this.startBackgroundUpdates();
+        }
       }
     } else {
       // Stop background updates and unregister task

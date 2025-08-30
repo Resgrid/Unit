@@ -62,7 +62,7 @@ describe('useMapSignalRUpdates', () => {
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    jest.clearAllTimers();
   });
 
   it('should not trigger API call when lastUpdateTimestamp is 0', () => {
@@ -448,9 +448,9 @@ describe('useMapSignalRUpdates', () => {
     // Unmount the hook
     unmount();
 
-    // Verify cleanup occurred - check that clearTimeout would have been called
-    // (we can't directly test this with jest.useFakeTimers)
+    // Verify cleanup occurred - check that AbortController was constructed and abort was called
     expect(global.AbortController).toHaveBeenCalled();
+    expect(mockAbort).toHaveBeenCalled();
 
     // Restore original AbortController
     global.AbortController = originalAbortController;

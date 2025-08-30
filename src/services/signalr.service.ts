@@ -27,6 +27,7 @@ class SignalRService {
   private reconnectAttempts: Map<string, number> = new Map();
   private hubConfigs: Map<string, SignalRHubConnectConfig> = new Map();
   private connectionLocks: Map<string, Promise<void>> = new Map();
+  private reconnectingHubs: Set<string> = new Set();
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_INTERVAL = 5000; // 5 seconds
 
@@ -43,6 +44,20 @@ class SignalRService {
     }
 
     return SignalRService.instance;
+  }
+
+  /**
+   * Check if a hub is connected or in the process of reconnecting
+   */
+  public isHubAvailable(hubName: string): boolean {
+    return this.connections.has(hubName) || this.reconnectingHubs.has(hubName);
+  }
+
+  /**
+   * Check if a hub is currently reconnecting
+   */
+  public isHubReconnecting(hubName: string): boolean {
+    return this.reconnectingHubs.has(hubName);
   }
 
   public async connectToHubWithEventingUrl(config: SignalRHubConnectConfig): Promise<void> {
@@ -73,6 +88,13 @@ class SignalRService {
       if (this.connections.has(config.name)) {
         logger.info({
           message: `Already connected to hub: ${config.name}`,
+        });
+        return;
+      }
+
+      if (this.reconnectingHubs.has(config.name)) {
+        logger.info({
+          message: `Hub ${config.name} is currently reconnecting, skipping duplicate connection attempt`,
         });
         return;
       }
@@ -215,6 +237,13 @@ class SignalRService {
         return;
       }
 
+      if (this.reconnectingHubs.has(config.name)) {
+        logger.info({
+          message: `Hub ${config.name} is currently reconnecting, skipping duplicate connection attempt`,
+        });
+        return;
+      }
+
       const token = useAuthStore.getState().accessToken;
       if (!token) {
         throw new Error('No authentication token available');
@@ -316,34 +345,56 @@ class SignalRService {
               return;
             }
 
-            // Refresh authentication token before reconnecting
-            logger.info({
-              message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
-            });
+            // Set reconnecting flag to indicate this hub is in the process of reconnecting
+            this.reconnectingHubs.add(hubName);
 
-            await useAuthStore.getState().refreshAccessToken();
+            try {
+              // Refresh authentication token before reconnecting
+              logger.info({
+                message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
+              });
 
-            // Verify we have a valid token after refresh
-            const token = useAuthStore.getState().accessToken;
-            if (!token) {
-              throw new Error('No valid authentication token available after refresh');
+              await useAuthStore.getState().refreshAccessToken();
+
+              // Verify we have a valid token after refresh
+              const token = useAuthStore.getState().accessToken;
+              if (!token) {
+                throw new Error('No valid authentication token available after refresh');
+              }
+
+              logger.info({
+                message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName} (attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
+              });
+
+              // Remove the connection from our maps to allow fresh connection
+              // This is now safe because we have the reconnecting flag set
+              this.connections.delete(hubName);
+
+              await this.connectToHubWithEventingUrl(currentHubConfig);
+
+              // Clear reconnecting flag on successful reconnection
+              this.reconnectingHubs.delete(hubName);
+
+              logger.info({
+                message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
+              });
+            } catch (reconnectionError) {
+              // Clear reconnecting flag on failed reconnection
+              this.reconnectingHubs.delete(hubName);
+
+              logger.error({
+                message: `Failed to refresh token or reconnect to hub: ${hubName}`,
+                context: { error: reconnectionError, attempts: currentAttempts, maxAttempts: this.MAX_RECONNECT_ATTEMPTS },
+              });
+
+              // Re-throw to trigger the outer catch block
+              throw reconnectionError;
             }
-
-            logger.info({
-              message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName} (attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
-            });
-
-            // Remove the connection from our maps to allow fresh connection
-            this.connections.delete(hubName);
-
-            await this.connectToHubWithEventingUrl(currentHubConfig);
-
-            logger.info({
-              message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
-            });
           } catch (error) {
+            // This catch block handles the overall reconnection attempt failure
+            // The reconnecting flag has already been cleared in the inner catch block
             logger.error({
-              message: `Failed to refresh token or reconnect to hub: ${hubName}`,
+              message: `Reconnection attempt failed for hub: ${hubName}`,
               context: { error, attempts: currentAttempts, maxAttempts: this.MAX_RECONNECT_ATTEMPTS },
             });
 
@@ -365,6 +416,7 @@ class SignalRService {
       this.connections.delete(hubName);
       this.reconnectAttempts.delete(hubName);
       this.hubConfigs.delete(hubName);
+      this.reconnectingHubs.delete(hubName);
     }
   }
 
@@ -402,6 +454,7 @@ class SignalRService {
         this.connections.delete(hubName);
         this.reconnectAttempts.delete(hubName);
         this.hubConfigs.delete(hubName);
+        this.reconnectingHubs.delete(hubName);
         logger.info({
           message: `Disconnected from hub: ${hubName}`,
         });
@@ -412,6 +465,11 @@ class SignalRService {
         });
         throw error;
       }
+    } else {
+      // Even if no connection exists, clear the reconnecting flag in case it's set
+      this.reconnectingHubs.delete(hubName);
+      this.reconnectAttempts.delete(hubName);
+      this.hubConfigs.delete(hubName);
     }
   }
 
@@ -437,6 +495,10 @@ class SignalRService {
         });
         throw error;
       }
+    } else if (this.reconnectingHubs.has(hubName)) {
+      throw new Error(`Cannot invoke method ${method} on hub ${hubName}: hub is currently reconnecting`);
+    } else {
+      throw new Error(`Cannot invoke method ${method} on hub ${hubName}: hub is not connected`);
     }
   }
 

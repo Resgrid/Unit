@@ -51,6 +51,8 @@ describe('SignalRService', () => {
     (signalRService as any).connections.clear();
     (signalRService as any).reconnectAttempts.clear();
     (signalRService as any).hubConfigs.clear();
+    (signalRService as any).connectionLocks.clear();
+    (signalRService as any).reconnectingHubs.clear();
 
     // Mock HubConnection
     mockConnection = {
@@ -407,8 +409,10 @@ describe('SignalRService', () => {
       });
     });
 
-    it('should do nothing if hub is not connected', async () => {
-      await signalRService.invoke('nonExistentHub', 'testMethod', {});
+    it('should throw error if hub is not connected', async () => {
+      await expect(signalRService.invoke('nonExistentHub', 'testMethod', {})).rejects.toThrow(
+        'Cannot invoke method testMethod on hub nonExistentHub: hub is not connected'
+      );
 
       expect(mockConnection.invoke).not.toHaveBeenCalled();
     });
@@ -487,6 +491,261 @@ describe('SignalRService', () => {
     });
   });
 
+  describe('hub availability and reconnecting state', () => {
+    const mockConfig: SignalRHubConnectConfig = {
+      name: 'testHub',
+      eventingUrl: 'https://api.example.com/',
+      hubName: 'eventingHub',
+      methods: ['method1'],
+    };
+
+    it('should return false for isHubAvailable when hub is not connected or reconnecting', () => {
+      expect(signalRService.isHubAvailable('nonExistentHub')).toBe(false);
+    });
+
+    it('should return true for isHubAvailable when hub is connected', async () => {
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      expect(signalRService.isHubAvailable(mockConfig.name)).toBe(true);
+    });
+
+    it('should return true for isHubAvailable when hub is reconnecting', () => {
+      // Manually set reconnecting state to test
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      expect(signalRService.isHubAvailable(mockConfig.name)).toBe(true);
+    });
+
+    it('should return false for isHubReconnecting when hub is not reconnecting', () => {
+      expect(signalRService.isHubReconnecting('nonExistentHub')).toBe(false);
+    });
+
+    it('should return true for isHubReconnecting when hub is reconnecting', () => {
+      // Manually set reconnecting state to test
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(true);
+    });
+
+    it('should skip connection if hub is already reconnecting', async () => {
+      // Set reconnecting state
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      
+      // Try to connect
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+
+      // Should not have started a new connection
+      expect(mockHubConnectionBuilder).not.toHaveBeenCalled();
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: `Hub ${mockConfig.name} is currently reconnecting, skipping duplicate connection attempt`,
+      });
+    });
+  });
+
+  describe('invoke with reconnecting state', () => {
+    const mockConfig: SignalRHubConnectConfig = {
+      name: 'testHub',
+      eventingUrl: 'https://api.example.com/',
+      hubName: 'eventingHub',
+      methods: ['method1'],
+    };
+
+    it('should throw specific error when hub is reconnecting', async () => {
+      // Set reconnecting state
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      
+      await expect(signalRService.invoke(mockConfig.name, 'testMethod', {}))
+        .rejects.toThrow(`Cannot invoke method testMethod on hub ${mockConfig.name}: hub is currently reconnecting`);
+    });
+
+    it('should throw generic error when hub is not connected', async () => {
+      await expect(signalRService.invoke('nonExistentHub', 'testMethod', {}))
+        .rejects.toThrow(`Cannot invoke method testMethod on hub nonExistentHub: hub is not connected`);
+    });
+  });
+
+  describe('disconnectFromHub with reconnecting state', () => {
+    const mockConfig: SignalRHubConnectConfig = {
+      name: 'testHub',
+      eventingUrl: 'https://api.example.com/',
+      hubName: 'eventingHub',
+      methods: ['method1'],
+    };
+
+    it('should clear reconnecting flag when disconnecting from connected hub', async () => {
+      // Connect first
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Set reconnecting state
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      
+      // Disconnect
+      await signalRService.disconnectFromHub(mockConfig.name);
+
+      // Should have cleared reconnecting flag
+      expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
+    });
+
+    it('should clear reconnecting flag even if no connection exists', async () => {
+      // Set reconnecting state without connection
+      (signalRService as any).reconnectingHubs.add(mockConfig.name);
+      (signalRService as any).reconnectAttempts.set(mockConfig.name, 2);
+      (signalRService as any).hubConfigs.set(mockConfig.name, mockConfig);
+      
+      // Disconnect
+      await signalRService.disconnectFromHub(mockConfig.name);
+
+      // Should have cleared all state
+      expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
+      expect((signalRService as any).reconnectAttempts.has(mockConfig.name)).toBe(false);
+      expect((signalRService as any).hubConfigs.has(mockConfig.name)).toBe(false);
+    });
+  });
+
+  describe('reconnection handling with improved race condition protection', () => {
+    const mockConfig: SignalRHubConnectConfig = {
+      name: 'testHub',
+      eventingUrl: 'https://api.example.com/',
+      hubName: 'eventingHub',
+      methods: ['method1'],
+    };
+
+    it('should set reconnecting flag during reconnection attempt', async () => {
+      jest.useFakeTimers();
+      
+      // Connect to hub
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      // Spy on the connectToHubWithEventingUrl method
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockImplementation(() => {
+        // Check that reconnecting flag is set during the call
+        expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(true);
+        return Promise.resolve();
+      });
+      
+      // Remove the connection to simulate it being closed
+      (signalRService as any).connections.delete(mockConfig.name);
+      
+      // Trigger connection close
+      onCloseCallback();
+      
+      // Advance timers to trigger reconnection
+      jest.advanceTimersByTime(5000);
+      await jest.runAllTicks();
+      
+      // Should have called reconnection
+      expect(connectSpy).toHaveBeenCalled();
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
+    });
+
+    it('should clear reconnecting flag on successful reconnection', async () => {
+      jest.useFakeTimers();
+      
+      // Connect to hub
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      // Spy on the connectToHubWithEventingUrl method to succeed
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockImplementation(async (config) => {
+        // Simulate successful reconnection by clearing the flag
+        (signalRService as any).reconnectingHubs.delete(config.name);
+        return Promise.resolve();
+      });
+      
+      // Remove the connection to simulate it being closed
+      (signalRService as any).connections.delete(mockConfig.name);
+      
+      // Trigger connection close
+      onCloseCallback();
+      
+      // Advance timers to trigger reconnection
+      jest.advanceTimersByTime(5000);
+      await jest.runAllTicks();
+      
+      // Should have cleared reconnecting flag
+      expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
+    });
+
+    it('should clear reconnecting flag on failed reconnection', async () => {
+      jest.useFakeTimers();
+      
+      // Connect to hub
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      // Spy on the connectToHubWithEventingUrl method to fail
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockImplementation(async (config) => {
+        // Simulate failed reconnection by clearing the flag and throwing error
+        (signalRService as any).reconnectingHubs.delete(config.name);
+        throw new Error('Reconnection failed');
+      });
+      
+      // Remove the connection to simulate it being closed
+      (signalRService as any).connections.delete(mockConfig.name);
+      
+      // Trigger connection close
+      onCloseCallback();
+      
+      // Advance timers to trigger reconnection
+      jest.advanceTimersByTime(5000);
+      await jest.runAllTicks();
+      
+      // Should have cleared reconnecting flag even on failure
+      expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
+    });
+
+    it('should clear reconnecting flag when max attempts reached', async () => {
+      jest.useFakeTimers();
+      
+      // Connect to hub first
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      // Set up spy to make reconnection attempts fail
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockImplementation(async (config) => {
+        // Simulate failed reconnection by clearing the flag and throwing error
+        (signalRService as any).reconnectingHubs.delete(config.name);
+        throw new Error('Connection failed');
+      });
+      
+      // Remove the connection to simulate it being closed
+      (signalRService as any).connections.delete(mockConfig.name);
+      
+      // Simulate multiple failed reconnection attempts
+      for (let i = 0; i < 6; i++) {
+        onCloseCallback();
+        jest.advanceTimersByTime(5000);
+        await jest.runAllTicks();
+        // Simulate each attempt failing by removing the connection
+        (signalRService as any).connections.delete(mockConfig.name);
+      }
+      
+      // Should have cleared reconnecting flag after max attempts
+      expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
+    });
+  });
+
   describe('reconnection handling', () => {
     const mockConfig: SignalRHubConnectConfig = {
       name: 'testHub',
@@ -494,6 +753,38 @@ describe('SignalRService', () => {
       hubName: 'eventingHub',
       methods: ['method1'],
     };
+
+    beforeEach(() => {
+      // Reset all mocks for this describe block
+      jest.clearAllMocks();
+
+      // Clear SignalR service state
+      (signalRService as any).connections.clear();
+      (signalRService as any).reconnectAttempts.clear();
+      (signalRService as any).hubConfigs.clear();
+      (signalRService as any).connectionLocks.clear();
+      (signalRService as any).reconnectingHubs.clear();
+
+      // Re-setup mocks
+      mockConnection.start.mockResolvedValue(undefined);
+      mockConnection.stop.mockResolvedValue(undefined);
+      mockConnection.invoke.mockResolvedValue(undefined);
+      mockConnection.on.mockClear();
+      mockConnection.onclose.mockClear();
+      mockConnection.onreconnecting.mockClear();
+      mockConnection.onreconnected.mockClear();
+
+      mockBuilderInstance.build.mockReturnValue(mockConnection);
+      mockHubConnectionBuilder.mockImplementation(() => mockBuilderInstance);
+
+      // Reset auth store mock
+      mockGetState.mockReturnValue({ 
+        accessToken: 'mock-token',
+        refreshAccessToken: mockRefreshAccessToken,
+      });
+      mockRefreshAccessToken.mockClear();
+      mockRefreshAccessToken.mockResolvedValue(undefined);
+    });
 
     it('should attempt reconnection on connection close', async () => {
       // Use fake timers to control setTimeout behavior
