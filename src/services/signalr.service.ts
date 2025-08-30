@@ -22,12 +22,19 @@ export interface SignalRMessage {
   data: unknown;
 }
 
+export enum HubConnectingState {
+  IDLE = 'idle',
+  RECONNECTING = 'reconnecting',
+  DIRECT_CONNECTING = 'direct-connecting',
+}
+
 class SignalRService {
   private connections: Map<string, HubConnection> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private hubConfigs: Map<string, SignalRHubConnectConfig> = new Map();
   private connectionLocks: Map<string, Promise<void>> = new Map();
   private reconnectingHubs: Set<string> = new Set();
+  private hubStates: Map<string, HubConnectingState> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 5;
   private readonly RECONNECT_INTERVAL = 5000; // 5 seconds
 
@@ -47,17 +54,43 @@ class SignalRService {
   }
 
   /**
-   * Check if a hub is connected or in the process of reconnecting
+   * Check if a hub is connected or in the process of connecting
    */
   public isHubAvailable(hubName: string): boolean {
-    return this.connections.has(hubName) || this.reconnectingHubs.has(hubName);
+    return this.connections.has(hubName) || this.isHubConnecting(hubName);
   }
 
   /**
-   * Check if a hub is currently reconnecting
+   * Check if a hub is in any connecting state (reconnecting or direct-connecting)
+   */
+  private isHubConnecting(hubName: string): boolean {
+    const state = this.hubStates.get(hubName);
+    return state === HubConnectingState.RECONNECTING || state === HubConnectingState.DIRECT_CONNECTING;
+  }
+
+  /**
+   * Check if a hub is specifically in reconnecting state
+   * @deprecated Use for testing purposes only
    */
   public isHubReconnecting(hubName: string): boolean {
-    return this.reconnectingHubs.has(hubName);
+    return this.hubStates.get(hubName) === HubConnectingState.RECONNECTING;
+  }
+
+  /**
+   * Set hub state and manage legacy reconnectingHubs set for backward compatibility
+   */
+  private setHubState(hubName: string, state: HubConnectingState): void {
+    if (state === HubConnectingState.IDLE) {
+      this.hubStates.delete(hubName);
+      this.reconnectingHubs.delete(hubName);
+    } else {
+      this.hubStates.set(hubName, state);
+      if (state === HubConnectingState.RECONNECTING) {
+        this.reconnectingHubs.add(hubName);
+      } else {
+        this.reconnectingHubs.delete(hubName);
+      }
+    }
   }
 
   public async connectToHubWithEventingUrl(config: SignalRHubConnectConfig): Promise<void> {
@@ -92,12 +125,24 @@ class SignalRService {
         return;
       }
 
-      if (this.reconnectingHubs.has(config.name)) {
+      // Check if hub is already in direct-connecting state to prevent duplicates
+      const currentState = this.hubStates.get(config.name);
+      if (currentState === HubConnectingState.DIRECT_CONNECTING) {
         logger.info({
-          message: `Hub ${config.name} is currently reconnecting, skipping duplicate connection attempt`,
+          message: `Hub ${config.name} is already in direct-connecting state, skipping duplicate connection attempt`,
         });
         return;
       }
+
+      // Log if hub is reconnecting but proceed with direct connection attempt
+      if (currentState === HubConnectingState.RECONNECTING) {
+        logger.info({
+          message: `Hub ${config.name} is currently reconnecting, proceeding with direct connection attempt`,
+        });
+      }
+
+      // Mark as direct-connecting
+      this.setHubState(config.name, HubConnectingState.DIRECT_CONNECTING);
 
       const token = useAuthStore.getState().accessToken;
       if (!token) {
@@ -193,10 +238,16 @@ class SignalRService {
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
+      // Clear the direct-connecting state on successful connection
+      this.setHubState(config.name, HubConnectingState.IDLE);
+
       logger.info({
         message: `Connected to hub: ${config.name}`,
       });
     } catch (error) {
+      // Clear the direct-connecting state on failed connection
+      this.setHubState(config.name, HubConnectingState.IDLE);
+
       logger.error({
         message: `Failed to connect to hub: ${config.name}`,
         context: { error },
@@ -237,12 +288,24 @@ class SignalRService {
         return;
       }
 
-      if (this.reconnectingHubs.has(config.name)) {
+      // Check if hub is already in direct-connecting state to prevent duplicates
+      const currentState = this.hubStates.get(config.name);
+      if (currentState === HubConnectingState.DIRECT_CONNECTING) {
         logger.info({
-          message: `Hub ${config.name} is currently reconnecting, skipping duplicate connection attempt`,
+          message: `Hub ${config.name} is already in direct-connecting state, skipping duplicate connection attempt`,
         });
         return;
       }
+
+      // Log if hub is reconnecting but proceed with direct connection attempt
+      if (currentState === HubConnectingState.RECONNECTING) {
+        logger.info({
+          message: `Hub ${config.name} is currently reconnecting, proceeding with direct connection attempt`,
+        });
+      }
+
+      // Mark as direct-connecting
+      this.setHubState(config.name, HubConnectingState.DIRECT_CONNECTING);
 
       const token = useAuthStore.getState().accessToken;
       if (!token) {
@@ -302,10 +365,16 @@ class SignalRService {
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
+      // Clear the direct-connecting state on successful connection
+      this.setHubState(config.name, HubConnectingState.IDLE);
+
       logger.info({
         message: `Connected to hub: ${config.name}`,
       });
     } catch (error) {
+      // Clear the direct-connecting state on failed connection
+      this.setHubState(config.name, HubConnectingState.IDLE);
+
       logger.error({
         message: `Failed to connect to hub: ${config.name}`,
         context: { error },
@@ -346,8 +415,8 @@ class SignalRService {
               return;
             }
 
-            // Mark reconnecting and remove stale entry (if any) to allow a fresh connect
-            this.reconnectingHubs.add(hubName);
+            // Mark as reconnecting and remove stale entry (if any) to allow a fresh connect
+            this.setHubState(hubName, HubConnectingState.RECONNECTING);
             if (existingConn) {
               this.connections.delete(hubName);
             }
@@ -376,15 +445,15 @@ class SignalRService {
 
               await this.connectToHubWithEventingUrl(currentHubConfig);
 
-              // Clear reconnecting flag on successful reconnection
-              this.reconnectingHubs.delete(hubName);
+              // Clear reconnecting state on successful reconnection
+              this.setHubState(hubName, HubConnectingState.IDLE);
 
               logger.info({
                 message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
               });
             } catch (reconnectionError) {
-              // Clear reconnecting flag on failed reconnection
-              this.reconnectingHubs.delete(hubName);
+              // Clear reconnecting state on failed reconnection
+              this.setHubState(hubName, HubConnectingState.IDLE);
 
               logger.error({
                 message: `Failed to refresh token or reconnect to hub: ${hubName}`,
@@ -420,7 +489,7 @@ class SignalRService {
       this.connections.delete(hubName);
       this.reconnectAttempts.delete(hubName);
       this.hubConfigs.delete(hubName);
-      this.reconnectingHubs.delete(hubName);
+      this.setHubState(hubName, HubConnectingState.IDLE);
     }
   }
 
@@ -458,7 +527,7 @@ class SignalRService {
         this.connections.delete(hubName);
         this.reconnectAttempts.delete(hubName);
         this.hubConfigs.delete(hubName);
-        this.reconnectingHubs.delete(hubName);
+        this.setHubState(hubName, HubConnectingState.IDLE);
         logger.info({
           message: `Disconnected from hub: ${hubName}`,
         });
@@ -470,8 +539,8 @@ class SignalRService {
         throw error;
       }
     } else {
-      // Even if no connection exists, clear the reconnecting flag in case it's set
-      this.reconnectingHubs.delete(hubName);
+      // Even if no connection exists, clear the state in case it's set
+      this.setHubState(hubName, HubConnectingState.IDLE);
       this.reconnectAttempts.delete(hubName);
       this.hubConfigs.delete(hubName);
     }
