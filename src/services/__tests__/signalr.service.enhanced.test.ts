@@ -1,4 +1,4 @@
-import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 
 import { logger } from '@/lib/logging';
 
@@ -72,6 +72,7 @@ describe('SignalRService - Enhanced Features', () => {
       onclose: jest.fn(),
       onreconnecting: jest.fn(),
       onreconnected: jest.fn(),
+      state: HubConnectionState.Disconnected,
     } as any;
 
     // Mock HubConnectionBuilder
@@ -268,24 +269,25 @@ describe('SignalRService - Enhanced Features', () => {
       
       jest.useFakeTimers();
       
-      // Mock the connections map to indicate connection exists
-      const connectionsMap = (service as any).connections;
-      const originalHas = connectionsMap.has;
-      connectionsMap.has = jest.fn().mockReturnValue(true);
+      // Mock connection state to be Connected
+      Object.defineProperty(mockConnection, 'state', {
+        value: HubConnectionState.Connected,
+        writable: true,
+      });
       
-      // Trigger connection close
+      // Clear previous logs to isolate subsequent logging
+      jest.clearAllMocks();
+      
+      // Trigger connection close to schedule a reconnect
       onCloseCallback();
       
-      // Fast forward time
+      // Fast forward time to trigger the scheduled reconnect
       jest.advanceTimersByTime(5000);
       
       // Should log skip message
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: `Hub ${mockConfig.name} is already connected, skipping reconnection attempt`,
       });
-      
-      // Restore original method
-      connectionsMap.has = originalHas;
       
       jest.useRealTimers();
     });

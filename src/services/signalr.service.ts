@@ -1,4 +1,4 @@
-import { type HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
+import { type HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
@@ -337,16 +337,20 @@ class SignalRService {
               return;
             }
 
-            // Check if connection was re-established during the delay
-            if (this.connections.has(hubName)) {
+            // If a live connection exists, skip; if it's stale/closed, drop it
+            const existingConn = this.connections.get(hubName);
+            if (existingConn && existingConn.state === HubConnectionState.Connected) {
               logger.debug({
                 message: `Hub ${hubName} is already connected, skipping reconnection attempt`,
               });
               return;
             }
 
-            // Set reconnecting flag to indicate this hub is in the process of reconnecting
+            // Mark reconnecting and remove stale entry (if any) to allow a fresh connect
             this.reconnectingHubs.add(hubName);
+            if (existingConn) {
+              this.connections.delete(hubName);
+            }
 
             try {
               // Refresh authentication token before reconnecting
