@@ -594,7 +594,9 @@
       "title": "Tema"
     },
     "title": "Configuración",
+    "unit_selected_successfully": "{{unitName}} seleccionada exitosamente",
     "unit_selection": "Selección de unidad",
+    "unit_selection_failed": "Error al seleccionar la unidad. Inténtalo de nuevo.",
     "username": "Nombre de usuario",
     "version": "Versión",
     "website": "Sitio web"

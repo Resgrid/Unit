@@ -106,9 +106,7 @@ class SignalRService {
 
       // Add query string if there are any parameters
       if (queryParams.toString()) {
-        // Manually encode to ensure spaces are encoded as %20 instead of +
-        const queryString = queryParams.toString().replace(/\+/g, '%20');
-        fullUrl = `${fullUrl}?${queryString}`;
+        fullUrl = `${fullUrl}?${queryParams.toString()}`;
       }
 
       logger.info({
@@ -301,6 +299,15 @@ class SignalRService {
 
         setTimeout(async () => {
           try {
+            // Check if the hub config was removed (e.g., by explicit disconnect)
+            const currentHubConfig = this.hubConfigs.get(hubName);
+            if (!currentHubConfig) {
+              logger.debug({
+                message: `Hub ${hubName} config was removed, skipping reconnection attempt`,
+              });
+              return;
+            }
+
             // Check if connection was re-established during the delay
             if (this.connections.has(hubName)) {
               logger.debug({
@@ -329,7 +336,7 @@ class SignalRService {
             // Remove the connection from our maps to allow fresh connection
             this.connections.delete(hubName);
 
-            await this.connectToHubWithEventingUrl(hubConfig);
+            await this.connectToHubWithEventingUrl(currentHubConfig);
 
             logger.info({
               message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,

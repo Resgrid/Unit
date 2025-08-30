@@ -49,12 +49,13 @@ jest.mock('@expo/html-elements', () => ({
   H6: 'H6',
 }));
 
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react-native';
 import React from 'react';
 
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
+import { useToastStore } from '@/stores/toast/store';
 import { useUnitsStore } from '@/stores/units/store';
 
 import { UnitSelectionBottomSheet } from '../unit-selection-bottom-sheet';
@@ -74,6 +75,10 @@ jest.mock('@/stores/roles/store', () => ({
 
 jest.mock('@/stores/units/store', () => ({
   useUnitsStore: jest.fn(),
+}));
+
+jest.mock('@/stores/toast/store', () => ({
+  useToastStore: jest.fn(),
 }));
 
 jest.mock('react-i18next', () => ({
@@ -176,6 +181,7 @@ jest.mock('@/components/ui/spinner', () => ({
 
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockUseUnitsStore = useUnitsStore as jest.MockedFunction<typeof useUnitsStore>;
+const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
 
 describe('UnitSelectionBottomSheet', () => {
   const mockProps = {
@@ -229,6 +235,7 @@ describe('UnitSelectionBottomSheet', () => {
   const mockSetActiveUnit = jest.fn().mockResolvedValue(undefined);
   const mockFetchUnits = jest.fn().mockResolvedValue(undefined);
   const mockFetchRolesForUnit = jest.fn().mockResolvedValue(undefined);
+  const mockShowToast = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -243,6 +250,8 @@ describe('UnitSelectionBottomSheet', () => {
       fetchUnits: mockFetchUnits,
       isLoading: false,
     } as any);
+
+    mockUseToastStore.mockReturnValue(mockShowToast);
 
     // Mock the roles store
     (useRolesStore.getState as jest.Mock).mockReturnValue({
@@ -320,7 +329,10 @@ describe('UnitSelectionBottomSheet', () => {
 
     // Find the second unit (Ladder 1) and select it using testID
     const ladderUnitItem = screen.getByTestId('unit-item-2');
-    fireEvent.press(ladderUnitItem);
+
+    await act(async () => {
+      fireEvent.press(ladderUnitItem);
+    });
 
     await waitFor(() => {
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
@@ -330,7 +342,14 @@ describe('UnitSelectionBottomSheet', () => {
       expect(mockFetchRolesForUnit).toHaveBeenCalledWith('2');
     });
 
-    expect(mockProps.onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'settings.unit_selected_successfully');
+    });
+
+    // After all async operations complete and loading states are reset, onClose should be called
+    await waitFor(() => {
+      expect(mockProps.onClose).toHaveBeenCalled();
+    });
   });
 
   it('handles unit selection failure gracefully', async () => {
@@ -349,6 +368,12 @@ describe('UnitSelectionBottomSheet', () => {
 
     // Should not call fetchRolesForUnit if setActiveUnit fails
     expect(mockFetchRolesForUnit).not.toHaveBeenCalled();
+
+    // Should show error toast
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'settings.unit_selection_failed');
+    });
+
     // Should not close the modal on error
     expect(mockProps.onClose).not.toHaveBeenCalled();
   });
@@ -360,6 +385,23 @@ describe('UnitSelectionBottomSheet', () => {
     fireEvent.press(cancelButton);
 
     expect(mockProps.onClose).toHaveBeenCalled();
+  });
+
+  it('handles selecting same unit (early return)', async () => {
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // Find the first unit (Engine 1) which is the current active unit and select it
+    const engineUnitItem = screen.getByTestId('unit-item-1');
+    fireEvent.press(engineUnitItem);
+
+    // Should not call setActiveUnit since it's the same unit
+    expect(mockSetActiveUnit).not.toHaveBeenCalled();
+    expect(mockFetchRolesForUnit).not.toHaveBeenCalled();
+
+    // Should close the modal immediately
+    await waitFor(() => {
+      expect(mockProps.onClose).toHaveBeenCalled();
+    });
   });
 
   it('shows selected unit with check mark and proper styling', () => {

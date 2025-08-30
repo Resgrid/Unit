@@ -7,6 +7,7 @@ import { logger } from '@/lib/logging';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
+import { useToastStore } from '@/stores/toast/store';
 import { useUnitsStore } from '@/stores/units/store';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper, ActionsheetItem, ActionsheetItemText } from '../ui/actionsheet';
@@ -29,6 +30,8 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
   const [isLoading, setIsLoading] = React.useState(false);
   const { units, fetchUnits, isLoading: isLoadingUnits } = useUnitsStore();
   const { activeUnit, setActiveUnit } = useCoreStore();
+  const showToast = useToastStore((state) => state.showToast);
+  const isProcessingRef = React.useRef(false);
 
   // Fetch units when sheet opens
   React.useEffect(() => {
@@ -43,7 +46,7 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
   }, [isOpen, units.length, fetchUnits]);
 
   const handleClose = React.useCallback(() => {
-    if (isLoading) {
+    if (isLoading || isProcessingRef.current) {
       return;
     }
     onClose();
@@ -51,29 +54,60 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
 
   const handleUnitSelection = React.useCallback(
     async (unit: UnitResultData) => {
-      if (isLoading) {
+      // Prevent multiple concurrent selections using ref guard
+      if (isLoading || isProcessingRef.current) {
+        return;
+      }
+
+      // Additional check for same unit selection
+      if (activeUnit?.UnitId === unit.UnitId) {
+        logger.info({
+          message: 'Same unit already selected, closing modal',
+          context: { unitId: unit.UnitId },
+        });
+        handleClose();
         return;
       }
 
       try {
+        isProcessingRef.current = true;
         setIsLoading(true);
-        await setActiveUnit(unit.UnitId);
-        await useRolesStore.getState().fetchRolesForUnit(unit.UnitId);
-        logger.info({
-          message: 'Active unit updated successfully',
-          context: { unitId: unit.UnitId },
-        });
-        handleClose();
-      } catch (error) {
-        logger.error({
-          message: 'Failed to update active unit',
-          context: { error },
-        });
-      } finally {
+        let hasError = false;
+
+        try {
+          await setActiveUnit(unit.UnitId);
+          await useRolesStore.getState().fetchRolesForUnit(unit.UnitId);
+
+          logger.info({
+            message: 'Active unit updated successfully',
+            context: { unitId: unit.UnitId, unitName: unit.Name },
+          });
+
+          showToast('success', t('settings.unit_selected_successfully', { unitName: unit.Name }));
+        } catch (error) {
+          hasError = true;
+          logger.error({
+            message: 'Failed to update active unit',
+            context: { error, unitId: unit.UnitId, unitName: unit.Name },
+          });
+
+          showToast('error', t('settings.unit_selection_failed'));
+        } finally {
+          setIsLoading(false);
+          isProcessingRef.current = false;
+
+          // Call handleClose after resetting loading states so it can actually close
+          if (!hasError) {
+            handleClose();
+          }
+        }
+      } catch (outerError) {
+        // This should not happen, but just in case
         setIsLoading(false);
+        isProcessingRef.current = false;
       }
     },
-    [setActiveUnit, handleClose, isLoading]
+    [setActiveUnit, handleClose, isLoading, activeUnit, showToast, t]
   );
 
   return (

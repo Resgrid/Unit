@@ -49,7 +49,7 @@ jest.mock('@expo/html-elements', () => ({
   H6: 'H6',
 }));
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import React from 'react';
 
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
@@ -76,9 +76,23 @@ jest.mock('@/stores/units/store', () => ({
   useUnitsStore: jest.fn(),
 }));
 
+jest.mock('@/stores/toast/store', () => ({
+  useToastStore: jest.fn(),
+}));
+
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,
+    t: (key: string, options?: any) => {
+      const translations: { [key: string]: string } = {
+        'settings.select_unit': 'Select Unit',
+        'settings.current_unit': 'Current Unit',
+        'settings.no_units_available': 'No units available',
+        'common.cancel': 'Cancel',
+        'settings.unit_selected_successfully': `${options?.unitName || 'Unit'} selected successfully`,
+        'settings.unit_selection_failed': 'Failed to select unit. Please try again.',
+      };
+      return translations[key] || key;
+    },
   }),
 }));
 
@@ -182,6 +196,7 @@ jest.mock('@/components/ui/center', () => ({
 
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockUseUnitsStore = useUnitsStore as jest.MockedFunction<typeof useUnitsStore>;
+const mockUseToastStore = require('@/stores/toast/store').useToastStore as jest.MockedFunction<any>;
 
 describe('UnitSelectionBottomSheet', () => {
   const mockProps = {
@@ -255,6 +270,7 @@ describe('UnitSelectionBottomSheet', () => {
   const mockSetActiveUnit = jest.fn().mockResolvedValue(undefined);
   const mockFetchUnits = jest.fn().mockResolvedValue(undefined);
   const mockFetchRolesForUnit = jest.fn().mockResolvedValue(undefined);
+  const mockShowToast = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -274,13 +290,23 @@ describe('UnitSelectionBottomSheet', () => {
     (useRolesStore.getState as jest.Mock).mockReturnValue({
       fetchRolesForUnit: mockFetchRolesForUnit,
     });
+
+    // Mock the toast store
+    mockUseToastStore.mockImplementation((selector: any) => {
+      const state = {
+        showToast: mockShowToast,
+        toasts: [],
+        removeToast: jest.fn(),
+      };
+      return selector(state);
+    });
   });
 
   it('renders correctly when open', () => {
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    expect(screen.getByText('settings.select_unit')).toBeTruthy();
-    expect(screen.getByText('settings.current_unit')).toBeTruthy();
+    expect(screen.getByText('Select Unit')).toBeTruthy();
+    expect(screen.getByText('Current Unit')).toBeTruthy();
     expect(screen.getAllByText('Engine 1')).toHaveLength(2); // One in current selection, one in list
     expect(screen.getByText('Ladder 1')).toBeTruthy();
     expect(screen.getByText('Rescue 1')).toBeTruthy();
@@ -289,13 +315,13 @@ describe('UnitSelectionBottomSheet', () => {
   it('does not render when closed', () => {
     render(<UnitSelectionBottomSheet {...mockProps} isOpen={false} />);
 
-    expect(screen.queryByText('settings.select_unit')).toBeNull();
+    expect(screen.queryByText('Select Unit')).toBeNull();
   });
 
   it('displays current unit selection', () => {
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    expect(screen.getByText('settings.current_unit')).toBeTruthy();
+    expect(screen.getByText('Current Unit')).toBeTruthy();
     expect(screen.getAllByText('Engine 1')).toHaveLength(2); // One in current selection, one in list
   });
 
@@ -321,7 +347,7 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    expect(screen.getByText('settings.no_units_available')).toBeTruthy();
+    expect(screen.getByText('No units available')).toBeTruthy();
   });
 
   it('fetches units when sheet opens and no units are loaded', async () => {
@@ -354,7 +380,10 @@ describe('UnitSelectionBottomSheet', () => {
 
     // Find the second unit (Ladder 1) and select it via its testID
     const ladderUnit = screen.getByTestId('unit-item-2');
-    fireEvent.press(ladderUnit);
+
+    await act(async () => {
+      fireEvent.press(ladderUnit);
+    });
 
     await waitFor(() => {
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
@@ -364,7 +393,14 @@ describe('UnitSelectionBottomSheet', () => {
       expect(mockFetchRolesForUnit).toHaveBeenCalledWith('2');
     });
 
-    expect(mockProps.onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'Ladder 1 selected successfully');
+    });
+
+    // Give a moment for the handleClose to be called
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
   });
 
   it('handles unit selection failure gracefully', async () => {
@@ -379,6 +415,10 @@ describe('UnitSelectionBottomSheet', () => {
 
     await waitFor(() => {
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
+    });
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to select unit. Please try again.');
     });
 
     // Should not call fetchRolesForUnit if setActiveUnit fails
@@ -401,6 +441,100 @@ describe('UnitSelectionBottomSheet', () => {
     fireEvent.press(rescueUnit);
 
     await waitFor(() => {
+      expect(mockSetActiveUnit).toHaveBeenCalledTimes(1);
+      expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
+    });
+  });
+
+  it('shows success toast on successful unit selection', async () => {
+    mockSetActiveUnit.mockResolvedValue(undefined);
+    mockFetchRolesForUnit.mockResolvedValue(undefined);
+
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // Find the second unit (Ladder 1) and select it via its testID
+    const ladderUnit = screen.getByTestId('unit-item-2');
+
+    await act(async () => {
+      fireEvent.press(ladderUnit);
+    });
+
+    await waitFor(() => {
+      expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
+    });
+
+    await waitFor(() => {
+      expect(mockFetchRolesForUnit).toHaveBeenCalledWith('2');
+    });
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('success', 'Ladder 1 selected successfully');
+    });
+
+    // Give a moment for the handleClose to be called
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+  });
+
+  it('shows error toast on unit selection failure', async () => {
+    const error = new Error('Failed to set active unit');
+    mockSetActiveUnit.mockRejectedValue(error);
+
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // Find the second unit (Ladder 1) and select it via its testID
+    const ladderUnit = screen.getByTestId('unit-item-2');
+    fireEvent.press(ladderUnit);
+
+    await waitFor(() => {
+      expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
+    });
+
+    await waitFor(() => {
+      expect(mockShowToast).toHaveBeenCalledWith('error', 'Failed to select unit. Please try again.');
+    });
+
+    // Should not call fetchRolesForUnit if setActiveUnit fails
+    expect(mockFetchRolesForUnit).not.toHaveBeenCalled();
+    // Should not close the modal on error
+    expect(mockProps.onClose).not.toHaveBeenCalled();
+  });
+
+  it('handles idempotent selection when same unit is already active', async () => {
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // Try to select the currently active unit (Engine 1)
+    const engineUnit = screen.getByTestId('unit-item-1');
+    fireEvent.press(engineUnit);
+
+    await waitFor(() => {
+      // Should not call setActiveUnit since it's already the active unit
+      expect(mockSetActiveUnit).not.toHaveBeenCalled();
+      expect(mockFetchRolesForUnit).not.toHaveBeenCalled();
+      expect(mockShowToast).not.toHaveBeenCalled();
+    });
+
+    // Should close the modal since selection is idempotent
+    expect(mockProps.onClose).toHaveBeenCalled();
+  });
+
+  it('prevents multiple concurrent selections using ref guard', async () => {
+    // Mock slow network response
+    mockSetActiveUnit.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // Rapidly select multiple units
+    const ladderUnit = screen.getByTestId('unit-item-2');
+    const rescueUnit = screen.getByTestId('unit-item-3');
+
+    fireEvent.press(ladderUnit);
+    fireEvent.press(rescueUnit);
+    fireEvent.press(ladderUnit);
+
+    await waitFor(() => {
+      // Should only process first selection due to ref guard
       expect(mockSetActiveUnit).toHaveBeenCalledTimes(1);
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
     });
@@ -471,7 +605,7 @@ describe('UnitSelectionBottomSheet', () => {
     });
 
     // Component should still render normally even if fetch fails
-    expect(screen.getByText('settings.select_unit')).toBeTruthy();
+    expect(screen.getByText('Select Unit')).toBeTruthy();
 
     consoleError.mockRestore();
   });

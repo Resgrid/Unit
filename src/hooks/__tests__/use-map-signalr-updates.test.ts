@@ -154,13 +154,13 @@ describe('useMapSignalRUpdates', () => {
     rerender({ timestamp: timestamp + 1000 });
     jest.runAllTimers();
 
-    // First call should have been made, but second should be skipped due to concurrent protection
+    // First call should have been made, but second should be queued
     expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
 
-    // Verify the debug log about skipping concurrent call
+    // Verify the debug log about queuing concurrent call
     expect(mockLogger.debug).toHaveBeenCalledWith({
-      message: 'Map markers update already in progress, skipping',
-      context: { timestamp: timestamp + 1000 },
+      message: 'Map markers update already in progress, queuing timestamp',
+      context: { timestamp: timestamp + 1000, pendingTimestamp: timestamp + 1000 },
     });
 
     // Resolve first call
@@ -168,6 +168,77 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockOnMarkersUpdate).toHaveBeenCalledWith(mockMapData.Data.MapMakerInfos);
+    });
+
+    // Wait for the queued call to be processed
+    await waitFor(() => {
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify the debug log about processing queued timestamp
+    expect(mockLogger.debug).toHaveBeenCalledWith({
+      message: 'Processing queued timestamp after fetch completion',
+      context: { nextTimestamp: timestamp + 1000 },
+    });
+  });
+
+  it('should queue only the latest timestamp during concurrent updates', async () => {
+    const timestamp1 = Date.now();
+    const timestamp2 = timestamp1 + 1000;
+    const timestamp3 = timestamp1 + 2000;
+    
+    // Make API call slow to simulate concurrent scenario
+    let resolveFirstCall: (value: any) => void;
+    const firstCallPromise = new Promise((resolve) => {
+      resolveFirstCall = resolve;
+    });
+    
+    mockGetMapDataAndMarkers.mockReturnValueOnce(firstCallPromise as any);
+    mockGetMapDataAndMarkers.mockResolvedValue(mockMapData);
+
+    const { rerender } = renderHook(
+      (props) => {
+        mockUseSignalRStore.mockReturnValue(props.timestamp);
+        return useMapSignalRUpdates(mockOnMarkersUpdate);
+      },
+      { initialProps: { timestamp: timestamp1 } }
+    );
+
+    // Trigger first call
+    jest.runAllTimers();
+
+    // Update timestamp multiple times while first call is still pending
+    rerender({ timestamp: timestamp2 });
+    jest.runAllTimers();
+    
+    rerender({ timestamp: timestamp3 });
+    jest.runAllTimers();
+
+    // Only the first call should have been made
+    expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+
+    // The latest timestamp should be queued
+    expect(mockLogger.debug).toHaveBeenCalledWith({
+      message: 'Map markers update already in progress, queuing timestamp',
+      context: { timestamp: timestamp3, pendingTimestamp: timestamp3 },
+    });
+
+    // Resolve first call
+    resolveFirstCall!(mockMapData);
+
+    await waitFor(() => {
+      expect(mockOnMarkersUpdate).toHaveBeenCalledWith(mockMapData.Data.MapMakerInfos);
+    });
+
+    // Wait for the queued call to be processed (should be timestamp3, not timestamp2)
+    await waitFor(() => {
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(2);
+    });
+
+    // Verify the debug log about processing the latest queued timestamp
+    expect(mockLogger.debug).toHaveBeenCalledWith({
+      message: 'Processing queued timestamp after fetch completion',
+      context: { nextTimestamp: timestamp3 },
     });
   });
 

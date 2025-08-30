@@ -203,9 +203,9 @@ describe('SignalRService', () => {
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should properly encode the token in the URL
+      // Should properly encode the token in the URL (URLSearchParams uses + for spaces, which is correct)
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/geolocationHub?access_token=token%20with%20spaces%20%26%20special%20chars',
+        'https://api.example.com/geolocationHub?access_token=token+with+spaces+%26+special+chars',
         {}
       );
     });
@@ -226,9 +226,9 @@ describe('SignalRService', () => {
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should properly encode all special characters in the token
+      // Should properly encode all special characters in the token (URLSearchParams uses + for spaces, which is correct)
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/geolocationHub?access_token=Bearer%20eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9%2B%2F%3D%3F%23%26',
+        'https://api.example.com/geolocationHub?access_token=Bearer+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9%2B%2F%3D%3F%23%26',
         {}
       );
     });

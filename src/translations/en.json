@@ -594,7 +594,9 @@
       "title": "Theme"
     },
     "title": "Settings",
+    "unit_selected_successfully": "{{unitName}} selected successfully",
     "unit_selection": "Unit Selection",
+    "unit_selection_failed": "Failed to select unit. Please try again.",
     "username": "Username",
     "version": "Version",
     "website": "Website"

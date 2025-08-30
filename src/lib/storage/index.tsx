@@ -10,7 +10,7 @@ if (Platform.OS === 'web') {
 } else {
   storage = new MMKV({
     id: 'ResgridUnit',
-    encryptionKey: 'hunter2',
+    encryptionKey: '9f066882-5c07-47a4-9bf3-783074b590d5',
   });
 }
 const IS_FIRST_TIME = 'IS_FIRST_TIME';

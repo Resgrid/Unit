@@ -193,26 +193,32 @@ class LocationService {
       });
     }
 
-    // Start foreground updates
-    this.locationSubscription = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 15000,
-        distanceInterval: 10,
-      },
-      (location) => {
-        logger.info({
-          message: 'Foreground location update received',
-          context: {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-            heading: location.coords.heading,
-          },
-        });
-        useLocationStore.getState().setLocation(location);
-        sendLocationToAPI(location); // Send to API for foreground updates
-      }
-    );
+    // Start foreground updates (idempotent - check if already subscribed)
+    if (!this.locationSubscription) {
+      this.locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 10,
+        },
+        (location) => {
+          logger.info({
+            message: 'Foreground location update received',
+            context: {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              heading: location.coords.heading,
+            },
+          });
+          useLocationStore.getState().setLocation(location);
+          sendLocationToAPI(location); // Send to API for foreground updates
+        }
+      );
+    } else {
+      logger.info({
+        message: 'Foreground location subscription already active, skipping duplicate subscription',
+      });
+    }
 
     logger.info({
       message: 'Foreground location updates started',

@@ -289,5 +289,59 @@ describe('SignalRService - Enhanced Features', () => {
       
       jest.useRealTimers();
     });
+
+    it('should cancel scheduled reconnect if hub is explicitly disconnected after onclose handler', async () => {
+      const service = SignalRService.getInstance();
+      
+      // Connect to hub
+      await service.connectToHubWithEventingUrl(mockConfig);
+      
+      // Get the onclose callback
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      jest.useFakeTimers();
+      
+      // Store original connections map state
+      const connectionsMap = (service as any).connections;
+      const originalConnectionsMap = new Map(connectionsMap);
+      
+      // Trigger connection close to schedule a reconnect
+      onCloseCallback();
+      
+      // Should log the reconnection attempt scheduling
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: `Scheduling reconnection attempt 1/5 for hub: ${mockConfig.name}`,
+      });
+      
+      // Clear previous logs to isolate subsequent logging
+      jest.clearAllMocks();
+      
+      // Simulate explicit disconnect after the onclose handler
+      await service.disconnectFromHub(mockConfig.name);
+      
+      // Advance timers to trigger the scheduled reconnect
+      jest.advanceTimersByTime(5000);
+      
+      // Assert that no reconnection attempt occurs
+      // The reconnect logic should not be called because the hub was explicitly disconnected
+      expect(mockLogger.debug).toHaveBeenCalledWith({
+        message: `Hub ${mockConfig.name} config was removed, skipping reconnection attempt`,
+      });
+      
+      // Ensure no actual reconnection attempt was made
+      expect(mockLogger.info).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('attempting to reconnect to hub'),
+        })
+      );
+      
+      // Restore original connections map and timers
+      connectionsMap.clear();
+      originalConnectionsMap.forEach((value, key) => {
+        connectionsMap.set(key, value);
+      });
+      
+      jest.useRealTimers();
+    });
   });
 });
