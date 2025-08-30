@@ -94,13 +94,13 @@ jest.mock('@/components/ui/actionsheet', () => ({
   ActionsheetContent: ({ children }: any) => children,
   ActionsheetDragIndicator: () => null,
   ActionsheetDragIndicatorWrapper: ({ children }: any) => children,
-  ActionsheetItem: ({ children, onPress, disabled, ...props }: any) => {
+  ActionsheetItem: ({ children, onPress, disabled, testID, ...props }: any) => {
     const React = require('react');
     return React.createElement(
       'View',
       {
         onPress: disabled ? undefined : onPress,
-        testID: props.testID || 'actionsheet-item',
+        testID: testID || 'actionsheet-item',
         accessibilityState: { disabled },
       },
       children
@@ -352,8 +352,8 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    // Find the second unit (Ladder 1) and select it
-    const ladderUnit = screen.getByText('Ladder 1');
+    // Find the second unit (Ladder 1) and select it via its testID
+    const ladderUnit = screen.getByTestId('unit-item-2');
     fireEvent.press(ladderUnit);
 
     await waitFor(() => {
@@ -373,8 +373,8 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    // Find the second unit (Ladder 1) and select it
-    const ladderUnit = screen.getByText('Ladder 1');
+    // Find the second unit (Ladder 1) and select it via its testID
+    const ladderUnit = screen.getByTestId('unit-item-2');
     fireEvent.press(ladderUnit);
 
     await waitFor(() => {
@@ -392,12 +392,12 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    // Select first unit
-    const ladderUnit = screen.getByText('Ladder 1');
+    // Select first unit via its testID
+    const ladderUnit = screen.getByTestId('unit-item-2');
     fireEvent.press(ladderUnit);
 
-    // Try to select another unit while first is processing
-    const rescueUnit = screen.getByText('Rescue 1');
+    // Try to select another unit while first is processing via its testID
+    const rescueUnit = screen.getByTestId('unit-item-3');
     fireEvent.press(rescueUnit);
 
     await waitFor(() => {
@@ -409,7 +409,7 @@ describe('UnitSelectionBottomSheet', () => {
   it('closes when cancel button is pressed', () => {
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    const cancelButton = screen.getByText('common.cancel');
+    const cancelButton = screen.getByTestId('cancel-button');
     fireEvent.press(cancelButton);
 
     expect(mockProps.onClose).toHaveBeenCalled();
@@ -424,8 +424,11 @@ describe('UnitSelectionBottomSheet', () => {
     const ladderUnit = screen.getByText('Ladder 1');
     fireEvent.press(ladderUnit);
 
+    // Check that cancel button is disabled
+    const cancelButton = screen.getByTestId('cancel-button');
+    expect(cancelButton.props.accessibilityState.disabled).toBe(true);
+
     // Try to press cancel button - it should be disabled
-    const cancelButton = screen.getByText('common.cancel');
     fireEvent.press(cancelButton);
 
     // onClose should not be called because button is disabled

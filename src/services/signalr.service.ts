@@ -31,49 +31,15 @@ class SignalRService {
   private readonly RECONNECT_INTERVAL = 5000; // 5 seconds
 
   private static instance: SignalRService | null = null;
-  private static isCreating = false;
 
   private constructor() {}
 
   public static getInstance(): SignalRService {
-    // Prevent multiple instances even in race conditions
-    if (SignalRService.instance) {
-      return SignalRService.instance;
-    }
-
-    // Check if another thread is already creating the instance
-    if (SignalRService.isCreating) {
-      // Wait for the instance to be created by polling
-      const pollInterval = 10; // 10ms
-      const maxWaitTime = 5000; // 5 seconds
-      let waitTime = 0;
-
-      while (!SignalRService.instance && waitTime < maxWaitTime) {
-        // Synchronous wait (not ideal in production, but prevents race conditions)
-        const start = Date.now();
-        while (Date.now() - start < pollInterval) {
-          // Busy wait
-        }
-        waitTime += pollInterval;
-      }
-
-      if (SignalRService.instance) {
-        return SignalRService.instance;
-      }
-    }
-
-    // Set flag to indicate instance creation is in progress
-    SignalRService.isCreating = true;
-
-    try {
-      if (!SignalRService.instance) {
-        SignalRService.instance = new SignalRService();
-        logger.info({
-          message: 'SignalR service singleton instance created',
-        });
-      }
-    } finally {
-      SignalRService.isCreating = false;
+    if (!SignalRService.instance) {
+      SignalRService.instance = new SignalRService();
+      logger.info({
+        message: 'SignalR service singleton instance created',
+      });
     }
 
     return SignalRService.instance;
@@ -479,7 +445,6 @@ class SignalRService {
       });
     }
     SignalRService.instance = null;
-    SignalRService.isCreating = false;
     logger.debug({
       message: 'SignalR service singleton instance reset',
     });

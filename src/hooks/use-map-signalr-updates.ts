@@ -41,7 +41,7 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
         context: { timestamp: lastUpdateTimestamp },
       });
 
-      const mapDataAndMarkers = await getMapDataAndMarkers();
+      const mapDataAndMarkers = await getMapDataAndMarkers(abortController.current.signal);
 
       // Check if request was aborted
       if (abortController.current?.signal.aborted) {
@@ -71,6 +71,15 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
       if (error instanceof Error && error.name === 'AbortError') {
         logger.debug({
           message: 'Map markers request was aborted',
+          context: { timestamp: lastUpdateTimestamp },
+        });
+        return;
+      }
+
+      // Handle axios cancel errors as well
+      if (error instanceof Error && error.message === 'canceled') {
+        logger.debug({
+          message: 'Map markers request was canceled',
           context: { timestamp: lastUpdateTimestamp },
         });
         return;

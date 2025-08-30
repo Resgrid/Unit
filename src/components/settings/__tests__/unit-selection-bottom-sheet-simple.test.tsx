@@ -49,7 +49,7 @@ jest.mock('@expo/html-elements', () => ({
   H6: 'H6',
 }));
 
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react-native';
 import React from 'react';
 
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
@@ -94,12 +94,12 @@ jest.mock('@/components/ui/actionsheet', () => ({
   ActionsheetContent: ({ children }: any) => children,
   ActionsheetDragIndicator: () => null,
   ActionsheetDragIndicatorWrapper: ({ children }: any) => children,
-  ActionsheetItem: ({ children, onPress, disabled }: any) => {
+  ActionsheetItem: ({ children, onPress, disabled, testID }: any) => {
     const React = require('react');
     const handlePress = disabled ? undefined : onPress;
     return React.createElement(
       'TouchableOpacity',
-      { onPress: handlePress, testID: 'actionsheet-item', disabled },
+      { onPress: handlePress, testID: testID || 'actionsheet-item', disabled },
       children
     );
   },
@@ -318,9 +318,9 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    // Find the second unit (Ladder 1) and select it
-    const ladderUnit = screen.getByText('Ladder 1');
-    fireEvent.press(ladderUnit);
+    // Find the second unit (Ladder 1) and select it using testID
+    const ladderUnitItem = screen.getByTestId('unit-item-2');
+    fireEvent.press(ladderUnitItem);
 
     await waitFor(() => {
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');
@@ -339,9 +339,9 @@ describe('UnitSelectionBottomSheet', () => {
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
-    // Find the second unit (Ladder 1) and select it
-    const ladderUnit = screen.getByText('Ladder 1');
-    fireEvent.press(ladderUnit);
+    // Find the second unit (Ladder 1) and select it using testID
+    const ladderUnitItem = screen.getByTestId('unit-item-2');
+    fireEvent.press(ladderUnitItem);
 
     await waitFor(() => {
       expect(mockSetActiveUnit).toHaveBeenCalledWith('2');

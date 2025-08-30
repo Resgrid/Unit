@@ -201,8 +201,16 @@ describe('LocationService', () => {
   });
 
   describe('Permission Requests', () => {
-    it('should request both foreground and background permissions', async () => {
+    it('should only request foreground permissions by default', async () => {
       const result = await locationService.requestPermissions();
+
+      expect(mockLocation.requestForegroundPermissionsAsync).toHaveBeenCalled();
+      expect(mockLocation.requestBackgroundPermissionsAsync).not.toHaveBeenCalled();
+      expect(result).toBe(true);
+    });
+
+    it('should request background permissions when explicitly requested', async () => {
+      const result = await locationService.requestPermissions(true);
 
       expect(mockLocation.requestForegroundPermissionsAsync).toHaveBeenCalled();
       expect(mockLocation.requestBackgroundPermissionsAsync).toHaveBeenCalled();
@@ -233,19 +241,20 @@ describe('LocationService', () => {
       expect(result).toBe(true); // Should still work with just foreground permissions
     });
 
-    it('should log permission status', async () => {
+    it('should log permission status for foreground-only requests', async () => {
       await locationService.requestPermissions();
 
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Location permissions requested',
         context: {
           foregroundStatus: 'granted',
-          backgroundStatus: 'granted',
+          backgroundStatus: 'not requested',
+          backgroundRequested: false,
         },
       });
     });
 
-    it('should log permission status when background is denied', async () => {
+    it('should log permission status when background is requested and denied', async () => {
       mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         expires: 'never',
@@ -253,13 +262,14 @@ describe('LocationService', () => {
         canAskAgain: true,
       });
 
-      await locationService.requestPermissions();
+      await locationService.requestPermissions(true);
 
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Location permissions requested',
         context: {
           foregroundStatus: 'granted',
           backgroundStatus: 'denied',
+          backgroundRequested: true,
         },
       });
     });
@@ -592,7 +602,7 @@ describe('LocationService', () => {
     });
 
     it('should warn and not register task when background permissions are denied', async () => {
-      mockLocation.getBackgroundPermissionsAsync.mockResolvedValue({
+      mockLocation.requestBackgroundPermissionsAsync.mockResolvedValue({
         status: 'denied' as any,
         expires: 'never',
         granted: false,
@@ -690,14 +700,15 @@ describe('LocationService', () => {
       expect(mockLocation.watchPositionAsync).toHaveBeenCalled();
     });
 
-    it('should log correct permission status when background is denied', async () => {
+    it('should log correct permission status for foreground-only requests', async () => {
       await locationService.requestPermissions();
 
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Location permissions requested',
         context: {
           foregroundStatus: 'granted',
-          backgroundStatus: 'denied',
+          backgroundStatus: 'not requested',
+          backgroundRequested: false,
         },
       });
     });

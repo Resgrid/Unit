@@ -88,6 +88,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     expect(mockOnMarkersUpdate).toHaveBeenCalledWith(mockMapData.Data.MapMakerInfos);
@@ -121,6 +122,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     expect(mockOnMarkersUpdate).toHaveBeenCalledTimes(1);
@@ -182,6 +184,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     expect(mockLogger.error).toHaveBeenCalledWith({
@@ -206,11 +209,38 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     // Should log as debug, not error
     expect(mockLogger.debug).toHaveBeenCalledWith({
       message: 'Map markers request was aborted',
+      context: { timestamp },
+    });
+
+    expect(mockLogger.error).not.toHaveBeenCalled();
+    expect(mockOnMarkersUpdate).not.toHaveBeenCalled();
+  });
+
+  it('should handle axios canceled requests gracefully', async () => {
+    const timestamp = Date.now();
+    const cancelError = new Error('canceled');
+    
+    mockUseSignalRStore.mockReturnValue(timestamp);
+    mockGetMapDataAndMarkers.mockRejectedValue(cancelError);
+
+    renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
+
+    jest.runAllTimers();
+
+    await waitFor(() => {
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
+    });
+
+    // Should log as debug, not error
+    expect(mockLogger.debug).toHaveBeenCalledWith({
+      message: 'Map markers request was canceled',
       context: { timestamp },
     });
 
@@ -245,6 +275,7 @@ describe('useMapSignalRUpdates', () => {
     // Wait for the call to complete
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     // Verify AbortController was created for the request
@@ -273,6 +304,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     expect(mockOnMarkersUpdate).toHaveBeenCalledWith([]);
@@ -289,6 +321,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     expect(mockOnMarkersUpdate).not.toHaveBeenCalled();
@@ -310,6 +343,7 @@ describe('useMapSignalRUpdates', () => {
 
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
 
     // Reset mock call count
@@ -368,6 +402,7 @@ describe('useMapSignalRUpdates', () => {
     // The hook should use the latest callback
     await waitFor(() => {
       expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledWith(expect.objectContaining({ aborted: false }));
     });
     
     await waitFor(() => {

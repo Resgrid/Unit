@@ -65,12 +65,17 @@ export const StatusBottomSheet = () => {
 
   // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
-    <T extends keyof CustomStatusResultData>(prop: T, defaultValue: CustomStatusResultData[T]): CustomStatusResultData[T] => {
+    (prop: 'Detail' | 'Note', defaultValue: number): number => {
       if (!selectedStatus) return defaultValue;
-      return (selectedStatus as any)[prop] ?? defaultValue;
+      return selectedStatus[prop] ?? defaultValue;
     },
     [selectedStatus]
   );
+
+  const getStatusId = React.useCallback((): string => {
+    if (!selectedStatus) return '0';
+    return selectedStatus.Id.toString();
+  }, [selectedStatus]);
 
   const handleClose = () => {
     reset();
@@ -166,7 +171,7 @@ export const StatusBottomSheet = () => {
 
       const input = new SaveUnitStatusInput();
       input.Id = activeUnit.UnitId;
-      input.Type = getStatusProperty('Id', '0');
+      input.Type = getStatusId();
       input.Note = note;
 
       // Set RespondingTo based on destination selection
@@ -230,7 +235,7 @@ export const StatusBottomSheet = () => {
     unitRoleAssignments,
     saveUnitStatus,
     reset,
-    getStatusProperty,
+    getStatusId,
     latitude,
     longitude,
     heading,

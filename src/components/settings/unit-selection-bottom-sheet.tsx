@@ -113,7 +113,13 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
               ) : units.length > 0 ? (
                 <VStack space="sm">
                   {units.map((unit) => (
-                    <ActionsheetItem key={unit.UnitId} onPress={() => handleUnitSelection(unit)} disabled={isLoading} className={activeUnit?.UnitId === unit.UnitId ? 'data-[checked=true]:bg-background-100' : ''}>
+                    <ActionsheetItem
+                      key={unit.UnitId}
+                      onPress={() => handleUnitSelection(unit)}
+                      disabled={isLoading}
+                      className={activeUnit?.UnitId === unit.UnitId ? 'data-[checked=true]:bg-background-100' : ''}
+                      testID={`unit-item-${unit.UnitId}`}
+                    >
                       <VStack className="flex-1">
                         <ActionsheetItemText size="md" className={activeUnit?.UnitId === unit.UnitId ? 'font-medium' : 'font-normal'}>
                           {unit.Name}
@@ -136,7 +142,7 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
 
           {/* Cancel Button - Fixed to bottom */}
           <HStack space="md" className="pt-4">
-            <Button variant="outline" className="flex-1" onPress={handleClose} disabled={isLoading}>
+            <Button variant="outline" className="flex-1" onPress={handleClose} disabled={isLoading} testID="cancel-button">
               <ButtonText>{t('common.cancel')}</ButtonText>
             </Button>
           </HStack>

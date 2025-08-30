@@ -30,7 +30,22 @@ import { SignalRService, SignalRHubConnectConfig } from '../signalr.service';
 
 // Mock the dependencies
 jest.mock('@microsoft/signalr');
-jest.mock('@/lib/logging');
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    setGlobalContext: jest.fn(),
+    clearGlobalContext: jest.fn(),
+  },
+  useLogger: jest.fn(() => ({
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  })),
+}));
 
 const mockGetState = (useAuthStore as any).getState;
 const mockRefreshAccessToken = jest.fn().mockResolvedValue(undefined);

@@ -126,15 +126,21 @@ class LocationService {
     }
   };
 
-  async requestPermissions(): Promise<boolean> {
+  async requestPermissions(requestBackground = false): Promise<boolean> {
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+
+    let backgroundStatus = 'undetermined';
+    if (requestBackground) {
+      const result = await Location.requestBackgroundPermissionsAsync();
+      backgroundStatus = result.status;
+    }
 
     logger.info({
       message: 'Location permissions requested',
       context: {
         foregroundStatus,
-        backgroundStatus,
+        backgroundStatus: requestBackground ? backgroundStatus : 'not requested',
+        backgroundRequested: requestBackground,
       },
     });
 
@@ -144,7 +150,11 @@ class LocationService {
   }
 
   async startLocationUpdates(): Promise<void> {
-    const hasPermissions = await this.requestPermissions();
+    // Load background geolocation setting first
+    this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
+
+    // Only request background permissions if the user has enabled background geolocation
+    const hasPermissions = await this.requestPermissions(this.isBackgroundGeolocationEnabled);
     if (!hasPermissions) {
       throw new Error('Location permissions not granted');
     }
@@ -152,9 +162,6 @@ class LocationService {
     // Check if we have background permissions for background tracking
     const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
     const hasBackgroundPermissions = backgroundStatus === 'granted';
-
-    // Load background geolocation setting
-    this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
 
     // Only register background task if both setting is enabled AND we have background permissions
     const shouldEnableBackground = this.isBackgroundGeolocationEnabled && hasBackgroundPermissions;
@@ -264,8 +271,8 @@ class LocationService {
     this.isBackgroundGeolocationEnabled = enabled;
 
     if (enabled) {
-      // Check if we have background permissions before enabling
-      const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+      // Request background permissions when enabling background geolocation
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
       const hasBackgroundPermissions = backgroundStatus === 'granted';
 
       if (!hasBackgroundPermissions) {

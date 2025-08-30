@@ -201,13 +201,13 @@ describe('LocationService - Foreground-Only Permissions', () => {
   });
 
   describe('User Reported Bug Scenario', () => {
-    it('should allow location tracking when foreground=granted and background=denied', async () => {
-      // This tests the exact scenario from the user's logs:
-      // "foregroundStatus": "granted", "backgroundStatus": "denied"
+    it('should allow location tracking when only foreground permissions are requested', async () => {
+      // This tests the fix for the user's bug:
+      // Only request foreground permissions, don't prompt for background unnecessarily
       
       const hasPermissions = await locationService.requestPermissions();
       
-      // Should return true because foreground is granted (background is optional)
+      // Should return true because foreground is granted
       expect(hasPermissions).toBe(true);
       
       // Should be able to start location updates without throwing
@@ -223,12 +223,13 @@ describe('LocationService - Foreground-Only Permissions', () => {
         expect.any(Function)
       );
       
-      // Verify the correct log message with permission details
+      // Verify the correct log message with permission details - now only foreground is requested
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Location permissions requested',
         context: {
           foregroundStatus: 'granted',
-          backgroundStatus: 'denied',
+          backgroundStatus: 'not requested',
+          backgroundRequested: false,
         },
       });
     });
