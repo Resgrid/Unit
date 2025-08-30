@@ -299,7 +299,7 @@ jobs:
           fi
           # Write header and notes to file
           {
-            echo "## Version 10.${{ github.run_number }} - $(date +%Y-%m-%d)"
+            echo "## Version 7.${{ github.run_number }} - $(date +%Y-%m-%d)"
             echo
             printf '%s\n' "$NOTES"
           } > RELEASE_NOTES.md
