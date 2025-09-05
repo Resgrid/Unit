@@ -147,15 +147,22 @@ jobs:
           yarn install --frozen-lockfile
 
       - name: 📋 Create Google Json File
+        if: ${{ matrix.platform == 'android' }}
         run: |
           echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
 
       - name: 📋 Update package.json Versions
         run: |
-          # Check if jq is installed, if not install it
-          if ! command -v jq &> /dev/null; then
+          # Ensure jq exists on both Linux and macOS
+          if ! command -v jq >/dev/null 2>&1; then
             echo "Installing jq..."
-            sudo apt-get update && sudo apt-get install -y jq
+            if [[ "$RUNNER_OS" == "Linux" ]]; then
+              sudo apt-get update && sudo apt-get install -y jq
+            elif [[ "$RUNNER_OS" == "macOS" ]]; then
+              brew update && brew install jq
+            else
+              echo "Unsupported OS for auto-install of jq" >&2; exit 1
+            fi
           fi
 
           # Fix the main entry in package.json

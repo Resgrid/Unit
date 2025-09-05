@@ -34,11 +34,48 @@ jest.mock('expo-audio', () => ({
   setIsAudioActiveAsync: jest.fn(),
 }));
 
-// Mock Platform.OS for React Native
-jest.mock('react-native/Libraries/Utilities/Platform', () => ({
-  OS: 'ios',
-  select: jest.fn().mockImplementation((obj) => obj.ios || obj.default),
-}));
+// Mock the host component names function to prevent testing library errors
+// Check if the internal module exists (for pre-v13 compatibility)
+try {
+  require.resolve('@testing-library/react-native/build/helpers/host-component-names');
+  // If the internal module exists, mock it (pre-v13)
+  jest.mock('@testing-library/react-native/build/helpers/host-component-names', () => ({
+    getHostComponentNames: jest.fn(() => ({
+      text: 'Text',
+      view: 'View',
+      scrollView: 'ScrollView',
+      touchable: 'TouchableOpacity',
+      switch: 'Switch',
+      textInput: 'TextInput',
+    })),
+    configureHostComponentNamesIfNeeded: jest.fn(),
+    isHostText: jest.fn((element) => element?.type === 'Text' || element?._fiber?.type === 'Text' || (typeof element === 'object' && element?.props?.children && typeof element.props.children === 'string')),
+    isHostTextInput: jest.fn((element) => element?.type === 'TextInput' || element?._fiber?.type === 'TextInput'),
+    isHostImage: jest.fn((element) => element?.type === 'Image' || element?._fiber?.type === 'Image'),
+    isHostSwitch: jest.fn((element) => element?.type === 'Switch' || element?._fiber?.type === 'Switch'),
+    isHostScrollView: jest.fn((element) => element?.type === 'ScrollView' || element?._fiber?.type === 'ScrollView'),
+    isHostModal: jest.fn((element) => element?.type === 'Modal' || element?._fiber?.type === 'Modal'),
+  }));
+} catch (error) {
+  // Module doesn't exist (v13+), try to use the public API if available
+  try {
+    const { configureHostComponentNames } = require('@testing-library/react-native');
+    // Configure host component names using the public API (v13+)
+    if (configureHostComponentNames) {
+      configureHostComponentNames({
+        text: 'Text',
+        view: 'View',
+        scrollView: 'ScrollView',
+        touchable: 'TouchableOpacity',
+        switch: 'Switch',
+        textInput: 'TextInput',
+      });
+    }
+  } catch (publicApiError) {
+    // If neither internal nor public API is available, log a warning but continue
+    console.warn('Unable to configure host component names for @testing-library/react-native. Tests may fail if they rely on component type detection.');
+  }
+}
 
 // Global mocks for common problematic modules
 jest.mock('@notifee/react-native', () => {

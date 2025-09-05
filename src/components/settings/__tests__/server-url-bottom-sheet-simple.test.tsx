@@ -12,12 +12,16 @@ jest.mock('nativewind', () => ({
   useColorScheme: () => ({ colorScheme: 'light' }),
 }));
 
-// Mock ScrollView specifically to avoid TurboModuleRegistry issues
-jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return ({ children, ...props }: any) => React.createElement(View, props, children);
-});
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn().mockImplementation((obj) => obj.ios || obj.default),
+  },
+  ScrollView: ({ children, ...props }: any) => {
+    const React = require('react');
+    return React.createElement('View', { testID: 'scroll-view', ...props }, children);
+  },
+}));
 
 jest.mock('react-hook-form', () => ({
   useForm: () => ({

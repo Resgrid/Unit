@@ -89,6 +89,14 @@ jest.mock('@/components/maps/pin-detail-modal', () => ({
   __esModule: true,
   default: ({ pin, isOpen, onClose, onSetAsCurrentCall }: any) => null,
 }));
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: jest.fn(),
+  }),
+}));
+jest.mock('@/components/ui/focus-aware-status-bar', () => ({
+  FocusAwareStatusBar: () => null,
+}));
 
 const mockUseAppLifecycle = useAppLifecycle as jest.MockedFunction<typeof useAppLifecycle>;
 const mockUseLocationStore = useLocationStore as jest.MockedFunction<typeof useLocationStore>;
@@ -113,6 +121,7 @@ const defaultAppLifecycleState = {
 describe('Map Component - App Lifecycle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
 
     // Setup default mocks with stable objects
     mockUseLocationStore.mockReturnValue(defaultLocationState);
@@ -127,20 +136,37 @@ describe('Map Component - App Lifecycle', () => {
     mockLocationService.stopLocationUpdates = jest.fn();
   });
 
+  afterEach(() => {
+    // Clean up all timers and async operations
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+    jest.clearAllMocks();
+
+    // Ensure location service is stopped
+    if (mockLocationService.stopLocationUpdates) {
+      mockLocationService.stopLocationUpdates();
+    }
+  });
+
   it('should render without crashing', async () => {
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
+
+    // Clean up the component
+    unmount();
   });
 
   it('should handle location updates', async () => {
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
+
+    unmount();
   });
 
   it('should handle app lifecycle changes', async () => {
@@ -152,7 +178,7 @@ describe('Map Component - App Lifecycle', () => {
       lastActiveTimestamp: null,
     });
 
-    const { rerender } = render(<Map />);
+    const { rerender, unmount } = render(<Map />);
 
     // Simulate app becoming active
     mockUseAppLifecycle.mockReturnValue({
@@ -167,6 +193,8 @@ describe('Map Component - App Lifecycle', () => {
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
+
+    unmount();
   });
 
   it('should handle map lock state changes', async () => {
@@ -176,7 +204,7 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: false,
     });
 
-    const { rerender } = render(<Map />);
+    const { rerender, unmount } = render(<Map />);
 
     // Change to locked map
     mockUseLocationStore.mockReturnValue({
@@ -189,6 +217,8 @@ describe('Map Component - App Lifecycle', () => {
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
+
+    unmount();
   });
 
   it('should handle navigation mode with heading', async () => {
@@ -199,11 +229,13 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: true,
     });
 
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
+
+    unmount();
   });
 
   it('should use light theme map style when in light mode', async () => {
@@ -213,7 +245,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -221,6 +253,7 @@ describe('Map Component - App Lifecycle', () => {
 
     // The map should use the light style
     // Since we can't directly test the MapView props, we test that the component renders without errors
+    unmount();
   });
 
   it('should use dark theme map style when in dark mode', async () => {
@@ -230,7 +263,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -238,6 +271,7 @@ describe('Map Component - App Lifecycle', () => {
 
     // The map should use the dark style
     // Since we can't directly test the MapView props, we test that the component renders without errors
+    unmount();
   });
 
   it('should handle theme changes gracefully', async () => {
@@ -251,7 +285,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme,
     });
 
-    const { rerender } = render(<Map />);
+    const { rerender, unmount } = render(<Map />);
 
     // Change to dark theme
     mockUseColorScheme.mockReturnValue({
@@ -267,6 +301,7 @@ describe('Map Component - App Lifecycle', () => {
     });
 
     // Component should handle theme changes without errors
+    unmount();
   });
 
   it('should track analytics with theme information', async () => {
@@ -283,12 +318,13 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    render(<Map />);
+    const { unmount } = render(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
 
     // Note: The analytics tracking is tested indirectly since we can't easily mock it in this setup
+    unmount();
   });
 });

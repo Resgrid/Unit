@@ -30,7 +30,9 @@ const UIDrawer = createDrawer({
   AnimatePresence: AnimatePresence,
 });
 
+// @ts-ignore - Motion component type compatibility issue
 cssInterop(AnimatedPressable, { className: 'style' });
+// @ts-ignore - Motion component type compatibility issue
 cssInterop(Motion.View, { className: 'style' });
 
 const drawerStyle = tva({

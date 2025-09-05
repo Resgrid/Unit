@@ -1,3 +1,222 @@
+// Mock dependencies early
+jest.mock('react-i18next', () => ({
+  useTranslation: jest.fn(),
+}));
+
+// Mock all UI components based on actual imports
+jest.mock('@/components/ui/actionsheet', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+
+  return {
+    Actionsheet: ({ children, isOpen }: any) =>
+      isOpen ? mockReact.createElement(View, { testID: 'actionsheet' }, children) : null,
+    ActionsheetBackdrop: ({ children }: any) =>
+      mockReact.createElement(View, { testID: 'actionsheet-backdrop' }, children),
+    ActionsheetContent: ({ children }: any) =>
+      mockReact.createElement(View, { testID: 'actionsheet-content' }, children),
+    ActionsheetDragIndicator: () =>
+      mockReact.createElement(View, { testID: 'actionsheet-drag-indicator' }),
+    ActionsheetDragIndicatorWrapper: ({ children }: any) =>
+      mockReact.createElement(View, { testID: 'actionsheet-drag-indicator-wrapper' }, children),
+  };
+});
+
+jest.mock('../../ui/button', () => {
+  const mockReact = require('react');
+  const { TouchableOpacity, Text } = require('react-native');
+
+  return {
+    Button: ({ children, onPress, isDisabled, className, ...props }: any) =>
+      mockReact.createElement(TouchableOpacity, {
+        onPress: isDisabled ? undefined : onPress,
+        testID: 'button',
+        accessibilityState: { disabled: isDisabled },
+        ...props
+      }, children),
+    ButtonText: ({ children, className, ...props }: any) =>
+      mockReact.createElement(Text, props, children),
+  };
+});
+
+jest.mock('../../ui/heading', () => {
+  const mockReact = require('react');
+  const { Text } = require('react-native');
+
+  return {
+    Heading: ({ children, ...props }: any) => mockReact.createElement(Text, props, children),
+  };
+});
+
+jest.mock('../../ui/hstack', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+
+  return {
+    HStack: ({ children, ...props }: any) => mockReact.createElement(View, props, children),
+  };
+});
+
+jest.mock('../../ui/vstack', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+
+  return {
+    VStack: ({ children, ...props }: any) => mockReact.createElement(View, props, children),
+  };
+});
+
+jest.mock('../../ui/text', () => {
+  const mockReact = require('react');
+  const { Text } = require('react-native');
+
+  return {
+    Text: ({ children, ...props }: any) => mockReact.createElement(Text, props, children),
+  };
+});
+
+jest.mock('../../ui/spinner', () => {
+  const mockReact = require('react');
+  const { View } = require('react-native');
+
+  return {
+    Spinner: (props: any) => mockReact.createElement(View, { testID: 'spinner', ...props }),
+  };
+});
+
+jest.mock('../../ui/textarea', () => {
+  const mockReact = require('react');
+  const { TextInput, View } = require('react-native');
+
+  return {
+    Textarea: ({ children, ...props }: any) => mockReact.createElement(View, props, children),
+    TextareaInput: ({ value, onChangeText, placeholder, ...props }: any) =>
+      mockReact.createElement(TextInput, { value, onChangeText, placeholder, testID: 'textarea-input', ...props }),
+  };
+});
+
+jest.mock('@expo/html-elements', () => {
+  const mockReact = require('react');
+  const mockComponent = (props: any) => mockReact.createElement('Text', props);
+
+  return {
+    H1: mockComponent,
+    H2: mockComponent,
+    H3: mockComponent,
+    H4: mockComponent,
+    H5: mockComponent,
+    H6: mockComponent,
+  };
+});
+
+jest.mock('nativewind', () => ({
+  useColorScheme: jest.fn(() => ({ colorScheme: 'light' })),
+  cssInterop: jest.fn((component: any) => component),
+}));
+
+jest.mock('@/lib/utils', () => ({
+  IS_ANDROID: false,
+  IS_IOS: true,
+  invertColor: jest.fn(() => '#000000'),
+  createSelectors: jest.fn(),
+  openLinkInBrowser: jest.fn(),
+  DEFAULT_CENTER_COORDINATE: [-77.036086, 38.910233],
+  SF_OFFICE_COORDINATE: [-122.400021, 37.789085],
+  onSortOptions: jest.fn(),
+}));
+
+jest.mock('@/lib/storage/index', () => ({
+  storage: {
+    set: jest.fn(),
+    getString: jest.fn(),
+    delete: jest.fn(),
+    contains: jest.fn(),
+    getAllKeys: jest.fn(),
+    clearAll: jest.fn(),
+  },
+}));
+
+jest.mock('react-native-mmkv', () => ({
+  MMKV: jest.fn().mockImplementation(() => ({
+    set: jest.fn(),
+    getString: jest.fn(),
+    delete: jest.fn(),
+    contains: jest.fn(),
+    getAllKeys: jest.fn(),
+    clearAll: jest.fn(),
+  })),
+}));
+
+jest.mock('react-native-svg', () => {
+  const mockReact = require('react');
+  const mockComponent = (props: any) => mockReact.createElement('View', props);
+
+  return {
+    Svg: mockComponent,
+    Circle: mockComponent,
+    Path: mockComponent,
+    G: mockComponent,
+    Defs: mockComponent,
+    LinearGradient: mockComponent,
+    Stop: mockComponent,
+    Rect: mockComponent,
+    Line: mockComponent,
+    Polygon: mockComponent,
+    Polyline: mockComponent,
+    Text: (props: any) => mockReact.createElement('Text', props),
+  };
+});
+
+jest.mock('lucide-react-native', () => {
+  const mockReact = require('react');
+  const mockIcon = (props: any) => mockReact.createElement('View', { ...props, testID: 'mock-icon' });
+
+  return new Proxy({}, {
+    get: () => mockIcon,
+  });
+});
+
+jest.mock('@/stores/status/store', () => ({
+  useStatusBottomSheetStore: jest.fn(),
+  useStatusesStore: jest.fn(),
+}));
+
+// Mock additional stores and services
+jest.mock('@/services/offline-event-manager.service', () => ({
+  offlineEventManager: {
+    initialize: jest.fn(),
+    addEvent: jest.fn(),
+    processEvents: jest.fn(),
+    clearEvents: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/app/core-store', () => {
+  const mockStore = jest.fn();
+  (mockStore as any).getState = jest.fn();
+  return { useCoreStore: mockStore };
+});
+
+jest.mock('@/stores/app/location-store', () => ({
+  useLocationStore: jest.fn(() => ({
+    latitude: 37.7749,
+    longitude: -122.4194,
+    heading: 0,
+    accuracy: 10,
+    speed: 0,
+    altitude: 0,
+    timestamp: Date.now(),
+  })),
+}));
+
+jest.mock('@/stores/roles/store', () => ({
+  useRolesStore: jest.fn(),
+}));
+
+jest.mock('@/stores/toast/store', () => ({
+  useToastStore: jest.fn(),
+}));
+
 import React from 'react';
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
 import { useTranslation } from 'react-i18next';
@@ -9,62 +228,8 @@ import { useToastStore } from '@/stores/toast/store';
 
 import { StatusBottomSheet } from '../status-bottom-sheet';
 
-// Mock dependencies
-jest.mock('react-i18next', () => ({
-  useTranslation: jest.fn(),
-}));
-
-jest.mock('@/stores/status/store', () => ({
-  useStatusBottomSheetStore: jest.fn(),
-  useStatusesStore: jest.fn(),
-}));
-
 
 const mockSetActiveCall = jest.fn();
-
-jest.mock('@/stores/app/core-store', () => {
-  const mockStore = jest.fn();
-  (mockStore as any).getState = jest.fn();
-  return { useCoreStore: mockStore };
-});
-
-jest.mock('@/stores/roles/store', () => ({
-  useRolesStore: jest.fn(),
-}));
-
-jest.mock('@/stores/toast/store', () => ({
-  useToastStore: jest.fn(),
-}));
-
-jest.mock('@/services/offline-event-manager.service', () => ({
-  offlineEventManager: {
-    initialize: jest.fn(),
-  },
-}));
-
-// Mock the Actionsheet components
-jest.mock('@/components/ui/actionsheet', () => ({
-  Actionsheet: ({ children, isOpen }: { children: React.ReactNode; isOpen: boolean }) => {
-    const { View } = require('react-native');
-    return isOpen ? <View testID="actionsheet">{children}</View> : null;
-  },
-  ActionsheetBackdrop: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-backdrop">{children}</View>;
-  },
-  ActionsheetContent: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-content">{children}</View>;
-  },
-  ActionsheetDragIndicator: () => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-drag-indicator" />;
-  },
-  ActionsheetDragIndicatorWrapper: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-drag-indicator-wrapper">{children}</View>;
-  },
-}));
 
 const mockTranslation = {
   t: (key: string, options?: any) => {
@@ -599,8 +764,17 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    const submitButton = screen.getByRole('button', { name: /submit/i });
-    expect(submitButton.props.accessibilityState.disabled).toBe(true);
+    // Find all button elements and check the submit button's disabled state
+    const buttons = screen.getAllByTestId('button');
+    const submitButton = buttons.find(button => {
+      try {
+        const textElements = button.findAllByType('Text');
+        return textElements.some((text: any) => text.props.children === 'Submit');
+      } catch (e) {
+        return false;
+      }
+    });
+    expect(submitButton?.props.accessibilityState?.disabled).toBe(true);
   });
 
   it('should enable submit when note is required and provided', () => {
@@ -621,8 +795,17 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    const submitButton = screen.getByRole('button', { name: /submit/i });
-    expect(submitButton.props.accessibilityState.disabled).toBe(false);
+    // Find all button elements and check the submit button's disabled state
+    const buttons = screen.getAllByTestId('button');
+    const submitButton = buttons.find(button => {
+      try {
+        const textElements = button.findAllByType('Text');
+        return textElements.some((text: any) => text.props.children === 'Submit');
+      } catch (e) {
+        return false;
+      }
+    });
+    expect(submitButton?.props.accessibilityState?.disabled).toBe(false);
   });
 
   it('should submit status directly when no destination step needed and no note required', async () => {

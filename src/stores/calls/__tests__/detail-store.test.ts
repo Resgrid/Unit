@@ -1,3 +1,22 @@
+// Mock Platform first before any imports
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((specifics: any) => specifics.ios || specifics.default),
+    Version: 17,
+  },
+}));
+
+// Mock MMKV storage
+jest.mock('react-native-mmkv', () => ({
+  MMKV: jest.fn().mockImplementation(() => ({
+    set: jest.fn(),
+    getString: jest.fn(),
+    delete: jest.fn(),
+  })),
+  useMMKVBoolean: jest.fn(() => [false, jest.fn()]),
+}));
+
 import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 

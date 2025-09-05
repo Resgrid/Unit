@@ -314,7 +314,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       </Animated.View>
 
       {/* Delete Confirmation Modal */}
-      <Modal isOpen={showDeleteConfirmModal} onClose={() => setShowDeleteConfirmModal(false)}>
+      <Modal isOpen={showDeleteConfirmModal} onClose={() => setShowDeleteConfirmModal(false)} {...({} as any)}>
         <ModalBackdrop />
         <ModalContent>
           <ModalHeader>

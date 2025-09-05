@@ -7,7 +7,6 @@
     "experimentalDecorators": true,
     "jsx": "react-native",
     "module": "es2015",
-    "moduleResolution": "node",
     "sourceMap": true,
     "target": "esnext",
     "lib": ["esnext", "dom"],
@@ -30,5 +29,5 @@
     }
   },
   "exclude": ["docs", "cli", "android", "lib", "ios", "node_modules", "storybookDocsComponents"],
-  "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts", "__mocks__/**/*.ts", "app.config.ts", "jest-setup.ts", "__tests__/**/*.ts", "__tests__/**/*.tsx", "types/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts", "nativewind-env.d.ts", "__mocks__/**/*.ts", "app.config.ts", "jest-setup.ts", "jest-platform-setup.ts", "__tests__/**/*.ts", "__tests__/**/*.tsx", "types/**/*.ts"]
 }

@@ -1,16 +1,15 @@
+// Mock react-i18next
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: any) => key,
+  }),
+}));
+
 // Mock Platform first, before any other imports
 jest.mock('react-native/Libraries/Utilities/Platform', () => ({
   OS: 'ios',
   select: jest.fn().mockImplementation((obj) => obj.ios || obj.default),
 }));
-
-// Mock ScrollView without mocking all of react-native
-jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
-  const React = require('react');
-  return React.forwardRef(({ children, testID, ...props }: any, ref: any) => {
-    return React.createElement('View', { testID: testID || 'scroll-view', ref, ...props }, children);
-  });
-});
 
 // Mock react-native-svg before anything else
 jest.mock('react-native-svg', () => ({
@@ -79,12 +78,6 @@ jest.mock('@/stores/units/store', () => ({
 
 jest.mock('@/stores/toast/store', () => ({
   useToastStore: jest.fn(),
-}));
-
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
 }));
 
 // Mock lucide icons to avoid SVG issues in tests

@@ -232,17 +232,12 @@ export default function TabLayout() {
             <Sidebar />
           </View>
         ) : (
-          <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)}>
+          <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} {...({} as any)}>
             <DrawerBackdrop onPress={() => setIsOpen(false)} />
             <DrawerContent className="w-4/5 bg-white p-1 dark:bg-gray-900">
               <DrawerBody>
                 <Sidebar />
               </DrawerBody>
-              <DrawerFooter>
-                <Button onPress={() => setIsOpen(false)} className="w-full bg-primary-600">
-                  <ButtonText>Close</ButtonText>
-                </Button>
-              </DrawerFooter>
             </DrawerContent>
           </Drawer>
         )}
