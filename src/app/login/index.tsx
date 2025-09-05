@@ -68,6 +68,7 @@ export default function Login() {
           setIsErrorModalVisible(false);
         }}
         size="full"
+        {...({} as any)}
       >
         <ModalBackdrop />
         <ModalContent className="m-4 w-full max-w-3xl rounded-2xl">

@@ -104,7 +104,7 @@ export const PushNotificationModal: React.FC = () => {
   const typeText = getNotificationTypeText(notification.type);
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
+    <Modal isOpen={isOpen} onClose={handleClose} size="md" {...({} as any)}>
       <ModalBackdrop />
       <ModalContent className="mx-4">
         <ModalHeader className="pb-4">

@@ -20,7 +20,6 @@ jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/roles/store');
 jest.mock('@/stores/units/store');
 jest.mock('@/stores/toast/store');
-jest.mock('lucide-react-native');
 
 // Mock logger
 jest.mock('@/lib/logging', () => ({

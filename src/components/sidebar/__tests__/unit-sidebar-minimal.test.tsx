@@ -16,15 +16,26 @@ jest.mock('react-native/Libraries/Utilities/Platform', () => mockPlatform);
 // Mock react-native-svg to avoid Platform.OS issues
 jest.mock('react-native-svg', () => {
   const React = require('react');
+  const Svg = React.forwardRef((props: any, ref: any) => React.createElement('View', { ...props, ref, testID: 'mock-svg' }));
+  const Circle = (props: any) => React.createElement('View', { ...props, testID: 'mock-circle' });
+  const Path = (props: any) => React.createElement('View', { ...props, testID: 'mock-path' });
+  const G = (props: any) => React.createElement('View', { ...props, testID: 'mock-g' });
+  const Line = (props: any) => React.createElement('View', { ...props, testID: 'mock-line' });
+  const Polyline = (props: any) => React.createElement('View', { ...props, testID: 'mock-polyline' });
+  const Polygon = (props: any) => React.createElement('View', { ...props, testID: 'mock-polygon' });
+  const Rect = (props: any) => React.createElement('View', { ...props, testID: 'mock-rect' });
+
   return {
-    Svg: React.forwardRef((props: any, ref: any) => React.createElement('View', { ...props, ref, testID: 'mock-svg' })),
-    Circle: (props: any) => React.createElement('View', { ...props, testID: 'mock-circle' }),
-    Path: (props: any) => React.createElement('View', { ...props, testID: 'mock-path' }),
-    G: (props: any) => React.createElement('View', { ...props, testID: 'mock-g' }),
-    Line: (props: any) => React.createElement('View', { ...props, testID: 'mock-line' }),
-    Polyline: (props: any) => React.createElement('View', { ...props, testID: 'mock-polyline' }),
-    Polygon: (props: any) => React.createElement('View', { ...props, testID: 'mock-polygon' }),
-    Rect: (props: any) => React.createElement('View', { ...props, testID: 'mock-rect' }),
+    __esModule: true,
+    default: Svg,
+    Svg,
+    Circle,
+    Path,
+    G,
+    Line,
+    Polyline,
+    Polygon,
+    Rect,
   };
 });
 

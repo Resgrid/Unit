@@ -1,17 +1,7 @@
-// Mock react-i18next first
+// Mock react-i18next
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: jest.fn((key: string, options?: any) => {
-      const translations: { [key: string]: string } = {
-        'settings.select_unit': 'Select Unit',
-        'settings.current_unit': 'Current Unit',
-        'settings.no_units_available': 'No units available',
-        'common.cancel': 'Cancel',
-        'settings.unit_selected_successfully': `${options?.unitName || 'Unit'} selected successfully`,
-        'settings.unit_selection_failed': 'Failed to select unit. Please try again.',
-      };
-      return translations[key] || key;
-    }),
+    t: (key: string, options?: any) => key,
   }),
 }));
 
@@ -88,12 +78,6 @@ jest.mock('@/stores/units/store', () => ({
 
 jest.mock('@/stores/toast/store', () => ({
   useToastStore: jest.fn(),
-}));
-
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
 }));
 
 // Mock lucide icons to avoid SVG issues in tests

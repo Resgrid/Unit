@@ -117,7 +117,7 @@ const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({ isOpen, onC
   });
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="full">
+    <Modal isOpen={isOpen} onClose={onClose} size="full" {...({} as any)}>
       <ModalBackdrop onPress={onClose} className="bg-black/90" />
       <ModalContent className="flex size-full items-center justify-center border-0 bg-transparent p-0 shadow-none">
         <StatusBar hidden />

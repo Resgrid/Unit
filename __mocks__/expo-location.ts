@@ -43,7 +43,13 @@ export const getCurrentPositionAsync = jest.fn().mockResolvedValue({
 });
 
 export const watchPositionAsync = jest.fn().mockImplementation((options, callback) => {
-  const interval = setInterval(() => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let hasTimedOut = false;
+
+  // Use setTimeout for a one-shot callback to avoid timer leaks
+  timeoutId = setTimeout(() => {
+    hasTimedOut = true;
+    timeoutId = null;
     callback({
       coords: {
         latitude: 40.7128,
@@ -56,10 +62,16 @@ export const watchPositionAsync = jest.fn().mockImplementation((options, callbac
       },
       timestamp: Date.now(),
     });
-  }, 1000);
+  }, 100); // Shorter delay for faster tests
 
   return Promise.resolve({
-    remove: () => clearInterval(interval),
+    remove: () => {
+      if (timeoutId && !hasTimedOut) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      // Safe no-op if timeout already fired
+    },
   });
 });
 

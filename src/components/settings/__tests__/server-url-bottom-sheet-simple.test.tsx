@@ -1,9 +1,3 @@
-// Mock Platform first, before any other imports
-jest.mock('react-native/Libraries/Utilities/Platform', () => ({
-  OS: 'ios',
-  select: jest.fn().mockImplementation((obj) => obj.ios || obj.default),
-}));
-
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
 

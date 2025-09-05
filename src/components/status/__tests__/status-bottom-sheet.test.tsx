@@ -191,9 +191,11 @@ jest.mock('@/services/offline-event-manager.service', () => ({
   },
 }));
 
-jest.mock('@/stores/app/core-store', () => ({
-  useCoreStore: jest.fn(),
-}));
+jest.mock('@/stores/app/core-store', () => {
+  const mockStore = jest.fn();
+  (mockStore as any).getState = jest.fn();
+  return { useCoreStore: mockStore };
+});
 
 jest.mock('@/stores/app/location-store', () => ({
   useLocationStore: jest.fn(() => ({
@@ -228,26 +230,6 @@ import { StatusBottomSheet } from '../status-bottom-sheet';
 
 
 const mockSetActiveCall = jest.fn();
-
-jest.mock('@/stores/app/core-store', () => {
-  const mockStore = jest.fn();
-  (mockStore as any).getState = jest.fn();
-  return { useCoreStore: mockStore };
-});
-
-jest.mock('@/stores/roles/store', () => ({
-  useRolesStore: jest.fn(),
-}));
-
-jest.mock('@/stores/toast/store', () => ({
-  useToastStore: jest.fn(),
-}));
-
-jest.mock('@/services/offline-event-manager.service', () => ({
-  offlineEventManager: {
-    initialize: jest.fn(),
-  },
-}));
 
 // Mock the Actionsheet components
 jest.mock('@/components/ui/actionsheet', () => ({
@@ -811,7 +793,7 @@ describe('StatusBottomSheet', () => {
     const submitButton = buttons.find(button => {
       try {
         const textElements = button.findAllByType('Text');
-        return textElements.some(text => text.props.children === 'Submit');
+        return textElements.some((text: any) => text.props.children === 'Submit');
       } catch (e) {
         return false;
       }
