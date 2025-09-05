@@ -4,7 +4,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 // Mock all UI components based on actual imports
-jest.mock('../../ui/actionsheet', () => {
+jest.mock('@/components/ui/actionsheet', () => {
   const mockReact = require('react');
   const { View } = require('react-native');
 
@@ -230,30 +230,6 @@ import { StatusBottomSheet } from '../status-bottom-sheet';
 
 
 const mockSetActiveCall = jest.fn();
-
-// Mock the Actionsheet components
-jest.mock('@/components/ui/actionsheet', () => ({
-  Actionsheet: ({ children, isOpen }: { children: React.ReactNode; isOpen: boolean }) => {
-    const { View } = require('react-native');
-    return isOpen ? <View testID="actionsheet">{children}</View> : null;
-  },
-  ActionsheetBackdrop: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-backdrop">{children}</View>;
-  },
-  ActionsheetContent: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-content">{children}</View>;
-  },
-  ActionsheetDragIndicator: () => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-drag-indicator" />;
-  },
-  ActionsheetDragIndicatorWrapper: ({ children }: { children: React.ReactNode }) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-drag-indicator-wrapper">{children}</View>;
-  },
-}));
 
 const mockTranslation = {
   t: (key: string, options?: any) => {

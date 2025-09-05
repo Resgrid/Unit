@@ -41,7 +41,7 @@ const BottomSheetContext = createContext<{
   handleOpen: () => void;
 }>({
   visible: false,
-  bottomSheetRef: { current: null as any },
+  bottomSheetRef: { current: null },
   handleClose: () => { },
   handleOpen: () => { },
 });

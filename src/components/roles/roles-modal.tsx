@@ -75,7 +75,7 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
   }, [activeUnit, pendingAssignments, onClose]);
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="full" {...({} as any)}>
+    <Modal isOpen={isOpen} onClose={onClose} size="full">
       <ModalBackdrop />
       <ModalContent className="m-4 w-full max-w-3xl rounded-2xl">
         <ModalHeader>
