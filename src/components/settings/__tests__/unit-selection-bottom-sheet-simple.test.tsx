@@ -1,16 +1,25 @@
+// Mock react-i18next first
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: jest.fn((key: string, options?: any) => {
+      const translations: { [key: string]: string } = {
+        'settings.select_unit': 'Select Unit',
+        'settings.current_unit': 'Current Unit',
+        'settings.no_units_available': 'No units available',
+        'common.cancel': 'Cancel',
+        'settings.unit_selected_successfully': `${options?.unitName || 'Unit'} selected successfully`,
+        'settings.unit_selection_failed': 'Failed to select unit. Please try again.',
+      };
+      return translations[key] || key;
+    }),
+  }),
+}));
+
 // Mock Platform first, before any other imports
 jest.mock('react-native/Libraries/Utilities/Platform', () => ({
   OS: 'ios',
   select: jest.fn().mockImplementation((obj) => obj.ios || obj.default),
 }));
-
-// Mock ScrollView without mocking all of react-native
-jest.mock('react-native/Libraries/Components/ScrollView/ScrollView', () => {
-  const React = require('react');
-  return React.forwardRef(({ children, testID, ...props }: any, ref: any) => {
-    return React.createElement('View', { testID: testID || 'scroll-view', ref, ...props }, children);
-  });
-});
 
 // Mock react-native-svg before anything else
 jest.mock('react-native-svg', () => ({

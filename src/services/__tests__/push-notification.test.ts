@@ -9,6 +9,22 @@ jest.mock('@/stores/push-notification/store', () => ({
   },
 }));
 
+// Mock expo-device
+jest.mock('expo-device', () => ({
+  isDevice: true,
+  deviceName: 'Test Device',
+  osName: 'iOS',
+  osVersion: '15.0',
+}));
+
+// Mock react-native Platform
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((obj) => obj.ios || obj.default),
+  },
+}));
+
 // Mock expo-notifications
 jest.mock('expo-notifications', () => ({
   addNotificationReceivedListener: jest.fn(),
@@ -18,6 +34,21 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: jest.fn(),
   getExpoPushTokenAsync: jest.fn(),
   requestPermissionsAsync: jest.fn(),
+  getPermissionsAsync: jest.fn(),
+  getDevicePushTokenAsync: jest.fn(),
+  scheduleNotificationAsync: jest.fn(),
+  AndroidImportance: {
+    MAX: 'max',
+    HIGH: 'high',
+    DEFAULT: 'default',
+    LOW: 'low',
+    MIN: 'min',
+  },
+  AndroidNotificationVisibility: {
+    PUBLIC: 'public',
+    PRIVATE: 'private',
+    SECRET: 'secret',
+  },
 }));
 
 // Mock other dependencies
@@ -60,7 +91,7 @@ describe('Push Notification Service Integration', () => {
       showNotificationModal: mockShowNotificationModal,
     });
 
-    // Mock the notification listener registration
+    // Mock the notification listener registration and capture the handler
     (Notifications.addNotificationReceivedListener as jest.Mock).mockImplementation(
       (handler) => {
         notificationReceivedHandler = handler;
@@ -68,12 +99,13 @@ describe('Push Notification Service Integration', () => {
       }
     );
 
-    // Import and initialize the service after mocks are set up
+    // Import the service after mocks are set up
+    // This will trigger the initialization and register our mocked handlers
     require('../push-notification');
   });
 
   beforeEach(() => {
-    // Only clear the showNotificationModal mock between tests, not the addNotificationReceivedListener mock
+    // Only clear the showNotificationModal mock between tests
     mockShowNotificationModal.mockClear();
     mockGetState.mockReturnValue({
       showNotificationModal: mockShowNotificationModal,

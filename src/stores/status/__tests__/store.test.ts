@@ -1,3 +1,22 @@
+// Mock Platform first before any imports
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((specifics) => specifics.ios || specifics.default),
+    Version: 17,
+  },
+}));
+
+// Mock MMKV storage
+jest.mock('react-native-mmkv', () => ({
+  MMKV: jest.fn().mockImplementation(() => ({
+    set: jest.fn(),
+    getString: jest.fn(),
+    delete: jest.fn(),
+  })),
+  useMMKVBoolean: jest.fn(() => [false, jest.fn()]),
+}));
+
 import { act, renderHook } from '@testing-library/react-native';
 
 import { getCalls } from '@/api/calls/calls';
@@ -18,6 +37,25 @@ jest.mock('@/api/calls/calls');
 jest.mock('@/api/groups/groups');
 jest.mock('@/api/units/unitStatuses');
 jest.mock('@/stores/app/core-store');
+jest.mock('@/stores/app/location-store', () => ({
+  useLocationStore: {
+    getState: jest.fn(() => ({
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      altitude: null,
+      speed: null,
+      heading: null,
+    })),
+  },
+}));
+jest.mock('@/stores/roles/store', () => ({
+  useRolesStore: {
+    getState: jest.fn(() => ({
+      roles: [],
+    })),
+  },
+}));
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
     queueUnitStatusEvent: jest.fn(),
