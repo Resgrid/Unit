@@ -17,14 +17,19 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
     // Only call platform-specific methods when they are supported
     if (Platform.OS === 'android') {
       try {
-        // Make both status bar and navigation bar transparent
+        // Make both status bar and navigation bar transparent for edge-to-edge experience
         StatusBar.setBackgroundColor('transparent');
         StatusBar.setTranslucent(true);
 
-        // Hide navigation bar only on Android
-        NavigationBar.setVisibilityAsync('hidden').catch(() => {
-          // Silently handle errors if NavigationBar API is not available
-        });
+        // Set navigation bar to be transparent and use overlay behavior
+        NavigationBar.setBackgroundColorAsync('transparent')
+          .then(() => NavigationBar.setBehaviorAsync('overlay-swipe'))
+          .catch(() => {
+            // Fallback to hiding navigation bar if overlay behavior is not supported
+            NavigationBar.setVisibilityAsync('hidden').catch(() => {
+              // Silently handle errors if NavigationBar API is not available
+            });
+          });
 
         // Set the system UI flags to hide navigation bar
         if (hidden) {

@@ -1,13 +1,17 @@
 import { render, waitFor } from '@testing-library/react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import Map from '../index';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useLocationStore } from '@/stores/app/location-store';
 import { locationService } from '@/services/location';
 
-// Mock the dependencies
+jest.mock('react-native-safe-area-context', () => ({
+  SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+  useSafeAreaInsets: () => ({ top: 44, bottom: 34, left: 0, right: 0 }),
+}));
 jest.mock('@/hooks/use-app-lifecycle');
 jest.mock('@/stores/app/location-store');
 jest.mock('@/services/location');
@@ -94,6 +98,11 @@ jest.mock('@/hooks/use-analytics', () => ({
     trackEvent: jest.fn(),
   }),
 }));
+
+// Test wrapper component
+const TestWrapper = ({ children }: { children: React.ReactNode }) => (
+  <SafeAreaProvider>{children}</SafeAreaProvider>
+);
 jest.mock('@/components/ui/focus-aware-status-bar', () => ({
   FocusAwareStatusBar: () => null,
 }));
@@ -149,7 +158,7 @@ describe('Map Component - App Lifecycle', () => {
   });
 
   it('should render without crashing', async () => {
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -160,7 +169,7 @@ describe('Map Component - App Lifecycle', () => {
   });
 
   it('should handle location updates', async () => {
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -178,7 +187,7 @@ describe('Map Component - App Lifecycle', () => {
       lastActiveTimestamp: null,
     });
 
-    const { rerender, unmount } = render(<Map />);
+    const { rerender, unmount } = render(<Map />, { wrapper: TestWrapper });
 
     // Simulate app becoming active
     mockUseAppLifecycle.mockReturnValue({
@@ -188,7 +197,7 @@ describe('Map Component - App Lifecycle', () => {
       lastActiveTimestamp: Date.now(),
     });
 
-    rerender(<Map />);
+    rerender(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -204,7 +213,7 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: false,
     });
 
-    const { rerender, unmount } = render(<Map />);
+    const { rerender, unmount } = render(<Map />, { wrapper: TestWrapper });
 
     // Change to locked map
     mockUseLocationStore.mockReturnValue({
@@ -212,7 +221,7 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: true,
     });
 
-    rerender(<Map />);
+    rerender(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -229,7 +238,7 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: true,
     });
 
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -245,7 +254,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -263,7 +272,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -285,7 +294,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme,
     });
 
-    const { rerender, unmount } = render(<Map />);
+    const { rerender, unmount } = render(<Map />, { wrapper: TestWrapper });
 
     // Change to dark theme
     mockUseColorScheme.mockReturnValue({
@@ -294,7 +303,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme,
     });
 
-    rerender(<Map />);
+    rerender(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -318,7 +327,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    const { unmount } = render(<Map />);
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();

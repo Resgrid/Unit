@@ -5,6 +5,7 @@ import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
@@ -28,6 +29,7 @@ export default function Map() {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const { colorScheme } = useColorScheme();
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
   const [isMapReady, setIsMapReady] = useState(false);
@@ -339,7 +341,7 @@ export default function Map() {
       },
       recenterButton: {
         position: 'absolute' as const,
-        bottom: 20,
+        bottom: 20 + insets.bottom,
         right: 20,
         width: 48,
         height: 48,
@@ -357,7 +359,7 @@ export default function Map() {
         shadowRadius: 3.84,
       },
     };
-  }, [colorScheme]);
+  }, [colorScheme, insets.bottom]);
 
   const themedStyles = getThemedStyles();
 

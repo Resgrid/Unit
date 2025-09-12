@@ -11,6 +11,7 @@ import ZeroState from '@/components/common/zero-state';
 import { Box } from '@/components/ui/box';
 import { Fab, FabIcon } from '@/components/ui/fab';
 import { FlatList } from '@/components/ui/flat-list';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
@@ -84,6 +85,7 @@ export default function Calls() {
 
   return (
     <View className="size-full flex-1 bg-gray-50 dark:bg-gray-900">
+      <FocusAwareStatusBar />
       <Box className="flex-1 px-4 pt-4">
         {/* Search input */}
         <Input className="mb-4 rounded-lg bg-white dark:bg-gray-800" size="md" variant="outline">
