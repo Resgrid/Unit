@@ -12,6 +12,12 @@ jest.mock('react-native', () => ({
   ),
   RefreshControl: () => null,
   View: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  StatusBar: {
+    setBackgroundColor: jest.fn(),
+    setTranslucent: jest.fn(),
+    setHidden: jest.fn(),
+    setBarStyle: jest.fn(),
+  },
 }));
 
 // Mock expo-router
@@ -170,12 +176,33 @@ jest.mock('lucide-react-native', () => ({
   X: () => <div>✕</div>,
 }));
 
-// Mock useFocusEffect
+// Mock navigation bar and color scheme
+jest.mock('expo-navigation-bar', () => ({
+  setBackgroundColorAsync: jest.fn(() => Promise.resolve()),
+  setBehaviorAsync: jest.fn(() => Promise.resolve()),
+  setVisibilityAsync: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('nativewind', () => ({
+  useColorScheme: jest.fn(() => ({ colorScheme: 'light' })),
+}));
+
+jest.mock('react-native-edge-to-edge', () => ({
+  SystemBars: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+}));
+
+// Mock FocusAwareStatusBar
+jest.mock('@/components/ui/focus-aware-status-bar', () => ({
+  FocusAwareStatusBar: () => null,
+}));
+
+// Mock useFocusEffect and useIsFocused
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn((callback: () => void) => {
     const React = require('react');
     React.useEffect(callback, []);
   }),
+  useIsFocused: jest.fn(() => true),
 }));
 
 import CallsScreen from '../calls';

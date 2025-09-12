@@ -197,7 +197,7 @@ describe('Map Component - App Lifecycle', () => {
       lastActiveTimestamp: Date.now(),
     });
 
-    rerender(<Map />, { wrapper: TestWrapper });
+    rerender(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe('Map Component - App Lifecycle', () => {
       isMapLocked: true,
     });
 
-    rerender(<Map />, { wrapper: TestWrapper });
+    rerender(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
@@ -303,7 +303,7 @@ describe('Map Component - App Lifecycle', () => {
       toggleColorScheme,
     });
 
-    rerender(<Map />, { wrapper: TestWrapper });
+    rerender(<Map />);
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
