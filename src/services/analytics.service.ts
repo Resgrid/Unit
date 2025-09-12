@@ -50,8 +50,8 @@ class CountlyService {
 
       if (this.enableLogging) {
         logger.debug({
-          message: 'Attempting to track Countly event',
-          context: { eventName, segmentation, originalProperties: properties },
+          message: 'Tracking Countly event',
+          context: { eventName, segmentation },
         });
       }
 
@@ -64,6 +64,16 @@ class CountlyService {
         });
       }
     } catch (error) {
+      if (this.enableLogging) {
+        logger.error({
+          message: 'Failed to track analytics event',
+          context: {
+            error: error instanceof Error ? error.message : String(error),
+            eventName,
+            properties,
+          },
+        });
+      }
       this.handleAnalyticsError(error, eventName, properties);
     }
   }
@@ -192,6 +202,3 @@ class CountlyService {
 }
 
 export const countlyService = new CountlyService();
-
-// Keep the old export name for backward compatibility during migration
-export const aptabaseService = countlyService;

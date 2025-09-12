@@ -19,7 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { APIProvider } from '@/api';
-import { AptabaseProviderWrapper } from '@/components/common/aptabase-provider';
+import { CountlyProvider } from '@/components/common/countly-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { PushNotificationModal } from '@/components/push-notification/push-notification-modal';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
@@ -190,7 +190,15 @@ function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView>
-        <KeyboardProvider>{Env.APTABASE_APP_KEY && !__DEV__ ? <AptabaseProviderWrapper appKey={Env.APTABASE_APP_KEY}>{renderContent()}</AptabaseProviderWrapper> : renderContent()}</KeyboardProvider>
+        <KeyboardProvider>
+          {Env.COUNTLY_APP_KEY ? (
+            <CountlyProvider appKey={Env.COUNTLY_APP_KEY} serverURL={Env.COUNTLY_SERVER_URL}>
+              {renderContent()}
+            </CountlyProvider>
+          ) : (
+            renderContent()
+          )}
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
