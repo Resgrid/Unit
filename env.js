@@ -91,8 +91,8 @@ const client = z.object({
   UNIT_MAPBOX_DLKEY: z.string(),
   IS_MOBILE_APP: z.boolean(),
   SENTRY_DSN: z.string(),
-  APTABASE_URL: z.string(),
-  APTABASE_APP_KEY: z.string(),
+  COUNTLY_APP_KEY: z.string(),
+  COUNTLY_SERVER_URL: z.string(),
 });
 
 const buildTime = z.object({
@@ -125,8 +125,8 @@ const _clientEnv = {
   UNIT_MAPBOX_PUBKEY: process.env.UNIT_MAPBOX_PUBKEY || '',
   UNIT_MAPBOX_DLKEY: process.env.UNIT_MAPBOX_DLKEY || '',
   SENTRY_DSN: process.env.UNIT_SENTRY_DSN || '',
-  APTABASE_APP_KEY: process.env.UNIT_APTABASE_APP_KEY || '',
-  APTABASE_URL: process.env.UNIT_APTABASE_URL || '',
+  COUNTLY_APP_KEY: process.env.UNIT_COUNTLY_APP_KEY || '',
+  COUNTLY_SERVER_URL: process.env.UNIT_COUNTLY_SERVER_URL || '',
 };
 
 /**

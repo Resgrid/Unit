@@ -1,17 +1,17 @@
 import { renderHook } from '@testing-library/react-native';
 
-import { aptabaseService } from '@/services/aptabase.service';
+import { countlyService } from '@/services/analytics.service';
 
 import { useAnalytics } from '../use-analytics';
 
-jest.mock('@/services/aptabase.service', () => ({
-  aptabaseService: {
+jest.mock('@/services/analytics.service', () => ({
+  countlyService: {
     trackEvent: jest.fn(),
   },
 }));
 
 describe('useAnalytics', () => {
-  const mockAptabaseService = aptabaseService as jest.Mocked<typeof aptabaseService>;
+  const mockCountlyService = countlyService as jest.Mocked<typeof countlyService>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -32,19 +32,19 @@ describe('useAnalytics', () => {
 
     result.current.trackEvent(eventName, properties);
 
-    expect(mockAptabaseService.trackEvent).toHaveBeenCalledWith(eventName, properties);
-    expect(mockAptabaseService.trackEvent).toHaveBeenCalledTimes(1);
+    expect(mockCountlyService.trackEvent).toHaveBeenCalledWith(eventName, properties);
+    expect(mockCountlyService.trackEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('should call aptabaseService.trackEvent without properties', () => {
+  it('should call countlyService.trackEvent without properties', () => {
     const { result } = renderHook(() => useAnalytics());
 
     const eventName = 'simple_event';
 
     result.current.trackEvent(eventName);
 
-    expect(mockAptabaseService.trackEvent).toHaveBeenCalledWith(eventName, undefined);
-    expect(mockAptabaseService.trackEvent).toHaveBeenCalledTimes(1);
+    expect(mockCountlyService.trackEvent).toHaveBeenCalledWith(eventName, undefined);
+    expect(mockCountlyService.trackEvent).toHaveBeenCalledTimes(1);
   });
 
   it('should maintain stable reference to trackEvent function', () => {

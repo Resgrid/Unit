@@ -332,15 +332,17 @@ jest.mock('react-native', () => ({
   },
 }));
 
-// Mock Aptabase
-jest.mock('@aptabase/react-native', () => ({
-  trackEvent: jest.fn(),
-  init: jest.fn(),
-  dispose: jest.fn(),
-  AptabaseProvider: ({ children }: { children: React.ReactNode }) => children,
-  useAptabase: () => ({
-    trackEvent: jest.fn(),
-  }),
+// Mock Countly
+jest.mock('countly-sdk-react-native-bridge', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(),
+    start: jest.fn(),
+    enableCrashReporting: jest.fn(),
+    events: {
+      recordEvent: jest.fn(),
+    },
+  },
 }));
 
 // Mock Expo HTML elements

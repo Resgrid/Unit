@@ -7,6 +7,7 @@ import { Contact, ListTree, Map, Megaphone, Menu, Notebook, Settings } from 'luc
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationButton } from '@/components/notifications/NotificationButton';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
@@ -40,6 +41,7 @@ export default function TabLayout() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isLandscape = width > height;
   const { isActive, appState } = useAppLifecycle();
   const { trackEvent } = useAnalytics();
@@ -257,9 +259,9 @@ export default function TabLayout() {
                 fontWeight: '500',
               },
               tabBarStyle: {
-                paddingBottom: 5,
+                paddingBottom: Math.max(insets.bottom, 5),
                 paddingTop: 5,
-                height: isLandscape ? 65 : 60,
+                height: isLandscape ? 65 : Math.max(60 + insets.bottom, 60),
                 elevation: 2, // Reduced shadow on Android
                 shadowColor: '#000', // iOS shadow color
                 shadowOffset: { width: 0, height: -1 }, // iOS shadow offset
