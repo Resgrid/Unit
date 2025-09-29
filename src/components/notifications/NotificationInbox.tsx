@@ -302,12 +302,12 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                   data={notifications}
                   renderItem={renderItem}
                   keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.listContainer}
                   onEndReached={fetchMore}
                   onEndReachedThreshold={0.5}
                   ListFooterComponent={renderFooter}
                   ListEmptyComponent={renderEmpty}
                   refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} colors={['#2196F3']} />}
+                  estimatedItemSize={80}
                 />
               )}
             </>
@@ -454,9 +454,6 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  listContainer: {
-    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,

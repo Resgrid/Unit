@@ -396,6 +396,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
               itemVisiblePercentThreshold: 50,
               minimumViewTime: 100,
             }}
+            estimatedItemSize={width}
             className="w-full"
             contentContainerStyle={{ paddingHorizontal: 0 }}
             initialScrollIndex={0}

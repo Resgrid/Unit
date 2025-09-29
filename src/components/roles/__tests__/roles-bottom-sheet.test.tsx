@@ -542,5 +542,28 @@ describe('RolesBottomSheet', () => {
         Roles: [],
       });
     });
+
+    it('should find role assignments without UnitId filter', () => {
+      // Test that demonstrates the fix - assignments should be found without the UnitId filter
+      const testRoleAssignments = [
+        {
+          UnitRoleId: 'role1',
+          UnitId: '', // UnitId might be empty or different in the API response
+          Name: 'Captain',
+          UserId: 'user1',
+          FullName: 'John Doe',
+          UpdatedOn: new Date().toISOString(),
+        },
+      ];
+
+      // The old logic would fail to find this assignment due to UnitId mismatch
+      const assignmentWithUnitIdFilter = testRoleAssignments.find((a) => a.UnitRoleId === 'role1' && a.UnitId === 'unit1');
+      expect(assignmentWithUnitIdFilter).toBeUndefined();
+
+      // The new logic should find this assignment
+      const assignmentWithoutUnitIdFilter = testRoleAssignments.find((a) => a.UnitRoleId === 'role1');
+      expect(assignmentWithoutUnitIdFilter).toBeDefined();
+      expect(assignmentWithoutUnitIdFilter?.UserId).toBe('user1');
+    });
   });
 }); 

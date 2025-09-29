@@ -187,7 +187,7 @@ export const StatusBottomSheet = () => {
         input.Longitude = longitude.toString();
         input.Accuracy = accuracy?.toString() || '0';
         input.Altitude = altitude?.toString() || '0';
-        input.AltitudeAccuracy = '0'; // Location store doesn't provide altitude accuracy
+        input.AltitudeAccuracy = ''; // Location store doesn't provide altitude accuracy
         input.Speed = speed?.toString() || '0';
         input.Heading = heading?.toString() || '0';
 

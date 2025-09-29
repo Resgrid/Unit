@@ -82,7 +82,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
       const allUnitRoles = filteredRoles
         .map((role) => {
           const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
-          const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit.UnitId);
+          const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
           const assignedUserId = pendingAssignment?.userId || currentAssignment?.UserId || '';
 
           return {
@@ -143,7 +143,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
             <VStack space="sm" className="pb-4">
               {filteredRoles.map((role) => {
                 const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
-                const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit?.UnitId);
+                const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
                 const assignedUser = users.find((u) => u.UserId === (pendingAssignment?.userId ?? assignment?.UserId));
 
                 return (
