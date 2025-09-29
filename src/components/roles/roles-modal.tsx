@@ -38,26 +38,46 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
   }, [isOpen, activeUnit]);
 
   // Replace handleAssignUser to update pending assignments instead of making API calls
-  const handleAssignUser = (roleId: string, userId?: string) => {
+  const handleAssignUser = React.useCallback((roleId: string, userId?: string) => {
     setPendingAssignments((current) => {
       const filtered = current.filter((a) => a.roleId !== roleId);
+      // Always add to pending assignments to track both assignments and removals
       return [...filtered, { roleId, userId }];
     });
-  };
+  }, []);
+
+  const filteredRoles = React.useMemo(() => {
+    return roles.filter((role) => role.UnitId === activeUnit?.UnitId);
+  }, [roles, activeUnit]);
+
+  const hasChanges = pendingAssignments.length > 0;
 
   // Add handler for save button
   const handleSave = React.useCallback(async () => {
     if (!activeUnit) return;
 
     try {
-      // Save all pending assignments
+      // Get all roles for this unit and create assignments/removals
+      const allUnitRoles = filteredRoles
+        .map((role) => {
+          const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
+          const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit.UnitId);
+          const assignedUserId = pendingAssignment?.userId || currentAssignment?.UserId || '';
+
+          return {
+            RoleId: role.UnitRoleId,
+            UserId: assignedUserId,
+            Name: '',
+          };
+        })
+        .filter((role) => {
+          // Only filter out entries lacking a RoleId - allow empty UserId for unassignments
+          return role.RoleId && role.RoleId.trim() !== '';
+        });
+
       await useRolesStore.getState().assignRoles({
         UnitId: activeUnit.UnitId,
-        Roles: pendingAssignments.map((a) => ({
-          RoleId: a.roleId,
-          UserId: a.userId ? a.userId : '',
-          Name: '',
-        })),
+        Roles: allUnitRoles,
       });
 
       // Refresh role assignments after all updates
@@ -72,7 +92,7 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
       });
       useToastStore.getState().showToast('error', 'Error saving role assignments');
     }
-  }, [activeUnit, pendingAssignments, onClose]);
+  }, [activeUnit, pendingAssignments, onClose, filteredRoles, unitRoleAssignments]);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="full">
@@ -92,33 +112,31 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
           ) : (
             <ScrollView className="max-h-[70vh]">
               <VStack space="sm">
-                {roles
-                  .filter((role) => role.UnitId === activeUnit?.UnitId)
-                  .map((role) => {
-                    const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
-                    const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit?.UnitId);
-                    const assignedUser = users.find((u) => u.UserId === (pendingAssignment?.userId ?? assignment?.UserId));
+                {filteredRoles.map((role) => {
+                  const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
+                  const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
+                  const assignedUser = users.find((u) => u.UserId === (pendingAssignment?.userId ?? assignment?.UserId));
 
-                    return (
-                      <RoleAssignmentItem
-                        key={role.UnitRoleId}
-                        role={role}
-                        assignedUser={assignedUser}
-                        availableUsers={users}
-                        onAssignUser={(userId) => handleAssignUser(role.UnitRoleId, userId)}
-                        currentAssignments={[
-                          ...unitRoleAssignments.map((a) => ({
-                            roleId: a.UnitRoleId,
-                            userId: a.UserId,
-                          })),
-                          ...pendingAssignments.map((a) => ({
-                            roleId: a.roleId,
-                            userId: a.userId ?? '',
-                          })),
-                        ]}
-                      />
-                    );
-                  })}
+                  return (
+                    <RoleAssignmentItem
+                      key={role.UnitRoleId}
+                      role={role}
+                      assignedUser={assignedUser}
+                      availableUsers={users}
+                      onAssignUser={(userId) => handleAssignUser(role.UnitRoleId, userId)}
+                      currentAssignments={[
+                        ...unitRoleAssignments.map((a) => ({
+                          roleId: a.UnitRoleId,
+                          userId: a.UserId,
+                        })),
+                        ...pendingAssignments.map((a) => ({
+                          roleId: a.roleId,
+                          userId: a.userId ?? '',
+                        })),
+                      ]}
+                    />
+                  );
+                })}
               </VStack>
             </ScrollView>
           )}
@@ -128,7 +146,7 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
             <Button variant="outline" action="secondary" className="w-1/2" onPress={onClose} isDisabled={isLoading}>
               <ButtonText>{t('common.close', 'Close')}</ButtonText>
             </Button>
-            <Button variant="solid" action="primary" className="w-1/2" onPress={handleSave} isDisabled={isLoading || pendingAssignments.length === 0}>
+            <Button variant="solid" action="primary" className="w-1/2" onPress={handleSave} isDisabled={isLoading || !hasChanges}>
               <ButtonText>{t('common.save', 'Save')}</ButtonText>
             </Button>
           </HStack>

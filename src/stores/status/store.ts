@@ -125,7 +125,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
       input.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
 
       // Populate GPS coordinates from location store if not already set
-      if (!input.Latitude || !input.Longitude || (input.Latitude === '' && input.Longitude === '')) {
+      if ((!input.Latitude && !input.Longitude) || (input.Latitude === '' && input.Longitude === '')) {
         const locationState = useLocationStore.getState();
 
         if (locationState.latitude !== null && locationState.longitude !== null) {
@@ -133,6 +133,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           input.Longitude = locationState.longitude.toString();
           input.Accuracy = locationState.accuracy?.toString() || '';
           input.Altitude = locationState.altitude?.toString() || '';
+          input.AltitudeAccuracy = ''; // Location store doesn't provide altitude accuracy
           input.Speed = locationState.speed?.toString() || '';
           input.Heading = locationState.heading?.toString() || '';
         } else {
@@ -141,6 +142,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           input.Longitude = '';
           input.Accuracy = '';
           input.Altitude = '';
+          input.AltitudeAccuracy = '';
           input.Speed = '';
           input.Heading = '';
         }
@@ -162,15 +164,15 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         // This allows the UI to be responsive while the data refreshes
         const activeUnit = useCoreStore.getState().activeUnit;
         if (activeUnit) {
-          useCoreStore
-            .getState()
-            .setActiveUnitWithFetch(activeUnit.UnitId)
-            .catch((error) => {
+          const refreshPromise = useCoreStore.getState().setActiveUnitWithFetch(activeUnit.UnitId);
+          if (refreshPromise && typeof refreshPromise.catch === 'function') {
+            refreshPromise.catch((error) => {
               logger.error({
                 message: 'Failed to refresh unit data after status save',
                 context: { unitId: activeUnit.UnitId, error },
               });
             });
+          }
         }
       } catch (error) {
         // If direct save fails, queue for offline processing

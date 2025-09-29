@@ -56,7 +56,7 @@ export const useRolesStore = create<RolesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const unitRoles = await getRoleAssignmentsForUnit(unitId);
-      set({ unitRoleAssignments: unitRoles.Data });
+      set({ unitRoleAssignments: unitRoles.Data, isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch unit roles', isLoading: false });
     }

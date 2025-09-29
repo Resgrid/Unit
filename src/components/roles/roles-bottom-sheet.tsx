@@ -78,19 +78,25 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
 
     setIsSaving(true);
     try {
-      // Get all roles for this unit to ensure we send complete assignment data
-      const allUnitRoles = filteredRoles.map((role) => {
-        const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
-        const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit.UnitId);
+      // Get all roles for this unit and filter out ones without valid assignments
+      const allUnitRoles = filteredRoles
+        .map((role) => {
+          const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
+          const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
+          const assignedUserId = pendingAssignment?.userId || currentAssignment?.UserId || '';
 
-        return {
-          RoleId: role.UnitRoleId,
-          UserId: pendingAssignment?.userId || currentAssignment?.UserId || '',
-          Name: '',
-        };
-      });
+          return {
+            RoleId: role.UnitRoleId,
+            UserId: assignedUserId,
+            Name: '',
+          };
+        })
+        .filter((role) => {
+          // Only include roles that have valid RoleId and assigned UserId
+          return role.RoleId && role.RoleId.trim() !== '' && role.UserId && role.UserId.trim() !== '';
+        });
 
-      // Save all role assignments (both assigned and unassigned)
+      // Save only valid role assignments
       await useRolesStore.getState().assignRoles({
         UnitId: activeUnit.UnitId,
         Roles: allUnitRoles,
@@ -137,7 +143,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
             <VStack space="sm" className="pb-4">
               {filteredRoles.map((role) => {
                 const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
-                const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId && a.UnitId === activeUnit?.UnitId);
+                const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
                 const assignedUser = users.find((u) => u.UserId === (pendingAssignment?.userId ?? assignment?.UserId));
 
                 return (

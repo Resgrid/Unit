@@ -5,11 +5,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Dimensions, FlatList, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { FlatList } from '@/components/ui/flat-list';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
@@ -58,7 +59,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [isAddingImage, setIsAddingImage] = useState(false);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<any>(null); // FlashList ref type
 
   const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage } = useCallDetailStore();
 
@@ -395,27 +396,10 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
               itemVisiblePercentThreshold: 50,
               minimumViewTime: 100,
             }}
-            snapToInterval={width}
-            snapToAlignment="start"
-            decelerationRate="fast"
+            estimatedItemSize={width}
             className="w-full"
             contentContainerStyle={{ paddingHorizontal: 0 }}
-            getItemLayout={(_, index) => ({
-              length: width,
-              offset: width * index,
-              index,
-            })}
-            initialNumToRender={3}
-            maxToRenderPerBatch={3}
-            windowSize={5}
-            removeClippedSubviews={false}
             initialScrollIndex={0}
-            onScrollToIndexFailed={(info) => {
-              const wait = new Promise((resolve) => setTimeout(resolve, 500));
-              wait.then(() => {
-                flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
-              });
-            }}
             ListEmptyComponent={() => (
               <Box className="w-full items-center justify-center p-4">
                 <Text className="text-center text-gray-500">{t('callImages.no_images')}</Text>

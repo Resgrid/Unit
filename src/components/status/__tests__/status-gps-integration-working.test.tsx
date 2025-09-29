@@ -192,6 +192,7 @@ describe('Status GPS Integration', () => {
           Longitude: '-74.006',
           Accuracy: '10',
           Altitude: '50',
+          AltitudeAccuracy: '',
           Speed: '0',
           Heading: '180',
         })
