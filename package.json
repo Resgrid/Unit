@@ -85,7 +85,7 @@
     "@hookform/resolvers": "~3.9.0",
     "@legendapp/motion": "~2.4.0",
     "@livekit/react-native": "^2.9.1",
-    "@livekit/react-native-expo-plugin": "~1.0.1",
+    "@livekit/react-native-expo-plugin": "^1.0.1",
     "@livekit/react-native-webrtc": "^137.0.2",
     "@microsoft/signalr": "~8.0.7",
     "@notifee/react-native": "^9.1.8",
