@@ -1,7 +1,7 @@
 import { FileText, Search, X } from 'lucide-react-native';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
@@ -9,6 +9,7 @@ import { NoteCard } from '@/components/notes/note-card';
 import { NoteDetailsSheet } from '@/components/notes/note-details-sheet';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { Box } from '@/components/ui/box';
+import { FlatList } from '@/components/ui/flat-list';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
@@ -66,6 +67,7 @@ export default function Notes() {
             <Loading />
           ) : filteredNotes.length > 0 ? (
             <FlatList
+              testID="notes-list"
               data={filteredNotes}
               keyExtractor={(item) => item.NoteId}
               renderItem={({ item }) => <NoteCard note={item} onPress={selectNote} />}

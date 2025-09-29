@@ -2,11 +2,12 @@ import { useRouter } from 'expo-router';
 import { Bell, ChevronRight, MapPin, Users } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
-import { Dimensions, FlatList, Image } from 'react-native';
+import { Dimensions, Image } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 import { FocusAwareStatusBar, SafeAreaView, View } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
+import { FlatList } from '@/components/ui/flat-list';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { useAuthStore } from '@/lib/auth';
@@ -63,7 +64,7 @@ export default function Onboarding() {
   const { status, setIsOnboarding } = useAuthStore();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<any>(null); // FlashList ref type
   const buttonOpacity = useSharedValue(0);
   const { colorScheme } = useColorScheme();
 

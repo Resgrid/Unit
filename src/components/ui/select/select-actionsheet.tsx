@@ -7,9 +7,10 @@ import type { VariantProps } from '@gluestack-ui/nativewind-utils';
 import { tva } from '@gluestack-ui/nativewind-utils/tva';
 import { withStyleContext } from '@gluestack-ui/nativewind-utils/withStyleContext';
 import { AnimatePresence, createMotionAnimatedComponent, Motion, type MotionComponentProps } from '@legendapp/motion';
+import { FlashList } from '@shopify/flash-list';
 import { cssInterop } from 'nativewind';
 import React from 'react';
-import { FlatList, Pressable, ScrollView, SectionList, Text, View, type ViewStyle, VirtualizedList } from 'react-native';
+import { Pressable, ScrollView, SectionList, Text, View, type ViewStyle, VirtualizedList } from 'react-native';
 
 type IAnimatedPressableProps = React.ComponentProps<typeof Pressable> & MotionComponentProps<typeof Pressable, ViewStyle, unknown, unknown, unknown>;
 
@@ -21,15 +22,15 @@ const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
 
 export const UIActionsheet = createActionsheet({
   Root: View,
-  Content: withStyleContext(MotionView),
-  Item: withStyleContext(Pressable),
+  Content: Motion.View,
+  Item: AnimatedPressable,
   ItemText: Text,
   DragIndicator: View,
   IndicatorWrapper: View,
   Backdrop: AnimatedPressable,
   ScrollView: ScrollView,
   VirtualizedList: VirtualizedList,
-  FlatList: FlatList,
+  FlatList: FlashList,
   SectionList: SectionList,
   SectionHeaderText: H4,
   Icon: UIIcon,

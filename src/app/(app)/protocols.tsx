@@ -1,13 +1,14 @@
 import { FileText, Search, X } from 'lucide-react-native';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { ProtocolCard } from '@/components/protocols/protocol-card';
 import { ProtocolDetailsSheet } from '@/components/protocols/protocol-details-sheet';
 import { Box } from '@/components/ui/box';
+import { FlatList } from '@/components/ui/flat-list';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
@@ -66,6 +67,7 @@ export default function Protocols() {
             <Loading />
           ) : filteredProtocols.length > 0 ? (
             <FlatList
+              testID="protocols-list"
               data={filteredProtocols}
               keyExtractor={(item, index) => item.Id || `protocol-${index}`}
               renderItem={({ item }) => <ProtocolCard protocol={item} onPress={selectProtocol} />}

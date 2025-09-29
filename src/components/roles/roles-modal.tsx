@@ -50,14 +50,21 @@ export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
     if (!activeUnit) return;
 
     try {
-      // Save all pending assignments
-      await useRolesStore.getState().assignRoles({
-        UnitId: activeUnit.UnitId,
-        Roles: pendingAssignments.map((a) => ({
+      // Save only valid pending assignments
+      const validRoles = pendingAssignments
+        .map((a) => ({
           RoleId: a.roleId,
           UserId: a.userId ? a.userId : '',
           Name: '',
-        })),
+        }))
+        .filter((role) => {
+          // Only include roles that have valid RoleId and assigned UserId
+          return role.RoleId && role.RoleId.trim() !== '' && role.UserId && role.UserId.trim() !== '';
+        });
+
+      await useRolesStore.getState().assignRoles({
+        UnitId: activeUnit.UnitId,
+        Roles: validRoles,
       });
 
       // Refresh role assignments after all updates

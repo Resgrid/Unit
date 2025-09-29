@@ -69,6 +69,7 @@ export default function Calls() {
 
     return (
       <FlatList<CallResultData>
+        testID="calls-list"
         data={filteredCalls}
         renderItem={({ item }: { item: CallResultData }) => (
           <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
