@@ -182,17 +182,27 @@ export default function NewCall() {
         data.longitude = selectedLocation.longitude;
       }
 
-      // TODO: Implement the API call to create a new call
-      console.log('Creating new call with data:', data);
-
+      // Validate priority and type before proceeding
       const priority = callPriorities.find((p) => p.Name === data.priority);
       const type = callTypes.find((t) => t.Name === data.type);
+
+      if (!priority) {
+        toast.error(t('calls.invalid_priority'));
+        return;
+      }
+
+      if (!type) {
+        toast.error(t('calls.invalid_type'));
+        return;
+      }
+
+      console.log('Creating new call with data:', data);
 
       const response = await createCall({
         name: data.name,
         nature: data.nature,
-        priority: priority?.Id || 0,
-        type: type?.Id || '',
+        priority: priority.Id,
+        type: type.Id,
         note: data.note,
         address: data.address,
         latitude: data.latitude,

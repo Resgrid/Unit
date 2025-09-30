@@ -122,7 +122,7 @@ export default function Onboarding() {
           keyExtractor={(item) => item.title}
           onScroll={handleScroll}
           scrollEventThrottle={16}
-          style={{ height: 400 }}
+          className="flex-1"
         />
       </View>
 
