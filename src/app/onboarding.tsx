@@ -41,10 +41,12 @@ const onboardingData: OnboardingItemProps[] = [
 
 const OnboardingItem: React.FC<OnboardingItemProps> = ({ title, description, icon }) => {
   return (
-    <View className="w-full flex-1 items-center justify-center px-8" style={{ width }}>
+    <View className="items-center justify-center px-8" style={{ width, height: '100%' }}>
       <View className="mb-8 items-center justify-center">{icon}</View>
-      <Text className="mb-4 text-center text-3xl font-bold">{title}</Text>
-      <Text className="text-center text-lg text-gray-600">{description}</Text>
+      <Text className="mb-6 text-center text-3xl font-bold text-gray-900 dark:text-white">{title}</Text>
+      <Text className="text-center text-lg leading-6 text-gray-600 dark:text-gray-300" style={{ paddingHorizontal: 20 }}>
+        {description}
+      </Text>
     </View>
   );
 };
@@ -64,7 +66,7 @@ export default function Onboarding() {
   const { status, setIsOnboarding } = useAuthStore();
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<any>(null); // FlashList ref type
+  const flatListRef = useRef<FlatList<OnboardingItemProps>>(null);
   const buttonOpacity = useSharedValue(0);
   const { colorScheme } = useColorScheme();
 
@@ -108,18 +110,21 @@ export default function Onboarding() {
         <Image style={{ width: '96%' }} resizeMode="contain" source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={onboardingData}
-        renderItem={({ item }) => <OnboardingItem {...item} />}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        pagingEnabled
-        bounces={false}
-        keyExtractor={(item) => item.title}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      />
+      <View className="flex-1 justify-center">
+        <FlatList
+          ref={flatListRef}
+          data={onboardingData}
+          renderItem={({ item }) => <OnboardingItem {...item} />}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          pagingEnabled
+          bounces={false}
+          keyExtractor={(item) => item.title}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          style={{ height: 400 }}
+        />
+      </View>
 
       <Pagination currentIndex={currentIndex} length={onboardingData.length} />
 
