@@ -231,6 +231,8 @@
     },
     "geocoding_error": "Failed to search for address, please try again",
     "groups": "Groups",
+    "invalid_priority": "Invalid priority selected. Please select a valid priority.",
+    "invalid_type": "Invalid type selected. Please select a valid call type.",
     "loading": "Loading calls...",
     "loading_calls": "Loading calls...",
     "name": "Name",

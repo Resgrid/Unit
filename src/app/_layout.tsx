@@ -22,6 +22,7 @@ import { APIProvider } from '@/api';
 import { CountlyProvider } from '@/components/common/countly-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { PushNotificationModal } from '@/components/push-notification/push-notification-modal';
+import { ToastContainer } from '@/components/toast/toast-container';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { loadSelectedTheme } from '@/lib/hooks/use-selected-theme';
@@ -181,6 +182,7 @@ function Providers({ children }: { children: React.ReactNode }) {
             <LiveKitBottomSheet />
             <PushNotificationModal />
             <FlashMessage position="top" />
+            <ToastContainer />
           </BottomSheetModalProvider>
         </ThemeProvider>
       </GluestackUIProvider>

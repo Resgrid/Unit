@@ -231,6 +231,8 @@
     },
     "geocoding_error": "Error al buscar la dirección, por favor inténtelo de nuevo",
     "groups": "Grupos",
+    "invalid_priority": "Prioridad inválida seleccionada. Por favor seleccione una prioridad válida.",
+    "invalid_type": "Tipo inválido seleccionado. Por favor seleccione un tipo de llamada válido.",
     "loading": "Cargando llamadas...",
     "loading_calls": "Cargando llamadas...",
     "name": "Nombre",
