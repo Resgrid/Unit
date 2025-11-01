@@ -193,22 +193,32 @@ class NotificationSoundService {
 
   public async playNotificationSound(type: NotificationType): Promise<void> {
     try {
+      // Ensure audio is initialized before accessing sound properties
+      await this.initializeAudio();
+
+      // Capture sound properties into local variables after initialization
+      const callSound = this.callSound;
+      const messageSound = this.messageSound;
+      const chatSound = this.chatSound;
+      const groupChatSound = this.groupChatSound;
+      const defaultSound = this.defaultSound;
+
       switch (type) {
         case 'call':
-          await this.playSound(this.callSound, 'call');
+          await this.playSound(callSound, 'call');
           break;
         case 'message':
-          await this.playSound(this.messageSound, 'message');
+          await this.playSound(messageSound, 'message');
           break;
         case 'chat':
-          await this.playSound(this.chatSound, 'chat');
+          await this.playSound(chatSound, 'chat');
           break;
         case 'group-chat':
-          await this.playSound(this.groupChatSound, 'group-chat');
+          await this.playSound(groupChatSound, 'group-chat');
           break;
         case 'unknown':
         default:
-          await this.playSound(this.defaultSound, 'default');
+          await this.playSound(defaultSound, 'default');
           break;
       }
     } catch (error) {
