@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import { logger } from '../lib/logging';
 import { callKeepService } from './callkeep.service.ios';
+import { pushNotificationService } from './push-notification';
 
 /**
  * Global app initialization service that handles one-time setup operations
@@ -73,6 +74,9 @@ class AppInitializationService {
     // Initialize CallKeep for iOS background audio support
     await this._initializeCallKeep();
 
+    // Initialize Push Notification Service
+    await this._initializePushNotifications();
+
     // Add other global initialization tasks here as needed
     // e.g., analytics, crash reporting, background services, etc.
   }
@@ -108,6 +112,26 @@ class AppInitializationService {
       });
       // Don't throw here - CallKeep failure shouldn't prevent app startup
       // but LiveKit calls may not work properly in the background
+    }
+  }
+
+  /**
+   * Initialize Push Notification Service
+   */
+  private async _initializePushNotifications(): Promise<void> {
+    try {
+      await pushNotificationService.initialize();
+
+      logger.info({
+        message: 'Push Notification Service initialized successfully',
+      });
+    } catch (error) {
+      logger.error({
+        message: 'Failed to initialize Push Notification Service',
+        context: { error },
+      });
+      // Don't throw here - push notification failure shouldn't prevent app startup
+      // but notifications may not work properly
     }
   }
 

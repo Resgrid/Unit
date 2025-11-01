@@ -1,6 +1,6 @@
 import { CheckIcon, SearchIcon, UsersIcon, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 
@@ -27,7 +27,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
   const { data, selection, isLoading, error, searchQuery, fetchDispatchData, setSelection, toggleEveryone, toggleUser, toggleGroup, toggleRole, toggleUnit, setSearchQuery, clearSelection, getFilteredData } =
     useDispatchStore();
 
-  const filteredData = useMemo(() => getFilteredData(), [data, searchQuery]);
+  const filteredData = getFilteredData();
 
   useEffect(() => {
     if (isVisible) {
@@ -121,9 +121,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                   <TouchableOpacity onPress={() => toggleUser(user.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${
-                          selection.users.includes(user.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                        }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${selection.users.includes(user.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                          }`}
                       >
                         {selection.users.includes(user.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
@@ -148,9 +147,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                   <TouchableOpacity onPress={() => toggleGroup(group.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${
-                          selection.groups.includes(group.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                        }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${selection.groups.includes(group.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                          }`}
                       >
                         {selection.groups.includes(group.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
@@ -175,9 +173,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                   <TouchableOpacity onPress={() => toggleRole(role.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${
-                          selection.roles.includes(role.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                        }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${selection.roles.includes(role.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                          }`}
                       >
                         {selection.roles.includes(role.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>
@@ -202,9 +199,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
                   <TouchableOpacity onPress={() => toggleUnit(unit.Id)}>
                     <HStack className="items-center space-x-3">
                       <Box
-                        className={`size-5 items-center justify-center rounded border-2 ${
-                          selection.units.includes(unit.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
-                        }`}
+                        className={`size-5 items-center justify-center rounded border-2 ${selection.units.includes(unit.Id) ? 'border-blue-500 bg-blue-500' : colorScheme === 'dark' ? 'border-neutral-600' : 'border-neutral-300'
+                          }`}
                       >
                         {selection.units.includes(unit.Id) && <CheckIcon size={12} className="text-white" />}
                       </Box>

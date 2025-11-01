@@ -80,6 +80,22 @@
         "EXPO_NO_DOTENV": "1"
       }
     },
+    "dev-sim": {
+      "developmentClient": false,
+      "yarn": "1.22.22",
+      "ios": {
+        "simulator": true,
+        "image": "latest"
+      },
+      "android": {
+        "buildType": "apk",
+        "image": "latest"
+      },
+      "env": {
+        "APP_ENV": "development",
+        "EXPO_NO_DOTENV": "1"
+      }
+    },
     "simulator": {
       "yarn": "1.22.22",
       "ios": {

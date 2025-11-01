@@ -11,30 +11,20 @@ import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type NotificationType, usePushNotificationModalStore } from '@/stores/push-notification/store';
 
-interface NotificationIconProps {
-  type: NotificationType;
-  size?: number;
-  color?: string;
-}
-
 const NotificationIcon = ({ type }: { type: NotificationType }) => {
-  const iconProps = {
-    size: 24,
-    color: '$red500',
-    testID: 'notification-icon',
-  };
+  const iconSize = 24;
 
   switch (type) {
     case 'call':
-      return <Phone {...iconProps} />;
+      return <Phone size={iconSize} className="text-danger-500 dark:text-danger-400" testID="notification-icon" />;
     case 'message':
-      return <MailIcon {...iconProps} />;
+      return <MailIcon size={iconSize} className="text-primary-500 dark:text-primary-400" testID="notification-icon" />;
     case 'chat':
-      return <MessageCircle {...iconProps} />;
+      return <MessageCircle size={iconSize} className="text-success-500 dark:text-success-400" testID="notification-icon" />;
     case 'group-chat':
-      return <Users {...iconProps} />;
+      return <Users size={iconSize} className="text-secondary-500 dark:text-secondary-400" testID="notification-icon" />;
     default:
-      return <Bell {...iconProps} />;
+      return <Bell size={iconSize} className="text-gray-600 dark:text-gray-400" testID="notification-icon" />;
   }
 };
 
@@ -81,26 +71,10 @@ export const PushNotificationModal: React.FC = () => {
     }
   };
 
-  const getNotificationColor = (type: NotificationType): string => {
-    switch (type) {
-      case 'call':
-        return '#EF4444'; // Red for calls
-      case 'message':
-        return '#3B82F6'; // Blue for messages
-      case 'chat':
-        return '#10B981'; // Green for chat
-      case 'group-chat':
-        return '#8B5CF6'; // Purple for group chat
-      default:
-        return '#6B7280'; // Gray for unknown
-    }
-  };
-
   if (!notification) {
     return null;
   }
 
-  const iconColor = getNotificationColor(notification.type);
   const typeText = getNotificationTypeText(notification.type);
 
   return (
@@ -111,8 +85,8 @@ export const PushNotificationModal: React.FC = () => {
           <HStack className="items-center space-x-3">
             <NotificationIcon type={notification.type} />
             <VStack className="flex-1">
-              <Text className="text-lg font-semibold">{t('push_notifications.new_notification')}</Text>
-              <Text className="text-sm text-gray-600 dark:text-gray-400">{typeText}</Text>
+              <Text className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('push_notifications.new_notification')}</Text>
+              <Text className="text-sm text-gray-600 dark:text-gray-300">{typeText}</Text>
             </VStack>
           </HStack>
         </ModalHeader>
@@ -122,21 +96,21 @@ export const PushNotificationModal: React.FC = () => {
             {notification.title ? (
               <VStack className="space-y-1">
                 <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('push_notifications.title')}</Text>
-                <Text className="text-base">{notification.title}</Text>
+                <Text className="text-base text-gray-900 dark:text-gray-100">{notification.title}</Text>
               </VStack>
             ) : null}
 
             {notification.body ? (
               <VStack className="space-y-1">
                 <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('push_notifications.message')}</Text>
-                <Text className="text-base">{notification.body}</Text>
+                <Text className="text-base text-gray-900 dark:text-gray-100">{notification.body}</Text>
               </VStack>
             ) : null}
 
             {notification.type === 'unknown' ? (
-              <HStack className="mt-2 items-center space-x-2 rounded-lg bg-yellow-50 p-3 dark:bg-yellow-900">
-                <AlertCircle size={20} color="#F59E0B" />
-                <Text className="flex-1 text-sm text-yellow-800 dark:text-yellow-200">{t('push_notifications.unknown_type_warning')}</Text>
+              <HStack className="mt-2 items-center space-x-2 rounded-lg bg-warning-50 p-3 dark:bg-warning-900">
+                <AlertCircle size={20} className="text-warning-600 dark:text-warning-400" />
+                <Text className="flex-1 text-sm text-warning-800 dark:text-warning-200">{t('push_notifications.unknown_type_warning')}</Text>
               </HStack>
             ) : null}
           </VStack>

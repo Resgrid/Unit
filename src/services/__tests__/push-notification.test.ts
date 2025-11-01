@@ -26,9 +26,13 @@ jest.mock('react-native', () => ({
 }));
 
 // Mock expo-notifications
+const mockRemove = jest.fn();
+const mockAddNotificationReceivedListener = jest.fn().mockReturnValue({ remove: mockRemove });
+const mockAddNotificationResponseReceivedListener = jest.fn().mockReturnValue({ remove: mockRemove });
+
 jest.mock('expo-notifications', () => ({
-  addNotificationReceivedListener: jest.fn(),
-  addNotificationResponseReceivedListener: jest.fn(),
+  addNotificationReceivedListener: mockAddNotificationReceivedListener,
+  addNotificationResponseReceivedListener: mockAddNotificationResponseReceivedListener,
   removeNotificationSubscription: jest.fn(),
   setNotificationHandler: jest.fn(),
   setNotificationChannelAsync: jest.fn(),
@@ -80,16 +84,15 @@ jest.mock('@/stores/security/store', () => ({
   },
 }));
 
-// Mock the push notification service
-const mockNotificationHandler = jest.fn();
+// Mock Firebase messaging
+const mockFcmUnsubscribe = jest.fn();
+const mockOnMessage = jest.fn().mockReturnValue(mockFcmUnsubscribe);
 
-jest.mock('../push-notification', () => ({
-  pushNotificationService: {
-    getInstance: jest.fn(() => ({
-      handleNotificationReceived: mockNotificationHandler,
-    })),
-  },
-}));
+jest.mock('@react-native-firebase/messaging', () => {
+  return jest.fn(() => ({
+    onMessage: mockOnMessage,
+  }));
+});
 
 describe('Push Notification Service Integration', () => {
   const mockShowNotificationModal = jest.fn();
@@ -122,9 +125,11 @@ describe('Push Notification Service Integration', () => {
           data: data.data || {},
           sound: null,
         },
-        trigger: null,
+        trigger: {
+          type: 'push',
+        },
       },
-    } as Notifications.Notification);
+    } as unknown as Notifications.Notification);
 
   // Test the notification handling logic directly
   const simulateNotificationReceived = (notification: Notifications.Notification): void => {
@@ -365,6 +370,67 @@ describe('Push Notification Service Integration', () => {
       simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listener cleanup', () => {
+    // Dynamically require the service to avoid mocking issues
+    let PushNotificationService: any;
+    let service: any;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.resetModules();
+      
+      // Re-require the module to get fresh instance
+      jest.unmock('../push-notification');
+      const module = require('../push-notification');
+      service = module.pushNotificationService;
+    });
+
+    it('should store listener handles on initialization', async () => {
+      // Initialize should add listeners
+      await service.initialize();
+
+      // Verify listeners were registered
+      expect(mockAddNotificationReceivedListener).toHaveBeenCalled();
+      expect(mockAddNotificationResponseReceivedListener).toHaveBeenCalled();
+      expect(mockOnMessage).toHaveBeenCalled();
+    });
+
+    it('should properly cleanup all listeners', async () => {
+      // Initialize first to set up listeners
+      await service.initialize();
+
+      // Clear previous calls
+      mockRemove.mockClear();
+      mockFcmUnsubscribe.mockClear();
+
+      // Call cleanup
+      service.cleanup();
+
+      // Verify all listeners were removed
+      // Expo listeners should have .remove() called twice (once for each listener)
+      expect(mockRemove).toHaveBeenCalledTimes(2);
+
+      // FCM unsubscribe should be called once
+      expect(mockFcmUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not error when cleanup is called without initialization', () => {
+      // Should not throw when cleanup is called without initializing
+      expect(() => service.cleanup()).not.toThrow();
+    });
+
+    it('should not error when cleanup is called multiple times', async () => {
+      await service.initialize();
+
+      // Should not throw when cleanup is called multiple times
+      expect(() => {
+        service.cleanup();
+        service.cleanup();
+        service.cleanup();
+      }).not.toThrow();
     });
   });
 });

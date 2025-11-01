@@ -1,3 +1,5 @@
+import notifee from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
@@ -17,26 +19,12 @@ export interface PushNotificationData {
   data?: Record<string, unknown>;
 }
 
-// Configure notifications behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
-  private notificationListener: { remove: () => void } | null = null;
-  private responseListener: { remove: () => void } | null = null;
-
-  private constructor() {
-    this.initialize();
-  }
+  private notificationReceivedListener: { remove: () => void } | null = null;
+  private notificationResponseListener: { remove: () => void } | null = null;
+  private fcmOnMessageUnsubscribe: (() => void) | null = null;
 
   public static getInstance(): PushNotificationService {
     if (!PushNotificationService.instance) {
@@ -89,13 +77,48 @@ class PushNotificationService {
     }
   }
 
-  private async initialize(): Promise<void> {
+  async initialize(): Promise<void> {
     // Set up Android notification channels
     await this.setupAndroidNotificationChannels();
 
-    // Set up notification listeners
-    this.notificationListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-    this.responseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+    // Configure notifications behavior
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+
+    // Set up notification listeners and store the subscription handles
+    this.notificationReceivedListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
+    this.notificationResponseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+
+    // Listen for foreground messages and store the unsubscribe function
+    this.fcmOnMessageUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+      logger.info({
+        message: 'FCM Notification received',
+        context: {
+          data: remoteMessage.data,
+        },
+      });
+
+      // Check if the notification has an eventCode and show modal
+      // eventCode must be a string to be valid
+      if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
+        const notificationData = {
+          eventCode: remoteMessage.data.eventCode as string,
+          title: remoteMessage.notification?.title || undefined,
+          body: remoteMessage.notification?.body || undefined,
+          data: remoteMessage.data,
+        };
+
+        // Show the notification modal using the store
+        usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+      }
+    });
 
     logger.info({
       message: 'Push notification service initialized',
@@ -264,14 +287,19 @@ class PushNotificationService {
   }
 
   public cleanup(): void {
-    if (this.notificationListener) {
-      this.notificationListener.remove();
-      this.notificationListener = null;
+    if (this.notificationReceivedListener) {
+      this.notificationReceivedListener.remove();
+      this.notificationReceivedListener = null;
     }
 
-    if (this.responseListener) {
-      this.responseListener.remove();
-      this.responseListener = null;
+    if (this.notificationResponseListener) {
+      this.notificationResponseListener.remove();
+      this.notificationResponseListener = null;
+    }
+
+    if (this.fcmOnMessageUnsubscribe) {
+      this.fcmOnMessageUnsubscribe();
+      this.fcmOnMessageUnsubscribe = null;
     }
   }
 }
