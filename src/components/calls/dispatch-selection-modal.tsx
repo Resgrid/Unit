@@ -1,6 +1,6 @@
 import { CheckIcon, SearchIcon, UsersIcon, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity, View } from 'react-native';
 
@@ -27,7 +27,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
   const { data, selection, isLoading, error, searchQuery, fetchDispatchData, setSelection, toggleEveryone, toggleUser, toggleGroup, toggleRole, toggleUnit, setSearchQuery, clearSelection, getFilteredData } =
     useDispatchStore();
 
-  const filteredData = useMemo(() => getFilteredData(), [getFilteredData]);
+  const filteredData = getFilteredData();
 
   useEffect(() => {
     if (isVisible) {

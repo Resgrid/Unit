@@ -12,9 +12,10 @@ class NotificationSoundService {
   private groupChatSound: Audio.Sound | null = null;
   private defaultSound: Audio.Sound | null = null;
   private isInitialized = false;
+  private initializationPromise: Promise<void> | null = null;
 
   private constructor() {
-    this.initializeAudio();
+    // Initialization will happen lazily on first use
   }
 
   static getInstance(): NotificationSoundService {
@@ -29,10 +30,22 @@ class NotificationSoundService {
   }
 
   private async initializeAudio(): Promise<void> {
+    // If already initialized, return immediately
     if (this.isInitialized) {
       return;
     }
 
+    // If initialization is in progress, wait for it to complete
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    // Start initialization and store the promise
+    this.initializationPromise = this.performInitialization();
+    await this.initializationPromise;
+  }
+
+  private async performInitialization(): Promise<void> {
     try {
       // Configure audio mode
       await Audio.setAudioModeAsync({
@@ -60,6 +73,8 @@ class NotificationSoundService {
         message: 'Failed to initialize notification sound service',
         context: { error },
       });
+      // Reset initialization promise on failure so it can be retried
+      this.initializationPromise = null;
     }
   }
 
@@ -83,40 +98,46 @@ class NotificationSoundService {
     }
   }
 
+  /**
+   * Helper method to load a sound asset from a require path
+   * @param assetRequire - The required asset module
+   * @param soundName - Name of the sound for logging purposes
+   * @returns The created Audio.Sound or null on failure
+   */
+  private async loadSound(assetRequire: number, soundName: string): Promise<Audio.Sound | null> {
+    try {
+      const asset = Asset.fromModule(assetRequire);
+      await asset.downloadAsync();
+
+      const { sound } = await Audio.Sound.createAsync({ uri: asset.localUri || asset.uri } as AVPlaybackSource, {
+        shouldPlay: false,
+        isLooping: false,
+        volume: 1.0,
+      });
+
+      return sound;
+    } catch (error) {
+      logger.error({
+        message: `Failed to load sound: ${soundName}`,
+        context: { error },
+      });
+      return null;
+    }
+  }
+
   private async loadAudioFiles(): Promise<void> {
     try {
       // Load call sound
-      const callSoundAsset = Asset.fromModule(require('@assets/audio/newcall.wav'));
-      await callSoundAsset.downloadAsync();
-
-      const { sound: callSound } = await Audio.Sound.createAsync({ uri: callSoundAsset.localUri || callSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-      this.callSound = callSound;
+      this.callSound = await this.loadSound(require('@assets/audio/newcall.wav'), 'call');
 
       // Load message sound
-      const messageSoundAsset = Asset.fromModule(require('@assets/audio/newmessage.wav'));
-      await messageSoundAsset.downloadAsync();
-
-      const { sound: messageSound } = await Audio.Sound.createAsync({ uri: messageSoundAsset.localUri || messageSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-      this.messageSound = messageSound;
+      this.messageSound = await this.loadSound(require('@assets/audio/newmessage.wav'), 'message');
 
       // Load chat sound
       const chatSoundAsset = Asset.fromModule(require('@assets/audio/newchat.wav'));
       await chatSoundAsset.downloadAsync();
 
-      const { sound: chatSound } = await Audio.Sound.createAsync({ uri: chatSoundAsset.localUri || chatSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-      this.chatSound = chatSound;
+      this.chatSound = await this.loadSound(require('@assets/audio/newchat.wav'), 'chat');
 
       // Group chat uses the same sound as regular chat
       const { sound: groupChatSound } = await Audio.Sound.createAsync({ uri: chatSoundAsset.localUri || chatSoundAsset.uri } as AVPlaybackSource, {
@@ -127,15 +148,7 @@ class NotificationSoundService {
       this.groupChatSound = groupChatSound;
 
       // Load default notification sound
-      const defaultSoundAsset = Asset.fromModule(require('@assets/audio/notification.wav'));
-      await defaultSoundAsset.downloadAsync();
-
-      const { sound: defaultSound } = await Audio.Sound.createAsync({ uri: defaultSoundAsset.localUri || defaultSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-      this.defaultSound = defaultSound;
+      this.defaultSound = await this.loadSound(require('@assets/audio/notification.wav'), 'default');
 
       logger.debug({
         message: 'Notification audio files loaded successfully',
@@ -235,6 +248,7 @@ class NotificationSoundService {
       }
 
       this.isInitialized = false;
+      this.initializationPromise = null;
 
       logger.info({
         message: 'Notification sound service cleaned up',

@@ -22,8 +22,9 @@ export interface PushNotificationData {
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
-  private notificationListener: { remove: () => void } | null = null;
-  private responseListener: { remove: () => void } | null = null;
+  private notificationReceivedListener: { remove: () => void } | null = null;
+  private notificationResponseListener: { remove: () => void } | null = null;
+  private fcmOnMessageUnsubscribe: (() => void) | null = null;
 
   public static getInstance(): PushNotificationService {
     if (!PushNotificationService.instance) {
@@ -91,12 +92,12 @@ class PushNotificationService {
       }),
     });
 
-    // Set up notification listeners
-    Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-    Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+    // Set up notification listeners and store the subscription handles
+    this.notificationReceivedListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
+    this.notificationResponseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
 
-    // Listen for foreground messages
-    messaging().onMessage(async (remoteMessage) => {
+    // Listen for foreground messages and store the unsubscribe function
+    this.fcmOnMessageUnsubscribe = messaging().onMessage(async (remoteMessage) => {
       logger.info({
         message: 'FCM Notification received',
         context: {
@@ -286,14 +287,19 @@ class PushNotificationService {
   }
 
   public cleanup(): void {
-    if (this.notificationListener) {
-      this.notificationListener.remove();
-      this.notificationListener = null;
+    if (this.notificationReceivedListener) {
+      this.notificationReceivedListener.remove();
+      this.notificationReceivedListener = null;
     }
 
-    if (this.responseListener) {
-      this.responseListener.remove();
-      this.responseListener = null;
+    if (this.notificationResponseListener) {
+      this.notificationResponseListener.remove();
+      this.notificationResponseListener = null;
+    }
+
+    if (this.fcmOnMessageUnsubscribe) {
+      this.fcmOnMessageUnsubscribe();
+      this.fcmOnMessageUnsubscribe = null;
     }
   }
 }

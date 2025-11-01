@@ -46,13 +46,21 @@ jest.mock('@/lib/logging', () => ({
 }));
 
 describe('NotificationSoundService', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    // Clean up any previous initialization state
+    await notificationSoundService.cleanup();
+  });
+
+  afterEach(async () => {
+    // Clean up after each test
+    await notificationSoundService.cleanup();
   });
 
   describe('initialization', () => {
-    it('should initialize audio mode', async () => {
-      // Mock is called in constructor, so need to check mocks
+    it('should initialize audio mode when initialize() is called', async () => {
+      // Initialization is lazy, so Audio.setAudioModeAsync should not be called until initialize() is called
+      await notificationSoundService.initialize();
       expect(Audio.setAudioModeAsync).toHaveBeenCalled();
     });
 
@@ -61,6 +69,18 @@ describe('NotificationSoundService', () => {
 
       // Verify sounds are created (called during initialization)
       expect(Audio.Sound.createAsync).toHaveBeenCalled();
+    });
+
+    it('should not initialize multiple times concurrently', async () => {
+      // Call initialize multiple times concurrently
+      await Promise.all([
+        notificationSoundService.initialize(),
+        notificationSoundService.initialize(),
+        notificationSoundService.initialize(),
+      ]);
+
+      // Should only initialize once
+      expect(Audio.setAudioModeAsync).toHaveBeenCalledTimes(1);
     });
   });
 
