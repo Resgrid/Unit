@@ -22,14 +22,23 @@ jest.mock('../callkeep.service.ios', () => ({
   },
 }));
 
+// Mock Push Notification service
+jest.mock('../push-notification', () => ({
+  pushNotificationService: {
+    initialize: jest.fn(),
+  },
+}));
+
 import { Platform } from 'react-native';
 
 import { logger } from '../../lib/logging';
 import { appInitializationService } from '../app-initialization.service';
 import { callKeepService } from '../callkeep.service.ios';
+import { pushNotificationService } from '../push-notification';
 
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockCallKeepService = callKeepService as jest.Mocked<typeof callKeepService>;
+const mockPushNotificationService = pushNotificationService as jest.Mocked<typeof pushNotificationService>;
 
 describe('AppInitializationService', () => {
   beforeEach(() => {
@@ -38,6 +47,7 @@ describe('AppInitializationService', () => {
     appInitializationService.reset();
     mockCallKeepService.setup.mockResolvedValue(undefined);
     mockCallKeepService.cleanup.mockResolvedValue(undefined);
+    mockPushNotificationService.initialize.mockResolvedValue(undefined);
   });
 
   describe('Initialization', () => {
@@ -54,11 +64,16 @@ describe('AppInitializationService', () => {
         supportsVideo: false,
       });
 
+      expect(mockPushNotificationService.initialize).toHaveBeenCalled();
+
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Starting app initialization',
       });
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'CallKeep initialized successfully',
+      });
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'Push Notification Service initialized successfully',
       });
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'App initialization completed successfully',
@@ -73,6 +88,7 @@ describe('AppInitializationService', () => {
       await appInitializationService.initialize();
 
       expect(mockCallKeepService.setup).not.toHaveBeenCalled();
+      expect(mockPushNotificationService.initialize).toHaveBeenCalled();
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: 'CallKeep initialization skipped - not iOS platform',
         context: { platform: 'android' },
@@ -90,10 +106,12 @@ describe('AppInitializationService', () => {
       // First call
       await appInitializationService.initialize();
       expect(mockCallKeepService.setup).toHaveBeenCalledTimes(1);
+      expect(mockPushNotificationService.initialize).toHaveBeenCalledTimes(1);
 
       // Second call
       await appInitializationService.initialize();
       expect(mockCallKeepService.setup).toHaveBeenCalledTimes(1); // Should not be called again
+      expect(mockPushNotificationService.initialize).toHaveBeenCalledTimes(1); // Should not be called again
 
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: 'App initialization already completed, skipping',
@@ -114,6 +132,7 @@ describe('AppInitializationService', () => {
 
       // CallKeep setup should only be called once
       expect(mockCallKeepService.setup).toHaveBeenCalledTimes(1);
+      expect(mockPushNotificationService.initialize).toHaveBeenCalledTimes(1);
       expect(appInitializationService.isAppInitialized()).toBe(true);
     });
 
@@ -129,6 +148,29 @@ describe('AppInitializationService', () => {
         message: 'Failed to initialize CallKeep',
         context: { error },
       });
+
+      // Push notifications should still be initialized
+      expect(mockPushNotificationService.initialize).toHaveBeenCalled();
+
+      // App should still be considered initialized
+      expect(appInitializationService.isAppInitialized()).toBe(true);
+    });
+
+    it('should handle Push Notification Service initialization errors gracefully', async () => {
+      (Platform as any).OS = 'ios';
+      const error = new Error('Push notification initialization failed');
+      mockPushNotificationService.initialize.mockRejectedValue(error);
+
+      // Should not throw error - Push notification failure shouldn't prevent app startup
+      await appInitializationService.initialize();
+
+      expect(mockLogger.error).toHaveBeenCalledWith({
+        message: 'Failed to initialize Push Notification Service',
+        context: { error },
+      });
+
+      // CallKeep should still be initialized
+      expect(mockCallKeepService.setup).toHaveBeenCalled();
 
       // App should still be considered initialized
       expect(appInitializationService.isAppInitialized()).toBe(true);

@@ -507,15 +507,17 @@
   "push_notifications": {
     "close": "Close",
     "message": "Message",
-    "new_notification": "New notification",
+    "new_notification": "New Notification",
     "title": "Title",
     "types": {
       "call": "Call",
       "chat": "Chat",
       "group_chat": "Group Chat",
-      "message": "Message"
+      "message": "Message",
+      "notification": "Notification"
     },
-    "view_call": "View call"
+    "unknown_type_warning": "This notification type is not recognized. Please contact support if you continue to see this message.",
+    "view_call": "View Call"
   },
   "roles": {
     "modal": {

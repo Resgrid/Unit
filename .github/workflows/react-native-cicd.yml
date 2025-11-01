@@ -47,6 +47,7 @@ env:
   UNIT_SENTRY_DSN: ${{ secrets.UNIT_SENTRY_DSN }}
   UNIT_ANDROID_KS: ${{ secrets.UNIT_ANDROID_KS }}
   UNIT_GOOGLE_SERVICES: ${{ secrets.UNIT_GOOGLE_SERVICES }}
+  UNIT_IOS_GOOGLE_SERVICES: ${{ secrets.UNIT_IOS_GOOGLE_SERVICES }}
   MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
   APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
   APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -152,6 +153,11 @@ jobs:
         if: ${{ matrix.platform == 'android' }}
         run: |
           echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
+
+      - name: 📋 Create Google Json File for iOS
+        if: ${{ matrix.platform == 'ios' }}
+        run: |
+          echo $UNIT_IOS_GOOGLE_SERVICES | base64 -d > GoogleService-Info.plist
 
       - name: 📋 Update package.json Versions
         run: |

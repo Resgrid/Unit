@@ -122,9 +122,11 @@ describe('Push Notification Service Integration', () => {
           data: data.data || {},
           sound: null,
         },
-        trigger: null,
+        trigger: {
+          type: 'push',
+        },
       },
-    } as Notifications.Notification);
+    } as unknown as Notifications.Notification);
 
   // Test the notification handling logic directly
   const simulateNotificationReceived = (notification: Notifications.Notification): void => {

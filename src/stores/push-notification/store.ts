@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { logger } from '@/lib/logging';
+import { notificationSoundService } from '@/services/notification-sound.service';
 
 export interface PushNotificationData {
   eventCode: string;
@@ -37,22 +38,21 @@ export const usePushNotificationModalStore = create<PushNotificationModalState>(
     let type: NotificationType = 'unknown';
     let id = '';
 
-    // Parse event code format like "C:1234", "M:5678", "T:9012", "G:3456"
-    if (eventCode && eventCode.includes(':')) {
-      const [prefix, notificationId] = eventCode.split(':');
-      const lowerPrefix = prefix.toLowerCase();
+    // Parse event code format like "C1234", "M5678", "T9012", "G3456"
+    // First character is the type prefix, rest is the ID
+    if (eventCode && eventCode.length > 1) {
+      const prefix = eventCode[0].toLowerCase();
+      id = eventCode.slice(1);
 
-      if (lowerPrefix.startsWith('c')) {
+      if (prefix === 'c') {
         type = 'call';
-      } else if (lowerPrefix.startsWith('m')) {
+      } else if (prefix === 'm') {
         type = 'message';
-      } else if (lowerPrefix.startsWith('t')) {
+      } else if (prefix === 't') {
         type = 'chat';
-      } else if (lowerPrefix.startsWith('g')) {
+      } else if (prefix === 'g') {
         type = 'group-chat';
       }
-
-      id = notificationId || '';
     }
 
     return {
@@ -75,6 +75,14 @@ export const usePushNotificationModalStore = create<PushNotificationModalState>(
         id: parsedNotification.id,
         eventCode: parsedNotification.eventCode,
       },
+    });
+
+    // Play the appropriate sound for this notification type
+    notificationSoundService.playNotificationSound(parsedNotification.type).catch((error) => {
+      logger.error({
+        message: 'Failed to play notification sound',
+        context: { error, type: parsedNotification.type },
+      });
     });
 
     set({

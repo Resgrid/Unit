@@ -24,6 +24,7 @@ yarn-error.log
 /build
 /automatic-build
 google-services.json
+GoogleService-Info.plist
 credentials.json
 Gemfile.lock
 Gemfile

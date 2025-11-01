@@ -1,3 +1,5 @@
+import notifee from '@notifee/react-native';
+import messaging from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
@@ -17,26 +19,11 @@ export interface PushNotificationData {
   data?: Record<string, unknown>;
 }
 
-// Configure notifications behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
   private notificationListener: { remove: () => void } | null = null;
   private responseListener: { remove: () => void } | null = null;
-
-  private constructor() {
-    this.initialize();
-  }
 
   public static getInstance(): PushNotificationService {
     if (!PushNotificationService.instance) {
@@ -89,13 +76,48 @@ class PushNotificationService {
     }
   }
 
-  private async initialize(): Promise<void> {
+  async initialize(): Promise<void> {
     // Set up Android notification channels
     await this.setupAndroidNotificationChannels();
 
+    // Configure notifications behavior
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+
     // Set up notification listeners
-    this.notificationListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-    this.responseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+    Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
+    Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+
+    // Listen for foreground messages
+    messaging().onMessage(async (remoteMessage) => {
+      logger.info({
+        message: 'FCM Notification received',
+        context: {
+          data: remoteMessage.data,
+        },
+      });
+
+      // Check if the notification has an eventCode and show modal
+      // eventCode must be a string to be valid
+      if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
+        const notificationData = {
+          eventCode: remoteMessage.data.eventCode as string,
+          title: remoteMessage.notification?.title || undefined,
+          body: remoteMessage.notification?.body || undefined,
+          data: remoteMessage.data,
+        };
+
+        // Show the notification modal using the store
+        usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+      }
+    });
 
     logger.info({
       message: 'Push notification service initialized',

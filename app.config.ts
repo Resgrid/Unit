@@ -44,6 +44,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: true,
     bundleIdentifier: Env.BUNDLE_ID,
     requireFullScreen: true,
+    googleServicesFile: 'GoogleService-Info.plist',
     infoPlist: {
       UIBackgroundModes: ['remote-notification', 'audio', 'bluetooth-central', 'voip'],
       ITSAppUsesNonExemptEncryption: false,
@@ -214,6 +215,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
         ios: {
           deploymentTarget: '18.1',
+          useFrameworks: 'static',
         },
       },
     ],
@@ -262,6 +264,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
     '@config-plugins/react-native-callkeep',
+    '@react-native-firebase/app',
     './customGradle.plugin.js',
     './customManifest.plugin.js',
     ['app-icon-badge', appIconBadgeConfig],
