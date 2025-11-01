@@ -72,6 +72,8 @@ env:
   UNIT_APP_KEY: ${{ secrets.UNIT_APP_KEY }}
   APP_KEY: ${{ secrets.APP_KEY }}
   NODE_OPTIONS: --openssl-legacy-provider
+  CHANGERAWR_API_KEY: ${{ secrets.CHANGERAWR_API_KEY }}
+  CHANGERAWR_API_URL: ${{ secrets.CHANGERAWR_API_URL }}
 
 jobs:
   check-skip:
@@ -293,33 +295,137 @@ jobs:
 
       - name: 📋 Prepare Release Notes file
         if: ${{ matrix.platform == 'android' }}
-        env:
-          RELEASE_NOTES_INPUT: ${{ github.event.inputs.release_notes }}
-          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           set -eo pipefail
-          # Determine source of release notes: workflow input, PR body, or recent commits
-          if [ -n "$RELEASE_NOTES_INPUT" ]; then
-            NOTES="$RELEASE_NOTES_INPUT"
-          elif [ -n "$PR_BODY" ]; then
-            NOTES="$(printf '%s\n' "$PR_BODY" \
+          
+          # Function to extract release notes from PR body
+          extract_release_notes() {
+            local body="$1"
+            # Try to extract content under "## Release Notes" heading
+            local notes="$(printf '%s\n' "$body" \
               | awk 'f && /^## /{exit} /^## Release Notes/{f=1; next} f')"
-          else
+            
+            # If no specific section found, use the entire body (up to first 500 chars for safety)
+            if [ -z "$notes" ]; then
+              notes="$(printf '%s\n' "$body" | head -c 500)"
+            fi
+            
+            printf '%s\n' "$notes"
+          }
+          
+          # Determine source of release notes
+          NOTES=""
+          
+          # Check if this was triggered by a push event (likely a merge)
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Fetching PR body for merged commit..."
+            
+            # Get the PR number associated with this merge commit
+            PR_NUMBER=$(gh pr list \
+              --state merged \
+              --search "${{ github.sha }}" \
+              --json number \
+              --jq '.[0].number' 2>/dev/null || echo "")
+            
+            if [ -n "$PR_NUMBER" ]; then
+              echo "Found merged PR #$PR_NUMBER"
+              
+              # Fetch the PR body
+              PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null || echo "")
+              
+              if [ -n "$PR_BODY" ]; then
+                NOTES="$(extract_release_notes "$PR_BODY")"
+              fi
+            else
+              echo "No associated PR found, checking commit message..."
+              # Try to find PR number from commit message
+              PR_FROM_COMMIT=$(git log -1 --pretty=%B | grep -oE '#[0-9]+' | head -1 | tr -d '#' || echo "")
+              
+              if [ -n "$PR_FROM_COMMIT" ]; then
+                echo "Found PR #$PR_FROM_COMMIT from commit message"
+                PR_BODY=$(gh pr view "$PR_FROM_COMMIT" --json body --jq '.body' 2>/dev/null || echo "")
+                
+                if [ -n "$PR_BODY" ]; then
+                  NOTES="$(extract_release_notes "$PR_BODY")"
+                fi
+              fi
+            fi
+          fi
+          
+          # Fallback to recent commits if no PR body found
+          if [ -z "$NOTES" ]; then
+            echo "No PR body found, using recent commits..."
             NOTES="$(git log -n 5 --pretty=format:'- %s')"
           fi
+          
           # Fail if no notes extracted
           if [ -z "$NOTES" ]; then
             echo "Error: No release notes extracted" >&2
             exit 1
           fi
+          
           # Write header and notes to file
           {
             echo "## Version 7.${{ github.run_number }} - $(date +%Y-%m-%d)"
             echo
             printf '%s\n' "$NOTES"
           } > RELEASE_NOTES.md
+          
+          echo "Release notes prepared:"
+          cat RELEASE_NOTES.md
+        env:
+          GH_TOKEN: ${{ github.token }}
 
-      - name: 📦 Create Release
+      - name: � Send Release Notes to Changerawr
+        if: ${{ matrix.platform == 'android' && env.CHANGERAWR_API_URL != '' && env.CHANGERAWR_API_KEY != '' }}
+        run: |
+          set -eo pipefail
+          
+          # Read release notes
+          RELEASE_NOTES=$(cat RELEASE_NOTES.md)
+          VERSION="7.${{ github.run_number }}"
+          
+          # Prepare JSON payload
+          PAYLOAD=$(jq -n \
+            --arg version "$VERSION" \
+            --arg notes "$RELEASE_NOTES" \
+            --arg platform "android" \
+            --arg buildNumber "${{ github.run_number }}" \
+            --arg commitSha "${{ github.sha }}" \
+            --arg buildUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{
+              version: $version,
+              releaseNotes: $notes,
+              platform: $platform,
+              buildNumber: $buildNumber,
+              commitSha: $commitSha,
+              buildUrl: $buildUrl,
+              timestamp: now | todate
+            }')
+          
+          echo "Sending release notes to Changerawr..."
+          
+          # Send to Changerawr API
+          RESPONSE=$(curl -X POST "$CHANGERAWR_API_URL" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $CHANGERAWR_API_KEY" \
+            -d "$PAYLOAD" \
+            -w "\n%{http_code}" \
+            -s)
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Successfully sent release notes to Changerawr (HTTP $HTTP_CODE)"
+            echo "Response: $RESPONSE_BODY"
+          else
+            echo "⚠️  Failed to send release notes to Changerawr (HTTP $HTTP_CODE)"
+            echo "Response: $RESPONSE_BODY"
+            # Don't fail the build, just warn
+          fi
+
+      - name: �📦 Create Release
         if: ${{ matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-apk') }}
         uses: ncipollo/release-action@v1
         with:
