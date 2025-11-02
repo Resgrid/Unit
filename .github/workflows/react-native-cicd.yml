@@ -302,8 +302,9 @@ jobs:
           extract_release_notes() {
             local body="$1"
             
-            # Remove "Summary by CodeRabbit" section (including any content under it until the next header)
+            # Remove "Summary by CodeRabbit" section and auto-generated comment line
             local cleaned_body="$(printf '%s\n' "$body" \
+              | grep -v '<!-- end of auto-generated comment: release notes by coderabbit.ai -->' \
               | awk '
                 BEGIN { skip=0 }
                 /^## Summary by CodeRabbit/ { skip=1; next }
@@ -399,14 +400,14 @@ jobs:
             exit 0
           fi
           
-          # Read release notes
-          RELEASE_NOTES=$(cat RELEASE_NOTES.md)
+          # Read release notes and preserve markdown formatting
+          RELEASE_NOTES=$(<RELEASE_NOTES.md)
           VERSION="7.${{ github.run_number }}"
           
-          # Prepare JSON payload
+          # Prepare JSON payload using --rawfile to properly handle multiline markdown
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
-            --arg notes "$RELEASE_NOTES" \
+            --rawfile notes RELEASE_NOTES.md \
             --arg platform "android" \
             --arg buildNumber "${{ github.run_number }}" \
             --arg commitSha "${{ github.sha }}" \
