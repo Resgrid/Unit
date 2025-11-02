@@ -400,40 +400,21 @@ jobs:
             exit 0
           fi
           
-          # Read release notes and preserve markdown formatting
-          RELEASE_NOTES=$(<RELEASE_NOTES.md)
+          # Read release notes
+          RELEASE_NOTES=$(cat RELEASE_NOTES.md)
           VERSION="7.${{ github.run_number }}"
           
-          # Prepare JSON payload using --rawfile to properly handle multiline markdown
+          # Prepare JSON payload
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
-            --rawfile notes RELEASE_NOTES.md \
-            --arg platform "android" \
+            --arg notes "$RELEASE_NOTES" \
             --arg buildNumber "${{ github.run_number }}" \
             --arg commitSha "${{ github.sha }}" \
             --arg buildUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{
               "version": $version,
               "title": ("Release v" + $version),
-              "content": $notes,
-              "tags": [
-                {
-                  "id": "platform",
-                  "name": ($platform | tostring)
-                },
-                {
-                  "id": "buildNumber",
-                  "name": ($buildNumber | tostring)
-                },
-                {
-                  "id": "commitSha",
-                  "name": ($commitSha | tostring)
-                },
-                {
-                  "id": "buildUrl",
-                  "name": ($buildUrl | tostring)
-                }
-              ]
+              "content": "$notes",
             }')
           
           echo "Sending release notes to Changerawr..."
