@@ -301,13 +301,23 @@ jobs:
           # Function to extract release notes from PR body
           extract_release_notes() {
             local body="$1"
+            
+            # Remove "Summary by CodeRabbit" section (including any content under it until the next header)
+            local cleaned_body="$(printf '%s\n' "$body" \
+              | awk '
+                BEGIN { skip=0 }
+                /^## Summary by CodeRabbit/ { skip=1; next }
+                /^## / && skip==1 { skip=0 }
+                skip==0 { print }
+              ')"
+            
             # Try to extract content under "## Release Notes" heading
-            local notes="$(printf '%s\n' "$body" \
+            local notes="$(printf '%s\n' "$cleaned_body" \
               | awk 'f && /^## /{exit} /^## Release Notes/{f=1; next} f')"
             
-            # If no specific section found, use the entire body (up to first 500 chars for safety)
+            # If no specific section found, use the entire cleaned body (up to first 500 chars for safety)
             if [ -z "$notes" ]; then
-              notes="$(printf '%s\n' "$body" | head -c 500)"
+              notes="$(printf '%s\n' "$cleaned_body" | head -c 500)"
             fi
             
             printf '%s\n' "$notes"
@@ -402,13 +412,27 @@ jobs:
             --arg commitSha "${{ github.sha }}" \
             --arg buildUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{
-              version: $version,
-              releaseNotes: $notes,
-              platform: $platform,
-              buildNumber: $buildNumber,
-              commitSha: $commitSha,
-              buildUrl: $buildUrl,
-              timestamp: now | todate
+              "version": $version,
+              "title": "Release v" + $version,
+              "content": "$notes",
+              "tags": [
+                {
+                  "id": "platform",
+                  "name": "$platform"
+                },
+                {
+                  "id": "buildNumber",
+                  "name": "$buildNumber"
+                },
+                {
+                  "id": "commitSha",
+                  "name": "$commitSha"
+                },
+                {
+                  "id": "buildUrl",
+                  "name": "$buildUrl"
+                }
+              ]
             }')
           
           echo "Sending release notes to Changerawr..."
