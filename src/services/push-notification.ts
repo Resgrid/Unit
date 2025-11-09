@@ -82,19 +82,19 @@ class PushNotificationService {
     await this.setupAndroidNotificationChannels();
 
     // Configure notifications behavior
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
+    //Notifications.setNotificationHandler({
+    //  handleNotification: async () => ({
+    //    shouldShowAlert: true,
+    //    shouldPlaySound: true,
+    //    shouldSetBadge: false,
+    //    shouldShowBanner: true,
+    //    shouldShowList: true,
+    //  }),
+    //});
 
     // Set up notification listeners and store the subscription handles
-    this.notificationReceivedListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-    this.notificationResponseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+    //this.notificationReceivedListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
+    //this.notificationResponseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
 
     // Listen for foreground messages and store the unsubscribe function
     this.fcmOnMessageUnsubscribe = messaging().onMessage(async (remoteMessage) => {
@@ -198,11 +198,12 @@ class PushNotificationService {
       }
 
       // Get the token using the non-Expo push notification service method
-      const devicePushToken = await Notifications.getDevicePushTokenAsync();
+      //const devicePushToken = await Notifications.getDevicePushTokenAsync();
 
       // The token format depends on the platform
-      const token = Platform.OS === 'ios' ? devicePushToken.data : devicePushToken.data;
+      //const token = Platform.OS === 'ios' ? devicePushToken.data : devicePushToken.data;
 
+      const token = await messaging().getToken();
       this.pushToken = token as string;
 
       logger.info({
@@ -232,58 +233,8 @@ class PushNotificationService {
     }
   }
 
-  // Method to send the token to your backend
-  private async sendTokenToBackend(token: string, unitId: string): Promise<void> {
-    // Implement your API call to register the token with your backend
-    // This is where you would associate the token with the unitId
-    try {
-      // Example implementation:
-      // await api.post('/register-push-token', { token, unitId });
-
-      logger.info({
-        message: 'Push token registered with backend',
-        context: { token, unitId },
-      });
-    } catch (error) {
-      logger.error({
-        message: 'Failed to register push token with backend',
-        context: { error, token, unitId },
-      });
-    }
-  }
-
   public getPushToken(): string | null {
     return this.pushToken;
-  }
-
-  public async sendTestNotification(): Promise<void> {
-    if (!this.pushToken) {
-      logger.warn({
-        message: 'Cannot send test notification - no push token available',
-      });
-      return;
-    }
-
-    try {
-      // This is a local test notification, not sent through a server
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'Test Notification',
-          body: 'This is a test notification from Resgrid Unit',
-          data: { type: 'test', timestamp: new Date().toISOString() },
-        },
-        trigger: null, // Send immediately
-      });
-
-      logger.info({
-        message: 'Test notification sent',
-      });
-    } catch (error) {
-      logger.error({
-        message: 'Failed to send test notification',
-        context: { error },
-      });
-    }
   }
 
   public cleanup(): void {
