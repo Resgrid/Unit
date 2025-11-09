@@ -294,6 +294,5 @@ export const usePushNotifications = () => {
 
   return {
     pushToken: pushNotificationService.getPushToken(),
-    sendTestNotification: () => pushNotificationService.sendTestNotification(),
   };
 };
