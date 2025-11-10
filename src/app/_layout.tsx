@@ -5,10 +5,10 @@ import '../lib/i18n';
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { registerGlobals } from '@livekit/react-native';
+import notifee from '@notifee/react-native';
 import { createNavigationContainerRef, DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import { isRunningInExpoGo } from 'expo';
-import * as Notifications from 'expo-notifications';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
@@ -102,13 +102,14 @@ function RootLayout() {
     }
 
     // Clear the badge count on app startup
-    Notifications.setBadgeCountAsync(0)
+    notifee
+      .setBadgeCount(0)
       .then(() => {
         logger.info({
           message: 'Badge count cleared on startup',
         });
       })
-      .catch((error) => {
+      .catch((error: Error) => {
         logger.error({
           message: 'Failed to clear badge count on startup',
           context: { error },

@@ -1,7 +1,6 @@
-import notifee from '@notifee/react-native';
-import messaging from '@react-native-firebase/messaging';
+import notifee, { AndroidImportance, AndroidVisibility, AuthorizationStatus } from '@notifee/react-native';
+import messaging, { type FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
@@ -22,9 +21,9 @@ export interface PushNotificationData {
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
-  private notificationReceivedListener: { remove: () => void } | null = null;
-  private notificationResponseListener: { remove: () => void } | null = null;
   private fcmOnMessageUnsubscribe: (() => void) | null = null;
+  private fcmOnNotificationOpenedAppUnsubscribe: (() => void) | null = null;
+  private backgroundMessageHandlerRegistered: boolean = false;
 
   public static getInstance(): PushNotificationService {
     if (!PushNotificationService.instance) {
@@ -34,14 +33,17 @@ class PushNotificationService {
   }
 
   private async createNotificationChannel(id: string, name: string, description: string, sound?: string, vibration: boolean = true): Promise<void> {
-    await Notifications.setNotificationChannelAsync(id, {
+    await notifee.createChannel({
+      id,
       name,
       description,
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: vibration ? [0, 250, 250, 250] : undefined,
+      importance: AndroidImportance.HIGH,
+      vibration: vibration,
+      vibrationPattern: vibration ? [300, 500] : undefined,
       sound,
+      lights: true,
       lightColor: '#FF231F7C',
-      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+      visibility: AndroidVisibility.PUBLIC,
     });
   }
 
@@ -77,36 +79,66 @@ class PushNotificationService {
     }
   }
 
+  private handleRemoteMessage = async (remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> => {
+    logger.info({
+      message: 'FCM message received',
+      context: {
+        data: remoteMessage.data,
+        notification: remoteMessage.notification,
+      },
+    });
+
+    // Check if the notification has an eventCode and show modal
+    // eventCode must be a string to be valid
+    if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
+      const notificationData = {
+        eventCode: remoteMessage.data.eventCode as string,
+        title: remoteMessage.notification?.title || undefined,
+        body: remoteMessage.notification?.body || undefined,
+        data: remoteMessage.data,
+      };
+
+      // Show the notification modal using the store
+      usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+    }
+  };
+
   async initialize(): Promise<void> {
     // Set up Android notification channels
     await this.setupAndroidNotificationChannels();
 
-    // Configure notifications behavior
-    //Notifications.setNotificationHandler({
-    //  handleNotification: async () => ({
-    //    shouldShowAlert: true,
-    //    shouldPlaySound: true,
-    //    shouldSetBadge: false,
-    //    shouldShowBanner: true,
-    //    shouldShowList: true,
-    //  }),
-    //});
+    // Register background message handler (only once)
+    if (!this.backgroundMessageHandlerRegistered) {
+      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+        logger.info({
+          message: 'Background FCM message received',
+          context: {
+            data: remoteMessage.data,
+            notification: remoteMessage.notification,
+          },
+        });
 
-    // Set up notification listeners and store the subscription handles
-    //this.notificationReceivedListener = Notifications.addNotificationReceivedListener(this.handleNotificationReceived);
-    //this.notificationResponseListener = Notifications.addNotificationResponseReceivedListener(this.handleNotificationResponse);
+        // Handle background notifications
+        // Background messages can be used to update app state or show notifications
+        // The notification is automatically displayed by FCM if it has a notification payload
+      });
+      this.backgroundMessageHandlerRegistered = true;
+    }
 
     // Listen for foreground messages and store the unsubscribe function
-    this.fcmOnMessageUnsubscribe = messaging().onMessage(async (remoteMessage) => {
+    this.fcmOnMessageUnsubscribe = messaging().onMessage(this.handleRemoteMessage);
+
+    // Listen for notification opened app (when user taps on notification)
+    this.fcmOnNotificationOpenedAppUnsubscribe = messaging().onNotificationOpenedApp((remoteMessage) => {
       logger.info({
-        message: 'FCM Notification received',
+        message: 'Notification opened app',
         context: {
           data: remoteMessage.data,
         },
       });
 
-      // Check if the notification has an eventCode and show modal
-      // eventCode must be a string to be valid
+      // Handle notification tap
+      // You can navigate to specific screens based on the notification data
       if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
         const notificationData = {
           eventCode: remoteMessage.data.eventCode as string,
@@ -120,50 +152,37 @@ class PushNotificationService {
       }
     });
 
+    // Check if app was opened from a notification (when app was killed)
+    messaging()
+      .getInitialNotification()
+      .then((remoteMessage) => {
+        if (remoteMessage) {
+          logger.info({
+            message: 'App opened from notification (killed state)',
+            context: {
+              data: remoteMessage.data,
+            },
+          });
+
+          // Handle the initial notification
+          if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
+            const notificationData = {
+              eventCode: remoteMessage.data.eventCode as string,
+              title: remoteMessage.notification?.title || undefined,
+              body: remoteMessage.notification?.body || undefined,
+              data: remoteMessage.data,
+            };
+
+            // Show the notification modal using the store
+            usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+          }
+        }
+      });
+
     logger.info({
       message: 'Push notification service initialized',
     });
   }
-
-  private handleNotificationReceived = (notification: Notifications.Notification): void => {
-    const data = notification.request.content.data;
-
-    logger.info({
-      message: 'Notification received',
-      context: {
-        data,
-      },
-    });
-
-    // Check if the notification has an eventCode and show modal
-    // eventCode must be a string to be valid
-    if (data && data.eventCode && typeof data.eventCode === 'string') {
-      const notificationData = {
-        eventCode: data.eventCode as string,
-        title: notification.request.content.title || undefined,
-        body: notification.request.content.body || undefined,
-        data,
-      };
-
-      // Show the notification modal using the store
-      usePushNotificationModalStore.getState().showNotificationModal(notificationData);
-    }
-  };
-
-  private handleNotificationResponse = (response: Notifications.NotificationResponse): void => {
-    const data = response.notification.request.content.data;
-
-    logger.info({
-      message: 'Notification response received',
-      context: {
-        data,
-      },
-    });
-
-    // Here you can handle navigation or other actions based on notification data
-    // For example, if the notification contains a callId, you could navigate to that call
-    // This would typically involve using a navigation service or dispatching an action
-  };
 
   public async registerForPushNotifications(unitId: string, departmentCode: string): Promise<string | null> {
     if (!Device.isDevice) {
@@ -174,37 +193,46 @@ class PushNotificationService {
     }
 
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
+      // Request permissions using Firebase Messaging
+      let authStatus = await messaging().hasPermission();
 
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync({
-          ios: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-            allowCriticalAlerts: true,
-          },
+      if (authStatus === messaging.AuthorizationStatus.NOT_DETERMINED || authStatus === messaging.AuthorizationStatus.DENIED) {
+        // Request permission
+        authStatus = await messaging().requestPermission({
+          alert: true,
+          badge: true,
+          sound: true,
+          criticalAlert: true, // iOS critical alerts
+          provisional: false,
         });
-        finalStatus = status;
       }
 
-      if (finalStatus !== 'granted') {
+      // Check if permission was granted
+      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (!enabled) {
         logger.warn({
           message: 'Failed to get push notification permissions',
-          context: { status: finalStatus },
+          context: { authStatus },
         });
         return null;
       }
 
-      // Get the token using the non-Expo push notification service method
-      //const devicePushToken = await Notifications.getDevicePushTokenAsync();
+      // For Android, also request notification permission using Notifee
+      if (Platform.OS === 'android') {
+        const notifeeSettings = await notifee.requestPermission();
+        if (notifeeSettings.authorizationStatus === AuthorizationStatus.DENIED) {
+          logger.warn({
+            message: 'Notifee notification permissions denied',
+            context: { authorizationStatus: notifeeSettings.authorizationStatus },
+          });
+          return null;
+        }
+      }
 
-      // The token format depends on the platform
-      //const token = Platform.OS === 'ios' ? devicePushToken.data : devicePushToken.data;
-
+      // Get FCM token
       const token = await messaging().getToken();
-      this.pushToken = token as string;
+      this.pushToken = token;
 
       logger.info({
         message: 'Push notification token obtained',
@@ -215,6 +243,7 @@ class PushNotificationService {
         },
       });
 
+      // Register device with backend
       await registerUnitDevice({
         UnitId: unitId,
         Token: this.pushToken,
@@ -238,19 +267,14 @@ class PushNotificationService {
   }
 
   public cleanup(): void {
-    if (this.notificationReceivedListener) {
-      this.notificationReceivedListener.remove();
-      this.notificationReceivedListener = null;
-    }
-
-    if (this.notificationResponseListener) {
-      this.notificationResponseListener.remove();
-      this.notificationResponseListener = null;
-    }
-
     if (this.fcmOnMessageUnsubscribe) {
       this.fcmOnMessageUnsubscribe();
       this.fcmOnMessageUnsubscribe = null;
+    }
+
+    if (this.fcmOnNotificationOpenedAppUnsubscribe) {
+      this.fcmOnNotificationOpenedAppUnsubscribe();
+      this.fcmOnNotificationOpenedAppUnsubscribe = null;
     }
   }
 }
