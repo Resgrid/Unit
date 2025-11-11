@@ -89,7 +89,7 @@
     "@livekit/react-native-webrtc": "^137.0.2",
     "@microsoft/signalr": "~8.0.7",
     "@notifee/react-native": "^9.1.8",
-    "@novu/react-native": "~2.6.6",
+    "@novu/react-native": "^3.11.0",
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-firebase/app": "^23.5.0",
     "@react-native-firebase/messaging": "^23.5.0",

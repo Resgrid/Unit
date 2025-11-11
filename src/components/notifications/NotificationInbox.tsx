@@ -162,7 +162,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   const renderItem = ({ item }: { item: any }) => {
     const notification: NotificationPayload = {
       id: item.id,
-      title: item.title,
+      title: item.subject,
       body: item.body,
       createdAt: item.createdAt,
       read: item.read,
@@ -194,7 +194,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
         ) : null}
 
         <View style={styles.notificationContent}>
-          <Text style={[styles.notificationBody, !item.read ? styles.unreadNotificationText : {}]}>{notification.body}</Text>
+          <Text style={[styles.notificationBody, !item.read ? styles.unreadNotificationText : {}]}>{notification.title}</Text>
           <Text style={styles.timestamp}>
             {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
           </Text>
