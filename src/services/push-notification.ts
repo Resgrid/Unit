@@ -133,11 +133,14 @@ class PushNotificationService {
         // Determine if this is a critical alert (calls)
         const isCritical = category === 'calls' || customType === '0';
 
+        // Extract sound name from FCM payload, fallback to 'default'
+        const sound = (remoteMessage.data?.sound as string) || 'default';
+
         await notifee.displayNotification({
           title: title,
           body: body,
           ios: {
-            sound: 'default',
+            sound: sound,
             criticalVolume: 1.0,
             critical: isCritical,
             categoryId: (category as string) || 'calls',
@@ -252,11 +255,14 @@ class PushNotificationService {
           const body = (remoteMessage.data?.message as string) || remoteMessage.notification.body;
           const isCritical = category === 'calls' || customType === '0';
 
+          // Derive sound from remoteMessage.data['sound'] or remoteMessage.notification?.ios?.sound, fallback to 'default'
+          const soundName = String(remoteMessage.data?.sound || remoteMessage.notification?.ios?.sound || 'default');
+
           await notifee.displayNotification({
             title: title,
             body: body,
             ios: {
-              sound: 'default',
+              sound: soundName,
               criticalVolume: 1.0,
               critical: isCritical,
               categoryId: (category as string) || 'calls',
