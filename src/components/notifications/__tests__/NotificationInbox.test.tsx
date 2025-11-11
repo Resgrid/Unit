@@ -207,6 +207,7 @@ describe('NotificationInbox', () => {
       readAll: jest.fn(),
       archiveAll: jest.fn(),
       archiveAllRead: jest.fn(),
+      seenAll: jest.fn(),
     });
 
     mockUseCoreStore.mockImplementation((selector: any) => {
@@ -353,6 +354,7 @@ describe('NotificationInbox', () => {
       readAll: jest.fn(),
       archiveAll: jest.fn(),
       archiveAllRead: jest.fn(),
+      seenAll: jest.fn(),
     });
 
     const { getByTestId } = render(
@@ -373,6 +375,7 @@ describe('NotificationInbox', () => {
       readAll: jest.fn(),
       archiveAll: jest.fn(),
       archiveAllRead: jest.fn(),
+      seenAll: jest.fn(),
     });
 
     const { getByText } = render(
