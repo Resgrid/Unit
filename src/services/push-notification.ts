@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, AndroidVisibility, AuthorizationStatus } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidVisibility, AuthorizationStatus, EventType } from '@notifee/react-native';
 import messaging, { type FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import * as Device from 'expo-device';
 import { useEffect, useRef } from 'react';
@@ -79,6 +79,36 @@ class PushNotificationService {
     }
   }
 
+  private async setupIOSNotificationCategories(): Promise<void> {
+    if (Platform.OS === 'ios') {
+      try {
+        // Set up notification categories for iOS
+        // Note: This does NOT request permissions, just sets up the categories
+        await notifee.setNotificationCategories([
+          {
+            id: 'calls',
+            actions: [
+              {
+                id: 'view',
+                title: 'View Call',
+                foreground: true,
+              },
+            ],
+          },
+        ]);
+
+        logger.info({
+          message: 'iOS notification categories setup completed',
+        });
+      } catch (error) {
+        logger.error({
+          message: 'Error setting up iOS notification categories',
+          context: { error },
+        });
+      }
+    }
+  }
+
   private handleRemoteMessage = async (remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> => {
     logger.info({
       message: 'FCM message received',
@@ -88,13 +118,47 @@ class PushNotificationService {
       },
     });
 
+    // Extract eventCode and other data based on platform
+    // For Android: data.eventCode, data.type, data.title, data.message
+    // For iOS: comes through notification or data
+    const eventCode = remoteMessage.data?.eventCode as string | undefined;
+    const customType = remoteMessage.data?.type || remoteMessage.data?.customType;
+    const title = (remoteMessage.data?.title as string) || remoteMessage.notification?.title;
+    const body = (remoteMessage.data?.message as string) || remoteMessage.notification?.body;
+    const category = remoteMessage.data?.category || remoteMessage.notification?.android?.channelId;
+
+    // On iOS, display the notification in foreground using Notifee
+    if (Platform.OS === 'ios' && remoteMessage.notification) {
+      try {
+        // Determine if this is a critical alert (calls)
+        const isCritical = category === 'calls' || customType === '0';
+
+        await notifee.displayNotification({
+          title: title,
+          body: body,
+          ios: {
+            sound: 'default',
+            criticalVolume: 1.0,
+            critical: isCritical,
+            categoryId: (category as string) || 'calls',
+          },
+          data: remoteMessage.data as Record<string, string>,
+        });
+      } catch (error) {
+        logger.error({
+          message: 'Error displaying iOS foreground notification',
+          context: { error },
+        });
+      }
+    }
+
     // Check if the notification has an eventCode and show modal
     // eventCode must be a string to be valid
-    if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
+    if (eventCode && typeof eventCode === 'string') {
       const notificationData = {
-        eventCode: remoteMessage.data.eventCode as string,
-        title: remoteMessage.notification?.title || undefined,
-        body: remoteMessage.notification?.body || undefined,
+        eventCode: eventCode,
+        title: title,
+        body: body,
         data: remoteMessage.data,
       };
 
@@ -104,8 +168,70 @@ class PushNotificationService {
   };
 
   async initialize(): Promise<void> {
-    // Set up Android notification channels
+    // Set up notification channels/categories based on platform
     await this.setupAndroidNotificationChannels();
+    await this.setupIOSNotificationCategories();
+
+    // Set up Notifee event listeners for notification taps
+    notifee.onForegroundEvent(async ({ type, detail }) => {
+      logger.info({
+        message: 'Notifee foreground event',
+        context: { type, detail: { id: detail.notification?.id, data: detail.notification?.data } },
+      });
+
+      // Handle notification press
+      if (type === EventType.PRESS && detail.notification) {
+        const eventCode = detail.notification.data?.eventCode as string | undefined;
+        const title = detail.notification.title;
+        const body = detail.notification.body;
+
+        if (eventCode && typeof eventCode === 'string') {
+          const notificationData = {
+            eventCode: eventCode,
+            title: title,
+            body: body,
+            data: detail.notification.data,
+          };
+
+          logger.info({
+            message: 'Showing notification modal from Notifee foreground tap',
+            context: { eventCode, title },
+          });
+
+          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+        }
+      }
+    });
+
+    notifee.onBackgroundEvent(async ({ type, detail }) => {
+      logger.info({
+        message: 'Notifee background event',
+        context: { type, detail: { id: detail.notification?.id, data: detail.notification?.data } },
+      });
+
+      // Handle notification press in background
+      if (type === EventType.PRESS && detail.notification) {
+        const eventCode = detail.notification.data?.eventCode as string | undefined;
+        const title = detail.notification.title;
+        const body = detail.notification.body;
+
+        if (eventCode && typeof eventCode === 'string') {
+          const notificationData = {
+            eventCode: eventCode,
+            title: title,
+            body: body,
+            data: detail.notification.data,
+          };
+
+          logger.info({
+            message: 'Showing notification modal from Notifee background tap',
+            context: { eventCode, title },
+          });
+
+          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+        }
+      }
+    });
 
     // Register background message handler (only once)
     if (!this.backgroundMessageHandlerRegistered) {
@@ -118,9 +244,26 @@ class PushNotificationService {
           },
         });
 
-        // Handle background notifications
-        // Background messages can be used to update app state or show notifications
-        // The notification is automatically displayed by FCM if it has a notification payload
+        // For iOS background notifications, display using Notifee
+        if (Platform.OS === 'ios' && remoteMessage.notification) {
+          const customType = remoteMessage.data?.type || remoteMessage.data?.customType;
+          const category = remoteMessage.data?.category || remoteMessage.notification?.android?.channelId || 'calls';
+          const title = (remoteMessage.data?.title as string) || remoteMessage.notification.title;
+          const body = (remoteMessage.data?.message as string) || remoteMessage.notification.body;
+          const isCritical = category === 'calls' || customType === '0';
+
+          await notifee.displayNotification({
+            title: title,
+            body: body,
+            ios: {
+              sound: 'default',
+              criticalVolume: 1.0,
+              critical: isCritical,
+              categoryId: (category as string) || 'calls',
+            },
+            data: remoteMessage.data as Record<string, string>,
+          });
+        }
       });
       this.backgroundMessageHandlerRegistered = true;
     }
@@ -131,53 +274,89 @@ class PushNotificationService {
     // Listen for notification opened app (when user taps on notification)
     this.fcmOnNotificationOpenedAppUnsubscribe = messaging().onNotificationOpenedApp((remoteMessage) => {
       logger.info({
-        message: 'Notification opened app',
+        message: 'Notification opened app (from background)',
         context: {
           data: remoteMessage.data,
+          notification: remoteMessage.notification,
         },
       });
 
-      // Handle notification tap
-      // You can navigate to specific screens based on the notification data
-      if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
-        const notificationData = {
-          eventCode: remoteMessage.data.eventCode as string,
-          title: remoteMessage.notification?.title || undefined,
-          body: remoteMessage.notification?.body || undefined,
-          data: remoteMessage.data,
-        };
+      // Extract eventCode and other data
+      const eventCode = remoteMessage.data?.eventCode as string | undefined;
+      const title = (remoteMessage.data?.title as string) || remoteMessage.notification?.title;
+      const body = (remoteMessage.data?.message as string) || remoteMessage.notification?.body;
 
-        // Show the notification modal using the store
-        usePushNotificationModalStore.getState().showNotificationModal(notificationData);
-      }
+      // Handle notification tap
+      // Use a small delay to ensure the app is fully initialized and the store is ready
+      setTimeout(() => {
+        if (eventCode && typeof eventCode === 'string') {
+          const notificationData = {
+            eventCode: eventCode,
+            title: title,
+            body: body,
+            data: remoteMessage.data,
+          };
+
+          logger.info({
+            message: 'Showing notification modal from tap (background)',
+            context: { eventCode, title },
+          });
+
+          // Show the notification modal using the store
+          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+        }
+      }, 300);
     });
 
     // Check if app was opened from a notification (when app was killed)
-    messaging()
-      .getInitialNotification()
-      .then((remoteMessage) => {
-        if (remoteMessage) {
-          logger.info({
-            message: 'App opened from notification (killed state)',
-            context: {
-              data: remoteMessage.data,
-            },
-          });
+    // Use a longer delay to ensure React tree is fully mounted
+    setTimeout(() => {
+      messaging()
+        .getInitialNotification()
+        .then((remoteMessage) => {
+          if (remoteMessage) {
+            logger.info({
+              message: 'App opened from notification (killed state)',
+              context: {
+                data: remoteMessage.data,
+                notification: remoteMessage.notification,
+              },
+            });
 
-          // Handle the initial notification
-          if (remoteMessage.data && remoteMessage.data.eventCode && typeof remoteMessage.data.eventCode === 'string') {
-            const notificationData = {
-              eventCode: remoteMessage.data.eventCode as string,
-              title: remoteMessage.notification?.title || undefined,
-              body: remoteMessage.notification?.body || undefined,
-              data: remoteMessage.data,
-            };
+            // Extract eventCode and other data
+            const eventCode = remoteMessage.data?.eventCode as string | undefined;
+            const title = (remoteMessage.data?.title as string) || remoteMessage.notification?.title;
+            const body = (remoteMessage.data?.message as string) || remoteMessage.notification?.body;
 
-            // Show the notification modal using the store
-            usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+            // Handle the initial notification
+            // Use a delay to ensure the app is fully loaded and the store is ready
+            setTimeout(() => {
+              if (eventCode && typeof eventCode === 'string') {
+                const notificationData = {
+                  eventCode: eventCode,
+                  title: title,
+                  body: body,
+                  data: remoteMessage.data,
+                };
+
+                logger.info({
+                  message: 'Showing notification modal from tap (killed state)',
+                  context: { eventCode, title },
+                });
+
+                // Show the notification modal using the store
+                usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+              }
+            }, 500);
           }
-        }
-      });
+        })
+        .catch((error) => {
+          logger.error({
+            message: 'Error checking initial notification',
+            context: { error },
+          });
+        });
+    }, 1000);
 
     logger.info({
       message: 'Push notification service initialized',
@@ -192,34 +371,71 @@ class PushNotificationService {
       return null;
     }
 
-    try {
-      // Request permissions using Firebase Messaging
-      let authStatus = await messaging().hasPermission();
+    if (!unitId || unitId.trim() === '') {
+      logger.warn({
+        message: 'Cannot register for push notifications without an active unit ID',
+      });
+      return null;
+    }
 
-      if (authStatus === messaging.AuthorizationStatus.NOT_DETERMINED || authStatus === messaging.AuthorizationStatus.DENIED) {
-        // Request permission
-        authStatus = await messaging().requestPermission({
+    try {
+      // Request permissions based on platform
+      if (Platform.OS === 'ios') {
+        // For iOS, request permissions using Firebase Messaging
+        let authStatus = await messaging().hasPermission();
+
+        if (authStatus === messaging.AuthorizationStatus.NOT_DETERMINED || authStatus === messaging.AuthorizationStatus.DENIED) {
+          // Request permission
+          authStatus = await messaging().requestPermission({
+            alert: true,
+            badge: true,
+            sound: true,
+            criticalAlert: true, // iOS critical alerts
+            provisional: false,
+          });
+        }
+
+        // Check if permission was granted
+        const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+        if (!enabled) {
+          logger.warn({
+            message: 'Failed to get push notification permissions',
+            context: { authStatus },
+          });
+          return null;
+        }
+
+        // Also request Notifee permissions for iOS to enable critical alerts
+        await notifee.requestPermission({
           alert: true,
           badge: true,
           sound: true,
-          criticalAlert: true, // iOS critical alerts
-          provisional: false,
+          criticalAlert: true,
         });
-      }
+      } else {
+        // For Android, request permissions using Firebase Messaging
+        let authStatus = await messaging().hasPermission();
 
-      // Check if permission was granted
-      const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        if (authStatus === messaging.AuthorizationStatus.NOT_DETERMINED || authStatus === messaging.AuthorizationStatus.DENIED) {
+          authStatus = await messaging().requestPermission({
+            alert: true,
+            badge: true,
+            sound: true,
+          });
+        }
 
-      if (!enabled) {
-        logger.warn({
-          message: 'Failed to get push notification permissions',
-          context: { authStatus },
-        });
-        return null;
-      }
+        const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-      // For Android, also request notification permission using Notifee
-      if (Platform.OS === 'android') {
+        if (!enabled) {
+          logger.warn({
+            message: 'Failed to get push notification permissions',
+            context: { authStatus },
+          });
+          return null;
+        }
+
+        // For Android, also request notification permission using Notifee
         const notifeeSettings = await notifee.requestPermission();
         if (notifeeSettings.authorizationStatus === AuthorizationStatus.DENIED) {
           logger.warn({
