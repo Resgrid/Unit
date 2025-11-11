@@ -992,6 +992,13 @@
   resolved "https://registry.yarnpkg.com/@config-plugins/react-native-webrtc/-/react-native-webrtc-12.0.0.tgz#2bad8d59fa8aeb1b311c82c8704259154b00805f"
   integrity sha512-EIYR+ArIOFBz8cEHSdPjxqFPhaN+nNeoPnI6iVStctYKZdl6AEgmXq6Qfpds6qyin1W4JP7wq2jJh32OsRfwxg==
 
+"@corvu/utils@~0.4.0", "@corvu/utils@~0.4.1":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@corvu/utils/-/utils-0.4.2.tgz#ae867221297fd1e362efe41f081c42d7c746ff61"
+  integrity sha512-Ox2kYyxy7NoXdKWdHeDEjZxClwzO4SKM8plAaVwmAJPxHMqA0rLOoAsa+hBDwRLpctf+ZRnAd/ykguuJidnaTA==
+  dependencies:
+    "@floating-ui/dom" "^1.6.11"
+
 "@cspotcode/source-map-support@^0.8.0":
   version "0.8.1"
   resolved "https://registry.yarnpkg.com/@cspotcode/source-map-support/-/source-map-support-0.8.1.tgz#00629c35a688e05a88b1cda684fb9d5e73f000a1"
@@ -1806,7 +1813,7 @@
     "@floating-ui/core" "^1.6.0"
     "@floating-ui/utils" "^0.2.9"
 
-"@floating-ui/dom@^1.6.13":
+"@floating-ui/dom@^1.5.1", "@floating-ui/dom@^1.6.11", "@floating-ui/dom@^1.6.13":
   version "1.7.4"
   resolved "https://registry.yarnpkg.com/@floating-ui/dom/-/dom-1.7.4.tgz#ee667549998745c9c3e3e84683b909c31d6c9a77"
   integrity sha512-OOchDgh4F2CchOX94cRVqhvy7b3AFb+/rQXyswmzmGakRfkMgoWVjfnLWkRirfLEfuD4ysVW16eXzwt3jHIzKA==
@@ -2259,6 +2266,13 @@
   resolved "https://registry.yarnpkg.com/@inquirer/figures/-/figures-1.0.13.tgz#ad0afd62baab1c23175115a9b62f511b6a751e45"
   integrity sha512-lGPVU3yO9ZNqA7vTYz26jny41lE7yoQansmqdMLBEfqaGsmdg7V3W9mK9Pvb5IL4EVZ9GnSDGMO/cJXud5dMaw==
 
+"@internationalized/date@^3.4.0":
+  version "3.10.0"
+  resolved "https://registry.yarnpkg.com/@internationalized/date/-/date-3.10.0.tgz#056db64a4facdf48c6937ad498a882a8151d640a"
+  integrity sha512-oxDR/NTEJ1k+UFVQElaNIk65E/Z83HK1z1WI3lQyhTtnNg4R5oVXaPzK3jcpKG8UHKDVuDQHzn+wsxSz8RP3aw==
+  dependencies:
+    "@swc/helpers" "^0.5.0"
+
 "@internationalized/date@^3.9.0":
   version "3.9.0"
   resolved "https://registry.yarnpkg.com/@internationalized/date/-/date-3.9.0.tgz#cf241989b5dd07a2a9f1c91aabd2ad93968a0cc3"
@@ -2274,7 +2288,7 @@
     "@swc/helpers" "^0.5.0"
     intl-messageformat "^10.1.0"
 
-"@internationalized/number@^3.6.5":
+"@internationalized/number@^3.2.1", "@internationalized/number@^3.6.5":
   version "3.6.5"
   resolved "https://registry.yarnpkg.com/@internationalized/number/-/number-3.6.5.tgz#1103f2832ca8d9dd3e4eecf95733d497791dbbbe"
   integrity sha512-6hY4Kl4HPBvtfS62asS/R22JzNNy8vi/Ssev7x6EobfCp+9QIB2hKvI2EtbdJ0VSQacxVNtqhE/NmF/NZ0gm6g==
@@ -2883,6 +2897,33 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@kobalte/core@^0.13.10":
+  version "0.13.11"
+  resolved "https://registry.yarnpkg.com/@kobalte/core/-/core-0.13.11.tgz#bb6bf7df5c72ee1d8af58ea562cdb033635895a0"
+  integrity sha512-hK7TYpdib/XDb/r/4XDBFaO9O+3ZHz4ZWryV4/3BfES+tSQVgg2IJupDnztKXB0BqbSRy/aWlHKw1SPtNPYCFQ==
+  dependencies:
+    "@floating-ui/dom" "^1.5.1"
+    "@internationalized/date" "^3.4.0"
+    "@internationalized/number" "^3.2.1"
+    "@kobalte/utils" "^0.9.1"
+    "@solid-primitives/props" "^3.1.8"
+    "@solid-primitives/resize-observer" "^2.0.26"
+    solid-presence "^0.1.8"
+    solid-prevent-scroll "^0.1.4"
+
+"@kobalte/utils@^0.9.1":
+  version "0.9.1"
+  resolved "https://registry.yarnpkg.com/@kobalte/utils/-/utils-0.9.1.tgz#f648aaf2b794143ff23dda56dff05b42bdc20453"
+  integrity sha512-eeU60A3kprIiBDAfv9gUJX1tXGLuZiKMajUfSQURAF2pk4ZoMYiqIzmrMBvzcxP39xnYttgTyQEVLwiTZnrV4w==
+  dependencies:
+    "@solid-primitives/event-listener" "^2.2.14"
+    "@solid-primitives/keyed" "^1.2.0"
+    "@solid-primitives/map" "^0.4.7"
+    "@solid-primitives/media" "^2.2.4"
+    "@solid-primitives/props" "^3.1.8"
+    "@solid-primitives/refs" "^1.0.5"
+    "@solid-primitives/utils" "^6.2.1"
+
 "@legendapp/motion@~2.4.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@legendapp/motion/-/motion-2.4.0.tgz#eef6f934b784e07fe94631d5648d412f34fa0c6b"
@@ -3072,34 +3113,37 @@
   resolved "https://registry.yarnpkg.com/@notifee/react-native/-/react-native-9.1.8.tgz#3d55cb3fbcc21f9e35931e366afdf64b294da891"
   integrity sha512-Az/dueoPerJsbbjRxu8a558wKY+gONUrfoy3Hs++5OqbeMsR0dYe6P+4oN6twrLFyzAhEA1tEoZRvQTFDRmvQg==
 
-"@novu/js@3.0.1":
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/@novu/js/-/js-3.0.1.tgz#77ce1623904eeb93816e6a16a4c66cc6598eb1df"
-  integrity sha512-bWcCLi1e3u9lRkxmzawI58VI8QKSK7MwSq7Q/mcMWXPNCade7hx+g84UglKG6hIpX+iN+Q62ffk38r+JrFuawQ==
+"@novu/js@3.11.0":
+  version "3.11.0"
+  resolved "https://registry.yarnpkg.com/@novu/js/-/js-3.11.0.tgz#af79faf5ae3177e971baa5288c06bb5facc681e4"
+  integrity sha512-9GV0lb5n3Cf9vTfKgm/UzBnCm/+fcpFiqnSyuDd4lbI7BpdDbcDx5vz+XhvFhnJwtw+d1c9wTKTu5Q8xsplG7Q==
   dependencies:
     "@floating-ui/dom" "^1.6.13"
+    "@kobalte/core" "^0.13.10"
     class-variance-authority "^0.7.0"
     clsx "^2.1.1"
+    event-target-polyfill "^0.0.4"
     mitt "^3.0.1"
+    partysocket "^1.1.4"
     socket.io-client "4.7.2"
     solid-floating-ui "^0.3.1"
-    solid-js "^1.8.11"
+    solid-js "^1.9.4"
     solid-motionone "^1.0.3"
     tailwind-merge "^2.4.0"
 
-"@novu/react-native@~2.6.6":
-  version "2.6.10"
-  resolved "https://registry.yarnpkg.com/@novu/react-native/-/react-native-2.6.10.tgz#c39e86c84c58b7a991fee843786c0c405a33f0d4"
-  integrity sha512-OaIM4r/xB9gZY5dUARZ4ozsoG8q4bEpFC6vPdbiOd23lQEWYI1qVnp87UvLjKOEz1hneIw29yhBL4Gm0XCJxQQ==
+"@novu/react-native@^3.11.0":
+  version "3.11.0"
+  resolved "https://registry.yarnpkg.com/@novu/react-native/-/react-native-3.11.0.tgz#6fc1dda2f35bb5dff0a546822d1c0c9c307412f7"
+  integrity sha512-lBpdjV9y9gy2qEPeh9lxx3BBDdSDXcFGOyxjMELF1QE6+m5/ooGgq2xOUOO7Z7OeWyPkAQBr0WpiIQaP3qEy0A==
   dependencies:
-    "@novu/react" "3.0.1"
+    "@novu/react" "3.11.0"
 
-"@novu/react@3.0.1":
-  version "3.0.1"
-  resolved "https://registry.yarnpkg.com/@novu/react/-/react-3.0.1.tgz#263cb5094a2584e26a80c56db63dce936178e0f1"
-  integrity sha512-pJkIApvijpeOJ1KmcOYQQxPE+MZPDaI2qdGgvIz4/ResSfn4eHkpa9M/2HEfRNbySu+dUoREhaHQp23PHD6svQ==
+"@novu/react@3.11.0":
+  version "3.11.0"
+  resolved "https://registry.yarnpkg.com/@novu/react/-/react-3.11.0.tgz#5c2993bad472a753103cd03dd5624577d640ba4c"
+  integrity sha512-VoDh2DNjyP8JuzsLUXc5md9UEWF1MTQamMWjYeEv8WxUtDuYBkYGYjs7x/80kZXZ0wBJDuPsstypYUzjhsOwnw==
   dependencies:
-    "@novu/js" "3.0.1"
+    "@novu/js" "3.11.0"
 
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
@@ -4394,17 +4438,70 @@
   resolved "https://registry.yarnpkg.com/@socket.io/component-emitter/-/component-emitter-3.1.2.tgz#821f8442f4175d8f0467b9daf26e3a18e2d02af2"
   integrity sha512-9BCxFwvbGg/RsZK9tjXd8s4UcwR0MWeFQ1XEKIQVVvAGJyINdrqKMcTRyLoK8Rse1GjzLV9cwjWV1olXRWEXVA==
 
-"@solid-primitives/props@^3.1.11":
+"@solid-primitives/event-listener@^2.2.14", "@solid-primitives/event-listener@^2.4.3":
+  version "2.4.3"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/event-listener/-/event-listener-2.4.3.tgz#e09380222e38ed1b27f3d93bc72e85ba8507b3c0"
+  integrity sha512-h4VqkYFv6Gf+L7SQj+Y6puigL/5DIi7x5q07VZET7AWcS+9/G3WfIE9WheniHWJs51OEkRB43w6lDys5YeFceg==
+  dependencies:
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/keyed@^1.2.0":
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/keyed/-/keyed-1.5.2.tgz#0b2caa83bb293374b513f33fd4ba09dc3b5f4630"
+  integrity sha512-BgoEdqPw48URnI+L5sZIHdF4ua4Las1eWEBBPaoSFs42kkhnHue+rwCBPL2Z9ebOyQ75sUhUfOETdJfmv0D6Kg==
+
+"@solid-primitives/map@^0.4.7":
+  version "0.4.13"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/map/-/map-0.4.13.tgz#f0096c53ad3405fde444a738f4b1adb0f402ea16"
+  integrity sha512-B1zyFbsiTQvqPr+cuPCXO72sRuczG9Swncqk5P74NCGw1VE8qa/Ry9GlfI1e/VdeQYHjan+XkbE3rO2GW/qKew==
+  dependencies:
+    "@solid-primitives/trigger" "^1.1.0"
+
+"@solid-primitives/media@^2.2.4":
+  version "2.3.3"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/media/-/media-2.3.3.tgz#74d669b6814c30a8308a468cfd7412133ea7d16e"
+  integrity sha512-hQ4hLOGvfbugQi5Eu1BFWAIJGIAzztq9x0h02xgBGl2l0Jaa3h7tg6bz5tV1NSuNYVGio4rPoa7zVQQLkkx9dA==
+  dependencies:
+    "@solid-primitives/event-listener" "^2.4.3"
+    "@solid-primitives/rootless" "^1.5.2"
+    "@solid-primitives/static-store" "^0.1.2"
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/props@^3.1.11", "@solid-primitives/props@^3.1.8":
   version "3.2.2"
   resolved "https://registry.yarnpkg.com/@solid-primitives/props/-/props-3.2.2.tgz#ee6474cb6e8a94b551b181e9716065f613552dc5"
   integrity sha512-lZOTwFJajBrshSyg14nBMEP0h8MXzPowGO0s3OeiR3z6nXHTfj0FhzDtJMv+VYoRJKQHG2QRnJTgCzK6erARAw==
   dependencies:
     "@solid-primitives/utils" "^6.3.2"
 
-"@solid-primitives/refs@^1.0.8":
+"@solid-primitives/refs@^1.0.5", "@solid-primitives/refs@^1.0.8":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@solid-primitives/refs/-/refs-1.1.2.tgz#1a37a825754bc8fe7f8845fc0c7664683646288e"
   integrity sha512-K7tf2thy7L+YJjdqXspXOg5xvNEOH8tgEWsp0+1mQk3obHBRD6hEjYZk7p7FlJphSZImS35je3UfmWuD7MhDfg==
+  dependencies:
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/resize-observer@^2.0.26":
+  version "2.1.3"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/resize-observer/-/resize-observer-2.1.3.tgz#459db96f9c4a3d98a194d940c6e69f3ad4b2dad8"
+  integrity sha512-zBLje5E06TgOg93S7rGPldmhDnouNGhvfZVKOp+oG2XU8snA+GoCSSCz1M+jpNAg5Ek2EakU5UVQqL152WmdXQ==
+  dependencies:
+    "@solid-primitives/event-listener" "^2.4.3"
+    "@solid-primitives/rootless" "^1.5.2"
+    "@solid-primitives/static-store" "^0.1.2"
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/rootless@^1.5.2":
+  version "1.5.2"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/rootless/-/rootless-1.5.2.tgz#0a9243a977672169cb8ed43bf4eba0c4d8eb5ac5"
+  integrity sha512-9HULb0QAzL2r47CCad0M+NKFtQ+LrGGNHZfteX/ThdGvKIg2o2GYhBooZubTCd/RTu2l2+Nw4s+dEfiDGvdrrQ==
+  dependencies:
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/static-store@^0.1.2":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/static-store/-/static-store-0.1.2.tgz#acdbecee75f17a5b64416859082fca67eefbaaaa"
+  integrity sha512-ReK+5O38lJ7fT+L6mUFvUr6igFwHBESZF+2Ug842s7fvlVeBdIVEdTCErygff6w7uR6+jrr7J8jQo+cYrEq4Iw==
   dependencies:
     "@solid-primitives/utils" "^6.3.2"
 
@@ -4413,7 +4510,14 @@
   resolved "https://registry.yarnpkg.com/@solid-primitives/transition-group/-/transition-group-1.1.2.tgz#be9af05871a7ca6323277f9782f4aeb20cb7f73f"
   integrity sha512-gnHS0OmcdjeoHN9n7Khu8KNrOlRc8a2weETDt2YT6o1zeW/XtUC6Db3Q9pkMU/9cCKdEmN4b0a/41MKAHRhzWA==
 
-"@solid-primitives/utils@^6.3.2":
+"@solid-primitives/trigger@^1.1.0":
+  version "1.2.2"
+  resolved "https://registry.yarnpkg.com/@solid-primitives/trigger/-/trigger-1.2.2.tgz#30e988ed3d7c125d64d951f87db6cbbea886397d"
+  integrity sha512-IWoptVc0SWYgmpBPpCMehS5b07+tpFcvw15tOQ3QbXedSYn6KP8zCjPkHNzMxcOvOicTneleeZDP7lqmz+PQ6g==
+  dependencies:
+    "@solid-primitives/utils" "^6.3.2"
+
+"@solid-primitives/utils@^6.2.1", "@solid-primitives/utils@^6.3.2":
   version "6.3.2"
   resolved "https://registry.yarnpkg.com/@solid-primitives/utils/-/utils-6.3.2.tgz#13d6126fc5a498965d7c45dd41c052e42dcfd7e1"
   integrity sha512-hZ/M/qr25QOCcwDPOHtGjxTD8w2mNyVAYvcfgwzBHq2RwNqHNdDNsMZYap20+ruRwW4A3Cdkczyoz0TSxLCAPQ==
@@ -7747,6 +7851,11 @@ etag@~1.8.1:
   version "1.8.1"
   resolved "https://registry.yarnpkg.com/etag/-/etag-1.8.1.tgz#41ae2eeb65efa62268aebfea83ac7d79299b0887"
   integrity sha512-aIL5Fx7mawVa300al2BnEE4iNvo1qETxLrPI/o05L7z6go7fCw1J6EQmbK4FmJ2AS7kgVF/KEZWufBfdClMcPg==
+
+event-target-polyfill@^0.0.4:
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/event-target-polyfill/-/event-target-polyfill-0.0.4.tgz#060ee66e85aaedc76b6fa66079782dcc11cba496"
+  integrity sha512-Gs6RLjzlLRdT8X9ZipJdIZI/Y6/HhRLyq9RdDlCsnpxr/+Nn6bU2EFGuC94GjxqhM+Nmij2Vcq98yoHrU8uNFQ==
 
 event-target-shim@6.0.2:
   version "6.0.2"
@@ -11927,6 +12036,13 @@ parseurl@~1.3.3:
   resolved "https://registry.yarnpkg.com/parseurl/-/parseurl-1.3.3.tgz#9da19e7bee8d12dff0513ed5b76957793bc2e8d4"
   integrity sha512-CiyeOxFT/JZyN5m0z9PfXw4SCBJ6Sygz1Dpl0wqjlhDEGGBP1GnsUVEL0p63hoG1fcj3fHynXi9NYO4nWOL+qQ==
 
+partysocket@^1.1.4:
+  version "1.1.6"
+  resolved "https://registry.yarnpkg.com/partysocket/-/partysocket-1.1.6.tgz#01b06dc9889df446700fcbce24ca41a5e98b533c"
+  integrity sha512-LkEk8N9hMDDsDT0iDK0zuwUDFVrVMUXFXCeN3850Ng8wtjPqPBeJlwdeY6ROlJSEh3tPoTTasXoSBYH76y118w==
+  dependencies:
+    event-target-polyfill "^0.0.4"
+
 patch-package@8.0.0:
   version "8.0.0"
   resolved "https://registry.yarnpkg.com/patch-package/-/patch-package-8.0.0.tgz#d191e2f1b6e06a4624a0116bcb88edd6714ede61"
@@ -13506,10 +13622,10 @@ solid-floating-ui@^0.3.1:
   resolved "https://registry.yarnpkg.com/solid-floating-ui/-/solid-floating-ui-0.3.1.tgz#82999c67777d0f6db6c739641b6868885f595e0e"
   integrity sha512-o/QmGsWPS2Z3KidAxP0nDvN7alI7Kqy0kU+wd85Fz+au5SYcnYm7I6Fk3M60Za35azsPX0U+5fEtqfOuk6Ao0Q==
 
-solid-js@^1.8.11:
-  version "1.9.9"
-  resolved "https://registry.yarnpkg.com/solid-js/-/solid-js-1.9.9.tgz#7c61402a969a246973ac55ff78a06210eabc097c"
-  integrity sha512-A0ZBPJQldAeGCTW0YRYJmt7RCeh5rbFfPZ2aOttgYnctHE7HgKeHCBB/PVc2P7eOfmNXqMFFFoYYdm3S4dcbkA==
+solid-js@^1.9.4:
+  version "1.9.10"
+  resolved "https://registry.yarnpkg.com/solid-js/-/solid-js-1.9.10.tgz#95e57b004f3788d38f19e3b47101e90a9ab9dd0f"
+  integrity sha512-Coz956cos/EPDlhs6+jsdTxKuJDPT7B5SVIWgABwROyxjY7Xbr8wkzD68Et+NxnV7DLJ3nJdAC2r9InuV/4Jew==
   dependencies:
     csstype "^3.1.0"
     seroval "~1.3.0"
@@ -13526,6 +13642,20 @@ solid-motionone@^1.0.3:
     "@solid-primitives/refs" "^1.0.8"
     "@solid-primitives/transition-group" "^1.0.5"
     csstype "^3.1.3"
+
+solid-presence@^0.1.8:
+  version "0.1.8"
+  resolved "https://registry.yarnpkg.com/solid-presence/-/solid-presence-0.1.8.tgz#c8713c7d52122b128d22fc1c0afdb08b0fb93d07"
+  integrity sha512-pWGtXUFWYYUZNbg5YpG5vkQJyOtzn2KXhxYaMx/4I+lylTLYkITOLevaCwMRN+liCVk0pqB6EayLWojNqBFECA==
+  dependencies:
+    "@corvu/utils" "~0.4.0"
+
+solid-prevent-scroll@^0.1.4:
+  version "0.1.10"
+  resolved "https://registry.yarnpkg.com/solid-prevent-scroll/-/solid-prevent-scroll-0.1.10.tgz#709580dd858cd51ef3b9c2ec4389a56684d6eac3"
+  integrity sha512-KplGPX2GHiWJLZ6AXYRql4M127PdYzfwvLJJXMkO+CMb8Np4VxqDAg5S8jLdwlEuBis/ia9DKw2M8dFx5u8Mhw==
+  dependencies:
+    "@corvu/utils" "~0.4.1"
 
 source-map-js@^1.0.1, source-map-js@^1.2.1:
   version "1.2.1"

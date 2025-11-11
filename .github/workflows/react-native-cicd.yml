@@ -302,9 +302,13 @@ jobs:
           extract_release_notes() {
             local body="$1"
             
-            # Remove "Summary by CodeRabbit" section and auto-generated comment line
+            # First pass: Remove everything between CodeRabbit comment markers using sed
+            # This handles multi-line auto-generated content
             local cleaned_body="$(printf '%s\n' "$body" \
-              | grep -v '<!-- end of auto-generated comment: release notes by coderabbit.ai -->' \
+              | sed '/<!-- This is an auto-generated comment: release notes by coderabbit.ai -->/,/<!-- end of auto-generated comment: release notes by coderabbit.ai -->/d')"
+            
+            # Second pass: Remove the "Summary by CodeRabbit" section
+            cleaned_body="$(printf '%s\n' "$cleaned_body" \
               | awk '
                 BEGIN { skip=0 }
                 /^## Summary by CodeRabbit/ { skip=1; next }
@@ -312,14 +316,23 @@ jobs:
                 skip==0 { print }
               ')"
             
-            # Try to extract content under "## Release Notes" heading
+            # Third pass: Remove any remaining HTML comment lines
+            cleaned_body="$(printf '%s\n' "$cleaned_body" | sed '/^<!--.*-->$/d' | sed '/^<!--/d' | sed '/^-->$/d')"
+            
+            # Fourth pass: Trim leading and trailing whitespace/empty lines
+            cleaned_body="$(printf '%s\n' "$cleaned_body" | sed '/^$/d' | awk 'NF {p=1} p')"
+            
+            # Try to extract content under "## Release Notes" heading if it exists
             local notes="$(printf '%s\n' "$cleaned_body" \
               | awk 'f && /^## /{exit} /^## Release Notes/{f=1; next} f')"
             
-            # If no specific section found, use the entire cleaned body (up to first 500 chars for safety)
+            # If no specific "Release Notes" section found, use the entire cleaned body
             if [ -z "$notes" ]; then
-              notes="$(printf '%s\n' "$cleaned_body" | head -c 500)"
+              notes="$cleaned_body"
             fi
+            
+            # Final trim
+            notes="$(printf '%s\n' "$notes" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
             
             printf '%s\n' "$notes"
           }

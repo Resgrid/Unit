@@ -61,6 +61,14 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
   useEffect(() => {
     if (initialLocation) {
       setCurrentLocation(initialLocation);
+      // Move camera to the new location
+      if (cameraRef.current) {
+        cameraRef.current.setCamera({
+          centerCoordinate: [initialLocation.longitude, initialLocation.latitude],
+          zoomLevel: 15,
+          animationDuration: 1000,
+        });
+      }
     } else {
       getUserLocation().catch((error) => {
         console.error('Failed to get user location:', error);
