@@ -166,7 +166,7 @@ class PushNotificationService {
       };
 
       // Show the notification modal using the store
-      usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+      await usePushNotificationModalStore.getState().showNotificationModal(notificationData);
     }
   };
 
@@ -201,7 +201,7 @@ class PushNotificationService {
             context: { eventCode, title },
           });
 
-          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+          await usePushNotificationModalStore.getState().showNotificationModal(notificationData);
         }
       }
     });
@@ -231,7 +231,7 @@ class PushNotificationService {
             context: { eventCode, title },
           });
 
-          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+          await usePushNotificationModalStore.getState().showNotificationModal(notificationData);
         }
       }
     });
@@ -294,7 +294,7 @@ class PushNotificationService {
 
       // Handle notification tap
       // Use a small delay to ensure the app is fully initialized and the store is ready
-      setTimeout(() => {
+      setTimeout(async () => {
         if (eventCode && typeof eventCode === 'string') {
           const notificationData = {
             eventCode: eventCode,
@@ -309,7 +309,7 @@ class PushNotificationService {
           });
 
           // Show the notification modal using the store
-          usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+          await usePushNotificationModalStore.getState().showNotificationModal(notificationData);
         }
       }, 300);
     });
@@ -336,7 +336,7 @@ class PushNotificationService {
 
             // Handle the initial notification
             // Use a delay to ensure the app is fully loaded and the store is ready
-            setTimeout(() => {
+            setTimeout(async () => {
               if (eventCode && typeof eventCode === 'string') {
                 const notificationData = {
                   eventCode: eventCode,
@@ -351,7 +351,7 @@ class PushNotificationService {
                 });
 
                 // Show the notification modal using the store
-                usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+                await usePushNotificationModalStore.getState().showNotificationModal(notificationData);
               }
             }, 500);
           }

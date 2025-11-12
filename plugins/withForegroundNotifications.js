@@ -2,7 +2,14 @@ const { withAppDelegate, withEntitlementsPlist } = require('@expo/config-plugins
 
 /**
  * Adds UNUserNotificationCenterDelegate to AppDelegate to handle foreground notifications
- * and adds necessary entitlements for push notifications
+ * and adds necessary entitlements for push notifications.
+ *
+ * IMPORTANT: We implement the delegate methods to display notifications in foreground,
+ * but we do NOT intercept the notification data. Firebase Messaging will still receive
+ * the notifications and forward them to the onMessage() listener in JavaScript.
+ *
+ * The key is that we're only implementing willPresent (to show the banner) and
+ * NOT preventing Firebase from doing its job of forwarding to JS.
  */
 const withForegroundNotifications = (config) => {
   // Add push notification entitlements
@@ -48,6 +55,7 @@ const withForegroundNotifications = (config) => {
 // @generated end @react-native-firebase/app-didFinishLaunchingWithOptions
     
     // Set the UNUserNotificationCenter delegate to handle foreground notifications
+    // This allows us to display notifications while Firebase Messaging also processes them
     UNUserNotificationCenter.current().delegate = self`
       );
     }
@@ -57,18 +65,27 @@ const withForegroundNotifications = (config) => {
       const linkingApiPattern = /(\s+)(\/\/ Linking API)/;
 
       const delegateMethod = `
-  // Handle foreground notifications - tell iOS to show them
+  // MARK: - UNUserNotificationCenterDelegate
+  
+  // Handle foreground notifications - display them even when app is active
+  // This method runs BEFORE Firebase Messaging processes the notification
+  // Both this method AND Firebase's onMessage() will be called
   public func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    // Show notification with alert, sound, and badge even when app is in foreground
+    // Display notification banner, play sound, and update badge
+    // This shows the native iOS notification banner in foreground
     if #available(iOS 14.0, *) {
       completionHandler([.banner, .sound, .badge])
     } else {
       completionHandler([.alert, .sound, .badge])
     }
+    
+    // NOTE: We do NOT need to manually forward to Firebase here.
+    // Firebase Messaging automatically receives the notification and calls onMessage()
+    // This method just controls whether iOS displays the native notification UI
   }
   
   // Handle notification tap - when user taps on a notification
@@ -77,10 +94,8 @@ const withForegroundNotifications = (config) => {
     didReceive response: UNNotificationResponse,
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
-    // Forward the notification response to React Native
-    // When using Notifee (v7+), it will handle notification taps automatically
-    // This method still needs to be implemented to receive the notification response
-    // The response will be handled by Notifee's onBackgroundEvent/onForegroundEvent
+    // Firebase Messaging will handle this via onNotificationOpenedApp()
+    // We just need to call the completion handler
     completionHandler()
   }
 

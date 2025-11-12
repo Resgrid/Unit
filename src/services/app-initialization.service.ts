@@ -2,6 +2,7 @@ import { Platform } from 'react-native';
 
 import { logger } from '../lib/logging';
 import { callKeepService } from './callkeep.service.ios';
+import { notificationSoundService } from './notification-sound.service';
 import { pushNotificationService } from './push-notification';
 
 /**
@@ -74,6 +75,9 @@ class AppInitializationService {
     // Initialize CallKeep for iOS background audio support
     await this._initializeCallKeep();
 
+    // Initialize Notification Sound Service
+    await this._initializeNotificationSoundService();
+
     // Initialize Push Notification Service
     await this._initializePushNotifications();
 
@@ -112,6 +116,26 @@ class AppInitializationService {
       });
       // Don't throw here - CallKeep failure shouldn't prevent app startup
       // but LiveKit calls may not work properly in the background
+    }
+  }
+
+  /**
+   * Initialize Notification Sound Service
+   */
+  private async _initializeNotificationSoundService(): Promise<void> {
+    try {
+      await notificationSoundService.initialize();
+
+      logger.info({
+        message: 'Notification Sound Service initialized successfully',
+      });
+    } catch (error) {
+      logger.error({
+        message: 'Failed to initialize Notification Sound Service',
+        context: { error },
+      });
+      // Don't throw here - sound service failure shouldn't prevent app startup
+      // but notification sounds may not play properly
     }
   }
 

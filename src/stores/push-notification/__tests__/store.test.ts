@@ -36,7 +36,7 @@ describe('usePushNotificationModalStore', () => {
   });
 
   describe('showNotificationModal', () => {
-    it('should show modal with call notification', () => {
+    it('should show modal with call notification', async () => {
       const callData = {
         eventCode: 'C1234',
         title: 'Emergency Call',
@@ -44,7 +44,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(callData);
+      await store.showNotificationModal(callData);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -58,7 +58,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should show modal with message notification', () => {
+    it('should show modal with message notification', async () => {
       const messageData = {
         eventCode: 'M5678',
         title: 'New Message',
@@ -66,7 +66,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(messageData);
+      await store.showNotificationModal(messageData);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -80,7 +80,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should show modal with chat notification', () => {
+    it('should show modal with chat notification', async () => {
       const chatData = {
         eventCode: 'T9101',
         title: 'Chat Message',
@@ -88,7 +88,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(chatData);
+      await store.showNotificationModal(chatData);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -102,7 +102,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should show modal with group chat notification', () => {
+    it('should show modal with group chat notification', async () => {
       const groupChatData = {
         eventCode: 'G1121',
         title: 'Group Chat',
@@ -110,7 +110,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(groupChatData);
+      await store.showNotificationModal(groupChatData);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -124,7 +124,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should handle unknown notification type', () => {
+    it('should handle unknown notification type', async () => {
       const unknownData = {
         eventCode: 'X9999',
         title: 'Unknown',
@@ -132,7 +132,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(unknownData);
+      await store.showNotificationModal(unknownData);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -146,7 +146,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should handle notification without valid eventCode', () => {
+    it('should handle notification without valid eventCode', async () => {
       const dataWithInvalidEventCode = {
         eventCode: 'I',
         title: 'Invalid Event Code',
@@ -154,7 +154,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(dataWithInvalidEventCode);
+      await store.showNotificationModal(dataWithInvalidEventCode);
 
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
@@ -168,7 +168,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should log info message when showing notification', () => {
+    it('should log info message when showing notification', async () => {
       const callData = {
         eventCode: 'C1234',
         title: 'Emergency Call',
@@ -176,7 +176,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(callData);
+      await store.showNotificationModal(callData);
 
       expect(logger.info).toHaveBeenCalledWith({
         message: 'Showing push notification modal',
@@ -188,7 +188,7 @@ describe('usePushNotificationModalStore', () => {
       });
     });
 
-    it('should play notification sound when showing modal', () => {
+    it('should play notification sound when showing modal', async () => {
       const callData = {
         eventCode: 'C1234',
         title: 'Emergency Call',
@@ -196,7 +196,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(callData);
+      await store.showNotificationModal(callData);
 
       expect(notificationSoundService.playNotificationSound).toHaveBeenCalledWith('call');
     });
@@ -212,19 +212,22 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(callData);
-
-      // Wait for async error handling
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await store.showNotificationModal(callData);
 
       // Modal should still be shown even if sound fails
       const state = usePushNotificationModalStore.getState();
       expect(state.isOpen).toBe(true);
+      
+      // Verify error was logged
+      expect(logger.error).toHaveBeenCalledWith({
+        message: 'Failed to play notification sound',
+        context: { error: mockError, type: 'call' },
+      });
     });
   });
 
   describe('hideNotificationModal', () => {
-    it('should hide modal and clear notification', () => {
+    it('should hide modal and clear notification', async () => {
       // First show a notification
       const callData = {
         eventCode: 'C1234',
@@ -233,7 +236,7 @@ describe('usePushNotificationModalStore', () => {
       };
 
       const store = usePushNotificationModalStore.getState();
-      store.showNotificationModal(callData);
+      await store.showNotificationModal(callData);
 
       // Verify it's shown
       let state = usePushNotificationModalStore.getState();
