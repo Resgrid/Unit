@@ -352,7 +352,11 @@ jobs:
               PR_BODY=$(gh pr view "$PR_FROM_COMMIT" --json body --jq '.body' 2>/dev/null || echo "")
               
               if [ -n "$PR_BODY" ]; then
+                echo "PR body length: ${#PR_BODY}"
                 NOTES="$(extract_release_notes "$PR_BODY")"
+                echo "Extracted notes length: ${#NOTES}"
+              else
+                echo "Warning: PR body is empty"
               fi
             else
               echo "No PR reference in commit message, searching by commit SHA..."
@@ -370,7 +374,11 @@ jobs:
                 PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body' 2>/dev/null || echo "")
                 
                 if [ -n "$PR_BODY" ]; then
+                  echo "PR body length: ${#PR_BODY}"
                   NOTES="$(extract_release_notes "$PR_BODY")"
+                  echo "Extracted notes length: ${#NOTES}"
+                else
+                  echo "Warning: PR body is empty"
                 fi
               else
                 echo "No associated PR found for this commit"
@@ -378,10 +386,10 @@ jobs:
             fi
           fi
           
-          # Fallback to recent commits if no PR body found
+          # Fallback to recent commits if no PR body found (skip merge commits)
           if [ -z "$NOTES" ]; then
-            echo "No PR body found, using recent commits..."
-            NOTES="$(git log -n 5 --pretty=format:'- %s')"
+            echo "No PR body found, using recent commits (excluding merge commits)..."
+            NOTES="$(git log -n 10 --pretty=format:'- %s' --no-merges | head -n 5)"
           fi
           
           # Fail if no notes extracted

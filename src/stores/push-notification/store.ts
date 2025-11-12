@@ -24,7 +24,7 @@ export interface ParsedNotification {
 interface PushNotificationModalState {
   isOpen: boolean;
   notification: ParsedNotification | null;
-  showNotificationModal: (notificationData: PushNotificationData) => void;
+  showNotificationModal: (notificationData: PushNotificationData) => Promise<void>;
   hideNotificationModal: () => void;
   parseNotification: (notificationData: PushNotificationData) => ParsedNotification;
 }
@@ -65,7 +65,7 @@ export const usePushNotificationModalStore = create<PushNotificationModalState>(
     };
   },
 
-  showNotificationModal: (notificationData: PushNotificationData) => {
+  showNotificationModal: async (notificationData: PushNotificationData) => {
     const parsedNotification = get().parseNotification(notificationData);
 
     logger.info({
@@ -77,13 +77,16 @@ export const usePushNotificationModalStore = create<PushNotificationModalState>(
       },
     });
 
-    // Play the appropriate sound for this notification type
-    notificationSoundService.playNotificationSound(parsedNotification.type).catch((error) => {
+    // Play the appropriate sound for this notification type and await it
+    // This ensures the sound starts playing before the modal appears
+    try {
+      await notificationSoundService.playNotificationSound(parsedNotification.type);
+    } catch (error) {
       logger.error({
         message: 'Failed to play notification sound',
         context: { error, type: parsedNotification.type },
       });
-    });
+    }
 
     set({
       isOpen: true,
