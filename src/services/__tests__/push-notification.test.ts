@@ -120,7 +120,7 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 describe('Push Notification Service Integration', () => {
-  const mockShowNotificationModal = jest.fn();
+  const mockShowNotificationModal = jest.fn().mockResolvedValue(undefined);
   const mockGetState = usePushNotificationModalStore.getState as jest.Mock;
 
   beforeAll(() => {
@@ -131,6 +131,7 @@ describe('Push Notification Service Integration', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockShowNotificationModal.mockResolvedValue(undefined);
     mockGetState.mockReturnValue({
       showNotificationModal: mockShowNotificationModal,
     });
@@ -161,7 +162,10 @@ describe('Push Notification Service Integration', () => {
       };
 
       // Show the notification modal using the store
-      usePushNotificationModalStore.getState().showNotificationModal(notificationData);
+      usePushNotificationModalStore.getState().showNotificationModal(notificationData).catch((err) => {
+        // Handle error in test environment
+        console.error('Error showing notification modal:', err);
+      });
     }
   };
 
