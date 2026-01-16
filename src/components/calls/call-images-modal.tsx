@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, XIcon } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -61,7 +61,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
   const flatListRef = useRef<any>(null); // FlashList ref type
 
-  const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage } = useCallDetailStore();
+  const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage, clearImages } = useCallDetailStore();
 
   // Filter out images without proper data or URL
   const validImages = useMemo(() => {
@@ -82,7 +82,18 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       setActiveIndex(0); // Reset active index when opening
       setImageErrors(new Set()); // Reset image errors
     }
-  }, [isOpen, callId, fetchCallImages]);
+
+    // Cleanup when modal closes to free memory
+    return () => {
+      if (!isOpen) {
+        setFullScreenImage(null);
+        setSelectedImageInfo(null);
+        setImageErrors(new Set());
+        // Clear images from store to free memory
+        clearImages();
+      }
+    };
+  }, [isOpen, callId, fetchCallImages, clearImages]);
 
   // Track when call images modal is opened/rendered
   useEffect(() => {
@@ -244,6 +255,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
             contentFit="contain"
             transition={200}
             pointerEvents="none"
+            cachePolicy="memory-disk"
+            recyclingKey={item.Id}
             onError={() => {
               handleImageError(item.Id, 'expo-image load error');
             }}
@@ -341,7 +354,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
         {selectedImageInfo ? (
           <Box className="flex-1 items-center justify-center">
-            <Image source={{ uri: selectedImageInfo.uri }} style={styles.previewImage} contentFit="contain" transition={200} />
+            <Image source={{ uri: selectedImageInfo.uri }} style={styles.previewImage} contentFit="contain" transition={200} cachePolicy="memory-disk" />
           </Box>
         ) : (
           <VStack className="flex-1 justify-center space-y-4">

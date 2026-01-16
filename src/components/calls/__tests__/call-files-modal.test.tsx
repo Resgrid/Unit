@@ -7,6 +7,7 @@ import { CallFilesModal } from '../call-files-modal';
 
 // Mock the zustand store
 const mockFetchCallFiles = jest.fn();
+const mockClearFiles = jest.fn();
 const defaultMockFiles = [
   {
     Id: 'file-1',
@@ -41,6 +42,7 @@ let mockStoreState: any = {
   isLoadingFiles: false,
   errorFiles: null,
   fetchCallFiles: mockFetchCallFiles,
+  clearFiles: mockClearFiles,
 };
 
 jest.mock('@/stores/calls/detail-store', () => ({
@@ -304,6 +306,7 @@ describe('CallFilesModal', () => {
       isLoadingFiles: false,
       errorFiles: null,
       fetchCallFiles: mockFetchCallFiles,
+      clearFiles: mockClearFiles,
     };
   });
 
@@ -423,6 +426,7 @@ describe('CallFilesModal', () => {
         isLoadingFiles: true,
         errorFiles: null,
         fetchCallFiles: mockFetchCallFiles,
+        clearFiles: mockClearFiles,
       };
     });
 
@@ -444,6 +448,7 @@ describe('CallFilesModal', () => {
         isLoadingFiles: false,
         errorFiles: 'Network error occurred',
         fetchCallFiles: mockFetchCallFiles,
+        clearFiles: mockClearFiles,
       };
     });
 
@@ -476,6 +481,7 @@ describe('CallFilesModal', () => {
         isLoadingFiles: false,
         errorFiles: null,
         fetchCallFiles: mockFetchCallFiles,
+        clearFiles: mockClearFiles,
       };
     });
 
@@ -590,6 +596,7 @@ describe('CallFilesModal', () => {
         isLoadingFiles: false,
         errorFiles: null,
         fetchCallFiles: mockFetchCallFiles,
+        clearFiles: mockClearFiles,
       };
     });
 
@@ -623,6 +630,7 @@ describe('CallFilesModal', () => {
         isLoadingFiles: false,
         errorFiles: null,
         fetchCallFiles: mockFetchCallFiles,
+        clearFiles: mockClearFiles,
       };
     });
 

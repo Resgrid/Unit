@@ -31,7 +31,7 @@ interface CallFilesModalProps {
 export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
-  const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles } = useCallDetailStore();
+  const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles, clearFiles } = useCallDetailStore();
   const [downloadingFiles, setDownloadingFiles] = useState<Record<string, number>>({});
 
   // Bottom sheet ref and snap points
@@ -46,7 +46,16 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     } else {
       bottomSheetRef.current?.close();
     }
-  }, [isOpen, callId, fetchCallFiles]);
+
+    // Cleanup when modal closes to free memory
+    return () => {
+      if (!isOpen) {
+        setDownloadingFiles({});
+        // Clear files from store to free memory
+        clearFiles();
+      }
+    };
+  }, [isOpen, callId, fetchCallFiles, clearFiles]);
 
   // Track when call files modal is opened/rendered
   useEffect(() => {

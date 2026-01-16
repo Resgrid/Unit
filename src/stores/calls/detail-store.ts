@@ -21,6 +21,8 @@ interface CallDetailState {
   isNotesLoading: boolean;
   fetchCallDetail: (callId: string) => Promise<void>;
   reset: () => void;
+  clearImages: () => void;
+  clearFiles: () => void;
   fetchCallNotes: (callId: string) => Promise<void>;
   addNote: (callId: string, note: string, userId: string, latitude: number | null, longitude: number | null) => Promise<void>;
   searchNotes: (query: string) => CallNoteResultData[];
@@ -56,9 +58,30 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
       call: null,
       callExtraData: null,
       callPriority: null,
+      callNotes: [],
+      callImages: null,
+      callFiles: null,
       isLoading: false,
       isNotesLoading: false,
+      isLoadingImages: false,
+      isLoadingFiles: false,
       error: null,
+      errorImages: null,
+      errorFiles: null,
+    }),
+  // Clear images data to free memory
+  clearImages: () =>
+    set({
+      callImages: null,
+      isLoadingImages: false,
+      errorImages: null,
+    }),
+  // Clear files data to free memory
+  clearFiles: () =>
+    set({
+      callFiles: null,
+      isLoadingFiles: false,
+      errorFiles: null,
     }),
   fetchCallDetail: async (callId: string) => {
     set({ isLoading: true, error: null });
