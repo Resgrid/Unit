@@ -223,7 +223,7 @@ export const resetAllStores = async (): Promise<void> => {
     } catch (error) {
       logger.error({
         message: 'Error disconnecting from LiveKit room during reset',
-        error,
+        context: { error },
       });
     }
   }
@@ -236,7 +236,7 @@ export const resetAllStores = async (): Promise<void> => {
   } catch (error) {
     logger.error({
       message: 'Error cleaning up audio stream during reset',
-      error,
+      context: { error },
     });
   }
   useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE);
