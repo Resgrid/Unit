@@ -104,6 +104,7 @@
   },
   "callNotes": {
     "addNote": "Add Note",
+    "addNoteLabel": "Add New Note",
     "addNotePlaceholder": "Add a new note...",
     "noNotes": "No notes available for this call",
     "noSearchResults": "No notes match your search",

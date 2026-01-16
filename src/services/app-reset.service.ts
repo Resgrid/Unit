@@ -227,7 +227,7 @@ export const resetAllStores = async (): Promise<void> => {
       });
     }
   }
-  useLiveKitStore.setState(INITIAL_LIVEKIT_STATE);
+  useLiveKitStore.setState(INITIAL_LIVEKIT_STATE, true);
 
   // Audio stream store - await async cleanup, then reset
   const audioStreamState = useAudioStreamStore.getState();
@@ -239,13 +239,13 @@ export const resetAllStores = async (): Promise<void> => {
       context: { error },
     });
   }
-  useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE);
+  useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE, true);
 
   // Bluetooth audio store - reset
-  useBluetoothAudioStore.setState(INITIAL_BLUETOOTH_AUDIO_STATE);
+  useBluetoothAudioStore.setState(INITIAL_BLUETOOTH_AUDIO_STATE, true);
 
   // Push notification modal store - reset
-  usePushNotificationModalStore.setState(INITIAL_PUSH_NOTIFICATION_MODAL_STATE);
+  usePushNotificationModalStore.setState(INITIAL_PUSH_NOTIFICATION_MODAL_STATE, true);
 };
 
 /**

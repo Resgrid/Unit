@@ -104,6 +104,7 @@
   },
   "callNotes": {
     "addNote": "إضافة ملاحظة",
+    "addNoteLabel": "إضافة ملاحظة جديدة",
     "addNotePlaceholder": "أضف ملاحظة جديدة...",
     "noNotes": "لا توجد ملاحظات متاحة لهذه المكالمة",
     "noSearchResults": "لا توجد ملاحظات تطابق بحثك",
