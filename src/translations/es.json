@@ -1,4 +1,12 @@
 {
+  "accessibility": {
+    "action": {
+      "address": "Activar para ver la dirección en el mapa",
+      "email": "Activar para enviar correo electrónico",
+      "phone": "Activar para llamar al número de teléfono",
+      "website": "Activar para abrir el sitio web"
+    }
+  },
   "app": {
     "title": "Resgrid Unit"
   },

@@ -321,9 +321,9 @@ jobs:
             
             # Fourth pass: Remove specific CodeRabbit lines
             cleaned_body="$(printf '%s\n' "$cleaned_body" \
-              | grep -v '✏️ Tip: You can customize this high-level summary in your review settings\.' \
-              | grep -v '<!-- This is an auto-generated comment: release notes by coderabbit.ai -->' \
-              | grep -v '<!-- end of auto-generated comment: release notes by coderabbit.ai -->')"
+              | (grep -v '✏️ Tip: You can customize this high-level summary in your review settings\.' || true) \
+              | (grep -v '<!-- This is an auto-generated comment: release notes by coderabbit.ai -->' || true) \
+              | (grep -v '<!-- end of auto-generated comment: release notes by coderabbit.ai -->' || true))"
             
             # Fifth pass: Trim leading and trailing whitespace/empty lines
             cleaned_body="$(printf '%s\n' "$cleaned_body" | sed '/^$/d' | awk 'NF {p=1} p')"

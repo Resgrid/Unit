@@ -218,13 +218,27 @@ export const resetAllStores = async (): Promise<void> => {
   // LiveKit store - await async disconnect, then reset
   const liveKitState = useLiveKitStore.getState();
   if (liveKitState.isConnected) {
-    await liveKitState.disconnectFromRoom();
+    try {
+      await liveKitState.disconnectFromRoom();
+    } catch (error) {
+      logger.error({
+        message: 'Error disconnecting from LiveKit room during reset',
+        error,
+      });
+    }
   }
   useLiveKitStore.setState(INITIAL_LIVEKIT_STATE);
 
   // Audio stream store - await async cleanup, then reset
   const audioStreamState = useAudioStreamStore.getState();
-  await audioStreamState.cleanup();
+  try {
+    await audioStreamState.cleanup();
+  } catch (error) {
+    logger.error({
+      message: 'Error cleaning up audio stream during reset',
+      error,
+    });
+  }
   useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE);
 
   // Bluetooth audio store - reset
