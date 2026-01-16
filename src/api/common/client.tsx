@@ -98,12 +98,26 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error);
-        // Handle refresh token failure
-        useAuthStore.getState().logout();
-        logger.error({
-          message: 'Token refresh failed',
-          context: { error: refreshError },
-        });
+
+        // Check if it's a network error vs an invalid refresh token
+        const isNetworkError =
+          refreshError instanceof Error &&
+          (refreshError.message.includes('Network Error') || refreshError.message.includes('timeout') || refreshError.message.includes('ECONNREFUSED') || refreshError.message.includes('ETIMEDOUT'));
+
+        if (!isNetworkError) {
+          // Only logout for non-network errors (e.g., invalid refresh token, 400/401 from token endpoint)
+          logger.error({
+            message: 'Token refresh failed with non-recoverable error, logging out user',
+            context: { error: refreshError },
+          });
+          useAuthStore.getState().logout();
+        } else {
+          logger.warn({
+            message: 'Token refresh failed due to network error',
+            context: { error: refreshError },
+          });
+        }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

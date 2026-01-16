@@ -598,6 +598,7 @@
       "title": "المظهر"
     },
     "title": "الإعدادات",
+    "activating_unit": "جاري تفعيل الوحدة...",
     "unit_selected_successfully": "تم اختيار {{unitName}} بنجاح",
     "unit_selection": "اختيار الوحدة",
     "unit_selection_failed": "فشل في اختيار الوحدة. يرجى المحاولة مرة أخرى.",

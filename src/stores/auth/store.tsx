@@ -57,7 +57,14 @@ const useAuthStore = create<AuthState>()(
             //  .getTime()
             //  .toString();
 
-            //setTimeout(() => get().refreshAccessToken(), expiresIn);
+            // Schedule proactive token refresh before expiry
+            // expires_in is in seconds, so convert to milliseconds and refresh 1 minute before expiry
+            const refreshDelayMs = Math.max((response.authResponse!.expires_in - 60) * 1000, 60000);
+            logger.info({
+              message: 'Login successful, scheduling token refresh',
+              context: { refreshDelayMs, expiresInSeconds: response.authResponse!.expires_in },
+            });
+            setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
           } else {
             set({
               status: 'error',
@@ -87,10 +94,17 @@ const useAuthStore = create<AuthState>()(
         try {
           const { refreshToken } = get();
           if (!refreshToken) {
-            throw new Error('No refresh token available');
+            logger.warn({
+              message: 'No refresh token available, logging out user',
+            });
+            get().logout();
+            return;
           }
 
           const response = await refreshTokenRequest(refreshToken);
+
+          // Update the stored auth response for hydration
+          setItem<AuthResponse>('authResponse', response);
 
           set({
             accessToken: response.access_token,
@@ -99,39 +113,94 @@ const useAuthStore = create<AuthState>()(
             error: null,
           });
 
-          // Set up next token refresh
-          //const decodedToken: { exp: number } = jwt_decode(
-          //  response.access_token
-          //);
-          const expiresIn = response.expires_in * 1000 - Date.now() - 60000; // Refresh 1 minute before expiry
-          setTimeout(() => get().refreshAccessToken(), expiresIn);
+          // Set up next token refresh - refresh 1 minute before expiry
+          // expires_in is in seconds, so convert to milliseconds
+          const refreshDelayMs = Math.max((response.expires_in - 60) * 1000, 60000); // At least 1 minute
+          logger.info({
+            message: 'Token refreshed successfully, scheduling next refresh',
+            context: { refreshDelayMs, expiresInSeconds: response.expires_in },
+          });
+          setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
         } catch (error) {
-          // If refresh fails, log out the user
-          get().logout();
+          // Check if it's a network error vs an invalid refresh token
+          const isNetworkError =
+            error instanceof Error &&
+            (error.message.includes('Network Error') ||
+              error.message.includes('timeout') ||
+              error.message.includes('ECONNREFUSED') ||
+              error.message.includes('ETIMEDOUT'));
+
+          if (isNetworkError) {
+            // Network error - retry after a delay, don't logout
+            logger.warn({
+              message: 'Token refresh failed due to network error, will retry',
+              context: { error: error instanceof Error ? error.message : String(error) },
+            });
+            // Retry after 30 seconds for network errors
+            setTimeout(() => get().refreshAccessToken(), 30000);
+          } else {
+            // Invalid refresh token or server rejected it - logout user
+            logger.error({
+              message: 'Token refresh failed with non-recoverable error, logging out user',
+              context: { error: error instanceof Error ? error.message : String(error) },
+            });
+            get().logout();
+          }
         }
       },
       hydrate: () => {
         try {
           const authResponse = getAuth();
-          if (authResponse !== null) {
-            const payload = sanitizeJson(base64.decode(authResponse!.id_token!.split('.')[1]));
+          if (authResponse !== null && authResponse.refresh_token) {
+            // We have stored auth data, try to restore the session
+            try {
+              const payload = sanitizeJson(base64.decode(authResponse.id_token!.split('.')[1]));
+              const profileData = JSON.parse(payload) as ProfileModel;
 
-            const profileData = JSON.parse(payload) as ProfileModel;
+              set({
+                accessToken: authResponse.access_token,
+                refreshToken: authResponse.refresh_token,
+                status: 'signedIn',
+                error: null,
+                profile: profileData,
+                userId: profileData.sub,
+              });
 
-            set({
-              accessToken: authResponse.access_token,
-              refreshToken: authResponse.refresh_token,
-              status: 'signedIn',
-              error: null,
-              profile: profileData,
-              userId: profileData.sub,
-            });
+              logger.info({
+                message: 'Auth state hydrated from storage, scheduling token refresh',
+              });
+
+              // Schedule an immediate token refresh to ensure we have a valid access token
+              // Use a small delay to allow the app to fully initialize
+              setTimeout(() => get().refreshAccessToken(), 1000);
+            } catch (parseError) {
+              // Token parsing failed, but we have a refresh token - try to refresh
+              logger.warn({
+                message: 'Failed to parse stored token, attempting refresh',
+                context: { error: parseError instanceof Error ? parseError.message : String(parseError) },
+              });
+
+              set({
+                refreshToken: authResponse.refresh_token,
+                status: 'loading',
+              });
+
+              // Attempt to refresh the token
+              get().refreshAccessToken();
+            }
           } else {
+            logger.info({
+              message: 'No stored auth data found, user needs to login',
+            });
             get().logout();
           }
         } catch (e) {
-          // catch error here
-          // Maybe sign_out user!
+          logger.error({
+            message: 'Failed to hydrate auth state',
+            context: { error: e instanceof Error ? e.message : String(e) },
+          });
+          // Don't logout here - let the user try to use the app
+          // and handle auth errors via the axios interceptor
         }
       },
       isAuthenticated: (): boolean => {
@@ -161,6 +230,45 @@ const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => zustandStorage),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            logger.error({
+              message: 'Failed to rehydrate auth storage',
+              context: { error: error instanceof Error ? error.message : String(error) },
+            });
+            return;
+          }
+
+          if (state && state.refreshToken && state.status === 'signedIn') {
+            // We have a stored refresh token and were previously signed in
+            // Schedule an immediate token refresh to ensure we have a valid access token
+            logger.info({
+              message: 'Auth state rehydrated from storage, scheduling token refresh',
+              context: { hasAccessToken: !!state.accessToken, hasRefreshToken: !!state.refreshToken },
+            });
+
+            // Use a small delay to allow the app to fully initialize
+            setTimeout(() => {
+              useAuthStore.getState().refreshAccessToken();
+            }, 2000);
+          } else if (state && state.refreshToken && state.status !== 'signedIn') {
+            // We have a refresh token but status is not signedIn (maybe was idle/error)
+            // Try to refresh and restore the session
+            logger.info({
+              message: 'Found refresh token in storage with non-signedIn status, attempting to restore session',
+              context: { status: state.status },
+            });
+
+            // Set status to loading while we try to refresh
+            useAuthStore.setState({ status: 'loading' });
+
+            setTimeout(() => {
+              useAuthStore.getState().refreshAccessToken();
+            }, 2000);
+          }
+        };
+      },
     }
   )
 );

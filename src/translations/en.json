@@ -598,6 +598,7 @@
       "title": "Theme"
     },
     "title": "Settings",
+    "activating_unit": "Activating unit...",
     "unit_selected_successfully": "{{unitName}} selected successfully",
     "unit_selection": "Unit Selection",
     "unit_selection_failed": "Failed to select unit. Please try again.",
