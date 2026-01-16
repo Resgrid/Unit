@@ -76,7 +76,7 @@ jest.mock('@/components/ui/actionsheet', () => ({
 // Mock protocols test data
 const mockProtocols: CallProtocolsResultData[] = [
   {
-    Id: '1',
+    ProtocolId: '1',
     DepartmentId: 'dept1',
     Name: 'Fire Emergency Response',
     Code: 'FIRE001',
@@ -94,7 +94,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '2',
+    ProtocolId: '2',
     DepartmentId: 'dept1',
     Name: 'Basic Protocol',
     Code: '',
@@ -402,7 +402,7 @@ describe('ProtocolDetailsSheet', () => {
       render(<ProtocolDetailsSheet />);
 
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolId: '1',
+        protocolProtocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -413,7 +413,7 @@ describe('ProtocolDetailsSheet', () => {
 
     it('should track analytics event with false flags when protocol has no optional data', () => {
       const minimalProtocol: CallProtocolsResultData = {
-        Id: 'protocol-minimal',
+        ProtocolId: 'protocol-minimal',
         DepartmentId: 'dept1',
         Name: 'Minimal Protocol',
         Code: '',
@@ -440,7 +440,7 @@ describe('ProtocolDetailsSheet', () => {
       render(<ProtocolDetailsSheet />);
 
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolId: 'protocol-minimal',
+        protocolProtocolId: 'protocol-minimal',
         protocolName: 'Minimal Protocol',
         hasCode: false,
         hasDescription: false,
@@ -496,7 +496,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(1);
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolId: '1',
+        protocolProtocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -513,7 +513,7 @@ describe('ProtocolDetailsSheet', () => {
     it('should track analytics event when selected protocol changes', () => {
       const secondProtocol: CallProtocolsResultData = {
         ...mockProtocols[0],
-        Id: '3',
+        ProtocolId: '3',
         Name: 'Second Protocol',
         Code: 'SP002',
       };
@@ -529,7 +529,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(1);
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolId: '1',
+        protocolProtocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -548,7 +548,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(2);
       expect(mockTrackEvent).toHaveBeenLastCalledWith('protocol_details_sheet_opened', {
-        protocolId: '3',
+        protocolProtocolId: '3',
         protocolName: 'Second Protocol',
         hasCode: true,
         hasDescription: true,

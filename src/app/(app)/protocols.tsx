@@ -39,6 +39,13 @@ export default function Protocols() {
     setRefreshing(false);
   }, [fetchProtocols]);
 
+  const handleProtocolPress = React.useCallback(
+    (id: string) => {
+      selectProtocol(id);
+    },
+    [selectProtocol]
+  );
+
   const filteredProtocols = React.useMemo(() => {
     if (!searchQuery.trim()) return protocols;
 
@@ -69,11 +76,13 @@ export default function Protocols() {
             <FlatList
               testID="protocols-list"
               data={filteredProtocols}
-              keyExtractor={(item, index) => item.Id || `protocol-${index}`}
-              renderItem={({ item }) => <ProtocolCard protocol={item} onPress={selectProtocol} />}
+              keyExtractor={(item, index) => item.ProtocolId || `protocol-${index}`}
+              renderItem={({ item }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+              extraData={handleProtocolPress}
+              estimatedItemSize={120}
             />
           ) : (
             <ZeroState icon={FileText} heading={t('protocols.empty')} description={t('protocols.emptyDescription')} />

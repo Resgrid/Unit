@@ -32,7 +32,7 @@ jest.mock('@/components/protocols/protocol-card', () => ({
   ProtocolCard: ({ protocol, onPress }: { protocol: any; onPress: (id: string) => void }) => {
     const { Pressable, Text } = require('react-native');
     return (
-      <Pressable testID={`protocol-card-${protocol.Id}`} onPress={() => onPress(protocol.Id)}>
+      <Pressable testID={`protocol-card-${protocol.ProtocolId}`} onPress={() => onPress(protocol.ProtocolId)}>
         <Text>{protocol.Name}</Text>
       </Pressable>
     );
@@ -108,7 +108,7 @@ jest.mock('@/stores/protocols/store', () => ({
 // Mock protocols test data
 const mockProtocols: CallProtocolsResultData[] = [
   {
-    Id: '1',
+    ProtocolId: '1',
     DepartmentId: 'dept1',
     Name: 'Fire Emergency Response',
     Code: 'FIRE001',
@@ -126,7 +126,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '2',
+    ProtocolId: '2',
     DepartmentId: 'dept1',
     Name: 'Medical Emergency',
     Code: 'MED001',
@@ -144,7 +144,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '3',
+    ProtocolId: '3',
     DepartmentId: 'dept1',
     Name: 'Hazmat Response',
     Code: 'HAZ001',
@@ -162,7 +162,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '', // Empty ID to test the keyExtractor fix
+    ProtocolId: '', // Empty ID to test the keyExtractor fix
     DepartmentId: 'dept1',
     Name: 'Protocol with Empty ID',
     Code: 'EMPTY001',

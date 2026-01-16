@@ -569,6 +569,8 @@
     "links": "Links",
     "login_info": "Login Info",
     "logout": "Logout",
+    "logout_confirm_title": "Confirm Logout",
+    "logout_confirm_message": "Are you sure you want to logout? This will clear all app data, cached values, and settings.",
     "more": "More",
     "no_units_available": "No units available",
     "none_selected": "None Selected",

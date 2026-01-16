@@ -22,13 +22,13 @@ export const ProtocolDetailsSheet: React.FC = () => {
   const { trackEvent } = useAnalytics();
   const { protocols, selectedProtocolId, isDetailsOpen, closeDetails } = useProtocolsStore();
 
-  const selectedProtocol = protocols.find((protocol) => protocol.Id === selectedProtocolId);
+  const selectedProtocol = protocols.find((protocol) => protocol.ProtocolId === selectedProtocolId);
 
   // Track when protocol details sheet is opened/rendered
   useEffect(() => {
     if (isDetailsOpen && selectedProtocol) {
       trackEvent('protocol_details_sheet_opened', {
-        protocolId: selectedProtocol.Id,
+        protocolId: selectedProtocol.ProtocolId,
         protocolName: selectedProtocol.Name,
         hasCode: !!selectedProtocol.Code,
         hasDescription: !!selectedProtocol.Description,
@@ -38,14 +38,21 @@ export const ProtocolDetailsSheet: React.FC = () => {
     }
   }, [isDetailsOpen, selectedProtocol, trackEvent]);
 
-  if (!selectedProtocol) return null;
+  if (!selectedProtocol) {
+    return (
+      <Actionsheet isOpen={isDetailsOpen} onClose={closeDetails} snapPoints={[67]}>
+        <ActionsheetBackdrop />
+        <ActionsheetContent className="w-full rounded-t-xl bg-white dark:bg-gray-800" />
+      </Actionsheet>
+    );
+  }
 
   const textColor = colorScheme === 'dark' ? '#E5E7EB' : '#1F2937'; // gray-200 : gray-800
 
   return (
     <Actionsheet isOpen={isDetailsOpen} onClose={closeDetails} snapPoints={[67]}>
       <ActionsheetBackdrop />
-      <ActionsheetContent className="w-full rounded-t-xl bg-white dark:bg-gray-800">
+      <ActionsheetContent className="w-full rounded-t-xl bg-white dark:bg-gray-800" key={selectedProtocolId}>
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
@@ -79,6 +86,7 @@ export const ProtocolDetailsSheet: React.FC = () => {
             {/* Protocol content in WebView */}
             <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
               <WebView
+                key={selectedProtocolId}
                 style={styles.container}
                 originWhitelist={['*']}
                 scrollEnabled={true}

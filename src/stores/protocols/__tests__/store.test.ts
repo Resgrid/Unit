@@ -14,7 +14,7 @@ jest.mock('@/api/protocols/protocols', () => ({
 // Mock protocols test data
 const mockProtocols: CallProtocolsResultData[] = [
   {
-    Id: '1',
+    ProtocolId: '1',
     DepartmentId: 'dept1',
     Name: 'Fire Emergency Response',
     Code: 'FIRE001',
@@ -32,7 +32,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '2',
+    ProtocolId: '2',
     DepartmentId: 'dept1',
     Name: 'Medical Emergency',
     Code: 'MED001',
@@ -57,7 +57,7 @@ const mockApiResponse: CallProtocolsResult = {
   Timestamp: '2023-01-01T00:00:00Z',
   Version: '1.0',
   Node: 'test-node',
-  RequestId: 'test-request-id',
+  RequestProtocolId: 'test-request-id',
   Status: 'success',
   Environment: 'test',
 };

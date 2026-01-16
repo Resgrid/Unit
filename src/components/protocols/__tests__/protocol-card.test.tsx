@@ -20,7 +20,7 @@ describe('ProtocolCard', () => {
   });
 
   const baseProtocol: CallProtocolsResultData = {
-    Id: '1',
+    ProtocolId: '1',
     DepartmentId: 'dept1',
     Name: 'Fire Emergency Response',
     Code: 'FIRE001',
@@ -39,7 +39,7 @@ describe('ProtocolCard', () => {
   };
 
   const protocolWithoutOptionalFields: CallProtocolsResultData = {
-    Id: '2',
+    ProtocolId: '2',
     DepartmentId: 'dept1',
     Name: 'Basic Protocol',
     Code: '',
@@ -58,7 +58,7 @@ describe('ProtocolCard', () => {
   };
 
   const protocolWithHtmlDescription: CallProtocolsResultData = {
-    Id: '3',
+    ProtocolId: '3',
     DepartmentId: 'dept1',
     Name: 'Protocol with HTML',
     Code: 'HTML001',
@@ -220,7 +220,7 @@ describe('ProtocolCard', () => {
 
   describe('Edge Cases', () => {
     it('should handle protocol with empty ID', () => {
-      const protocolWithEmptyId = { ...baseProtocol, Id: '' };
+      const protocolWithEmptyId = { ...baseProtocol, ProtocolId: '' };
       render(<ProtocolCard protocol={protocolWithEmptyId} onPress={mockOnPress} />);
 
       const card = screen.getByText('Fire Emergency Response');
