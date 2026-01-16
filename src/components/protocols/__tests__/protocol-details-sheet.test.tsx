@@ -402,7 +402,7 @@ describe('ProtocolDetailsSheet', () => {
       render(<ProtocolDetailsSheet />);
 
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolProtocolId: '1',
+        protocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -440,7 +440,7 @@ describe('ProtocolDetailsSheet', () => {
       render(<ProtocolDetailsSheet />);
 
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolProtocolId: 'protocol-minimal',
+        protocolId: 'protocol-minimal',
         protocolName: 'Minimal Protocol',
         hasCode: false,
         hasDescription: false,
@@ -496,7 +496,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(1);
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolProtocolId: '1',
+        protocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -529,7 +529,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(1);
       expect(mockTrackEvent).toHaveBeenCalledWith('protocol_details_sheet_opened', {
-        protocolProtocolId: '1',
+        protocolId: '1',
         protocolName: 'Fire Emergency Response',
         hasCode: true,
         hasDescription: true,
@@ -548,7 +548,7 @@ describe('ProtocolDetailsSheet', () => {
 
       expect(mockTrackEvent).toHaveBeenCalledTimes(2);
       expect(mockTrackEvent).toHaveBeenLastCalledWith('protocol_details_sheet_opened', {
-        protocolProtocolId: '3',
+        protocolId: '3',
         protocolName: 'Second Protocol',
         hasCode: true,
         hasDescription: true,

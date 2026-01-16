@@ -57,7 +57,7 @@ const mockApiResponse: CallProtocolsResult = {
   Timestamp: '2023-01-01T00:00:00Z',
   Version: '1.0',
   Node: 'test-node',
-  RequestProtocolId: 'test-request-id',
+  RequestId: 'test-request-id',
   Status: 'success',
   Environment: 'test',
 };

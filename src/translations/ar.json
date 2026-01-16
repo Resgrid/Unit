@@ -531,6 +531,7 @@
   "settings": {
     "about": "حول التطبيق",
     "account": "الحساب",
+    "activating_unit": "جاري تفعيل الوحدة...",
     "active_unit": "الوحدة النشطة",
     "app_info": "معلومات التطبيق",
     "app_name": "اسم التطبيق",
@@ -569,8 +570,8 @@
     "links": "الروابط",
     "login_info": "معلومات تسجيل الدخول",
     "logout": "تسجيل خروج",
-    "logout_confirm_title": "تأكيد تسجيل الخروج",
     "logout_confirm_message": "هل أنت متأكد من رغبتك في تسجيل الخروج؟ سيؤدي هذا إلى مسح جميع بيانات التطبيق والقيم المخزنة مؤقتاً والإعدادات.",
+    "logout_confirm_title": "تأكيد تسجيل الخروج",
     "more": "المزيد",
     "no_units_available": "لا توجد وحدات متاحة",
     "none_selected": "لم يتم اختيار أي شيء",
@@ -600,7 +601,6 @@
       "title": "المظهر"
     },
     "title": "الإعدادات",
-    "activating_unit": "جاري تفعيل الوحدة...",
     "unit_selected_successfully": "تم اختيار {{unitName}} بنجاح",
     "unit_selection": "اختيار الوحدة",
     "unit_selection_failed": "فشل في اختيار الوحدة. يرجى المحاولة مرة أخرى.",

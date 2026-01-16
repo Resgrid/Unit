@@ -72,12 +72,8 @@ interface ContactFieldProps {
 }
 
 const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink, linkPrefix, action = 'none', fullAddress }) => {
-  if (!value || value.toString().trim() === '') return null;
-
-  const displayValue = isLink && linkPrefix ? `${linkPrefix}${value}` : value.toString();
-
   const handlePress = useCallback(async () => {
-    if (action === 'none') return;
+    if (action === 'none' || !value) return;
 
     let url: string | null = null;
 
@@ -112,6 +108,10 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
       }
     }
   }, [action, value, fullAddress]);
+
+  if (!value || value.toString().trim() === '') return null;
+
+  const displayValue = isLink && linkPrefix ? `${linkPrefix}${value}` : value.toString();
 
   const isActionable = action !== 'none';
 

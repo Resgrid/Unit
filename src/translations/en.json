@@ -531,6 +531,7 @@
   "settings": {
     "about": "About",
     "account": "Account",
+    "activating_unit": "Activating unit...",
     "active_unit": "Active Unit",
     "app_info": "App Info",
     "app_name": "App Name",
@@ -569,8 +570,8 @@
     "links": "Links",
     "login_info": "Login Info",
     "logout": "Logout",
-    "logout_confirm_title": "Confirm Logout",
     "logout_confirm_message": "Are you sure you want to logout? This will clear all app data, cached values, and settings.",
+    "logout_confirm_title": "Confirm Logout",
     "more": "More",
     "no_units_available": "No units available",
     "none_selected": "None Selected",
@@ -600,7 +601,6 @@
       "title": "Theme"
     },
     "title": "Settings",
-    "activating_unit": "Activating unit...",
     "unit_selected_successfully": "{{unitName}} selected successfully",
     "unit_selection": "Unit Selection",
     "unit_selection_failed": "Failed to select unit. Please try again.",

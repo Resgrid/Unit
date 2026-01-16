@@ -123,12 +123,7 @@ const useAuthStore = create<AuthState>()(
           setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
         } catch (error) {
           // Check if it's a network error vs an invalid refresh token
-          const isNetworkError =
-            error instanceof Error &&
-            (error.message.includes('Network Error') ||
-              error.message.includes('timeout') ||
-              error.message.includes('ECONNREFUSED') ||
-              error.message.includes('ETIMEDOUT'));
+          const isNetworkError = error instanceof Error && (error.message.includes('Network Error') || error.message.includes('timeout') || error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT'));
 
           if (isNetworkError) {
             // Network error - retry after a delay, don't logout

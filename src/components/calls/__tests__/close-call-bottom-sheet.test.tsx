@@ -40,6 +40,32 @@ jest.mock('nativewind', () => ({
 // Mock cssInterop globally
 (global as any).cssInterop = jest.fn();
 
+// Mock actionsheet components
+jest.mock('@/components/ui/actionsheet', () => ({
+  Actionsheet: ({ children, isOpen }: any) => {
+    const { View } = require('react-native');
+    return isOpen ? <View testID="actionsheet">{children}</View> : null;
+  },
+  ActionsheetBackdrop: () => null,
+  ActionsheetContent: ({ children }: any) => {
+    const { View } = require('react-native');
+    return <View testID="actionsheet-content">{children}</View>;
+  },
+  ActionsheetDragIndicator: () => null,
+  ActionsheetDragIndicatorWrapper: ({ children }: any) => {
+    const { View } = require('react-native');
+    return <View>{children}</View>;
+  },
+}));
+
+// Mock keyboard aware scroll view
+jest.mock('react-native-keyboard-controller', () => ({
+  KeyboardAwareScrollView: ({ children }: any) => {
+    const { View } = require('react-native');
+    return <View>{children}</View>;
+  },
+}));
+
 // Mock UI components
 jest.mock('@/components/ui/bottom-sheet', () => ({
   CustomBottomSheet: ({ children, isOpen }: any) => {
