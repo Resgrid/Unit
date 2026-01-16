@@ -46,6 +46,7 @@ export interface AuthState {
   error: string | null;
   profile: ProfileModel | null;
   userId: string | null;
+  refreshTimeoutId: ReturnType<typeof setTimeout> | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;

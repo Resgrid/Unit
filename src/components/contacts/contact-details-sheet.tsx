@@ -22,6 +22,7 @@ import { Linking, Platform, ScrollView, useWindowDimensions, View } from 'react-
 
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { logger } from '@/lib/logging';
 import { ContactType } from '@/models/v4/contacts/contactResultData';
 import { useContactsStore } from '@/stores/contacts/store';
 
@@ -72,10 +73,12 @@ interface ContactFieldProps {
 }
 
 const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink, linkPrefix, action = 'none', fullAddress }) => {
+  const { t } = useTranslation();
   const handlePress = useCallback(async () => {
     if (action === 'none' || !value) return;
 
     let url: string | null = null;
+    let webFallbackUrl: string | null = null;
 
     switch (action) {
       case 'email':
@@ -87,10 +90,11 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
       case 'address': {
         const addressToOpen = fullAddress || value.toString();
         const encodedAddress = encodeURIComponent(addressToOpen);
+        webFallbackUrl = `https://maps.google.com/?q=${encodedAddress}`;
         url = Platform.select({
           ios: `maps:0,0?q=${encodedAddress}`,
           android: `geo:0,0?q=${encodedAddress}`,
-          default: `https://maps.google.com/?q=${encodedAddress}`,
+          default: webFallbackUrl,
         });
         break;
       }
@@ -102,9 +106,36 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
     }
 
     if (url) {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
+      try {
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else if (action === 'address' && webFallbackUrl) {
+          // Fallback to Google Maps web URL for address action
+          await Linking.openURL(webFallbackUrl);
+        } else {
+          logger.warn({
+            message: 'Cannot open URL',
+            context: { url, action },
+          });
+        }
+      } catch (error) {
+        logger.error({
+          message: 'Failed to open URL from contact details',
+          context: { error, url, action },
+        });
+
+        // For address action, attempt web fallback on error
+        if (action === 'address' && webFallbackUrl) {
+          try {
+            await Linking.openURL(webFallbackUrl);
+          } catch (fallbackError) {
+            logger.error({
+              message: 'Failed to open fallback Google Maps URL',
+              context: { error: fallbackError, webFallbackUrl },
+            });
+          }
+        }
       }
     }
   }, [action, value, fullAddress]);
@@ -126,7 +157,13 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
   );
 
   return isActionable ? (
-    <Pressable onPress={handlePress} className="active:opacity-70">
+    <Pressable
+      onPress={handlePress}
+      className="active:opacity-70"
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${displayValue}`}
+      accessibilityHint={t(`accessibility.action.${action}`, { defaultValue: `Activate to ${action}` })}
+    >
       {content}
     </Pressable>
   ) : (

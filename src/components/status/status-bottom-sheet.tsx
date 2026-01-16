@@ -36,6 +36,7 @@ export const StatusBottomSheet = () => {
   React.useEffect(() => {
     offlineEventManager.initialize();
   }, []);
+
   const {
     isOpen,
     currentStep,
@@ -63,6 +64,20 @@ export const StatusBottomSheet = () => {
   const { unitRoleAssignments } = useRolesStore();
   const { saveUnitStatus } = useStatusesStore();
   const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore();
+
+  // Set default tab based on DetailType when status changes
+  React.useEffect(() => {
+    if (selectedStatus) {
+      // DetailType 1 = stations only, so default to stations tab
+      // DetailType 2 = calls only, so default to calls tab
+      // DetailType 3 = both, default to calls tab
+      if (selectedStatus.Detail === 1) {
+        setSelectedTab('stations');
+      } else {
+        setSelectedTab('calls');
+      }
+    }
+  }, [selectedStatus]);
 
   // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
@@ -535,10 +550,10 @@ export const StatusBottomSheet = () => {
                 </HStack>
               </TouchableOpacity>
 
-              {/* Show tabs only if we have both calls and stations to choose from */}
-              {((detailLevel === 1 && availableStations.length > 0) || (detailLevel === 2 && availableCalls.length > 0) || (detailLevel === 3 && (availableCalls.length > 0 || availableStations.length > 0))) && (
+              {/* Show destination options based on DetailType: 1=stations only, 2=calls only, 3=both */}
+              {detailLevel > 0 && (
                 <>
-                  {/* Tab Headers - only show if we have both types or multiple options */}
+                  {/* Tab Headers - only show for DetailType 3 (both calls and stations) */}
                   {detailLevel === 3 && (
                     <HStack space="xs" className="mb-4">
                       <TouchableOpacity onPress={() => setSelectedTab('calls')} className={`flex-1 rounded-lg py-3 ${selectedTab === 'calls' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -552,7 +567,7 @@ export const StatusBottomSheet = () => {
 
                   {/* Tab Content */}
                   <ScrollView className={detailLevel === 3 ? 'max-h-[200px]' : 'max-h-[300px]'}>
-                    {/* Show calls if detailLevel 2 or 3, and either no tabs or calls tab selected */}
+                    {/* Show calls only for DetailType 2 (calls only) or DetailType 3 with calls tab selected */}
                     {(detailLevel === 2 || (detailLevel === 3 && selectedTab === 'calls')) && (
                       <VStack space="sm">
                         {isLoading ? (
@@ -584,7 +599,7 @@ export const StatusBottomSheet = () => {
                       </VStack>
                     )}
 
-                    {/* Show stations if detailLevel 1 or 3, and either no tabs or stations tab selected */}
+                    {/* Show stations only for DetailType 1 (stations only) or DetailType 3 with stations tab selected */}
                     {(detailLevel === 1 || (detailLevel === 3 && selectedTab === 'stations')) && (
                       <VStack space="sm">
                         {isLoading ? (

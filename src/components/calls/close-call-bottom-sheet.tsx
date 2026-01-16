@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '@/components/ui/actionsheet';
@@ -71,11 +72,9 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
       // Close the bottom sheet
       handleClose();
 
-      // Refresh the call list
+      // Navigate back to the calls list and refresh
+      router.replace('/(app)/calls');
       await fetchCalls();
-
-      // Navigate back to close the call detail screen
-      router.back();
     } catch (error) {
       console.error('Error closing call:', error);
       // Show error toast
@@ -95,7 +94,7 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 
-        <KeyboardAwareScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
+        <KeyboardAwareScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
           <VStack space="md" className="w-full p-4">
             <Text className="mb-4 text-center text-lg font-semibold">{t('call_detail.close_call')}</Text>
 
@@ -144,3 +143,13 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
     </Actionsheet>
   );
 };
+
+const styles = StyleSheet.create({
+  scrollView: {
+    width: '100%',
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    paddingBottom: 80,
+  },
+});

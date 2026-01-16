@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig, isAxiosError } from 'axios';
 
 import { refreshTokenRequest } from '@/lib/auth/api';
 import { logger } from '@/lib/logging';
@@ -100,9 +100,7 @@ axiosInstance.interceptors.response.use(
         processQueue(refreshError as Error);
 
         // Check if it's a network error vs an invalid refresh token
-        const isNetworkError =
-          refreshError instanceof Error &&
-          (refreshError.message.includes('Network Error') || refreshError.message.includes('timeout') || refreshError.message.includes('ECONNREFUSED') || refreshError.message.includes('ETIMEDOUT'));
+        const isNetworkError = isAxiosError(refreshError) && !refreshError.response;
 
         if (!isNetworkError) {
           // Only logout for non-network errors (e.g., invalid refresh token, 400/401 from token endpoint)

@@ -319,7 +319,13 @@ jobs:
             # Third pass: Remove any remaining HTML comment lines
             cleaned_body="$(printf '%s\n' "$cleaned_body" | sed '/^<!--.*-->$/d' | sed '/^<!--/d' | sed '/^-->$/d')"
             
-            # Fourth pass: Trim leading and trailing whitespace/empty lines
+            # Fourth pass: Remove specific CodeRabbit lines
+            cleaned_body="$(printf '%s\n' "$cleaned_body" \
+              | grep -v '✏️ Tip: You can customize this high-level summary in your review settings\.' \
+              | grep -v '<!-- This is an auto-generated comment: release notes by coderabbit.ai -->' \
+              | grep -v '<!-- end of auto-generated comment: release notes by coderabbit.ai -->')"
+            
+            # Fifth pass: Trim leading and trailing whitespace/empty lines
             cleaned_body="$(printf '%s\n' "$cleaned_body" | sed '/^$/d' | awk 'NF {p=1} p')"
             
             # Try to extract content under "## Release Notes" heading if it exists
@@ -429,13 +435,10 @@ jobs:
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
             --arg notes "$RELEASE_NOTES" \
-            --arg buildNumber "${{ github.run_number }}" \
-            --arg commitSha "${{ github.sha }}" \
-            --arg buildUrl "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             '{
               "version": $version,
               "title": ("Release v" + $version),
-              "content": "$notes",
+              "content": $notes
             }')
           
           echo "Sending release notes to Changerawr..."

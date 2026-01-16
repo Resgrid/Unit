@@ -21,6 +21,7 @@ const useAuthStore = create<AuthState>()(
       profile: null,
       userId: null,
       isFirstTime: true,
+      refreshTimeoutId: null,
       login: async (credentials: LoginCredentials) => {
         try {
           set({ status: 'loading' });
@@ -64,7 +65,13 @@ const useAuthStore = create<AuthState>()(
               message: 'Login successful, scheduling token refresh',
               context: { refreshDelayMs, expiresInSeconds: response.authResponse!.expires_in },
             });
-            setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
+            // Clear any existing refresh timer before scheduling a new one
+            const existingTimeoutId = get().refreshTimeoutId;
+            if (existingTimeoutId !== null) {
+              clearTimeout(existingTimeoutId);
+            }
+            const timeoutId = setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
+            set({ refreshTimeoutId: timeoutId });
           } else {
             set({
               status: 'error',
@@ -80,6 +87,11 @@ const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
+        // Clear any pending refresh timer to prevent stacked timeouts
+        const existingTimeoutId = get().refreshTimeoutId;
+        if (existingTimeoutId !== null) {
+          clearTimeout(existingTimeoutId);
+        }
         set({
           accessToken: null,
           refreshToken: null,
@@ -87,6 +99,7 @@ const useAuthStore = create<AuthState>()(
           error: null,
           profile: null,
           isFirstTime: true,
+          refreshTimeoutId: null,
         });
       },
 
@@ -120,7 +133,13 @@ const useAuthStore = create<AuthState>()(
             message: 'Token refreshed successfully, scheduling next refresh',
             context: { refreshDelayMs, expiresInSeconds: response.expires_in },
           });
-          setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
+          // Clear any existing refresh timer before scheduling a new one
+          const existingTimeoutId = get().refreshTimeoutId;
+          if (existingTimeoutId !== null) {
+            clearTimeout(existingTimeoutId);
+          }
+          const timeoutId = setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
+          set({ refreshTimeoutId: timeoutId });
         } catch (error) {
           // Check if it's a network error vs an invalid refresh token
           const isNetworkError = error instanceof Error && (error.message.includes('Network Error') || error.message.includes('timeout') || error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT'));
@@ -131,8 +150,14 @@ const useAuthStore = create<AuthState>()(
               message: 'Token refresh failed due to network error, will retry',
               context: { error: error instanceof Error ? error.message : String(error) },
             });
+            // Clear any existing refresh timer before scheduling retry
+            const existingTimeoutId = get().refreshTimeoutId;
+            if (existingTimeoutId !== null) {
+              clearTimeout(existingTimeoutId);
+            }
             // Retry after 30 seconds for network errors
-            setTimeout(() => get().refreshAccessToken(), 30000);
+            const retryTimeoutId = setTimeout(() => get().refreshAccessToken(), 30000);
+            set({ refreshTimeoutId: retryTimeoutId });
           } else {
             // Invalid refresh token or server rejected it - logout user
             logger.error({
@@ -162,16 +187,14 @@ const useAuthStore = create<AuthState>()(
               });
 
               logger.info({
-                message: 'Auth state hydrated from storage, scheduling token refresh',
+                message: 'Auth state hydrated from storage, token refresh will be scheduled by onRehydrateStorage',
               });
 
-              // Schedule an immediate token refresh to ensure we have a valid access token
-              // Use a small delay to allow the app to fully initialize
-              setTimeout(() => get().refreshAccessToken(), 1000);
+              // Note: Token refresh scheduling is handled by onRehydrateStorage to avoid duplicate refreshes
             } catch (parseError) {
               // Token parsing failed, but we have a refresh token - try to refresh
               logger.warn({
-                message: 'Failed to parse stored token, attempting refresh',
+                message: 'Failed to parse stored token, refresh will be attempted by onRehydrateStorage',
                 context: { error: parseError instanceof Error ? parseError.message : String(parseError) },
               });
 
@@ -180,8 +203,7 @@ const useAuthStore = create<AuthState>()(
                 status: 'loading',
               });
 
-              // Attempt to refresh the token
-              get().refreshAccessToken();
+              // Note: Token refresh is handled by onRehydrateStorage to avoid duplicate refreshes
             }
           } else {
             logger.info({
@@ -243,10 +265,16 @@ const useAuthStore = create<AuthState>()(
               context: { hasAccessToken: !!state.accessToken, hasRefreshToken: !!state.refreshToken },
             });
 
+            // Clear any existing refresh timer before scheduling a new one
+            const existingTimeoutId = useAuthStore.getState().refreshTimeoutId;
+            if (existingTimeoutId !== null) {
+              clearTimeout(existingTimeoutId);
+            }
             // Use a small delay to allow the app to fully initialize
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
               useAuthStore.getState().refreshAccessToken();
             }, 2000);
+            useAuthStore.setState({ refreshTimeoutId: timeoutId });
           } else if (state && state.refreshToken && state.status !== 'signedIn') {
             // We have a refresh token but status is not signedIn (maybe was idle/error)
             // Try to refresh and restore the session
@@ -255,12 +283,18 @@ const useAuthStore = create<AuthState>()(
               context: { status: state.status },
             });
 
+            // Clear any existing refresh timer before scheduling a new one
+            const existingTimeoutId = useAuthStore.getState().refreshTimeoutId;
+            if (existingTimeoutId !== null) {
+              clearTimeout(existingTimeoutId);
+            }
             // Set status to loading while we try to refresh
             useAuthStore.setState({ status: 'loading' });
 
-            setTimeout(() => {
+            const timeoutId = setTimeout(() => {
               useAuthStore.getState().refreshAccessToken();
             }, 2000);
+            useAuthStore.setState({ refreshTimeoutId: timeoutId });
           }
         };
       },
