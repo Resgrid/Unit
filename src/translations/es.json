@@ -107,6 +107,7 @@
     "addNoteLabel": "Añadir Nueva Nota",
     "addNotePlaceholder": "Añadir una nueva nota...",
     "noNotes": "No hay notas disponibles para esta llamada",
+    "noNotesFound": "No se encontraron notas",
     "noSearchResults": "No hay notas que coincidan con tu búsqueda",
     "searchPlaceholder": "Buscar notas...",
     "title": "Notas de la llamada"

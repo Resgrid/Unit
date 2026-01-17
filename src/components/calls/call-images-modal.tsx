@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Dimensions, Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
@@ -50,7 +50,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [isAddingImage, setIsAddingImage] = useState(false);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
-  const flatListRef = useRef<any>(null); // FlashList ref type
+  const flatListRef = useRef<FlatList<CallFileResultData>>(null);
 
   const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage, clearImages } = useCallDetailStore();
 
@@ -206,6 +206,10 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     setImageErrors((prev) => new Set([...prev, itemId]));
   };
 
+  const handleImagePress = useCallback((source: { uri: string }, name?: string) => {
+    setFullScreenImage({ source, name });
+  }, []);
+
   // Reset active index when valid images change
 
   const renderImageItem = ({ item, index }: { item: CallFileResultData; index: number }) => {
@@ -246,16 +250,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     // At this point, imageSource is guaranteed to be non-null
     return (
       <Box className="w-full items-center justify-center px-4" style={{ width }}>
-        <TouchableOpacity
-          onPress={() => {
-            setFullScreenImage({ source: imageSource, name: item.Name });
-          }}
-          testID={`image-${item.Id}-touchable`}
-          activeOpacity={0.7}
-          style={{ width: '100%' }}
-          delayPressIn={0}
-          delayPressOut={0}
-        >
+        <TouchableOpacity onPress={() => handleImagePress(imageSource, item.Name)} testID={`image-${item.Id}-touchable`} activeOpacity={0.7} style={{ width: '100%' }} delayPressIn={0} delayPressOut={0}>
           <Image
             key={`${item.Id}-${index}`}
             source={imageSource}
@@ -467,12 +462,12 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
           <View style={[styles.header, isDark && styles.headerDark]}>
             <Heading size="lg">{isAddingImage ? t('callImages.add_new') : t('callImages.title')}</Heading>
             <HStack className="items-center space-x-2">
-              {!isAddingImage && !isLoadingImages && (
+              {!isAddingImage && !isLoadingImages ? (
                 <Button size="sm" variant="outline" onPress={() => setIsAddingImage(true)}>
                   <ButtonIcon as={PlusIcon} />
                   <ButtonText>{t('callImages.add')}</ButtonText>
                 </Button>
-              )}
+              ) : null}
               <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-button">
                 <X size={24} color={isDark ? '#D1D5DB' : '#374151'} />
               </TouchableOpacity>
@@ -550,4 +545,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CallImagesModal;
+export default memo(CallImagesModal);

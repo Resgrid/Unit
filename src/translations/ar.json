@@ -107,6 +107,7 @@
     "addNoteLabel": "إضافة ملاحظة جديدة",
     "addNotePlaceholder": "أضف ملاحظة جديدة...",
     "noNotes": "لا توجد ملاحظات متاحة لهذه المكالمة",
+    "noNotesFound": "لم يتم العثور على ملاحظات",
     "noSearchResults": "لا توجد ملاحظات تطابق بحثك",
     "searchPlaceholder": "البحث في الملاحظات...",
     "title": "ملاحظات المكالمة"

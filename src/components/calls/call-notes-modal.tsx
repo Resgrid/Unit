@@ -134,7 +134,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
               keyboardShouldPersistTaps="handled"
             />
           ) : (
-            <ZeroState heading="No notes found" />
+            <ZeroState heading={t('callNotes.noNotesFound')} />
           )}
         </View>
 
