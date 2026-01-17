@@ -67,7 +67,7 @@ const Sidebar = () => {
               <Button
                 key={status.Id}
                 variant="solid"
-                className="justify-center px-3 pb-2"
+                className="w-full justify-center overflow-visible px-3 py-2"
                 action="primary"
                 size="lg"
                 style={{
@@ -75,7 +75,15 @@ const Sidebar = () => {
                 }}
                 onPress={() => setIsOpen(true, status)}
               >
-                <ButtonText style={{ color: invertColor(status.BColor, true) }}>{status.Text}</ButtonText>
+                <ButtonText
+                  numberOfLines={1}
+                  style={{
+                    color: invertColor(status.BColor, true),
+                    flexShrink: 0,
+                  }}
+                >
+                  {status.Text}
+                </ButtonText>
               </Button>
             ))}
           </VStack>

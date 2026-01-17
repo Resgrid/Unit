@@ -3,6 +3,7 @@ import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { invertColor } from '@/lib/utils';
 import { type CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
@@ -35,6 +36,7 @@ export const StatusBottomSheet = () => {
   React.useEffect(() => {
     offlineEventManager.initialize();
   }, []);
+
   const {
     isOpen,
     currentStep,
@@ -62,6 +64,20 @@ export const StatusBottomSheet = () => {
   const { unitRoleAssignments } = useRolesStore();
   const { saveUnitStatus } = useStatusesStore();
   const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore();
+
+  // Set default tab based on DetailType when status changes
+  React.useEffect(() => {
+    if (selectedStatus) {
+      // DetailType 1 = stations only, so default to stations tab
+      // DetailType 2 = calls only, so default to calls tab
+      // DetailType 3 = both, default to calls tab
+      if (selectedStatus.Detail === 1) {
+        setSelectedTab('stations');
+      } else {
+        setSelectedTab('calls');
+      }
+    }
+  }, [selectedStatus]);
 
   // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
@@ -504,7 +520,10 @@ export const StatusBottomSheet = () => {
                 </VStack>
               </ScrollView>
 
-              <HStack space="sm" className="mt-2 justify-end px-4">
+              <HStack space="xs" className="mt-2 justify-between px-4">
+                <Button variant="outline" onPress={handleClose} className="px-3">
+                  <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
+                </Button>
                 <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
                   <ButtonText className="text-sm">{t('common.next')}</ButtonText>
                   <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
@@ -531,10 +550,10 @@ export const StatusBottomSheet = () => {
                 </HStack>
               </TouchableOpacity>
 
-              {/* Show tabs only if we have both calls and stations to choose from */}
-              {((detailLevel === 1 && availableStations.length > 0) || (detailLevel === 2 && availableCalls.length > 0) || (detailLevel === 3 && (availableCalls.length > 0 || availableStations.length > 0))) && (
+              {/* Show destination options based on DetailType: 1=stations only, 2=calls only, 3=both */}
+              {detailLevel > 0 && (
                 <>
-                  {/* Tab Headers - only show if we have both types or multiple options */}
+                  {/* Tab Headers - only show for DetailType 3 (both calls and stations) */}
                   {detailLevel === 3 && (
                     <HStack space="xs" className="mb-4">
                       <TouchableOpacity onPress={() => setSelectedTab('calls')} className={`flex-1 rounded-lg py-3 ${selectedTab === 'calls' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
@@ -548,7 +567,7 @@ export const StatusBottomSheet = () => {
 
                   {/* Tab Content */}
                   <ScrollView className={detailLevel === 3 ? 'max-h-[200px]' : 'max-h-[300px]'}>
-                    {/* Show calls if detailLevel 2 or 3, and either no tabs or calls tab selected */}
+                    {/* Show calls only for DetailType 2 (calls only) or DetailType 3 with calls tab selected */}
                     {(detailLevel === 2 || (detailLevel === 3 && selectedTab === 'calls')) && (
                       <VStack space="sm">
                         {isLoading ? (
@@ -580,7 +599,7 @@ export const StatusBottomSheet = () => {
                       </VStack>
                     )}
 
-                    {/* Show stations if detailLevel 1 or 3, and either no tabs or stations tab selected */}
+                    {/* Show stations only for DetailType 1 (stations only) or DetailType 3 with stations tab selected */}
                     {(detailLevel === 1 || (detailLevel === 3 && selectedTab === 'stations')) && (
                       <VStack space="sm">
                         {isLoading ? (
@@ -614,7 +633,17 @@ export const StatusBottomSheet = () => {
                 </>
               )}
 
-              <HStack space="sm" className="mt-2 justify-end px-4">
+              <HStack space="xs" className="mt-2 justify-between px-4">
+                {cameFromStatusSelection ? (
+                  <Button variant="outline" onPress={handlePrevious} className="px-3">
+                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                    <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+                  </Button>
+                ) : (
+                  <Button variant="outline" onPress={handleClose} className="px-3">
+                    <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
+                  </Button>
+                )}
                 <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
                   <ButtonText className="text-sm">{t('common.next')}</ButtonText>
                   <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
@@ -634,51 +663,65 @@ export const StatusBottomSheet = () => {
                   </Textarea>
                 </>
               ) : null}
-              <Button onPress={handleSubmit} className="self-end bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
-                {isSubmitting && <Spinner size="small" color="white" />}
-                <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
-              </Button>
-            </VStack>
-          )}
-
-          {currentStep === 'add-note' && (
-            <VStack space="md" className="w-full">
-              {/* Selected Status */}
-              <VStack space="sm">
-                <Text className="font-medium">{t('status.selected_status')}:</Text>
-                <VStack className="rounded-lg p-2" style={{ backgroundColor: selectedStatus?.BColor || '#f3f4f6' }}>
-                  <Text className="font-bold" style={{ color: invertColor(selectedStatus?.BColor || '#f3f4f6', true) }}>
-                    {selectedStatus?.Text}
-                  </Text>
-                </VStack>
-              </VStack>
-
-              {/* Selected Destination */}
-              <VStack space="sm">
-                <Text className="font-medium">{t('status.selected_destination')}:</Text>
-                <Text className="text-sm text-gray-600 dark:text-gray-400">{getSelectedDestinationDisplay()}</Text>
-              </VStack>
-
-              <VStack space="sm">
-                <Text className="font-medium">
-                  {t('status.note')} {isNoteRequired ? '' : `(${t('common.optional')})`}:
-                </Text>
-                <Textarea size="md" className="min-h-[100px] w-full">
-                  <TextareaInput placeholder={isNoteRequired ? t('status.note_required') : t('status.note_optional')} value={note} onChangeText={setNote} />
-                </Textarea>
-              </VStack>
-
               <HStack space="xs" className="justify-between px-2">
-                <Button variant="outline" onPress={handlePrevious} className="px-3" isDisabled={isSubmitting}>
-                  <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
-                  <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
-                </Button>
-                <Button onPress={handleSubmit} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
+                {cameFromStatusSelection ? (
+                  <Button variant="outline" onPress={handlePrevious} className="px-3">
+                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                    <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+                  </Button>
+                ) : (
+                  <Button variant="outline" onPress={handleClose} className="px-3">
+                    <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
+                  </Button>
+                )}
+                <Button onPress={handleSubmit} className="bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
                   {isSubmitting && <Spinner size="small" color="white" />}
                   <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
                 </Button>
               </HStack>
             </VStack>
+          )}
+
+          {currentStep === 'add-note' && (
+            <KeyboardAwareScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
+              <VStack space="md" className="w-full">
+                {/* Selected Status */}
+                <VStack space="sm">
+                  <Text className="font-medium">{t('status.selected_status')}:</Text>
+                  <VStack className="rounded-lg p-2" style={{ backgroundColor: selectedStatus?.BColor || '#f3f4f6' }}>
+                    <Text className="font-bold" style={{ color: invertColor(selectedStatus?.BColor || '#f3f4f6', true) }}>
+                      {selectedStatus?.Text}
+                    </Text>
+                  </VStack>
+                </VStack>
+
+                {/* Selected Destination */}
+                <VStack space="sm">
+                  <Text className="font-medium">{t('status.selected_destination')}:</Text>
+                  <Text className="text-sm text-gray-600 dark:text-gray-400">{getSelectedDestinationDisplay()}</Text>
+                </VStack>
+
+                <VStack space="sm">
+                  <Text className="font-medium">
+                    {t('status.note')} {isNoteRequired ? '' : `(${t('common.optional')})`}:
+                  </Text>
+                  <Textarea size="md" className="min-h-[100px] w-full">
+                    <TextareaInput placeholder={isNoteRequired ? t('status.note_required') : t('status.note_optional')} value={note} onChangeText={setNote} />
+                  </Textarea>
+                </VStack>
+
+                <HStack space="xs" className="justify-between px-2 pt-2">
+                  <Button variant="outline" onPress={handlePrevious} className="px-3" isDisabled={isSubmitting}>
+                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                    <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+                  </Button>
+                  <Button onPress={handleSubmit} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
+                    {isSubmitting && <Spinner size="small" color="white" />}
+                    <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
+                  </Button>
+                </HStack>
+              </VStack>
+            </KeyboardAwareScrollView>
           )}
         </VStack>
       </ActionsheetContent>

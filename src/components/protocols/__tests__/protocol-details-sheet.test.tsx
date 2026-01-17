@@ -76,7 +76,7 @@ jest.mock('@/components/ui/actionsheet', () => ({
 // Mock protocols test data
 const mockProtocols: CallProtocolsResultData[] = [
   {
-    Id: '1',
+    ProtocolId: '1',
     DepartmentId: 'dept1',
     Name: 'Fire Emergency Response',
     Code: 'FIRE001',
@@ -94,7 +94,7 @@ const mockProtocols: CallProtocolsResultData[] = [
     Questions: [],
   },
   {
-    Id: '2',
+    ProtocolId: '2',
     DepartmentId: 'dept1',
     Name: 'Basic Protocol',
     Code: '',
@@ -413,7 +413,7 @@ describe('ProtocolDetailsSheet', () => {
 
     it('should track analytics event with false flags when protocol has no optional data', () => {
       const minimalProtocol: CallProtocolsResultData = {
-        Id: 'protocol-minimal',
+        ProtocolId: 'protocol-minimal',
         DepartmentId: 'dept1',
         Name: 'Minimal Protocol',
         Code: '',
@@ -513,7 +513,7 @@ describe('ProtocolDetailsSheet', () => {
     it('should track analytics event when selected protocol changes', () => {
       const secondProtocol: CallProtocolsResultData = {
         ...mockProtocols[0],
-        Id: '3',
+        ProtocolId: '3',
         Name: 'Second Protocol',
         Code: 'SP002',
       };

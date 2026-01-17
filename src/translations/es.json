@@ -1,4 +1,12 @@
 {
+  "accessibility": {
+    "action": {
+      "address": "Activar para ver la dirección en el mapa",
+      "email": "Activar para enviar correo electrónico",
+      "phone": "Activar para llamar al número de teléfono",
+      "website": "Activar para abrir el sitio web"
+    }
+  },
   "app": {
     "title": "Resgrid Unit"
   },
@@ -96,8 +104,10 @@
   },
   "callNotes": {
     "addNote": "Añadir nota",
+    "addNoteLabel": "Añadir Nueva Nota",
     "addNotePlaceholder": "Añadir una nueva nota...",
     "noNotes": "No hay notas disponibles para esta llamada",
+    "noNotesFound": "No se encontraron notas",
     "noSearchResults": "No hay notas que coincidan con tu búsqueda",
     "searchPlaceholder": "Buscar notas...",
     "title": "Notas de la llamada"
@@ -531,6 +541,7 @@
   "settings": {
     "about": "Acerca de",
     "account": "Cuenta",
+    "activating_unit": "Activando unidad...",
     "active_unit": "Unidad activa",
     "app_info": "Información de la aplicación",
     "app_name": "Nombre de la aplicación",
@@ -569,6 +580,8 @@
     "links": "Enlaces",
     "login_info": "Información de inicio de sesión",
     "logout": "Cerrar sesión",
+    "logout_confirm_message": "¿Está seguro de que desea cerrar sesión? Esto borrará todos los datos de la aplicación, valores en caché y configuraciones.",
+    "logout_confirm_title": "Confirmar cierre de sesión",
     "more": "Más",
     "no_units_available": "No hay unidades disponibles",
     "none_selected": "Ninguna seleccionada",

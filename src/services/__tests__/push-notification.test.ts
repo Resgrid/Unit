@@ -98,6 +98,8 @@ const mockNotifeeRequestPermission = jest.fn(() =>
   })
 );
 const mockDisplayNotification = jest.fn(() => Promise.resolve('notification-id'));
+const mockOnForegroundEvent = jest.fn(() => jest.fn());
+const mockOnBackgroundEvent = jest.fn();
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
@@ -105,6 +107,8 @@ jest.mock('@notifee/react-native', () => ({
     createChannel: mockCreateChannel,
     requestPermission: mockNotifeeRequestPermission,
     displayNotification: mockDisplayNotification,
+    onForegroundEvent: mockOnForegroundEvent,
+    onBackgroundEvent: mockOnBackgroundEvent,
   },
   AndroidImportance: {
     HIGH: 4,
@@ -431,13 +435,20 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should store listener handles on initialization', async () => {
+      jest.useFakeTimers();
+      
       await pushNotificationService.initialize();
+
+      // Run all timers to trigger getInitialNotification which is called in setTimeout
+      jest.runAllTimers();
 
       // Verify listeners were registered
       expect(mockOnMessage).toHaveBeenCalled();
       expect(mockOnNotificationOpenedApp).toHaveBeenCalled();
       expect(mockGetInitialNotification).toHaveBeenCalled();
       expect(mockSetBackgroundMessageHandler).toHaveBeenCalled();
+
+      jest.useRealTimers();
     });
 
     it('should properly cleanup all listeners', async () => {

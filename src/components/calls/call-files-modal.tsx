@@ -5,7 +5,7 @@ import * as Sharing from 'expo-sharing';
 import { Download, File, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable } from 'react-native';
+import { Alert, Pressable, useColorScheme } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 import { getCallAttachmentFile } from '@/api/calls/callFiles';
@@ -31,7 +31,8 @@ interface CallFilesModalProps {
 export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
-  const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles } = useCallDetailStore();
+  const colorScheme = useColorScheme();
+  const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles, clearFiles } = useCallDetailStore();
   const [downloadingFiles, setDownloadingFiles] = useState<Record<string, number>>({});
 
   // Bottom sheet ref and snap points
@@ -46,7 +47,14 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     } else {
       bottomSheetRef.current?.close();
     }
-  }, [isOpen, callId, fetchCallFiles]);
+
+    // Cleanup when modal closes to free memory
+    return () => {
+      setDownloadingFiles({});
+      // Clear files from store to free memory
+      clearFiles();
+    };
+  }, [isOpen, callId, fetchCallFiles, clearFiles]);
 
   // Track when call files modal is opened/rendered
   useEffect(() => {
@@ -241,8 +249,8 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
         onChange={handleSheetChanges}
         backdropComponent={renderBackdrop}
         enablePanDownToClose={true}
-        handleIndicatorStyle={{ backgroundColor: '#D1D5DB' }}
-        backgroundStyle={{ backgroundColor: 'white' }}
+        handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#4B5563' : '#D1D5DB' }}
+        backgroundStyle={{ backgroundColor: colorScheme === 'dark' ? '#1F2937' : 'white' }}
       >
         <BottomSheetView style={{ flex: 1 }} testID="call-files-modal">
           {/* Fixed Header */}

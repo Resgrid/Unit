@@ -1,7 +1,7 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { Env } from '@env';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { BackgroundGeolocationItem } from '@/components/settings/background-geolocation-item';
@@ -15,15 +15,19 @@ import { ThemeItem } from '@/components/settings/theme-item';
 import { ToggleItem } from '@/components/settings/toggle-item';
 import { UnitSelectionBottomSheet } from '@/components/settings/unit-selection-bottom-sheet';
 import { FocusAwareStatusBar, ScrollView } from '@/components/ui';
+import { AlertDialog, AlertDialogBackdrop, AlertDialogBody, AlertDialogContent, AlertDialogFooter, AlertDialogHeader } from '@/components/ui/alert-dialog';
 import { Box } from '@/components/ui/box';
+import { Button, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
+import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
 import { openLinkInBrowser } from '@/lib/utils';
+import { clearAllAppData } from '@/services/app-reset.service';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useUnitsStore } from '@/stores/units/store';
 
@@ -36,6 +40,7 @@ export default function Settings() {
   const { login, status, isAuthenticated } = useAuth();
   const [showServerUrl, setShowServerUrl] = React.useState(false);
   const [showUnitSelection, setShowUnitSelection] = React.useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const { units } = useUnitsStore();
 
@@ -43,6 +48,30 @@ export default function Settings() {
     if (!activeUnit) return t('settings.none_selected');
     return activeUnit?.Name || t('common.unknown');
   }, [activeUnit, t]);
+
+  /**
+   * Handles logout confirmation - clears all data and signs out
+   */
+  const handleLogoutConfirm = useCallback(async () => {
+    setShowLogoutConfirm(false);
+
+    trackEvent('user_logout_confirmed', {
+      hadActiveUnit: !!activeUnit,
+    });
+
+    // Clear all app data first using the centralized service
+    try {
+      await clearAllAppData();
+    } catch (error) {
+      logger.error({
+        message: 'Error during app data cleanup on logout',
+        context: { error },
+      });
+    }
+
+    // Then sign out
+    await signOut();
+  }, [signOut, trackEvent, activeUnit]);
 
   const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {
     logger.info({
@@ -89,7 +118,7 @@ export default function Settings() {
               <Item text={t('settings.server')} value={getBaseApiUrl()} onPress={() => setShowServerUrl(true)} textStyle="text-info-600" />
               <Item text={t('settings.login_info')} onPress={() => setShowLoginInfo(true)} textStyle="text-info-600" />
               <Item text={t('settings.active_unit')} value={activeUnitName} onPress={() => setShowUnitSelection(true)} textStyle="text-info-600" />
-              <Item text={t('settings.logout')} onPress={signOut} textStyle="text-error-600" />
+              <Item text={t('settings.logout')} onPress={() => setShowLogoutConfirm(true)} textStyle="text-error-600" />
             </VStack>
           </Card>
 
@@ -122,6 +151,27 @@ export default function Settings() {
       <LoginInfoBottomSheet isOpen={showLoginInfo} onClose={() => setShowLoginInfo(false)} onSubmit={handleLoginInfoSubmit} />
       <ServerUrlBottomSheet isOpen={showServerUrl} onClose={() => setShowServerUrl(false)} />
       <UnitSelectionBottomSheet isOpen={showUnitSelection} onClose={() => setShowUnitSelection(false)} />
+
+      {/* Logout Confirmation Dialog */}
+      <AlertDialog isOpen={showLogoutConfirm} onClose={() => setShowLogoutConfirm(false)}>
+        <AlertDialogBackdrop />
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <Heading size="lg">{t('settings.logout_confirm_title')}</Heading>
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            <Text>{t('settings.logout_confirm_message')}</Text>
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button variant="outline" action="secondary" onPress={() => setShowLogoutConfirm(false)}>
+              <ButtonText>{t('common.cancel')}</ButtonText>
+            </Button>
+            <Button action="negative" onPress={handleLogoutConfirm}>
+              <ButtonText>{t('settings.logout')}</ButtonText>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Box>
   );
 }

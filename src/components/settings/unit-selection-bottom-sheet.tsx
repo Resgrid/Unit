@@ -1,7 +1,6 @@
 import { Check } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView } from 'react-native';
 
 import { logger } from '@/lib/logging';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
@@ -16,9 +15,45 @@ import { Button, ButtonText } from '../ui/button';
 import { Center } from '../ui/center';
 import { Heading } from '../ui/heading';
 import { HStack } from '../ui/hstack';
+import { ScrollView } from '../ui/scroll-view';
 import { Spinner } from '../ui/spinner';
 import { Text } from '../ui/text';
 import { VStack } from '../ui/vstack';
+
+interface UnitItemProps {
+  unit: UnitResultData;
+  isSelected: boolean;
+  isLoading: boolean;
+  onSelect: (unit: UnitResultData) => void;
+}
+
+const UnitItem = React.memo<UnitItemProps>(({ unit, isSelected, isLoading, onSelect }) => {
+  const handlePress = React.useCallback(() => {
+    onSelect(unit);
+  }, [onSelect, unit]);
+
+  return (
+    <ActionsheetItem
+      key={unit.UnitId}
+      onPress={handlePress}
+      disabled={isLoading}
+      className={isSelected ? 'data-[checked=true]:bg-background-100' : ''}
+      testID={`unit-item-${unit.UnitId}`}
+    >
+      <VStack className="flex-1">
+        <ActionsheetItemText size="md" className={isSelected ? 'font-medium' : 'font-normal'}>
+          {unit.Name}
+        </ActionsheetItemText>
+        <ActionsheetItemText size="sm" className="text-typography-500">
+          {unit.Type}
+        </ActionsheetItemText>
+      </VStack>
+      {isSelected ? <Check size={20} className="text-primary-600" /> : null}
+    </ActionsheetItem>
+  );
+});
+
+UnitItem.displayName = 'UnitItem';
 
 interface UnitSelectionBottomSheetProps {
   isOpen: boolean;
@@ -139,39 +174,38 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
 
           {/* Units List */}
           <VStack className="flex-1" space="sm">
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} testID="scroll-view">
-              {isLoadingUnits ? (
-                <Center className="py-8">
+            {isLoading ? (
+              <Center className="flex-1 py-8">
+                <VStack space="md" className="items-center">
                   <Spinner size="large" />
-                </Center>
-              ) : units.length > 0 ? (
-                <VStack space="sm">
-                  {units.map((unit) => (
-                    <ActionsheetItem
-                      key={unit.UnitId}
-                      onPress={() => handleUnitSelection(unit)}
-                      disabled={isLoading}
-                      className={activeUnit?.UnitId === unit.UnitId ? 'data-[checked=true]:bg-background-100' : ''}
-                      testID={`unit-item-${unit.UnitId}`}
-                    >
-                      <VStack className="flex-1">
-                        <ActionsheetItemText size="md" className={activeUnit?.UnitId === unit.UnitId ? 'font-medium' : 'font-normal'}>
-                          {unit.Name}
-                        </ActionsheetItemText>
-                        <ActionsheetItemText size="sm" className="text-typography-500">
-                          {unit.Type}
-                        </ActionsheetItemText>
-                      </VStack>
-                      {activeUnit?.UnitId === unit.UnitId && <Check size={20} className="text-primary-600" />}
-                    </ActionsheetItem>
-                  ))}
+                  <Text className="text-center text-typography-600">{t('settings.activating_unit')}</Text>
                 </VStack>
-              ) : (
-                <Center className="py-8">
-                  <Text className="text-center text-typography-500">{t('settings.no_units_available')}</Text>
-                </Center>
-              )}
-            </ScrollView>
+              </Center>
+            ) : (
+              <ScrollView className="flex-1" showsVerticalScrollIndicator={false} testID="scroll-view">
+                {isLoadingUnits ? (
+                  <Center className="py-8">
+                    <Spinner size="large" />
+                  </Center>
+                ) : units.length > 0 ? (
+                  <VStack space="sm">
+                    {units.map((unit) => (
+                      <UnitItem
+                        key={unit.UnitId}
+                        unit={unit}
+                        isSelected={activeUnit?.UnitId === unit.UnitId}
+                        isLoading={isLoading}
+                        onSelect={handleUnitSelection}
+                      />
+                    ))}
+                  </VStack>
+                ) : (
+                  <Center className="py-8">
+                    <Text className="text-center text-typography-500">{t('settings.no_units_available')}</Text>
+                  </Center>
+                )}
+              </ScrollView>
+            )}
           </VStack>
 
           {/* Cancel Button - Fixed to bottom */}

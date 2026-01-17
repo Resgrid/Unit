@@ -161,6 +161,7 @@ const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({ isOpen, onC
                 maxHeight: screenHeight * 0.8,
               }}
               contentFit="contain"
+              cachePolicy="memory-disk"
               alt={imageName || t('callImages.image_alt')}
               testID="full-screen-image"
             />
