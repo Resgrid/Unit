@@ -13,6 +13,7 @@ import { offlineEventManager } from '@/services/offline-event-manager.service';
 
 import { useCoreStore } from '../app/core-store';
 import { useLocationStore } from '../app/location-store';
+import { useCallsStore } from '../calls/store';
 import { useRolesStore } from '../roles/store';
 
 type StatusStep = 'select-status' | 'select-destination' | 'add-note';
@@ -76,14 +77,36 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
   fetchDestinationData: async (unitId: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch calls and groups (stations) in parallel
-      const [callsResponse, groupsResponse] = await Promise.all([getCalls(), getAllGroups()]);
+      // Check if we already have calls in the calls store to avoid redundant API calls
+      const callsStore = useCallsStore.getState();
+      const existingCalls = callsStore.calls;
 
-      set({
-        availableCalls: callsResponse.Data || [],
-        availableStations: groupsResponse.Data || [],
-        isLoading: false,
-      });
+      // Only fetch calls if we don't have any in the store
+      // Groups are cached (2 day TTL) so getAllGroups is already fast
+      const needsCallsFetch = existingCalls.length === 0;
+
+      if (needsCallsFetch) {
+        // Fetch calls and groups in parallel
+        const [callsResponse, groupsResponse] = await Promise.all([getCalls(), getAllGroups()]);
+
+        // Also update the calls store so other parts of the app benefit
+        useCallsStore.setState({ calls: callsResponse.Data || [] });
+
+        set({
+          availableCalls: callsResponse.Data || [],
+          availableStations: groupsResponse.Data || [],
+          isLoading: false,
+        });
+      } else {
+        // Use existing calls, only fetch groups (which is cached)
+        const groupsResponse = await getAllGroups();
+
+        set({
+          availableCalls: existingCalls,
+          availableStations: groupsResponse.Data || [],
+          isLoading: false,
+        });
+      }
     } catch (error) {
       set({
         error: 'Failed to fetch destination data',

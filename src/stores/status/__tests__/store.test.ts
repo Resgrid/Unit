@@ -56,6 +56,14 @@ jest.mock('@/stores/roles/store', () => ({
     })),
   },
 }));
+jest.mock('@/stores/calls/store', () => ({
+  useCallsStore: {
+    getState: jest.fn(() => ({
+      calls: [],
+    })),
+    setState: jest.fn(),
+  },
+}));
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
     queueUnitStatusEvent: jest.fn(),

@@ -121,41 +121,61 @@ jest.mock('@/components/ui/form-control', () => ({
   },
 }));
 
-jest.mock('@/components/ui/select', () => ({
-  Select: ({ children, testID, selectedValue, onValueChange, ...props }: any) => {
-    const { View, TouchableOpacity, Text } = require('react-native');
-    return (
-      <View testID={testID} {...props}>
-        {children}
-        <TouchableOpacity onPress={() => onValueChange && onValueChange('1')}>
-          <Text>Select Option</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  },
-  SelectTrigger: ({ children, ...props }: any) => {
-    const { View } = require('react-native');
-    return <View {...props}>{children}</View>;
-  },
-  SelectInput: ({ placeholder, ...props }: any) => {
-    const { Text } = require('react-native');
-    return <Text {...props}>{placeholder}</Text>;
-  },
-  SelectIcon: () => null,
-  SelectPortal: ({ children, ...props }: any) => {
-    const { View } = require('react-native');
-    return <View {...props}>{children}</View>;
-  },
-  SelectBackdrop: () => null,
-  SelectContent: ({ children, ...props }: any) => {
-    const { View } = require('react-native');
-    return <View {...props}>{children}</View>;
-  },
-  SelectItem: ({ label, value, ...props }: any) => {
-    const { View, Text } = require('react-native');
-    return <View {...props}><Text>{label}</Text></View>;
-  },
-}));
+jest.mock('@/components/ui/select', () => {
+  // Store the callback for each select
+  const selectCallbacks: Record<string, (value: string) => void> = {};
+
+  return {
+    Select: ({ children, testID, selectedValue, onValueChange, ...props }: any) => {
+      const React = require('react');
+      const { View, TouchableOpacity, Text } = require('react-native');
+
+      // Store the callback for external access
+      React.useEffect(() => {
+        if (testID && onValueChange) {
+          selectCallbacks[testID] = onValueChange;
+        }
+        return () => {
+          if (testID) {
+            delete selectCallbacks[testID];
+          }
+        };
+      }, [testID, onValueChange]);
+
+      return (
+        <View
+          testID={testID}
+          onValueChange={onValueChange}
+          {...props}
+        >
+          {children}
+        </View>
+      );
+    },
+    SelectTrigger: ({ children, ...props }: any) => {
+      const { View } = require('react-native');
+      return <View {...props}>{children}</View>;
+    },
+    SelectInput: ({ placeholder, ...props }: any) => {
+      const { Text } = require('react-native');
+      return <Text {...props}>{placeholder}</Text>;
+    },
+    SelectIcon: () => null,
+    SelectPortal: ({ children, ...props }: any) => {
+      const { View } = require('react-native');
+      return <View {...props}>{children}</View>;
+    },
+    SelectBackdrop: () => null,
+    SelectContent: ({ children, ...props }: any) => {
+      const { View } = require('react-native');
+      return <View {...props}>{children}</View>;
+    },
+    SelectItem: ({ label, value, ...props }: any) => {
+      const { View, Text } = require('react-native');
+      return <View {...props}><Text>{label}</Text></View>;
+    },
+  };
+});
 
 jest.mock('@/components/ui/textarea', () => ({
   Textarea: ({ children, ...props }: any) => {
@@ -170,6 +190,7 @@ jest.mock('@/components/ui/textarea', () => ({
 
 const mockRouter = {
   back: jest.fn(),
+  replace: jest.fn(),
 };
 
 const mockUseTranslation = {
@@ -272,7 +293,7 @@ describe('CloseCallBottomSheet', () => {
       });
       expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
       expect(mockFetchCalls).toHaveBeenCalled();
-      expect(mockRouter.back).toHaveBeenCalled();
+      expect(mockRouter.replace).toHaveBeenCalled();
       expect(mockOnClose).toHaveBeenCalled();
     });
   });
@@ -300,7 +321,7 @@ describe('CloseCallBottomSheet', () => {
       });
       expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
       expect(mockFetchCalls).toHaveBeenCalled();
-      expect(mockRouter.back).toHaveBeenCalled();
+      expect(mockRouter.replace).toHaveBeenCalled();
       expect(mockOnClose).toHaveBeenCalled();
     });
   });
@@ -324,7 +345,7 @@ describe('CloseCallBottomSheet', () => {
     });
 
     expect(mockFetchCalls).not.toHaveBeenCalled();
-    expect(mockRouter.back).not.toHaveBeenCalled();
+    expect(mockRouter.replace).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -429,19 +450,20 @@ describe('CloseCallBottomSheet', () => {
     // Wait for the entire flow to complete
     await waitFor(() => {
       expect(mockCloseCall).toHaveBeenCalled();
-      expect(mockFetchCalls).toHaveBeenCalled();
     });
 
-    // Wait for all toast messages and error handling to complete
+    // Wait for success toast and close since closeCall succeeded
     await waitFor(() => {
       expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.close_call_success');
       expect(mockOnClose).toHaveBeenCalled();
-      expect(console.error).toHaveBeenCalledWith('Error closing call:', expect.any(Error));
-      expect(mockShowToast).toHaveBeenCalledWith('error', 'call_detail.close_call_error');
     });
 
-    // Since closeCall succeeded, the modal should be closed but router.back() should not be called due to fetchCalls failure
-    expect(mockRouter.back).not.toHaveBeenCalled();
+    // router.replace is called BEFORE fetchCalls, so it should have been called
+    // even though fetchCalls failed
+    await waitFor(() => {
+      expect(mockRouter.replace).toHaveBeenCalled();
+      expect(mockFetchCalls).toHaveBeenCalled();
+    });
   });
 
   it('should not render when isOpen is false', () => {

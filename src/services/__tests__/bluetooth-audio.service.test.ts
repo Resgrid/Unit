@@ -1,6 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import 'react-native';
 
+// Mock @livekit/react-native-webrtc before any imports that use it
+jest.mock('@livekit/react-native-webrtc', () => ({
+  RTCAudioSession: {
+    audioSessionDidActivate: jest.fn(),
+    audioSessionDidDeactivate: jest.fn(),
+  },
+}));
+
+// Mock CallKeep service before importing modules that use it
+jest.mock('@/services/callkeep.service.ios', () => ({
+  callKeepService: {
+    setup: jest.fn().mockResolvedValue(undefined),
+    startCall: jest.fn().mockResolvedValue('test-uuid'),
+    endCall: jest.fn().mockResolvedValue(undefined),
+    isCallActiveNow: jest.fn().mockReturnValue(false),
+    getCurrentCallUUID: jest.fn().mockReturnValue(null),
+    setMuteStateCallback: jest.fn(),
+  },
+}));
+
 // Mock dependencies first before importing the service
 jest.mock('react-native-ble-manager', () => ({
   __esModule: true,

@@ -3,9 +3,13 @@ import { type CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult'
 import { type CallResult } from '@/models/v4/calls/callResult';
 import { type SaveCallResult } from '@/models/v4/calls/saveCallResult';
 
+import { createCachedApiEndpoint } from '../common/cached-client';
 import { createApiEndpoint } from '../common/client';
 
-const callsApi = createApiEndpoint('/Calls/GetActiveCalls');
+const callsApi = createCachedApiEndpoint('/Calls/GetActiveCalls', {
+  ttl: 30 * 1000, // Cache for 30 seconds - calls can change frequently
+  enabled: true,
+});
 const getCallApi = createApiEndpoint('/Calls/GetCall');
 const getCallExtraDataApi = createApiEndpoint('/Calls/GetCallExtraData');
 const createCallApi = createApiEndpoint('/Calls/SaveCall');

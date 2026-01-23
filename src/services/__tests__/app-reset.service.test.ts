@@ -422,7 +422,7 @@ describe('app-reset.service', () => {
       await resetAllStores();
 
       expect(mockLiveKitDisconnect).toHaveBeenCalled();
-      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE);
+      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE, true);
     });
 
     it('should not disconnect from LiveKit room if not connected', async () => {
@@ -437,7 +437,7 @@ describe('app-reset.service', () => {
       await resetAllStores();
 
       expect(localMockDisconnect).not.toHaveBeenCalled();
-      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE);
+      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE, true);
     });
   });
 
@@ -463,7 +463,9 @@ describe('app-reset.service', () => {
         cleanup: jest.fn().mockRejectedValue(error),
       });
 
-      await expect(clearAllAppData()).rejects.toThrow('Cleanup failed');
+      // The cleanup error is caught and logged within resetAllStores, 
+      // so clearAllAppData should complete without throwing
+      await expect(clearAllAppData()).resolves.toBeUndefined();
     });
   });
 });

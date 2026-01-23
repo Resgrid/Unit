@@ -1456,17 +1456,18 @@ class BluetoothAudioService {
   private async setMicrophoneEnabled(enabled: boolean): Promise<void> {
     const liveKitStore = useLiveKitStore.getState();
     if (liveKitStore.currentRoom) {
-      const currentMuteState = !liveKitStore.currentRoom.localParticipant.isMicrophoneEnabled;
+      const currentMicEnabled = liveKitStore.currentRoom.localParticipant.isMicrophoneEnabled;
 
       try {
-        if (enabled && !currentMuteState) return; // already enabled
-        if (!enabled && currentMuteState) return; // already disabled
+        // Skip if already in the desired state
+        if (enabled && currentMicEnabled) return; // already enabled
+        if (!enabled && !currentMicEnabled) return; // already disabled
 
-        await liveKitStore.currentRoom.localParticipant.setMicrophoneEnabled(currentMuteState);
+        await liveKitStore.currentRoom.localParticipant.setMicrophoneEnabled(enabled);
 
         logger.info({
-          message: 'Microphone toggled via Bluetooth button',
-          context: { enabled: currentMuteState },
+          message: 'Microphone set via Bluetooth PTT button',
+          context: { enabled },
         });
 
         useBluetoothAudioStore.getState().setLastButtonAction({
@@ -1481,10 +1482,15 @@ class BluetoothAudioService {
         }
       } catch (error) {
         logger.error({
-          message: 'Failed to toggle microphone via Bluetooth button',
-          context: { error },
+          message: 'Failed to set microphone via Bluetooth PTT button',
+          context: { error, enabled },
         });
       }
+    } else {
+      logger.warn({
+        message: 'Cannot set microphone - no active LiveKit room',
+        context: { enabled },
+      });
     }
   }
 

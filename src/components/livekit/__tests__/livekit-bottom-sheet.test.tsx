@@ -2,6 +2,26 @@ import { render, act } from '@testing-library/react-native';
 import React from 'react';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+// Mock @livekit/react-native-webrtc before any imports that use it
+jest.mock('@livekit/react-native-webrtc', () => ({
+  RTCAudioSession: {
+    audioSessionDidActivate: jest.fn(),
+    audioSessionDidDeactivate: jest.fn(),
+  },
+}));
+
+// Mock CallKeep service
+jest.mock('@/services/callkeep.service.ios', () => ({
+  callKeepService: {
+    setup: (jest.fn() as jest.Mock<() => Promise<void>>).mockResolvedValue(undefined),
+    startCall: (jest.fn() as jest.Mock<() => Promise<string>>).mockResolvedValue('test-uuid'),
+    endCall: (jest.fn() as jest.Mock<() => Promise<void>>).mockResolvedValue(undefined),
+    isCallActiveNow: (jest.fn() as jest.Mock<() => boolean>).mockReturnValue(false),
+    getCurrentCallUUID: (jest.fn() as jest.Mock<() => string | null>).mockReturnValue(null),
+    setMuteStateCallback: jest.fn(),
+  },
+}));
+
 // Mock React Native and NativeWind
 jest.mock('nativewind', () => ({
   useColorScheme: () => ({ colorScheme: 'light' }),

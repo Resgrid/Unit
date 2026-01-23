@@ -1,12 +1,26 @@
 import Mapbox from '@rnmapbox/maps';
 import * as Location from 'expo-location';
+import { LocateIcon, MapPinIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { Env } from '@/lib/env';
+
+// Ensure Mapbox access token is set before using any Mapbox components
+Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+
+// Default location (center of USA) used when user location is unavailable
+const DEFAULT_LOCATION = {
+  latitude: 39.8283,
+  longitude: -98.5795,
+};
+
+// Timeout for location fetching (in milliseconds)
+const LOCATION_TIMEOUT = 10000;
 
 interface LocationPickerProps {
   initialLocation?: {
@@ -21,30 +35,50 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
   const { t } = useTranslation();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
+  const isMountedRef = useRef(true);
+  // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
-  } | null>(initialLocation || null);
-  const [isLoading, setIsLoading] = useState(false);
+  }>(initialLocation || DEFAULT_LOCATION);
+  const [isLocating, setIsLocating] = useState(false);
+  const [hasUserLocation, setHasUserLocation] = useState(!!initialLocation);
 
   const getUserLocation = React.useCallback(async () => {
-    setIsLoading(true);
+    if (!isMountedRef.current) return;
+
+    setIsLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.error('Location permission not granted');
-        setIsLoading(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
-      setCurrentLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+      // Create a timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
       });
 
+      // Race between getting location and timeout
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }),
+        timeoutPromise,
+      ]);
+
+      if (!isMountedRef.current) return;
+
+      const newLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setCurrentLocation(newLocation);
+      setHasUserLocation(true);
+
       // Move camera to user location
-      if (cameraRef.current) {
+      if (cameraRef.current && isMountedRef.current) {
         cameraRef.current.setCamera({
           centerCoordinate: [location.coords.longitude, location.coords.latitude],
           zoomLevel: 15,
@@ -53,14 +87,18 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
       }
     } catch (error) {
       console.error('Error getting location:', error);
+      // Don't update location - keep using whatever we have (initial or default)
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLocating(false);
     }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (initialLocation) {
       setCurrentLocation(initialLocation);
+      setHasUserLocation(true);
       // Move camera to the new location
       if (cameraRef.current) {
         cameraRef.current.setCamera({
@@ -70,55 +108,48 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
         });
       }
     } else {
-      getUserLocation().catch((error) => {
-        console.error('Failed to get user location:', error);
-      });
+      // Try to get user location, but don't block the map from showing
+      getUserLocation();
     }
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [initialLocation, getUserLocation]);
 
   const handleMapPress = (event: any) => {
     const { coordinates } = event.geometry;
-    setCurrentLocation({
+    const newLocation = {
       latitude: coordinates[1],
       longitude: coordinates[0],
-    });
+    };
+    setCurrentLocation(newLocation);
+    setHasUserLocation(true);
   };
 
   const handleConfirmLocation = () => {
-    if (currentLocation) {
-      onLocationSelected(currentLocation);
-    }
+    onLocationSelected(currentLocation);
   };
-
-  if (isLoading) {
-    return (
-      <Box style={[styles.container, { height }]} className="items-center justify-center bg-gray-200">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
-      </Box>
-    );
-  }
 
   return (
     <Box style={[styles.container, { height }]}>
-      {currentLocation ? (
-        <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
-          <Mapbox.Camera ref={cameraRef} zoomLevel={15} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
-          {/* Marker for the selected location */}
-          <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
-            <Box />
-          </Mapbox.PointAnnotation>
-        </Mapbox.MapView>
-      ) : (
-        <Box className="items-center justify-center bg-gray-200" style={{ flex: 1 }}>
-          <Text className="text-gray-500">{t('common.no_location')}</Text>
-          <TouchableOpacity onPress={getUserLocation} className="mt-2">
-            <Text className="text-blue-500">{t('common.get_my_location')}</Text>
-          </TouchableOpacity>
-        </Box>
-      )}
+      <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
+        <Mapbox.Camera ref={cameraRef} zoomLevel={hasUserLocation ? 15 : 4} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
+        {/* Marker for the selected location */}
+        <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
+          <Box className="items-center justify-center">
+            <MapPinIcon size={24} color="#FF0000" />
+          </Box>
+        </Mapbox.PointAnnotation>
+      </Mapbox.MapView>
+
+      {/* My Location button */}
+      <TouchableOpacity style={styles.myLocationButton} onPress={getUserLocation} disabled={isLocating}>
+        {isLocating ? <ActivityIndicator size="small" color="#007AFF" /> : <LocateIcon size={20} color="#007AFF" />}
+      </TouchableOpacity>
 
       <Box className="absolute inset-x-4 bottom-4">
-        <Button onPress={handleConfirmLocation} disabled={!currentLocation}>
+        <Button onPress={handleConfirmLocation}>
           <ButtonText>{t('common.confirm_location')}</ButtonText>
         </Button>
       </Box>
@@ -135,6 +166,23 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  myLocationButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
   },
 });
 

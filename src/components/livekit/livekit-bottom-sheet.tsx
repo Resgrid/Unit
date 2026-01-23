@@ -57,8 +57,8 @@ export const LiveKitBottomSheet = () => {
         currentRoomName: currentRoomInfo?.Name || 'none',
         isMuted: isMuted,
         isTalking: isTalking,
-        hasBluetoothMicrophone: selectedAudioDevices.microphone?.type === 'bluetooth',
-        hasBluetoothSpeaker: selectedAudioDevices.speaker?.type === 'bluetooth',
+        hasBluetoothMicrophone: selectedAudioDevices?.microphone?.type === 'bluetooth',
+        hasBluetoothSpeaker: selectedAudioDevices?.speaker?.type === 'bluetooth',
         permissionsRequested: permissionsRequested,
       });
     }
@@ -72,8 +72,8 @@ export const LiveKitBottomSheet = () => {
     currentRoomInfo,
     isMuted,
     isTalking,
-    selectedAudioDevices.microphone?.type,
-    selectedAudioDevices.speaker?.type,
+    selectedAudioDevices?.microphone?.type,
+    selectedAudioDevices?.speaker?.type,
     permissionsRequested,
   ]);
 

@@ -33,13 +33,7 @@ const UnitItem = React.memo<UnitItemProps>(({ unit, isSelected, isLoading, onSel
   }, [onSelect, unit]);
 
   return (
-    <ActionsheetItem
-      key={unit.UnitId}
-      onPress={handlePress}
-      disabled={isLoading}
-      className={isSelected ? 'data-[checked=true]:bg-background-100' : ''}
-      testID={`unit-item-${unit.UnitId}`}
-    >
+    <ActionsheetItem key={unit.UnitId} onPress={handlePress} disabled={isLoading} className={isSelected ? 'data-[checked=true]:bg-background-100' : ''} testID={`unit-item-${unit.UnitId}`}>
       <VStack className="flex-1">
         <ActionsheetItemText size="md" className={isSelected ? 'font-medium' : 'font-normal'}>
           {unit.Name}
@@ -190,13 +184,7 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
                 ) : units.length > 0 ? (
                   <VStack space="sm">
                     {units.map((unit) => (
-                      <UnitItem
-                        key={unit.UnitId}
-                        unit={unit}
-                        isSelected={activeUnit?.UnitId === unit.UnitId}
-                        isLoading={isLoading}
-                        onSelect={handleUnitSelection}
-                      />
+                      <UnitItem key={unit.UnitId} unit={unit} isSelected={activeUnit?.UnitId === unit.UnitId} isLoading={isLoading} onSelect={handleUnitSelection} />
                     ))}
                   </VStack>
                 ) : (
