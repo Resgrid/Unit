@@ -1,3 +1,4 @@
+import { cacheManager } from '@/lib/cache/cache-manager';
 import { type ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
 import { type CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult';
 import { type CallResult } from '@/models/v4/calls/callResult';
@@ -126,6 +127,15 @@ export const createCall = async (callData: CreateCallRequest) => {
   };
 
   const response = await createCallApi.post<SaveCallResult>(data);
+  
+  // Invalidate cache after successful mutation
+  try {
+    cacheManager.remove('/Calls/GetActiveCalls');
+  } catch (error) {
+    // Silently handle cache removal errors
+    console.warn('Failed to invalidate calls cache:', error);
+  }
+  
   return response.data;
 };
 
@@ -174,6 +184,15 @@ export const updateCall = async (callData: UpdateCallRequest) => {
   };
 
   const response = await updateCallApi.post<SaveCallResult>(data);
+  
+  // Invalidate cache after successful mutation
+  try {
+    cacheManager.remove('/Calls/GetActiveCalls');
+  } catch (error) {
+    // Silently handle cache removal errors
+    console.warn('Failed to invalidate calls cache:', error);
+  }
+  
   return response.data;
 };
 
@@ -185,5 +204,14 @@ export const closeCall = async (callData: CloseCallRequest) => {
   };
 
   const response = await closeCallApi.put<SaveCallResult>(data);
+  
+  // Invalidate cache after successful mutation
+  try {
+    cacheManager.remove('/Calls/GetActiveCalls');
+  } catch (error) {
+    // Silently handle cache removal errors
+    console.warn('Failed to invalidate calls cache:', error);
+  }
+  
   return response.data;
 };

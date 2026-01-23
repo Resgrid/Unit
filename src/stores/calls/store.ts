@@ -13,6 +13,7 @@ interface CallsState {
   callTypes: CallTypeResultData[];
   isLoading: boolean;
   error: string | null;
+  lastFetchedAt: number;
   fetchCalls: () => Promise<void>;
   fetchCallPriorities: () => Promise<void>;
   fetchCallTypes: () => Promise<void>;
@@ -25,6 +26,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   callTypes: [],
   isLoading: false,
   error: null,
+  lastFetchedAt: 0,
   init: async () => {
     set({ isLoading: true, error: null });
     const callsResponse = await getCalls();
@@ -35,13 +37,14 @@ export const useCallsStore = create<CallsState>((set, get) => ({
       callPriorities: callPrioritiesResponse.Data,
       callTypes: callTypesResponse.Data,
       isLoading: false,
+      lastFetchedAt: Date.now(),
     });
   },
   fetchCalls: async () => {
     set({ isLoading: true, error: null });
     try {
       const response = await getCalls();
-      set({ calls: response.Data, isLoading: false });
+      set({ calls: response.Data, isLoading: false, lastFetchedAt: Date.now() });
     } catch (error) {
       set({ error: 'Failed to fetch calls', isLoading: false });
     }

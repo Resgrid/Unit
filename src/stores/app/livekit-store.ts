@@ -8,7 +8,7 @@ import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../a
 import { logger } from '../../lib/logging';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
 import { audioService } from '../../services/audio.service';
-import { callKeepService } from '../../services/callkeep.service.ios';
+import { callKeepService } from '../../services/callkeep.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to setup audio routing based on selected devices

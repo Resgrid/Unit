@@ -55,9 +55,10 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
         return;
       }
 
-      // Create a timeout promise
+      // Create a timeout promise with cleanup
+      let timeoutId: NodeJS.Timeout;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
+        timeoutId = setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
       });
 
       // Race between getting location and timeout
@@ -67,6 +68,9 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
         }),
         timeoutPromise,
       ]);
+
+      // Clear timeout if location resolved first
+      clearTimeout(timeoutId);
 
       if (!isMountedRef.current) return;
 

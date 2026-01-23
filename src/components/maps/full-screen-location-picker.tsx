@@ -62,7 +62,7 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
 
       if (result && result.length > 0) {
         const { street, name, city, region, country, postalCode } = result[0];
-        let addressParts = [];
+        const addressParts: string[] = [];
 
         if (street) addressParts.push(street);
         if (name && name !== street) addressParts.push(name);
@@ -150,7 +150,7 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
     };
   }, [initialLocation, getUserLocation, reverseGeocode]);
 
-  const handleMapPress = (event: any) => {
+  const handleMapPress = (event: GeoJSON.Feature) => {
     const { coordinates } = event.geometry;
     const newLocation = {
       latitude: coordinates[1],
@@ -193,7 +193,7 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
 
       {/* Location info and confirm button */}
       <Box style={[styles.bottomPanel, { paddingBottom: insets.bottom + 16 }]} className="bg-white p-4 shadow-lg">
-        {!hasUserLocation && <Text className="mb-2 text-center text-amber-600">{t('common.tap_map_to_select')}</Text>}
+        {!hasUserLocation ? <Text className="mb-2 text-center text-amber-600">{t('common.tap_map_to_select')}</Text> : null}
         {isReverseGeocoding ? (
           <Text className="mb-2 text-gray-500">{t('common.loading_address')}</Text>
         ) : address ? (
