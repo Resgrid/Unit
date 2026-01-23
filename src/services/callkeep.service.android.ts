@@ -31,7 +31,7 @@ export class CallKeepService {
     });
   }
 
-  async startCall(_displayName: string): Promise<string> {
+  async startCall(_roomName: string, _handle?: string): Promise<string> {
     logger.debug({
       message: 'CallKeep startCall skipped - not supported on Android',
     });
@@ -44,26 +44,18 @@ export class CallKeepService {
     });
   }
 
-  async setMuted(_muted: boolean): Promise<void> {
-    logger.debug({
-      message: 'CallKeep setMuted skipped - not supported on Android',
-    });
-  }
-
-  setMuteStateCallback(_callback: (muted: boolean) => void | null): void {
+  setMuteStateCallback(_callback: ((muted: boolean) => void) | null): void {
     logger.debug({
       message: 'CallKeep setMuteStateCallback skipped - not supported on Android',
     });
   }
 
-  async updateCallDisplay(_displayName: string): Promise<void> {
-    logger.debug({
-      message: 'CallKeep updateCallDisplay skipped - not supported on Android',
-    });
+  isCallActiveNow(): boolean {
+    return false;
   }
 
-  isCallActive(): boolean {
-    return false;
+  getCurrentCallUUID(): string | null {
+    return null;
   }
 
   async cleanup(): Promise<void> {

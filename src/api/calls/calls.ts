@@ -83,33 +83,34 @@ export interface CloseCallRequest {
   note?: string;
 }
 
-export const createCall = async (callData: CreateCallRequest) => {
-  let dispatchList = '';
-
-  if (callData.dispatchEveryone) {
-    dispatchList = '0';
-  } else {
-    const dispatchEntries: string[] = [];
-
-    if (callData.dispatchUsers) {
-      //dispatchEntries.push(...callData.dispatchUsers.map((user) => `U:${user}`));
-      dispatchEntries.push(...callData.dispatchUsers);
-    }
-    if (callData.dispatchGroups) {
-      //dispatchEntries.push(...callData.dispatchGroups.map((group) => `G:${group}`));
-      dispatchEntries.push(...callData.dispatchGroups);
-    }
-    if (callData.dispatchRoles) {
-      //dispatchEntries.push(...callData.dispatchRoles.map((role) => `R:${role}`));
-      dispatchEntries.push(...callData.dispatchRoles);
-    }
-    if (callData.dispatchUnits) {
-      //dispatchEntries.push(...callData.dispatchUnits.map((unit) => `U:${unit}`));
-      dispatchEntries.push(...callData.dispatchUnits);
-    }
-
-    dispatchList = dispatchEntries.join('|');
+/**
+ * Helper function to build the dispatch list string from dispatch data
+ */
+const buildDispatchList = (data: { dispatchEveryone?: boolean; dispatchUsers?: string[]; dispatchGroups?: string[]; dispatchRoles?: string[]; dispatchUnits?: string[] }): string => {
+  if (data.dispatchEveryone) {
+    return '0';
   }
+
+  const dispatchEntries: string[] = [];
+
+  if (data.dispatchUsers) {
+    dispatchEntries.push(...data.dispatchUsers);
+  }
+  if (data.dispatchGroups) {
+    dispatchEntries.push(...data.dispatchGroups);
+  }
+  if (data.dispatchRoles) {
+    dispatchEntries.push(...data.dispatchRoles);
+  }
+  if (data.dispatchUnits) {
+    dispatchEntries.push(...data.dispatchUnits);
+  }
+
+  return dispatchEntries.join('|');
+};
+
+export const createCall = async (callData: CreateCallRequest) => {
+  const dispatchList = buildDispatchList(callData);
 
   const data = {
     Name: callData.name,
@@ -127,7 +128,7 @@ export const createCall = async (callData: CreateCallRequest) => {
   };
 
   const response = await createCallApi.post<SaveCallResult>(data);
-  
+
   // Invalidate cache after successful mutation
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
@@ -135,37 +136,12 @@ export const createCall = async (callData: CreateCallRequest) => {
     // Silently handle cache removal errors
     console.warn('Failed to invalidate calls cache:', error);
   }
-  
+
   return response.data;
 };
 
 export const updateCall = async (callData: UpdateCallRequest) => {
-  let dispatchList = '';
-
-  if (callData.dispatchEveryone) {
-    dispatchList = '0';
-  } else {
-    const dispatchEntries: string[] = [];
-
-    if (callData.dispatchUsers) {
-      //dispatchEntries.push(...callData.dispatchUsers.map((user) => `U:${user}`));
-      dispatchEntries.push(...callData.dispatchUsers);
-    }
-    if (callData.dispatchGroups) {
-      //dispatchEntries.push(...callData.dispatchGroups.map((group) => `G:${group}`));
-      dispatchEntries.push(...callData.dispatchGroups);
-    }
-    if (callData.dispatchRoles) {
-      //dispatchEntries.push(...callData.dispatchRoles.map((role) => `R:${role}`));
-      dispatchEntries.push(...callData.dispatchRoles);
-    }
-    if (callData.dispatchUnits) {
-      //dispatchEntries.push(...callData.dispatchUnits.map((unit) => `U:${unit}`));
-      dispatchEntries.push(...callData.dispatchUnits);
-    }
-
-    dispatchList = dispatchEntries.join('|');
-  }
+  const dispatchList = buildDispatchList(callData);
 
   const data = {
     CallId: callData.callId,
@@ -184,7 +160,7 @@ export const updateCall = async (callData: UpdateCallRequest) => {
   };
 
   const response = await updateCallApi.post<SaveCallResult>(data);
-  
+
   // Invalidate cache after successful mutation
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
@@ -192,7 +168,7 @@ export const updateCall = async (callData: UpdateCallRequest) => {
     // Silently handle cache removal errors
     console.warn('Failed to invalidate calls cache:', error);
   }
-  
+
   return response.data;
 };
 
@@ -204,7 +180,7 @@ export const closeCall = async (callData: CloseCallRequest) => {
   };
 
   const response = await closeCallApi.put<SaveCallResult>(data);
-  
+
   // Invalidate cache after successful mutation
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
@@ -212,6 +188,6 @@ export const closeCall = async (callData: CloseCallRequest) => {
     // Silently handle cache removal errors
     console.warn('Failed to invalidate calls cache:', error);
   }
-  
+
   return response.data;
 };

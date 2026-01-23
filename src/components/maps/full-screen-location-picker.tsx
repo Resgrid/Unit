@@ -151,14 +151,17 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   }, [initialLocation, getUserLocation, reverseGeocode]);
 
   const handleMapPress = (event: GeoJSON.Feature) => {
-    const { coordinates } = event.geometry;
-    const newLocation = {
-      latitude: coordinates[1],
-      longitude: coordinates[0],
-    };
-    setCurrentLocation(newLocation);
-    setHasUserLocation(true);
-    reverseGeocode(newLocation.latitude, newLocation.longitude);
+    if (event.geometry.type !== 'GeometryCollection' && 'coordinates' in event.geometry) {
+      const coords = event.geometry.coordinates as number[];
+      const [longitude, latitude] = coords;
+      const newLocation = {
+        latitude,
+        longitude,
+      };
+      setCurrentLocation(newLocation);
+      setHasUserLocation(true);
+      reverseGeocode(newLocation.latitude, newLocation.longitude);
+    }
   };
 
   const handleConfirmLocation = () => {

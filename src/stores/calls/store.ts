@@ -33,9 +33,9 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     const callPrioritiesResponse = await getCallPriorities();
     const callTypesResponse = await getCallTypes();
     set({
-      calls: callsResponse.Data,
-      callPriorities: callPrioritiesResponse.Data,
-      callTypes: callTypesResponse.Data,
+      calls: Array.isArray(callsResponse.Data) ? callsResponse.Data : [],
+      callPriorities: Array.isArray(callPrioritiesResponse.Data) ? callPrioritiesResponse.Data : [],
+      callTypes: Array.isArray(callTypesResponse.Data) ? callTypesResponse.Data : [],
       isLoading: false,
       lastFetchedAt: Date.now(),
     });
@@ -44,7 +44,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await getCalls();
-      set({ calls: response.Data, isLoading: false, lastFetchedAt: Date.now() });
+      set({ calls: Array.isArray(response.Data) ? response.Data : [], isLoading: false, lastFetchedAt: Date.now() });
     } catch (error) {
       set({ error: 'Failed to fetch calls', isLoading: false });
     }
@@ -53,7 +53,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await getCallPriorities();
-      set({ callPriorities: response.Data, isLoading: false });
+      set({ callPriorities: Array.isArray(response.Data) ? response.Data : [], isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch call priorities', isLoading: false });
     }
@@ -68,7 +68,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await getCallTypes();
-      set({ callTypes: response.Data, isLoading: false });
+      set({ callTypes: Array.isArray(response.Data) ? response.Data : [], isLoading: false });
     } catch (error) {
       set({ error: 'Failed to fetch call types', isLoading: false });
     }

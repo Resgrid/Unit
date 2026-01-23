@@ -11,7 +11,11 @@ import { Text } from '@/components/ui/text';
 import { Env } from '@/lib/env';
 
 // Ensure Mapbox access token is set before using any Mapbox components
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+if (!Env.UNIT_MAPBOX_PUBKEY) {
+  console.error('Mapbox access token is not configured. Please set UNIT_MAPBOX_PUBKEY in your environment.');
+} else {
+  Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+}
 
 // Default location (center of USA) used when user location is unavailable
 const DEFAULT_LOCATION = {
@@ -56,7 +60,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
       }
 
       // Create a timeout promise with cleanup
-      let timeoutId: NodeJS.Timeout;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
         timeoutId = setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
       });
@@ -70,7 +74,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
       ]);
 
       // Clear timeout if location resolved first
-      clearTimeout(timeoutId);
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
 
       if (!isMountedRef.current) return;
 
@@ -121,11 +125,12 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
     };
   }, [initialLocation, getUserLocation]);
 
-  const handleMapPress = (event: any) => {
-    const { coordinates } = event.geometry;
+  const handleMapPress = (event: GeoJSON.Feature) => {
+    const geometry = event.geometry as GeoJSON.Point;
+    const [longitude, latitude] = geometry.coordinates;
     const newLocation = {
-      latitude: coordinates[1],
-      longitude: coordinates[0],
+      latitude,
+      longitude,
     };
     setCurrentLocation(newLocation);
     setHasUserLocation(true);
@@ -140,7 +145,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
       <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
         <Mapbox.Camera ref={cameraRef} zoomLevel={hasUserLocation ? 15 : 4} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
         {/* Marker for the selected location */}
-        <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
+        <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title={t('common.selected_location')}>
           <Box className="items-center justify-center">
             <MapPinIcon size={24} color="#FF0000" />
           </Box>
@@ -148,7 +153,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
       </Mapbox.MapView>
 
       {/* My Location button */}
-      <TouchableOpacity style={styles.myLocationButton} onPress={getUserLocation} disabled={isLocating}>
+      <TouchableOpacity style={styles.myLocationButton} onPress={getUserLocation} disabled={isLocating} accessibilityLabel={t('common.my_location')} accessibilityRole="button">
         {isLocating ? <ActivityIndicator size="small" color="#007AFF" /> : <LocateIcon size={20} color="#007AFF" />}
       </TouchableOpacity>
 
