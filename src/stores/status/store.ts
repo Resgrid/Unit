@@ -13,6 +13,7 @@ import { offlineEventManager } from '@/services/offline-event-manager.service';
 
 import { useCoreStore } from '../app/core-store';
 import { useLocationStore } from '../app/location-store';
+import { useCallsStore } from '../calls/store';
 import { useRolesStore } from '../roles/store';
 
 type StatusStep = 'select-status' | 'select-destination' | 'add-note';
@@ -20,6 +21,9 @@ type DestinationType = 'none' | 'call' | 'station';
 
 // Status type that can accept both custom statuses and regular statuses
 type StatusType = CustomStatusResultData | StatusesResultData;
+
+// Store TTL: 5 minutes in milliseconds
+const STORE_TTL_MS = 5 * 60 * 1000;
 
 interface StatusBottomSheetStore {
   isOpen: boolean;
@@ -76,14 +80,39 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
   fetchDestinationData: async (unitId: string) => {
     set({ isLoading: true, error: null });
     try {
-      // Fetch calls and groups (stations) in parallel
-      const [callsResponse, groupsResponse] = await Promise.all([getCalls(), getAllGroups()]);
+      // Check if we already have calls in the calls store and if they're still fresh
+      const callsStore = useCallsStore.getState();
+      const existingCalls = callsStore.calls;
+      const lastFetchedAt = callsStore.lastFetchedAt || 0;
+      const isStale = !lastFetchedAt || Date.now() - lastFetchedAt > STORE_TTL_MS;
 
-      set({
-        availableCalls: callsResponse.Data || [],
-        availableStations: groupsResponse.Data || [],
-        isLoading: false,
-      });
+      // Fetch calls if we don't have any or if they're stale
+      // Groups are cached (2 day TTL) so getAllGroups is already fast
+      const needsCallsFetch = existingCalls.length === 0 || isStale;
+
+      if (needsCallsFetch) {
+        // Fetch calls and groups in parallel
+        const [callsResponse, groupsResponse] = await Promise.all([getCalls(), getAllGroups()]);
+
+        // Update the calls store with fresh data and timestamp
+        useCallsStore.setState({ calls: callsResponse.Data || [], lastFetchedAt: Date.now() });
+
+        // Set availableCalls from the fresh response
+        set({
+          availableCalls: callsResponse.Data || [],
+          availableStations: groupsResponse.Data || [],
+          isLoading: false,
+        });
+      } else {
+        // Use existing calls, only fetch groups (which is cached)
+        const groupsResponse = await getAllGroups();
+
+        set({
+          availableCalls: existingCalls,
+          availableStations: groupsResponse.Data || [],
+          isLoading: false,
+        });
+      }
     } catch (error) {
       set({
         error: 'Failed to fetch destination data',

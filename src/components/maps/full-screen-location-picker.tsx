@@ -1,14 +1,27 @@
 import Mapbox from '@rnmapbox/maps';
 import * as Location from 'expo-location';
-import { MapPinIcon, XIcon } from 'lucide-react-native';
+import { LocateIcon, MapPinIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
+import { Env } from '@/lib/env';
+
+// Ensure Mapbox access token is set before using any Mapbox components
+Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+
+// Default location (center of USA) used when user location is unavailable
+const DEFAULT_LOCATION = {
+  latitude: 39.8283,
+  longitude: -98.5795,
+};
+
+// Timeout for location fetching (in milliseconds)
+const LOCATION_TIMEOUT = 10000;
 
 interface FullScreenLocationPickerProps {
   initialLocation?: {
@@ -24,77 +37,92 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   const insets = useSafeAreaInsets();
   const mapRef = useRef<Mapbox.MapView>(null);
   const cameraRef = useRef<Mapbox.Camera>(null);
+  // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
-  } | null>(initialLocation || null);
-  const [isLoading, setIsLoading] = useState(false);
+  }>(initialLocation || DEFAULT_LOCATION);
+  const [isLocating, setIsLocating] = useState(false);
   const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
   const [address, setAddress] = useState<string | undefined>(undefined);
-  const [isMounted, setIsMounted] = useState(true);
+  const [hasUserLocation, setHasUserLocation] = useState(!!initialLocation);
+  const isMountedRef = useRef(true);
 
-  const reverseGeocode = React.useCallback(
-    async (latitude: number, longitude: number) => {
-      if (!isMounted) return;
+  const reverseGeocode = React.useCallback(async (latitude: number, longitude: number) => {
+    if (!isMountedRef.current) return;
 
-      setIsReverseGeocoding(true);
-      try {
-        const result = await Location.reverseGeocodeAsync({
-          latitude,
-          longitude,
-        });
+    setIsReverseGeocoding(true);
+    try {
+      const result = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
 
-        if (!isMounted) return;
+      if (!isMountedRef.current) return;
 
-        if (result && result.length > 0) {
-          const { street, name, city, region, country, postalCode } = result[0];
-          let addressParts = [];
+      if (result && result.length > 0) {
+        const { street, name, city, region, country, postalCode } = result[0];
+        const addressParts: string[] = [];
 
-          if (street) addressParts.push(street);
-          if (name && name !== street) addressParts.push(name);
-          if (city) addressParts.push(city);
-          if (region) addressParts.push(region);
-          if (postalCode) addressParts.push(postalCode);
-          if (country) addressParts.push(country);
+        if (street) addressParts.push(street);
+        if (name && name !== street) addressParts.push(name);
+        if (city) addressParts.push(city);
+        if (region) addressParts.push(region);
+        if (postalCode) addressParts.push(postalCode);
+        if (country) addressParts.push(country);
 
-          setAddress(addressParts.join(', '));
-        } else {
-          setAddress(undefined);
-        }
-      } catch (error) {
-        console.error('Error reverse geocoding:', error);
-        if (isMounted) setAddress(undefined);
-      } finally {
-        if (isMounted) setIsReverseGeocoding(false);
+        setAddress(addressParts.join(', '));
+      } else {
+        setAddress(undefined);
       }
-    },
-    [isMounted]
-  );
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+      if (isMountedRef.current) setAddress(undefined);
+    } finally {
+      if (isMountedRef.current) setIsReverseGeocoding(false);
+    }
+  }, []);
 
   const getUserLocation = React.useCallback(async () => {
-    if (!isMounted) return;
+    if (!isMountedRef.current) return;
 
-    setIsLoading(true);
+    setIsLocating(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         console.error('Location permission not granted');
-        if (isMounted) setIsLoading(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
-      if (!isMounted) return;
+      // Create a timeout promise with cleanup
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
+      });
+
+      // Race between getting location and timeout
+      const location = await Promise.race([
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        }),
+        timeoutPromise,
+      ]);
+
+      // Clear timeout if location resolved first
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+
+      if (!isMountedRef.current) return;
 
       const newLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       };
       setCurrentLocation(newLocation);
+      setHasUserLocation(true);
       reverseGeocode(newLocation.latitude, newLocation.longitude);
 
       // Move camera to user location
-      if (cameraRef.current && isMounted) {
+      if (cameraRef.current && isMountedRef.current) {
         cameraRef.current.setCamera({
           centerCoordinate: [location.coords.longitude, location.coords.latitude],
           zoomLevel: 15,
@@ -103,97 +131,89 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
       }
     } catch (error) {
       console.error('Error getting location:', error);
+      // Don't update location - keep using whatever we have (initial or default)
     } finally {
-      if (isMounted) setIsLoading(false);
+      if (isMountedRef.current) setIsLocating(false);
     }
-  }, [isMounted, reverseGeocode]);
+  }, [reverseGeocode]);
 
   useEffect(() => {
-    setIsMounted(true);
+    isMountedRef.current = true;
 
     if (initialLocation) {
       setCurrentLocation(initialLocation);
+      setHasUserLocation(true);
       reverseGeocode(initialLocation.latitude, initialLocation.longitude);
     } else {
+      // Try to get user location, but don't block the map from showing
       getUserLocation();
     }
 
     return () => {
-      setIsMounted(false);
+      isMountedRef.current = false;
     };
   }, [initialLocation, getUserLocation, reverseGeocode]);
 
-  const handleMapPress = (event: any) => {
-    const { coordinates } = event.geometry;
-    const newLocation = {
-      latitude: coordinates[1],
-      longitude: coordinates[0],
-    };
-    setCurrentLocation(newLocation);
-    reverseGeocode(newLocation.latitude, newLocation.longitude);
-  };
-
-  const handleConfirmLocation = () => {
-    if (currentLocation) {
-      onLocationSelected({
-        ...currentLocation,
-        address,
-      });
-      onClose();
+  const handleMapPress = (event: GeoJSON.Feature) => {
+    if (event.geometry.type !== 'GeometryCollection' && 'coordinates' in event.geometry) {
+      const coords = event.geometry.coordinates as number[];
+      const [longitude, latitude] = coords;
+      const newLocation = {
+        latitude,
+        longitude,
+      };
+      setCurrentLocation(newLocation);
+      setHasUserLocation(true);
+      reverseGeocode(newLocation.latitude, newLocation.longitude);
     }
   };
 
-  if (isLoading) {
-    return (
-      <Box style={styles.container} className="items-center justify-center bg-gray-200">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
-      </Box>
-    );
-  }
+  const handleConfirmLocation = () => {
+    onLocationSelected({
+      ...currentLocation,
+      address,
+    });
+    onClose();
+  };
 
   return (
     <Box style={styles.container}>
-      {currentLocation ? (
-        <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
-          <Mapbox.Camera ref={cameraRef} zoomLevel={15} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
-          {/* Marker for the selected location */}
-          <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
-            <Box className="items-center justify-center">
-              <MapPinIcon size={36} color="#FF0000" />
-            </Box>
-          </Mapbox.PointAnnotation>
-        </Mapbox.MapView>
-      ) : (
-        <Box className="items-center justify-center bg-gray-200" style={{ flex: 1 }}>
-          <Text className="text-gray-500">{t('common.no_location')}</Text>
-          <TouchableOpacity onPress={getUserLocation} className="mt-2">
-            <Text className="text-blue-500">{t('common.get_my_location')}</Text>
-          </TouchableOpacity>
-        </Box>
-      )}
+      <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
+        <Mapbox.Camera ref={cameraRef} zoomLevel={hasUserLocation ? 15 : 4} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
+        {/* Marker for the selected location */}
+        <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
+          <Box className="items-center justify-center">
+            <MapPinIcon size={36} color="#FF0000" />
+          </Box>
+        </Mapbox.PointAnnotation>
+      </Mapbox.MapView>
 
       {/* Close button */}
       <TouchableOpacity style={[styles.closeButton, { top: insets.top + 10 }]} onPress={onClose}>
         <XIcon size={24} color="#000000" />
       </TouchableOpacity>
 
+      {/* My Location button */}
+      <TouchableOpacity style={[styles.myLocationButton, { top: insets.top + 10 }]} onPress={getUserLocation} disabled={isLocating}>
+        {isLocating ? <ActivityIndicator size="small" color="#007AFF" /> : <LocateIcon size={24} color="#007AFF" />}
+      </TouchableOpacity>
+
       {/* Location info and confirm button */}
       <Box style={[styles.bottomPanel, { paddingBottom: insets.bottom + 16 }]} className="bg-white p-4 shadow-lg">
+        {!hasUserLocation ? <Text className="mb-2 text-center text-amber-600">{t('common.tap_map_to_select')}</Text> : null}
         {isReverseGeocoding ? (
           <Text className="mb-2 text-gray-500">{t('common.loading_address')}</Text>
         ) : address ? (
           <Text className="mb-2 text-gray-700">{address}</Text>
-        ) : (
+        ) : hasUserLocation ? (
           <Text className="mb-2 text-gray-500">{t('common.no_address_found')}</Text>
-        )}
+        ) : null}
 
-        {currentLocation && (
-          <Text className="mb-4 text-gray-500">
-            {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-          </Text>
-        )}
+        <Text className="mb-4 text-gray-500">
+          {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
+        </Text>
 
-        <Button onPress={handleConfirmLocation} disabled={!currentLocation}>
+        <Button onPress={handleConfirmLocation}>
           <ButtonText>{t('common.set_location')}</ButtonText>
         </Button>
       </Box>
@@ -214,6 +234,22 @@ const styles = StyleSheet.create({
   closeButton: {
     position: 'absolute',
     left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  myLocationButton: {
+    position: 'absolute',
+    right: 16,
     width: 40,
     height: 40,
     borderRadius: 20,

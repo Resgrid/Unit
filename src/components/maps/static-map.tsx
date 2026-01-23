@@ -6,6 +6,10 @@ import { StyleSheet } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
+import { Env } from '@/lib/env';
+
+// Ensure Mapbox access token is set before using any Mapbox components
+Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
 interface StaticMapProps {
   latitude: number;

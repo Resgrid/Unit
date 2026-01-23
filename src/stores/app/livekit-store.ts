@@ -8,6 +8,7 @@ import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../a
 import { logger } from '../../lib/logging';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
 import { audioService } from '../../services/audio.service';
+import { callKeepService } from '../../services/callkeep.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to setup audio routing based on selected devices
@@ -235,7 +236,27 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           message: 'Failed to register foreground service',
           context: { error },
         });
+        // Don't fail the connection if foreground service fails on Android
+        // The call will still work but may be killed in background
       }
+
+      // Start CallKeep call for iOS background audio support
+      if (Platform.OS === 'ios') {
+        try {
+          const callUUID = await callKeepService.startCall(roomInfo.Name || 'Voice Channel');
+          logger.info({
+            message: 'CallKeep call started for iOS background support',
+            context: { callUUID, roomName: roomInfo.Name },
+          });
+        } catch (callKeepError) {
+          logger.warn({
+            message: 'Failed to start CallKeep call - background audio may not work',
+            context: { error: callKeepError },
+          });
+          // Don't fail the connection if CallKeep fails
+        }
+      }
+
       set({
         currentRoom: room,
         currentRoomInfo: roomInfo,
@@ -257,6 +278,21 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await currentRoom.disconnect();
       await audioService.playDisconnectedFromAudioRoomSound();
 
+      // End CallKeep call on iOS
+      if (Platform.OS === 'ios') {
+        try {
+          await callKeepService.endCall();
+          logger.debug({
+            message: 'CallKeep call ended',
+          });
+        } catch (callKeepError) {
+          logger.warn({
+            message: 'Failed to end CallKeep call',
+            context: { error: callKeepError },
+          });
+        }
+      }
+
       try {
         await notifee.stopForegroundService();
       } catch (error) {
@@ -269,6 +305,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         currentRoom: null,
         currentRoomInfo: null,
         isConnected: false,
+        isTalking: false,
       });
     }
   },

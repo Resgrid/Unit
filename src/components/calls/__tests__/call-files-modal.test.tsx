@@ -37,12 +37,27 @@ const defaultMockFiles = [
   },
 ];
 
-let mockStoreState: any = {
-  callFiles: defaultMockFiles,
+// Create a single object that will be mutated - never reassign!
+const mockStoreState = {
+  callFiles: defaultMockFiles as any,
   isLoadingFiles: false,
-  errorFiles: null,
+  errorFiles: null as string | null,
   fetchCallFiles: mockFetchCallFiles,
   clearFiles: mockClearFiles,
+};
+
+// Helper function to update mock state without replacing the object
+const setMockStoreState = (updates: Partial<typeof mockStoreState>) => {
+  Object.assign(mockStoreState, updates);
+};
+
+// Reset mock state to defaults
+const resetMockStoreState = () => {
+  mockStoreState.callFiles = defaultMockFiles;
+  mockStoreState.isLoadingFiles = false;
+  mockStoreState.errorFiles = null;
+  mockStoreState.fetchCallFiles = mockFetchCallFiles;
+  mockStoreState.clearFiles = mockClearFiles;
 };
 
 jest.mock('@/stores/calls/detail-store', () => ({
@@ -301,13 +316,7 @@ describe('CallFilesModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Reset to default state
-    mockStoreState = {
-      callFiles: defaultMockFiles,
-      isLoadingFiles: false,
-      errorFiles: null,
-      fetchCallFiles: mockFetchCallFiles,
-      clearFiles: mockClearFiles,
-    };
+    resetMockStoreState();
   });
 
   it('renders correctly when closed', () => {
@@ -421,13 +430,11 @@ describe('CallFilesModal', () => {
   describe('Loading States', () => {
     beforeEach(() => {
       // Mock loading state
-      mockStoreState = {
+      setMockStoreState({
         callFiles: null,
         isLoadingFiles: true,
         errorFiles: null,
-        fetchCallFiles: mockFetchCallFiles,
-        clearFiles: mockClearFiles,
-      };
+      });
     });
 
     it('displays loading spinner when fetching files', () => {
@@ -443,13 +450,11 @@ describe('CallFilesModal', () => {
   describe('Error States', () => {
     beforeEach(() => {
       // Mock error state
-      mockStoreState = {
+      setMockStoreState({
         callFiles: [],
         isLoadingFiles: false,
         errorFiles: 'Network error occurred',
-        fetchCallFiles: mockFetchCallFiles,
-        clearFiles: mockClearFiles,
-      };
+      });
     });
 
     it('displays error message when file fetch fails', () => {
@@ -476,13 +481,11 @@ describe('CallFilesModal', () => {
   describe('Empty States', () => {
     beforeEach(() => {
       // Mock empty state
-      mockStoreState = {
+      setMockStoreState({
         callFiles: [],
         isLoadingFiles: false,
         errorFiles: null,
-        fetchCallFiles: mockFetchCallFiles,
-        clearFiles: mockClearFiles,
-      };
+      });
     });
 
     it('displays empty state when no files available', () => {
@@ -503,12 +506,11 @@ describe('CallFilesModal', () => {
 
     beforeEach(() => {
       // Reset to default state with files
-      mockStoreState = {
+      setMockStoreState({
         callFiles: defaultMockFiles,
         isLoadingFiles: false,
         errorFiles: null,
-        fetchCallFiles: mockFetchCallFiles,
-      };
+      });
     });
 
     it('downloads and shares file when clicked', async () => {
@@ -591,13 +593,7 @@ describe('CallFilesModal', () => {
   describe('File Format Utilities', () => {
     beforeEach(() => {
       // Reset to default state
-      mockStoreState = {
-        callFiles: defaultMockFiles,
-        isLoadingFiles: false,
-        errorFiles: null,
-        fetchCallFiles: mockFetchCallFiles,
-        clearFiles: mockClearFiles,
-      };
+      resetMockStoreState();
     });
 
     it('formats file sizes correctly', () => {
@@ -625,13 +621,7 @@ describe('CallFilesModal', () => {
     beforeEach(() => {
       jest.clearAllMocks();
       // Reset to default state
-      mockStoreState = {
-        callFiles: defaultMockFiles,
-        isLoadingFiles: false,
-        errorFiles: null,
-        fetchCallFiles: mockFetchCallFiles,
-        clearFiles: mockClearFiles,
-      };
+      resetMockStoreState();
     });
 
     it('should track analytics event when modal is opened', () => {
@@ -653,10 +643,9 @@ describe('CallFilesModal', () => {
     });
 
     it('should track analytics event with loading state', () => {
-      mockStoreState = {
-        ...mockStoreState,
+      setMockStoreState({
         isLoadingFiles: true,
-      };
+      });
 
       render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-456" />);
 
@@ -670,10 +659,9 @@ describe('CallFilesModal', () => {
     });
 
     it('should track analytics event with error state', () => {
-      mockStoreState = {
-        ...mockStoreState,
+      setMockStoreState({
         errorFiles: 'Failed to load files',
-      };
+      });
 
       render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-error" />);
 
@@ -687,10 +675,9 @@ describe('CallFilesModal', () => {
     });
 
     it('should track analytics event with no files', () => {
-      mockStoreState = {
-        ...mockStoreState,
+      setMockStoreState({
         callFiles: [],
-      };
+      });
 
       render(<CallFilesModal {...defaultProps} isOpen={true} callId="test-call-no-files" />);
 

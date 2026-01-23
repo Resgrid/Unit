@@ -9,6 +9,11 @@ import { useCallDetailStore } from '@/stores/calls/detail-store';
 jest.mock('react-i18next');
 jest.mock('@/lib/auth');
 jest.mock('@/stores/calls/detail-store');
+jest.mock('@/hooks/use-analytics', () => ({
+  useAnalytics: () => ({
+    trackEvent: jest.fn(),
+  }),
+}));
 
 // Mock navigation
 jest.mock('@react-navigation/native', () => ({
@@ -25,10 +30,13 @@ jest.mock('nativewind', () => ({
 }));
 
 // Mock lucide-react-native icons
-jest.mock('lucide-react-native', () => ({
-  SearchIcon: 'SearchIcon',
-  X: 'X',
-}));
+jest.mock('lucide-react-native', () => {
+  const { View } = require('react-native');
+  return {
+    SearchIcon: (props: any) => <View testID="search-icon" {...props} />,
+    X: (props: any) => <View testID="x-icon" {...props} />,
+  };
+});
 
 // Mock Loading component
 jest.mock('../../common/loading', () => ({
@@ -57,6 +65,10 @@ jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAwareScrollView: ({ children }: any) => {
     const { View } = require('react-native');
     return <View testID="keyboard-aware-scroll-view">{children}</View>;
+  },
+  KeyboardStickyView: ({ children }: any) => {
+    const { View } = require('react-native');
+    return <View testID="keyboard-sticky-view">{children}</View>;
   },
 }));
 
@@ -94,10 +106,86 @@ jest.mock('@gorhom/bottom-sheet', () => {
   };
 });
 
-// Mock lucide-react-native icons
-jest.mock('lucide-react-native', () => ({
-  SearchIcon: 'SearchIcon',
-  X: 'X',
+// Mock UI components
+jest.mock('../../ui/box', () => ({
+  Box: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('../../ui/button', () => ({
+  Button: ({ children, onPress, disabled, isDisabled, ...props }: any) => {
+    const { TouchableOpacity } = require('react-native');
+    const isButtonDisabled = disabled || isDisabled;
+    return (
+      <TouchableOpacity
+        onPress={isButtonDisabled ? undefined : onPress}
+        disabled={isButtonDisabled}
+        {...props}
+      >
+        {children}
+      </TouchableOpacity>
+    );
+  },
+  ButtonText: ({ children, ...props }: any) => {
+    const { Text } = require('react-native');
+    return <Text {...props}>{children}</Text>;
+  },
+}));
+
+jest.mock('../../ui/heading', () => ({
+  Heading: ({ children, ...props }: any) => {
+    const { Text } = require('react-native');
+    return <Text {...props}>{children}</Text>;
+  },
+}));
+
+jest.mock('../../ui/hstack', () => ({
+  HStack: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('../../ui/vstack', () => ({
+  VStack: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('../../ui/text', () => ({
+  Text: ({ children, ...props }: any) => {
+    const { Text: RNText } = require('react-native');
+    return <RNText {...props}>{children}</RNText>;
+  },
+}));
+
+jest.mock('../../ui/input', () => ({
+  Input: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+  InputField: ({ placeholder, value, onChangeText, ...props }: any) => {
+    const { TextInput } = require('react-native');
+    return <TextInput placeholder={placeholder} value={value} onChangeText={onChangeText} {...props} />;
+  },
+  InputSlot: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+}));
+
+jest.mock('../../ui/textarea', () => ({
+  Textarea: ({ children, ...props }: any) => {
+    const { View } = require('react-native');
+    return <View {...props}>{children}</View>;
+  },
+  TextareaInput: ({ placeholder, value, onChangeText, ...props }: any) => {
+    const { TextInput } = require('react-native');
+    return <TextInput placeholder={placeholder} value={value} onChangeText={onChangeText} {...props} />;
+  },
 }));
 
 const mockUseTranslation = useTranslation as jest.MockedFunction<typeof useTranslation>;
@@ -146,6 +234,9 @@ describe('CallNotesModal', () => {
           'callNotes.searchPlaceholder': 'Search notes...',
           'callNotes.addNotePlaceholder': 'Add a note...',
           'callNotes.addNote': 'Add Note',
+          'callNotes.noNotesFound': 'No notes found',
+          'callNotes.addNoteLabel': 'Add a note',
+          'common.cancel': 'Cancel',
         };
         return translations[key] || key;
       },
@@ -185,8 +276,8 @@ describe('CallNotesModal', () => {
   it('renders correctly when closed', () => {
     const { queryByText } = render(<CallNotesModal {...mockProps} isOpen={false} />);
 
-    // Bottom sheet should still render but with index -1 (closed)
-    expect(queryByText('Call Notes')).toBeTruthy();
+    // Component returns null when closed
+    expect(queryByText('Call Notes')).toBeFalsy();
   });
 
   it('handles search input correctly', () => {

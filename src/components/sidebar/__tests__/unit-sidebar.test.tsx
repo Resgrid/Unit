@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 
+// Mock @livekit/react-native-webrtc before any imports that use it
+jest.mock('@livekit/react-native-webrtc', () => ({
+  RTCAudioSession: {
+    configure: jest.fn().mockResolvedValue(undefined),
+    setCategory: jest.fn().mockResolvedValue(undefined),
+    setMode: jest.fn().mockResolvedValue(undefined),
+    getActiveAudioSession: jest.fn().mockReturnValue(null),
+    setActive: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
