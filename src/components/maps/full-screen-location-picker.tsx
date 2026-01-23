@@ -94,9 +94,10 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
         return;
       }
 
-      // Create a timeout promise
+      // Create a timeout promise with cleanup
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
+        timeoutId = setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
       });
 
       // Race between getting location and timeout
@@ -106,6 +107,9 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
         }),
         timeoutPromise,
       ]);
+
+      // Clear timeout if location resolved first
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
 
       if (!isMountedRef.current) return;
 
