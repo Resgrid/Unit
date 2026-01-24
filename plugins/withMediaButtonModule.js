@@ -478,19 +478,30 @@ const withMediaButtonModule = (config) => {
   // Update MainApplication.kt to register the package
   config = withMainApplication(config, (config) => {
     const mainApplication = config.modResults;
+    const projectRoot = config.modRequest.projectRoot;
 
     // Check if MediaButtonPackage is already imported/added
     if (!mainApplication.contents.includes('MediaButtonPackage')) {
-      // Get the package name from the first line of the file
-      const packageMatch = mainApplication.contents.match(/^package\s+([^\s]+)/);
-      const packageName = packageMatch ? packageMatch[1] : 'com.resgrid.unit';
+      // Read the BASE package name from build.gradle (namespace)
+      // This is where the native module files are actually created
+      const buildGradlePath = path.join(projectRoot, 'android', 'app', 'build.gradle');
+      let basePackageName = 'com.resgrid.unit'; // Default fallback
 
-      // Add import statement for MediaButtonPackage after the package declaration
-      const importStatement = `import ${packageName}.MediaButtonPackage`;
+      if (fs.existsSync(buildGradlePath)) {
+        const buildGradleContent = fs.readFileSync(buildGradlePath, 'utf-8');
+        const namespaceMatch = buildGradleContent.match(/namespace\s+['"]([^'"]+)['"]/);
+        if (namespaceMatch) {
+          basePackageName = namespaceMatch[1];
+        }
+      }
+
+      // Add import statement using the BASE package name (not the variant-specific package)
+      // The native module files are created in the base package, not in variant packages like 'development'
+      const importStatement = `import ${basePackageName}.MediaButtonPackage`;
       if (!mainApplication.contents.includes(importStatement)) {
         // Add import after the package declaration line
         mainApplication.contents = mainApplication.contents.replace(/^(package\s+[^\n]+\n)/, `$1${importStatement}\n`);
-        console.log('[withMediaButtonModule] Added MediaButtonPackage import');
+        console.log(`[withMediaButtonModule] Added MediaButtonPackage import from base package: ${basePackageName}`);
       }
 
       // Add the package to getPackages()
