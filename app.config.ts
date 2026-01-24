@@ -207,6 +207,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './customManifest.plugin.js',
     './plugins/withForegroundNotifications.js',
     './plugins/withNotificationSounds.js',
+    './plugins/withMediaButtonModule.js',
     ['app-icon-badge', appIconBadgeConfig],
   ],
   extra: {

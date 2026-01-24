@@ -90,6 +90,8 @@
     "add_new": "Añadir nueva imagen",
     "default_name": "Imagen sin título",
     "error": "Error al obtener imágenes",
+    "error_capturing_image": "Error al capturar la imagen. Por favor, inténtalo de nuevo.",
+    "error_selecting_image": "Error al seleccionar la imagen. Por favor, inténtalo de nuevo.",
     "failed_to_load": "Error al cargar la imagen",
     "image_alt": "Imagen de la llamada",
     "image_name": "Nombre de la imagen",

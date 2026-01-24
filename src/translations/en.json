@@ -90,6 +90,8 @@
     "add_new": "Add New Image",
     "default_name": "Untitled Image",
     "error": "Error getting images",
+    "error_capturing_image": "Failed to capture image. Please try again.",
+    "error_selecting_image": "Failed to select image. Please try again.",
     "failed_to_load": "Failed to load image",
     "image_alt": "Call image",
     "image_name": "Image Name",
