@@ -155,11 +155,16 @@ import android.content.IntentFilter
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
+import android.util.Log
 import android.view.KeyEvent
 import com.facebook.react.bridge.*
 import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class MediaButtonModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
+
+    companion object {
+        private const val TAG = "MediaButtonModule"
+    }
 
     private var mediaSession: MediaSession? = null
     private var isListening = false
@@ -300,7 +305,7 @@ class MediaButtonModule(reactContext: ReactApplicationContext) : ReactContextBas
             try {
                 reactApplicationContext.unregisterReceiver(it)
             } catch (e: Exception) {
-                // Receiver may not be registered
+                Log.d(TAG, "Failed to unregister media button receiver: \${e.message}")
             }
         }
         mediaButtonReceiver = null
@@ -482,13 +487,8 @@ const withMediaButtonModule = (config) => {
       const packagesMatch = mainApplication.contents.match(packagesPattern);
 
       if (packagesMatch) {
-        if (packagesMatch[1]) {
-          // Already has toMutableList()
-          mainApplication.contents = mainApplication.contents.replace(packagesPattern, `val packages = PackageList(this).packages.toMutableList()\n            packages.add(MediaButtonPackage())`);
-        } else {
-          // Need to add toMutableList()
-          mainApplication.contents = mainApplication.contents.replace(packagesPattern, `val packages = PackageList(this).packages.toMutableList()\n            packages.add(MediaButtonPackage())`);
-        }
+        // Replace the packages declaration, ensuring toMutableList() is present so we can add our package
+        mainApplication.contents = mainApplication.contents.replace(packagesPattern, `val packages = PackageList(this).packages.toMutableList()\n            packages.add(MediaButtonPackage())`);
         console.log('[withMediaButtonModule] Registered MediaButtonPackage in MainApplication.kt');
       }
     }

@@ -3,6 +3,14 @@ import { DeviceEventEmitter, NativeEventEmitter, NativeModules, Platform } from 
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { type AudioButtonEvent, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
+import {
+  createDefaultPTTSettings,
+  type MediaButtonPTTSettings,
+  type PTTMode,
+} from '@/types/ptt';
+
+// Re-export PTT types for backwards compatibility
+export { type MediaButtonPTTSettings, type PTTMode };
 
 // Lazy import to break dependency cycle with livekit-store
 const getLiveKitStore = () => require('@/stores/app/livekit-store').useLiveKitStore;
@@ -16,29 +24,6 @@ export interface MediaButtonEvent {
   source?: 'airpods' | 'bluetooth_earbuds' | 'wired_headset' | 'unknown';
 }
 
-// PTT mode configuration
-export type PTTMode = 'toggle' | 'push_to_talk';
-
-// Settings for media button PTT functionality
-export interface MediaButtonPTTSettings {
-  enabled: boolean;
-  pttMode: PTTMode;
-  // For toggle mode: single press toggles mute state
-  // For push_to_talk mode: press to unmute, release to mute (requires double-tap for this)
-  usePlayPauseForPTT: boolean;
-  // Double tap behavior
-  doubleTapAction: 'none' | 'toggle_mute';
-  doubleTapTimeoutMs: number;
-}
-
-const DEFAULT_PTT_SETTINGS: MediaButtonPTTSettings = {
-  enabled: true,
-  pttMode: 'toggle',
-  usePlayPauseForPTT: true,
-  doubleTapAction: 'toggle_mute',
-  doubleTapTimeoutMs: 400,
-};
-
 // Try to get the native module (will be null if not installed)
 const { MediaButtonModule } = NativeModules;
 
@@ -46,7 +31,7 @@ class MediaButtonService {
   private static instance: MediaButtonService;
   private isInitialized = false;
   private eventListeners: { remove: () => void }[] = [];
-  private settings: MediaButtonPTTSettings = DEFAULT_PTT_SETTINGS;
+  private settings: MediaButtonPTTSettings = createDefaultPTTSettings();
   private lastPressTimestamp: number = 0;
   private doubleTapTimer: ReturnType<typeof setTimeout> | null = null;
   private pendingSingleTap: boolean = false;

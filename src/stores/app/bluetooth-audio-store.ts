@@ -1,23 +1,18 @@
 import { type Peripheral } from 'react-native-ble-manager';
 import { create } from 'zustand';
 
+import {
+  createDefaultPTTSettings,
+  DEFAULT_MEDIA_BUTTON_PTT_SETTINGS,
+  type MediaButtonPTTSettings,
+  type PTTMode,
+} from '@/types/ptt';
+
+// Re-export PTT types for backwards compatibility
+export { DEFAULT_MEDIA_BUTTON_PTT_SETTINGS, type MediaButtonPTTSettings, type PTTMode };
+
 // Re-export Peripheral as Device for compatibility
 export type Device = Peripheral;
-
-// PTT mode configuration for media buttons (AirPods/earbuds)
-export type PTTMode = 'toggle' | 'push_to_talk';
-
-// Settings for media button PTT functionality
-export interface MediaButtonPTTSettings {
-  enabled: boolean;
-  pttMode: PTTMode;
-  // For toggle mode: single press toggles mute state
-  // For push_to_talk mode: press to unmute, release to mute
-  usePlayPauseForPTT: boolean;
-  // Double tap behavior
-  doubleTapAction: 'none' | 'toggle_mute';
-  doubleTapTimeoutMs: number;
-}
 
 // Bluetooth state enum to match react-native-ble-plx API
 export enum State {
@@ -61,15 +56,6 @@ export interface AudioDeviceSelection {
   microphone: AudioDeviceInfo | null;
   speaker: AudioDeviceInfo | null;
 }
-
-// Default media button PTT settings
-export const DEFAULT_MEDIA_BUTTON_PTT_SETTINGS: MediaButtonPTTSettings = {
-  enabled: true,
-  pttMode: 'toggle',
-  usePlayPauseForPTT: true,
-  doubleTapAction: 'toggle_mute',
-  doubleTapTimeoutMs: 400,
-};
 
 interface BluetoothAudioState {
   // Bluetooth state
@@ -153,7 +139,7 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   isAudioRoutingActive: false,
   buttonEvents: [],
   lastButtonAction: null,
-  mediaButtonPTTSettings: DEFAULT_MEDIA_BUTTON_PTT_SETTINGS,
+  mediaButtonPTTSettings: createDefaultPTTSettings(),
 
   // Bluetooth state actions
   setBluetoothState: (state) => set({ bluetoothState: state }),
