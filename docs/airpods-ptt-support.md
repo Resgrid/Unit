@@ -143,18 +143,41 @@ The service provides audio feedback for PTT actions:
 ## Files Modified/Created
 
 ### New Files
-- `src/services/media-button.service.ts` - Main service
+- `src/services/media-button.service.ts` - Main TypeScript service
 - `src/services/__tests__/media-button.service.test.ts` - Tests
-- `ios/ResgridUnit/MediaButtonModule.swift` - iOS native module
-- `ios/ResgridUnit/MediaButtonModule.m` - iOS bridge
-- `android/app/src/main/java/com/resgrid/unit/development/MediaButtonModule.kt` - Android native module
-- `android/app/src/main/java/com/resgrid/unit/development/MediaButtonPackage.kt` - Android package
-- `plugins/withMediaButtonModule.js` - Expo config plugin
+- `plugins/withMediaButtonModule.js` - Expo config plugin (generates native modules during prebuild)
 - `docs/airpods-ptt-support.md` - This documentation
 
 ### Modified Files
 - `src/stores/app/bluetooth-audio-store.ts` - Added media button settings
 - `src/stores/app/livekit-store.ts` - Integration with room connection/disconnection
-- `ios/ResgridUnit/ResgridUnit-Bridging-Header.h` - Added React Native imports
-- `android/app/src/main/java/com/resgrid/unit/development/MainApplication.kt` - Registered package
-- `app.config.ts` - Added config plugin
+- `app.config.ts` - Added config plugin reference
+
+### Generated During Prebuild (via config plugin)
+The following native files are generated automatically by `withMediaButtonModule.js` during `expo prebuild`:
+
+**iOS:**
+- `ios/ResgridUnit/MediaButtonModule.swift` - iOS native module using MPRemoteCommandCenter
+- `ios/ResgridUnit/MediaButtonModule.m` - Objective-C bridge file
+- Updates `ResgridUnit-Bridging-Header.h` with required React Native imports
+
+**Android:**
+- `android/app/src/main/java/{package}/MediaButtonModule.kt` - Android native module using MediaSession
+- `android/app/src/main/java/{package}/MediaButtonPackage.kt` - React Native package registration
+- Updates `MainApplication.kt` to register the MediaButtonPackage
+
+## Build Instructions
+
+Since this project uses Expo with prebuild, the native modules are generated automatically:
+
+```bash
+# Clean and regenerate native projects
+npx expo prebuild --clean
+
+# Or for specific platform
+npx expo prebuild --platform ios --clean
+npx expo prebuild --platform android --clean
+
+# Then build normally
+yarn ios  # or yarn android
+```

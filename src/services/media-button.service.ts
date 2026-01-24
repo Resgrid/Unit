@@ -4,7 +4,7 @@ import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { type AudioButtonEvent, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
-// Lazy import to avoid circular dependency with livekit-store
+// Lazy import to break dependency cycle with livekit-store
 const getLiveKitStore = () => require('@/stores/app/livekit-store').useLiveKitStore;
 
 // Media button event types
@@ -40,7 +40,7 @@ const DEFAULT_PTT_SETTINGS: MediaButtonPTTSettings = {
 };
 
 // Try to get the native module (will be null if not installed)
-const MediaButtonModule = NativeModules?.MediaButtonModule;
+const { MediaButtonModule } = NativeModules;
 
 class MediaButtonService {
   private static instance: MediaButtonService;
