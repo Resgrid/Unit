@@ -481,6 +481,18 @@ const withMediaButtonModule = (config) => {
 
     // Check if MediaButtonPackage is already imported/added
     if (!mainApplication.contents.includes('MediaButtonPackage')) {
+      // Get the package name from the first line of the file
+      const packageMatch = mainApplication.contents.match(/^package\s+([^\s]+)/);
+      const packageName = packageMatch ? packageMatch[1] : 'com.resgrid.unit';
+
+      // Add import statement for MediaButtonPackage after the package declaration
+      const importStatement = `import ${packageName}.MediaButtonPackage`;
+      if (!mainApplication.contents.includes(importStatement)) {
+        // Add import after the package declaration line
+        mainApplication.contents = mainApplication.contents.replace(/^(package\s+[^\n]+\n)/, `$1${importStatement}\n`);
+        console.log('[withMediaButtonModule] Added MediaButtonPackage import');
+      }
+
       // Add the package to getPackages()
       // Find the packages list and add our package
       const packagesPattern = /val packages = PackageList\(this\)\.packages(\.toMutableList\(\))?/;
