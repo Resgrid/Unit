@@ -9,6 +9,7 @@ import { logger } from '../../lib/logging';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
 import { audioService } from '../../services/audio.service';
 import { callKeepService } from '../../services/callkeep.service';
+import { mediaButtonService } from '../../services/media-button.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to setup audio routing based on selected devices
@@ -257,6 +258,24 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         }
       }
 
+      // Initialize media button service for AirPods/earbuds PTT support
+      try {
+        await mediaButtonService.initialize();
+        // Apply stored settings from the Bluetooth audio store
+        const { mediaButtonPTTSettings } = useBluetoothAudioStore.getState();
+        mediaButtonService.updateSettings(mediaButtonPTTSettings);
+        logger.info({
+          message: 'Media button service initialized for PTT support',
+          context: { settings: mediaButtonPTTSettings },
+        });
+      } catch (mediaButtonError) {
+        logger.warn({
+          message: 'Failed to initialize media button service - AirPods/earbuds PTT may not work',
+          context: { error: mediaButtonError },
+        });
+        // Don't fail the connection if media button service fails
+      }
+
       set({
         currentRoom: room,
         currentRoomInfo: roomInfo,
@@ -301,6 +320,20 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           context: { error },
         });
       }
+
+      // Cleanup media button service
+      try {
+        mediaButtonService.destroy();
+        logger.debug({
+          message: 'Media button service cleaned up',
+        });
+      } catch (mediaButtonError) {
+        logger.warn({
+          message: 'Failed to cleanup media button service',
+          context: { error: mediaButtonError },
+        });
+      }
+
       set({
         currentRoom: null,
         currentRoomInfo: null,

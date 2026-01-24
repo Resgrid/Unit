@@ -1,6 +1,16 @@
 import { type Peripheral } from 'react-native-ble-manager';
 import { create } from 'zustand';
 
+import {
+  createDefaultPTTSettings,
+  DEFAULT_MEDIA_BUTTON_PTT_SETTINGS,
+  type MediaButtonPTTSettings,
+  type PTTMode,
+} from '@/types/ptt';
+
+// Re-export PTT types for backwards compatibility
+export { DEFAULT_MEDIA_BUTTON_PTT_SETTINGS, type MediaButtonPTTSettings, type PTTMode };
+
 // Re-export Peripheral as Device for compatibility
 export type Device = Peripheral;
 
@@ -70,6 +80,9 @@ interface BluetoothAudioState {
   buttonEvents: AudioButtonEvent[];
   lastButtonAction: ButtonAction | null;
 
+  // Media button PTT settings (for AirPods/earbuds)
+  mediaButtonPTTSettings: MediaButtonPTTSettings;
+
   // Actions
   setBluetoothState: (state: State) => void;
   setIsScanning: (isScanning: boolean) => void;
@@ -100,6 +113,10 @@ interface BluetoothAudioState {
   addButtonEvent: (event: AudioButtonEvent) => void;
   clearButtonEvents: () => void;
   setLastButtonAction: (action: ButtonAction | null) => void;
+
+  // Media button PTT settings (for AirPods/earbuds)
+  setMediaButtonPTTSettings: (settings: Partial<MediaButtonPTTSettings>) => void;
+  setMediaButtonPTTEnabled: (enabled: boolean) => void;
 }
 
 export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => ({
@@ -122,6 +139,7 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   isAudioRoutingActive: false,
   buttonEvents: [],
   lastButtonAction: null,
+  mediaButtonPTTSettings: createDefaultPTTSettings(),
 
   // Bluetooth state actions
   setBluetoothState: (state) => set({ bluetoothState: state }),
@@ -224,5 +242,26 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
     const { availableAudioDevices } = get();
     const updatedDevices = availableAudioDevices.map((device) => (device.id === deviceId ? { ...device, isAvailable } : device));
     set({ availableAudioDevices: updatedDevices });
+  },
+
+  // Media button PTT settings actions
+  setMediaButtonPTTSettings: (settings) => {
+    const { mediaButtonPTTSettings } = get();
+    set({
+      mediaButtonPTTSettings: {
+        ...mediaButtonPTTSettings,
+        ...settings,
+      },
+    });
+  },
+
+  setMediaButtonPTTEnabled: (enabled) => {
+    const { mediaButtonPTTSettings } = get();
+    set({
+      mediaButtonPTTSettings: {
+        ...mediaButtonPTTSettings,
+        enabled,
+      },
+    });
   },
 }));

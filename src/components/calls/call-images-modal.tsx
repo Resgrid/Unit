@@ -108,37 +108,49 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   }, [validImages.length, activeIndex]);
 
   const handleImageSelect = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissionResult.granted === false) {
-      alert(t('common.permission_denied'));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      const filename = asset.fileName || `image_${Date.now()}.png`;
-      setSelectedImageInfo({ uri: asset.uri, filename });
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.status !== 'granted') {
+        alert(t('common.permission_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const filename = asset.fileName || `image_${Date.now()}.png`;
+        setSelectedImageInfo({ uri: asset.uri, filename });
+      }
+    } catch (error) {
+      console.error('Error selecting image from library:', error);
+      alert(t('callImages.error_selecting_image'));
     }
   };
 
   const handleCameraCapture = async () => {
-    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-    if (permissionResult.granted === false) {
-      alert(t('common.permission_denied'));
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
-    if (!result.canceled) {
-      const asset = result.assets[0];
-      const filename = `camera_${Date.now()}.png`;
-      setSelectedImageInfo({ uri: asset.uri, filename });
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      if (permissionResult.status !== 'granted') {
+        alert(t('common.permission_denied'));
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+        cameraType: ImagePicker.CameraType.back,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const filename = `camera_${Date.now()}.png`;
+        setSelectedImageInfo({ uri: asset.uri, filename });
+      }
+    } catch (error) {
+      console.error('Error capturing image from camera:', error);
+      alert(t('callImages.error_capturing_image'));
     }
   };
 
