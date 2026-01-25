@@ -1,6 +1,6 @@
 import { Buffer } from 'buffer';
 import { Alert, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
-import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, type BleState, type Peripheral } from 'react-native-ble-manager';
+import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, type BleState, type Peripheral, type PeripheralInfo } from 'react-native-ble-manager';
 
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
@@ -39,7 +39,7 @@ const BUTTON_CONTROL_UUIDS = [
 class BluetoothAudioService {
   private static instance: BluetoothAudioService;
   private connectedDevice: Device | null = null;
-  private scanTimeout: number | null = null;
+  private scanTimeout: ReturnType<typeof setTimeout> | null = null;
   private connectionTimeout: NodeJS.Timeout | null = null;
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
@@ -861,7 +861,7 @@ class BluetoothAudioService {
       }
 
       // Discover services and characteristics
-      await BleManager.retrieveServices(deviceId);
+      const peripheralInfo = await BleManager.retrieveServices(deviceId);
 
       this.connectedDevice = device;
       useBluetoothAudioStore.getState().setConnectedDevice({
@@ -874,8 +874,8 @@ class BluetoothAudioService {
         device,
       });
 
-      // Set up button event monitoring
-      await this.setupButtonEventMonitoring(device);
+      // Set up button event monitoring with peripheral info
+      await this.setupButtonEventMonitoring(device, peripheralInfo);
 
       // Integrate with LiveKit audio routing
       await this.setupLiveKitAudioRouting(device);
@@ -916,29 +916,19 @@ class BluetoothAudioService {
     }
   }
 
-  private async setupButtonEventMonitoring(device: Device): Promise<void> {
+  private async setupButtonEventMonitoring(device: Device, peripheralInfo: PeripheralInfo): Promise<void> {
     try {
-      const peripheralInfo = await BleManager.getDiscoveredPeripherals();
-      const deviceInfo = peripheralInfo.find((p) => p.id === device.id);
-
-      if (!deviceInfo) {
-        logger.warn({
-          message: 'Device not found in discovered peripherals',
-          context: { deviceId: device.id },
-        });
-        return;
-      }
-
       logger.info({
         message: 'Setting up button event monitoring',
         context: {
           deviceId: device.id,
           deviceName: device.name,
+          availableServices: peripheralInfo?.services?.map((s: any) => s.uuid) || [],
         },
       });
 
       // Start notifications for known button control characteristics
-      await this.startNotificationsForButtonControls(device.id);
+      await this.startNotificationsForButtonControls(device.id, peripheralInfo);
     } catch (error) {
       logger.warn({
         message: 'Could not set up button event monitoring',
@@ -947,7 +937,24 @@ class BluetoothAudioService {
     }
   }
 
-  private async startNotificationsForButtonControls(deviceId: string): Promise<void> {
+  /**
+   * Check if a service and characteristic exist on the peripheral
+   */
+  private hasCharacteristic(peripheralInfo: PeripheralInfo, serviceUuid: string, characteristicUuid: string): boolean {
+    if (!peripheralInfo?.services) {
+      return false;
+    }
+
+    const service = peripheralInfo.services.find((s: any) => s.uuid?.toUpperCase() === serviceUuid.toUpperCase());
+
+    if (!service || !(service as any).characteristics) {
+      return false;
+    }
+
+    return (service as any).characteristics.some((c: any) => c.characteristic?.toUpperCase() === characteristicUuid.toUpperCase());
+  }
+
+  private async startNotificationsForButtonControls(deviceId: string, peripheralInfo: PeripheralInfo): Promise<void> {
     // Try to start notifications for known button control service/characteristic combinations
     const buttonControlConfigs = [
       { service: AINA_HEADSET_SERVICE, characteristic: AINA_HEADSET_SVC_PROP },
@@ -959,6 +966,19 @@ class BluetoothAudioService {
 
     for (const config of buttonControlConfigs) {
       try {
+        // Check if the characteristic exists before trying to start notifications
+        if (!this.hasCharacteristic(peripheralInfo, config.service, config.characteristic)) {
+          logger.debug({
+            message: 'Characteristic not available on device, skipping',
+            context: {
+              deviceId,
+              service: config.service,
+              characteristic: config.characteristic,
+            },
+          });
+          continue;
+        }
+
         await BleManager.startNotification(deviceId, config.service, config.characteristic);
         logger.info({
           message: 'Started notifications for button control',

@@ -8,15 +8,10 @@ import { Platform } from 'react-native';
 export const isWeb = Platform.OS === 'web';
 
 // Check if running in Electron (desktop app wrapped around web)
-export const isElectron = 
-  typeof window !== 'undefined' && 
-  window.process?.type === 'renderer';
+export const isElectron = typeof window !== 'undefined' && window.process?.type === 'renderer';
 
 // Check if running on a desktop platform (Electron or native desktop)
-export const isDesktop = 
-  isElectron || 
-  Platform.OS === 'macos' || 
-  Platform.OS === 'windows';
+export const isDesktop = isElectron || Platform.OS === 'macos' || Platform.OS === 'windows';
 
 // Check if running on native mobile platforms
 export const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -37,14 +32,21 @@ export const platformName = (): string => {
     if (electronPlatform === 'linux') return 'Linux (Electron)';
     return 'Electron';
   }
-  
-  switch (Platform.OS) {
-    case 'ios': return 'iOS';
-    case 'android': return 'Android';
-    case 'web': return 'Web';
-    case 'macos': return 'macOS';
-    case 'windows': return 'Windows';
-    default: return Platform.OS;
+
+  const os = Platform.OS;
+  switch (os) {
+    case 'ios':
+      return 'iOS';
+    case 'android':
+      return 'Android';
+    case 'web':
+      return 'Web';
+    case 'macos':
+      return 'macOS';
+    case 'windows':
+      return 'Windows';
+    default:
+      return os;
   }
 };
 

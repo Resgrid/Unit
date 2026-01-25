@@ -2,8 +2,9 @@
  * Web implementation of map components using mapbox-gl
  * This file is used on web and Electron platforms
  */
-import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+
+import mapboxgl from 'mapbox-gl';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
 import { Env } from '@/lib/env';
@@ -54,93 +55,95 @@ interface MapViewProps {
 }
 
 // MapView component
-export const MapView = forwardRef<any, MapViewProps>(({
-  style,
-  styleURL = StyleURL.Street,
-  onDidFinishLoadingMap,
-  onCameraChanged,
-  children,
-  testID,
-  logoEnabled = false,
-  attributionEnabled = false,
-  compassEnabled = true,
-  zoomEnabled = true,
-  rotateEnabled = true,
-  scrollEnabled = true,
-  pitchEnabled = true,
-}, ref) => {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+export const MapView = forwardRef<any, MapViewProps>(
+  (
+    {
+      style,
+      styleURL = StyleURL.Street,
+      onDidFinishLoadingMap,
+      onCameraChanged,
+      children,
+      testID,
+      logoEnabled = false,
+      attributionEnabled = false,
+      compassEnabled = true,
+      zoomEnabled = true,
+      rotateEnabled = true,
+      scrollEnabled = true,
+      pitchEnabled = true,
+    },
+    ref
+  ) => {
+    const mapContainer = useRef<HTMLDivElement>(null);
+    const map = useRef<mapboxgl.Map | null>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-  useImperativeHandle(ref, () => ({
-    getMap: () => map.current,
-  }));
+    useImperativeHandle(ref, () => ({
+      getMap: () => map.current,
+    }));
 
-  useEffect(() => {
-    if (map.current || !mapContainer.current) return;
+    useEffect(() => {
+      if (map.current || !mapContainer.current) return;
 
-    const newMap = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: styleURL,
-      center: [-98.5795, 39.8283], // Default US center
-      zoom: 4,
-      attributionControl: attributionEnabled,
-      logoPosition: logoEnabled ? 'bottom-left' : undefined,
-      dragRotate: rotateEnabled,
-      scrollZoom: zoomEnabled,
-      dragPan: scrollEnabled,
-      pitchWithRotate: pitchEnabled,
-    });
-
-    if (!logoEnabled) {
-      // Hide logo via CSS if not enabled
-      newMap.on('load', () => {
-        const logoEl = mapContainer.current?.querySelector('.mapboxgl-ctrl-logo');
-        if (logoEl) {
-          (logoEl as HTMLElement).style.display = 'none';
-        }
+      const newMap = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: styleURL,
+        center: [-98.5795, 39.8283], // Default US center
+        zoom: 4,
+        attributionControl: attributionEnabled,
+        logoPosition: logoEnabled ? 'bottom-left' : undefined,
+        dragRotate: rotateEnabled,
+        scrollZoom: zoomEnabled,
+        dragPan: scrollEnabled,
+        pitchWithRotate: pitchEnabled,
       });
-    }
 
-    if (compassEnabled) {
-      newMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
-    }
+      if (!logoEnabled) {
+        // Hide logo via CSS if not enabled
+        newMap.on('load', () => {
+          const logoEl = mapContainer.current?.querySelector('.mapboxgl-ctrl-logo');
+          if (logoEl) {
+            (logoEl as HTMLElement).style.display = 'none';
+          }
+        });
+      }
 
-    newMap.on('load', () => {
-      setIsLoaded(true);
-      onDidFinishLoadingMap?.();
-    });
+      if (compassEnabled) {
+        newMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
+      }
 
-    newMap.on('moveend', () => {
-      onCameraChanged?.({ properties: { isUserInteraction: true } });
-    });
+      newMap.on('load', () => {
+        setIsLoaded(true);
+        onDidFinishLoadingMap?.();
+      });
 
-    map.current = newMap;
+      newMap.on('moveend', () => {
+        onCameraChanged?.({ properties: { isUserInteraction: true } });
+      });
 
-    return () => {
-      map.current?.remove();
-      map.current = null;
-    };
-  }, []);
+      map.current = newMap;
 
-  // Update style when it changes
-  useEffect(() => {
-    if (map.current && styleURL) {
-      map.current.setStyle(styleURL);
-    }
-  }, [styleURL]);
+      return () => {
+        map.current?.remove();
+        map.current = null;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-  return (
-    <div ref={mapContainer} data-testid={testID} style={{ width: '100%', height: '100%', ...style }}>
-      {isLoaded && (
-        <MapContext.Provider value={map.current}>
-          {children}
-        </MapContext.Provider>
-      )}
-    </div>
-  );
-});
+    // Update style when it changes
+    useEffect(() => {
+      if (map.current && styleURL) {
+        map.current.setStyle(styleURL);
+      }
+    }, [styleURL]);
+
+    return (
+      <div ref={mapContainer} data-testid={testID} style={{ width: '100%', height: '100%', ...style }}>
+        {isLoaded && <MapContext.Provider value={map.current}>{children}</MapContext.Provider>}
+      </div>
+    );
+  }
+);
 
 MapView.displayName = 'MapView';
 
@@ -160,26 +163,12 @@ interface CameraProps {
 }
 
 // Camera component
-export const Camera = forwardRef<any, CameraProps>(({
-  centerCoordinate,
-  zoomLevel,
-  heading,
-  pitch,
-  animationDuration = 1000,
-  followUserLocation,
-  followZoomLevel,
-}, ref) => {
+export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLevel, heading, pitch, animationDuration = 1000, followUserLocation, followZoomLevel }, ref) => {
   const map = React.useContext(MapContext);
   const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
 
   useImperativeHandle(ref, () => ({
-    setCamera: (options: {
-      centerCoordinate?: [number, number];
-      zoomLevel?: number;
-      heading?: number;
-      pitch?: number;
-      animationDuration?: number;
-    }) => {
+    setCamera: (options: { centerCoordinate?: [number, number]; zoomLevel?: number; heading?: number; pitch?: number; animationDuration?: number }) => {
       if (!map) return;
 
       map.easeTo({
@@ -254,14 +243,7 @@ interface PointAnnotationProps {
 }
 
 // PointAnnotation component
-export const PointAnnotation: React.FC<PointAnnotationProps> = ({
-  id,
-  coordinate,
-  title,
-  children,
-  anchor = { x: 0.5, y: 0.5 },
-  onSelected,
-}) => {
+export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate, title, children, anchor = { x: 0.5, y: 0.5 }, onSelected }) => {
   const map = React.useContext(MapContext);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -298,6 +280,7 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({
     return () => {
       markerRef.current?.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, coordinate, id]);
 
   // Update position when coordinate changes
@@ -317,10 +300,7 @@ interface UserLocationProps {
 }
 
 // UserLocation component - handled by GeolocateControl in Camera
-export const UserLocation: React.FC<UserLocationProps> = ({
-  visible = true,
-  showsUserHeadingIndicator = true,
-}) => {
+export const UserLocation: React.FC<UserLocationProps> = ({ visible = true, showsUserHeadingIndicator = true }) => {
   const map = React.useContext(MapContext);
 
   useEffect(() => {
@@ -354,7 +334,11 @@ export const MarkerView: React.FC<{
   coordinate: [number, number];
   children?: React.ReactNode;
 }> = ({ coordinate, children }) => {
-  return <PointAnnotation id={`marker-${coordinate.join('-')}`} coordinate={coordinate}>{children}</PointAnnotation>;
+  return (
+    <PointAnnotation id={`marker-${coordinate.join('-')}`} coordinate={coordinate}>
+      {children}
+    </PointAnnotation>
+  );
 };
 
 // Placeholder components for compatibility

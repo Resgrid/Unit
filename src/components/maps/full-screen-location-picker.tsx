@@ -1,4 +1,3 @@
-import Mapbox from '@/components/maps/mapbox';
 import * as Location from 'expo-location';
 import { LocateIcon, MapPinIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
@@ -6,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -35,8 +35,8 @@ interface FullScreenLocationPickerProps {
 const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ initialLocation, onLocationSelected, onClose }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<Mapbox.MapView>(null);
-  const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
+  const cameraRef = useRef<any>(null); // Using any due to imperative handle
   // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;

@@ -1,10 +1,10 @@
-import Mapbox from '@/components/maps/mapbox';
 import * as Location from 'expo-location';
 import { LocateIcon, MapPinIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
 
+import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
@@ -37,8 +37,8 @@ interface LocationPickerProps {
 
 const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLocationSelected, height = 200 }) => {
   const { t } = useTranslation();
-  const mapRef = useRef<Mapbox.MapView>(null);
-  const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
+  const cameraRef = useRef<any>(null); // Using any due to imperative handle
   const isMountedRef = useRef(true);
   // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{

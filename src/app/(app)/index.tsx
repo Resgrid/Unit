@@ -1,4 +1,3 @@
-import Mapbox from '@/components/maps/mapbox';
 import { Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -9,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
+import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { useAnalytics } from '@/hooks/use-analytics';
@@ -30,8 +30,8 @@ export default function Map() {
   const { trackEvent } = useAnalytics();
   const { colorScheme } = useColorScheme();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<Mapbox.MapView>(null);
-  const cameraRef = useRef<Mapbox.Camera>(null);
+  const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
+  const cameraRef = useRef<any>(null); // Using any due to imperative handle
   const [isMapReady, setIsMapReady] = useState(false);
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);

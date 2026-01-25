@@ -2,7 +2,7 @@
  * This file should not be modified directly; use `env.js` in the project root to add your client environment variables.
  * If you import `Env` from `@env`, this is the file that will be loaded.
  * You can only access the client environment variables here.
- * 
+ *
  * For Docker deployments, environment variables are injected at runtime via window.__ENV__
  * For native/dev builds, environment variables come from expo-constants
  */
@@ -26,9 +26,10 @@ const isDockerRuntime = () => {
  * Get environment configuration
  * - For Docker web deployments: uses window.__ENV__ (runtime injection)
  * - For native/dev builds: uses expo-constants (build-time)
- * 
+ *
  * @type {typeof import('../../env.js').ClientEnv}
  */
+// @ts-ignore - Function type inference issue with mixed Docker/native config
 const getEnvConfig = () => {
   if (isDockerRuntime()) {
     // Docker runtime - use injected environment variables
@@ -39,4 +40,5 @@ const getEnvConfig = () => {
   return Constants.expoConfig?.extra ?? {};
 };
 
+// @ts-ignore - Type inference issue with function call
 export const Env = getEnvConfig();

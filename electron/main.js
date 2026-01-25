@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const { app, BrowserWindow, ipcMain, Notification, nativeTheme, Menu } = require('electron');
 const path = require('path');
 
@@ -32,16 +33,14 @@ function createWindow() {
   });
 
   // Load the app
-  const startUrl = isDev
-    ? 'http://localhost:8081'
-    : `file://${path.join(__dirname, '../dist/index.html')}`;
+  const startUrl = isDev ? 'http://localhost:8081' : `file://${path.join(__dirname, '../dist/index.html')}`;
 
   mainWindow.loadURL(startUrl);
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    
+
     // Open DevTools in development
     if (isDev) {
       mainWindow.webContents.openDevTools();
@@ -66,26 +65,18 @@ function createMenu() {
 
   const template = [
     // App Menu (macOS only)
-    ...(isMac ? [{
-      label: app.name,
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    }] : []),
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }],
+          },
+        ]
+      : []),
     // File Menu
     {
       label: 'File',
-      submenu: [
-        isMac ? { role: 'close' } : { role: 'quit' },
-      ],
+      submenu: [isMac ? { role: 'close' } : { role: 'quit' }],
     },
     // Edit Menu
     {
@@ -97,15 +88,7 @@ function createMenu() {
         { role: 'cut' },
         { role: 'copy' },
         { role: 'paste' },
-        ...(isMac ? [
-          { role: 'pasteAndMatchStyle' },
-          { role: 'delete' },
-          { role: 'selectAll' },
-        ] : [
-          { role: 'delete' },
-          { type: 'separator' },
-          { role: 'selectAll' },
-        ]),
+        ...(isMac ? [{ role: 'pasteAndMatchStyle' }, { role: 'delete' }, { role: 'selectAll' }] : [{ role: 'delete' }, { type: 'separator' }, { role: 'selectAll' }]),
       ],
     },
     // View Menu
@@ -126,18 +109,7 @@ function createMenu() {
     // Window Menu
     {
       label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        ...(isMac ? [
-          { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' },
-        ] : [
-          { role: 'close' },
-        ]),
-      ],
+      submenu: [{ role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [{ type: 'separator' }, { role: 'front' }, { type: 'separator' }, { role: 'window' }] : [{ role: 'close' }])],
     },
   ];
 

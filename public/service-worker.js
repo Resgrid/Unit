@@ -1,3 +1,5 @@
+/* eslint-disable no-undef */
+/* eslint-disable no-unused-vars */
 /**
  * Service Worker for Resgrid Unit Web Push Notifications
  * This file handles background push notifications when the app is not in focus

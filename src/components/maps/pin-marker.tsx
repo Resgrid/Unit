@@ -1,8 +1,8 @@
-import type Mapbox from '@/components/maps/mapbox';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
+import type Mapbox from '@/components/maps/mapbox';
 import { MAP_ICONS } from '@/constants/map-icons';
 
 type MapIconKey = keyof typeof MAP_ICONS;
@@ -11,7 +11,7 @@ interface PinMarkerProps {
   imagePath?: MapIconKey;
   title: string;
   size?: number;
-  markerRef?: Mapbox.PointAnnotation | null;
+  markerRef?: React.ElementRef<typeof Mapbox.PointAnnotation> | null;
   onPress?: () => void;
 }
 

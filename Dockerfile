@@ -15,7 +15,8 @@ RUN yarn install --frozen-lockfile
 # Copy source files
 COPY . .
 
-# Build the web application
+# Build the web application without environment variables
+# Environment variables will be injected at runtime via docker-entrypoint.sh
 RUN yarn web:build
 
 ### STAGE 2: Run ###

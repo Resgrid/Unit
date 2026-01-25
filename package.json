@@ -101,7 +101,7 @@
     "@react-native-community/netinfo": "^11.4.1",
     "@react-native-firebase/app": "^23.5.0",
     "@react-native-firebase/messaging": "^23.5.0",
-    "@rnmapbox/maps": "10.1.42-rc.0",
+    "@rnmapbox/maps": "10.2.10",
     "@semantic-release/git": "^10.0.1",
     "@sentry/react-native": "~6.14.0",
     "@shopify/flash-list": "1.7.6",

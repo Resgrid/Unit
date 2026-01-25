@@ -48,10 +48,9 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (originalResolveRequest) {
     return originalResolveRequest(context, moduleName, platform);
   }
-  
+
   // Default resolution
   return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = withNativeWind(config, { input: './global.css', inlineRem: 16 });
-

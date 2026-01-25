@@ -31,8 +31,8 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
   const lastAppState = useRef<string | null>(null);
   const isProcessing = useRef(false);
   const pendingOperations = useRef<AbortController | null>(null);
-  const backgroundTimer = useRef<number | null>(null);
-  const resumeTimer = useRef<number | null>(null);
+  const backgroundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleAppBackground = useCallback(async () => {
     logger.debug({

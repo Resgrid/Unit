@@ -11,7 +11,7 @@ declare global {
   interface Window {
     electronAPI?: {
       showNotification: (options: { title: string; body: string; data: any }) => Promise<boolean>;
-      onNotificationClicked: (callback: (data: any) => void) => () => void;
+      onNotificationClicked: (callback: (data: any) => void) => void;
       platform: string;
       isElectron: boolean;
     };
@@ -46,7 +46,8 @@ class ElectronPushNotificationService {
     }
 
     // Listen for notification clicks from the main process
-    this.cleanupListener = window.electronAPI.onNotificationClicked(this.handleNotificationClick);
+    window.electronAPI.onNotificationClicked(this.handleNotificationClick);
+    this.cleanupListener = null; // No cleanup needed for Electron API
 
     this.isInitialized = true;
     logger.info({
