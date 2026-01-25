@@ -1,4 +1,4 @@
-import type Mapbox from '@rnmapbox/maps';
+import type Mapbox from '@/components/maps/mapbox';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity } from 'react-native';

@@ -1,4 +1,4 @@
-import Mapbox from '@rnmapbox/maps';
+import Mapbox from '@/components/maps/mapbox';
 import React from 'react';
 
 import { type MAP_ICONS } from '@/constants/map-icons';

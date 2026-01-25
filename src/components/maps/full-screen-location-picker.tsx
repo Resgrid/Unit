@@ -1,4 +1,4 @@
-import Mapbox from '@rnmapbox/maps';
+import Mapbox from '@/components/maps/mapbox';
 import * as Location from 'expo-location';
 import { LocateIcon, MapPinIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';

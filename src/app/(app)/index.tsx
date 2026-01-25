@@ -1,4 +1,4 @@
-import Mapbox from '@rnmapbox/maps';
+import Mapbox from '@/components/maps/mapbox';
 import { Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';

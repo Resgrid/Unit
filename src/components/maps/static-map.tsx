@@ -1,4 +1,4 @@
-import Mapbox from '@rnmapbox/maps';
+import Mapbox from '@/components/maps/mapbox';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
