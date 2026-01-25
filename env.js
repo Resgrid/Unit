@@ -88,7 +88,7 @@ const client = z.object({
   LOGGING_KEY: z.string(),
   APP_KEY: z.string(),
   UNIT_MAPBOX_PUBKEY: z.string(),
-  IS_MOBILE_APP: z.boolean(),
+  IS_MOBILE_APP: z.string(),
   SENTRY_DSN: z.string(),
   COUNTLY_APP_KEY: z.string(),
   COUNTLY_SERVER_URL: z.string(),
@@ -120,7 +120,7 @@ const _clientEnv = {
   REALTIME_GEO_HUB_NAME: process.env.UNIT_REALTIME_GEO_HUB_NAME || 'geolocationHub',
   LOGGING_KEY: process.env.UNIT_LOGGING_KEY || '',
   APP_KEY: process.env.UNIT_APP_KEY || '',
-  IS_MOBILE_APP: true, // or whatever default you want
+  IS_MOBILE_APP: 'true',
   UNIT_MAPBOX_PUBKEY: process.env.UNIT_MAPBOX_PUBKEY || '',
   SENTRY_DSN: process.env.UNIT_SENTRY_DSN || '',
   COUNTLY_APP_KEY: process.env.UNIT_COUNTLY_APP_KEY || '',

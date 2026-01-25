@@ -16,7 +16,7 @@ interface DockerEnvConfig {
   LOGGING_KEY: string;
   APP_KEY: string;
   UNIT_MAPBOX_PUBKEY: string;
-  IS_MOBILE_APP: boolean;
+  IS_MOBILE_APP: string;
   SENTRY_DSN: string;
   COUNTLY_APP_KEY: string;
   COUNTLY_SERVER_URL: string;

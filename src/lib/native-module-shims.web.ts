@@ -61,25 +61,49 @@ export const notifee = {
 export default notifee;
 
 // Firebase Messaging shim
-export const messaging = () => ({
-  getToken: async () => 'web-token',
-  deleteToken: async () => {},
-  hasPermission: async () => 1,
-  requestPermission: async () => 1,
-  onMessage: () => () => {},
-  onNotificationOpenedApp: () => () => {},
-  getInitialNotification: async () => null,
-  setBackgroundMessageHandler: () => {},
-  subscribeToTopic: async () => {},
-  unsubscribeFromTopic: async () => {},
-});
+interface Messaging {
+  (): {
+    getToken: () => Promise<string>;
+    deleteToken: () => Promise<void>;
+    hasPermission: () => Promise<number>;
+    requestPermission: () => Promise<number>;
+    onMessage: () => () => void;
+    onNotificationOpenedApp: () => () => void;
+    getInitialNotification: () => Promise<null>;
+    setBackgroundMessageHandler: () => void;
+    subscribeToTopic: () => Promise<void>;
+    unsubscribeFromTopic: () => Promise<void>;
+  };
+  AuthorizationStatus: {
+    NOT_DETERMINED: number;
+    DENIED: number;
+    AUTHORIZED: number;
+    PROVISIONAL: number;
+  };
+}
 
-messaging.AuthorizationStatus = {
-  NOT_DETERMINED: -1,
-  DENIED: 0,
-  AUTHORIZED: 1,
-  PROVISIONAL: 2,
-};
+export const messaging: Messaging = Object.assign(
+  () => ({
+    getToken: async () => 'web-token',
+    deleteToken: async () => {},
+    hasPermission: async () => 1,
+    requestPermission: async () => 1,
+    onMessage: () => () => {},
+    onNotificationOpenedApp: () => () => {},
+    getInitialNotification: async () => null,
+    setBackgroundMessageHandler: () => {},
+    subscribeToTopic: async () => {},
+    unsubscribeFromTopic: async () => {},
+  }),
+  {
+    AuthorizationStatus: {
+      NOT_DETERMINED: -1,
+      DENIED: 0,
+      AUTHORIZED: 1,
+      PROVISIONAL: 2,
+    },
+  }
+);
 
 // Firebase App shim
 export const firebaseApp = {

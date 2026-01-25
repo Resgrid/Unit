@@ -20,7 +20,7 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
       grant_type: 'password',
       username: credentials.username,
       password: credentials.password,
-      scope: Env.IS_MOBILE_APP ? 'openid profile offline_access mobile' : 'openid profile offline_access',
+      scope: Env.IS_MOBILE_APP === 'true' ? 'openid profile offline_access mobile' : 'openid profile offline_access',
     });
 
     const response = await authApi.post<AuthResponse>('/connect/token', data);

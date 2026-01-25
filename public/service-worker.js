@@ -8,6 +8,9 @@
 // Cache name for offline support (optional)
 const CACHE_NAME = 'resgrid-unit-v1';
 
+// Store pending notification data for newly opened windows
+const pendingNotifications = new Map();
+
 // Handle push events
 self.addEventListener('push', function (event) {
   console.log('[Service Worker] Push received:', event);
@@ -80,15 +83,11 @@ self.addEventListener('notificationclick', function (event) {
       // Open new window if no existing window found
       if (clients.openWindow) {
         return clients.openWindow('/').then(function (client) {
-          // Send message after a short delay to ensure the app is ready
-          setTimeout(function () {
-            if (client) {
-              client.postMessage({
-                type: 'NOTIFICATION_CLICK',
-                data: data,
-              });
-            }
-          }, 1000);
+          // Store notification data for handshake with the new window
+          if (client) {
+            pendingNotifications.set(client.id, data);
+            console.log('[Service Worker] Stored pending notification for client:', client.id);
+          }
         });
       }
     })
@@ -118,7 +117,27 @@ self.addEventListener('activate', function (event) {
 self.addEventListener('message', function (event) {
   console.log('[Service Worker] Message received:', event.data);
 
+  // Handle skip waiting message
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
+    return;
+  }
+
+  // Handle client ready handshake
+  if (event.data && event.data.type === 'CLIENT_READY') {
+    const clientId = event.source.id;
+    console.log('[Service Worker] Client ready handshake received:', clientId);
+
+    // Check if there's a pending notification for this client
+    if (pendingNotifications.has(clientId)) {
+      const notificationData = pendingNotifications.get(clientId);
+      pendingNotifications.delete(clientId);
+
+      console.log('[Service Worker] Sending pending notification to client:', clientId);
+      event.source.postMessage({
+        type: 'NOTIFICATION_CLICK',
+        data: notificationData,
+      });
+    }
   }
 });

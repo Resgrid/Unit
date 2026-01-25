@@ -45,11 +45,30 @@ class WebPushNotificationService {
       // Listen for messages from service worker
       navigator.serviceWorker.addEventListener('message', this.handleServiceWorkerMessage);
 
+      // Wait for service worker to be ready, then send CLIENT_READY handshake
+      await navigator.serviceWorker.ready;
+      this.sendClientReadyHandshake();
+
       this.isInitialized = true;
     } catch (error) {
       logger.error({
         message: 'Failed to register service worker',
         context: { error },
+      });
+    }
+  }
+
+  /**
+   * Send CLIENT_READY handshake to service worker
+   * This signals that the client is ready to receive notification messages
+   */
+  private sendClientReadyHandshake(): void {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'CLIENT_READY',
+      });
+      logger.info({
+        message: 'Sent CLIENT_READY handshake to service worker',
       });
     }
   }

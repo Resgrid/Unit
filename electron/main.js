@@ -25,7 +25,7 @@ function createWindow() {
     // MacOS: use hidden title bar with traffic lights
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     // Windows/Linux: show frame
-    frame: process.platform !== 'darwin' || true,
+    frame: process.platform !== 'darwin',
     // Set the background color to match the app theme
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#1a1a1a' : '#ffffff',
     icon: path.join(__dirname, '../assets/icon.png'),

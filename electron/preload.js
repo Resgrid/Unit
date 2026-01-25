@@ -10,10 +10,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Notification methods
   showNotification: (options) => ipcRenderer.invoke('show-notification', options),
   onNotificationClicked: (callback) => {
-    ipcRenderer.on('notification-clicked', (event, data) => callback(data));
-    // Return a cleanup function
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('notification-clicked', listener);
+    // Return a cleanup function that removes only this specific listener
     return () => {
-      ipcRenderer.removeAllListeners('notification-clicked');
+      ipcRenderer.removeListener('notification-clicked', listener);
     };
   },
 

@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 import mapboxgl from 'mapbox-gl';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import ReactDOM from 'react-dom';
 
 import { Env } from '@/lib/env';
 
@@ -238,7 +239,7 @@ interface PointAnnotationProps {
   coordinate: [number, number];
   title?: string;
   children?: React.ReactNode;
-  anchor?: { x: number; y: number };
+  anchor?: string | { x: number; y: number };
   onSelected?: () => void;
 }
 
@@ -256,32 +257,61 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
     container.style.cursor = 'pointer';
     containerRef.current = container;
 
-    // If there are children, render them into the container
+    // Render React children into the container using createPortal
     if (children) {
-      // Simple case - just show a marker
-      container.innerHTML = '<div style="width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>';
+      ReactDOM.render(<>{children}</>, container);
     }
 
-    markerRef.current = new mapboxgl.Marker({
+    // Determine marker options based on anchor prop
+    const markerOptions: mapboxgl.MarkerOptions = {
       element: container,
-      anchor: 'center',
-    })
+    };
+
+    // Handle anchor prop - if it's a string, use it as mapbox anchor
+    if (typeof anchor === 'string') {
+      markerOptions.anchor = anchor as mapboxgl.Anchor;
+    }
+
+    markerRef.current = new mapboxgl.Marker(markerOptions)
       .setLngLat(coordinate)
       .addTo(map);
+
+    // If anchor is an {x, y} object, convert to pixel offset
+    if (typeof anchor === 'object' && anchor !== null && 'x' in anchor && 'y' in anchor) {
+      // Calculate offset based on container size
+      // Mapbox expects offset in pixels, anchor is typically 0-1 range
+      // Convert anchor position to offset (center is anchor {0.5, 0.5})
+      const rect = container.getBoundingClientRect();
+      const xOffset = (anchor.x - 0.5) * rect.width;
+      const yOffset = (anchor.y - 0.5) * rect.height;
+      markerRef.current.setOffset([xOffset, yOffset]);
+    }
 
     if (title) {
       markerRef.current.setPopup(new mapboxgl.Popup().setText(title));
     }
 
-    if (onSelected) {
-      container.addEventListener('click', onSelected);
+    // Attach click listener to container
+    if (onSelected && containerRef.current) {
+      containerRef.current.addEventListener('click', onSelected);
     }
 
     return () => {
+      // Clean up click listener
+      if (onSelected && containerRef.current) {
+        containerRef.current.removeEventListener('click', onSelected);
+      }
+
+      // Unmount React children from the portal
+      if (children && containerRef.current) {
+        ReactDOM.unmountComponentAtNode(containerRef.current);
+      }
+
+      // Remove marker from map
       markerRef.current?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, coordinate, id]);
+  }, [map, coordinate, id, children, anchor, onSelected, title]);
 
   // Update position when coordinate changes
   useEffect(() => {
@@ -317,9 +347,19 @@ export const UserLocation: React.FC<UserLocationProps> = ({ visible = true, show
     map.addControl(geolocate);
 
     // Auto-trigger to show user location
-    map.on('load', () => {
+    if (map.loaded()) {
       geolocate.trigger();
-    });
+    } else {
+      const onMapLoad = () => {
+        geolocate.trigger();
+      };
+      map.on('load', onMapLoad);
+
+      return () => {
+        map.off('load', onMapLoad);
+        map.removeControl(geolocate);
+      };
+    }
 
     return () => {
       map.removeControl(geolocate);

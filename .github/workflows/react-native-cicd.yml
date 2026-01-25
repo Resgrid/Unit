@@ -31,6 +31,10 @@ on:
           - ios
           - all
 
+# Set minimal permissions by default
+permissions:
+  contents: read
+
 env:
   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
   EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
@@ -115,6 +119,8 @@ jobs:
   build-mobile:
     needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write  # Required for creating releases
     strategy:
       matrix:
         platform: [android, ios]
@@ -519,17 +525,29 @@ jobs:
   build-docker:
     needs: build-web
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write  # Required for pushing to GHCR
     runs-on: ubuntu-latest
     environment: RNBuild
     steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
 
+      - name: � Check Docker Hub credentials availability
+        id: docker-creds
+        run: |
+          if [[ -n "${{ secrets.DOCKER_USERNAME }}" && -n "${{ secrets.DOCKER_PASSWORD }}" ]]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 🐳 Log in to Docker Hub
-        if: ${{ secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != '' }}
+        if: steps.docker-creds.outputs.available == 'true'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -547,7 +565,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ secrets.DOCKER_USERNAME != '' && format('{0}/resgrid-unit', secrets.DOCKER_USERNAME) || '' }}
+            ${{ steps.docker-creds.outputs.available == 'true' && format('{0}/resgrid-unit', secrets.DOCKER_USERNAME) || '' }}
             ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=7.${{ github.run_number }}
@@ -571,6 +589,8 @@ jobs:
   build-electron:
     needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write  # Required for creating releases
     strategy:
       matrix:
         os: [windows-latest, macos-15, ubuntu-latest]

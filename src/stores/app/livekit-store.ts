@@ -226,7 +226,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
             android: {
               channelId: 'notif',
               asForegroundService: true,
-              foregroundServiceTypes: [2], // 2 = MICROPHONE
+              foregroundServiceTypes: [AndroidForegroundServiceType.MICROPHONE],
               smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
             },
           });

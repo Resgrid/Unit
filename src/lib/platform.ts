@@ -8,7 +8,10 @@ import { Platform } from 'react-native';
 export const isWeb = Platform.OS === 'web';
 
 // Check if running in Electron (desktop app wrapped around web)
-export const isElectron = typeof window !== 'undefined' && window.process?.type === 'renderer';
+// Prefer preload-exposed electronAPI for contextIsolation-enabled environments
+export const isElectron = 
+  typeof window !== 'undefined' && 
+  (!!(window as any).electronAPI || window.process?.type === 'renderer');
 
 // Check if running on a desktop platform (Electron or native desktop)
 export const isDesktop = isElectron || Platform.OS === 'macos' || Platform.OS === 'windows';
