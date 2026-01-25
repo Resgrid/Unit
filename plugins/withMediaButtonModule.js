@@ -376,6 +376,43 @@ class MediaButtonPackage : ReactPackage {
 `;
 
 /**
+ * Resolves the Android namespace/package name from build.gradle or build.gradle.kts.
+ * Probes both Groovy and Kotlin DSL files and uses a regex that handles both syntaxes:
+ * - Groovy: namespace 'com.example.app' or namespace "com.example.app"
+ * - Kotlin DSL: namespace = "com.example.app"
+ *
+ * @param {string} projectRoot - The project root directory
+ * @param {string} fallback - Fallback package name if not found (default: 'com.resgrid.unit')
+ * @returns {string} The resolved namespace or fallback
+ */
+function resolveBasePackageName(projectRoot, fallback = 'com.resgrid.unit') {
+  // Regex that accepts optional equals sign for both Groovy and Kotlin DSL
+  const namespaceRegex = /namespace\s*(?:=)?\s*['"]([^'"]+)['"]/;
+
+  // Probe build.gradle (Groovy DSL) first
+  const groovyPath = path.join(projectRoot, 'android', 'app', 'build.gradle');
+  if (fs.existsSync(groovyPath)) {
+    const content = fs.readFileSync(groovyPath, 'utf-8');
+    const match = content.match(namespaceRegex);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  // Probe build.gradle.kts (Kotlin DSL) as fallback
+  const ktsPath = path.join(projectRoot, 'android', 'app', 'build.gradle.kts');
+  if (fs.existsSync(ktsPath)) {
+    const content = fs.readFileSync(ktsPath, 'utf-8');
+    const match = content.match(namespaceRegex);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return fallback;
+}
+
+/**
  * Expo config plugin to add MediaButtonModule for AirPods/earbuds PTT support.
  *
  * This plugin:
@@ -439,17 +476,8 @@ const withMediaButtonModule = (config) => {
     async (config) => {
       const projectRoot = config.modRequest.projectRoot;
 
-      // Read the package name from the Android manifest or build.gradle
-      const buildGradlePath = path.join(projectRoot, 'android', 'app', 'build.gradle');
-      let packageName = 'com.resgrid.unit'; // Default fallback
-
-      if (fs.existsSync(buildGradlePath)) {
-        const buildGradleContent = fs.readFileSync(buildGradlePath, 'utf-8');
-        const namespaceMatch = buildGradleContent.match(/namespace\s+['"]([^'"]+)['"]/);
-        if (namespaceMatch) {
-          packageName = namespaceMatch[1];
-        }
-      }
+      // Resolve the package name from build.gradle or build.gradle.kts
+      const packageName = resolveBasePackageName(projectRoot);
 
       const packagePath = packageName.replace(/\./g, '/');
       const androidSrcPath = path.join(projectRoot, 'android', 'app', 'src', 'main', 'java', packagePath);
@@ -478,19 +506,21 @@ const withMediaButtonModule = (config) => {
   // Update MainApplication.kt to register the package
   config = withMainApplication(config, (config) => {
     const mainApplication = config.modResults;
+    const projectRoot = config.modRequest.projectRoot;
 
     // Check if MediaButtonPackage is already imported/added
     if (!mainApplication.contents.includes('MediaButtonPackage')) {
-      // Get the package name from the first line of the file
-      const packageMatch = mainApplication.contents.match(/^package\s+([^\s]+)/);
-      const packageName = packageMatch ? packageMatch[1] : 'com.resgrid.unit';
+      // Resolve the BASE package name from build.gradle or build.gradle.kts
+      // This is where the native module files are actually created
+      const basePackageName = resolveBasePackageName(projectRoot);
 
-      // Add import statement for MediaButtonPackage after the package declaration
-      const importStatement = `import ${packageName}.MediaButtonPackage`;
+      // Add import statement using the BASE package name (not the variant-specific package)
+      // The native module files are created in the base package, not in variant packages like 'development'
+      const importStatement = `import ${basePackageName}.MediaButtonPackage`;
       if (!mainApplication.contents.includes(importStatement)) {
         // Add import after the package declaration line
         mainApplication.contents = mainApplication.contents.replace(/^(package\s+[^\n]+\n)/, `$1${importStatement}\n`);
-        console.log('[withMediaButtonModule] Added MediaButtonPackage import');
+        console.log(`[withMediaButtonModule] Added MediaButtonPackage import from base package: ${basePackageName}`);
       }
 
       // Add the package to getPackages()
