@@ -1,9 +1,9 @@
-import Mapbox from '@rnmapbox/maps';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
+import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import { Env } from '@/lib/env';

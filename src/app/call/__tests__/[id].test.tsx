@@ -83,13 +83,13 @@ const mockUseWindowDimensions = useWindowDimensions as jest.MockedFunction<typeo
 jest.mock('expo-constants', () => ({
   expoConfig: {
     extra: {
-      IS_MOBILE_APP: true,
+      IS_MOBILE_APP: "true",
     },
   },
   default: {
     expoConfig: {
       extra: {
-        IS_MOBILE_APP: true,
+        IS_MOBILE_APP: "true",
       },
     },
   },
@@ -98,7 +98,7 @@ jest.mock('expo-constants', () => ({
 // Mock @env to prevent expo-constants issues
 jest.mock('@env', () => ({
   Env: {
-    IS_MOBILE_APP: true,
+    IS_MOBILE_APP: "true",
   },
 }));
 

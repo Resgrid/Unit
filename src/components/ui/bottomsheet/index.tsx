@@ -36,14 +36,14 @@ const bottomSheetItemStyle = tva({
 
 const BottomSheetContext = createContext<{
   visible: boolean;
-  bottomSheetRef: React.RefObject<GorhomBottomSheet | null>;
+  bottomSheetRef: React.RefObject<GorhomBottomSheet> | null;
   handleClose: () => void;
   handleOpen: () => void;
 }>({
   visible: false,
-  bottomSheetRef: { current: null },
-  handleClose: () => {},
-  handleOpen: () => {},
+  bottomSheetRef: null,
+  handleClose: () => { },
+  handleOpen: () => { },
 });
 
 type IBottomSheetProps = React.ComponentProps<typeof GorhomBottomSheet>;
@@ -68,7 +68,7 @@ export const BottomSheet = ({ snapToIndex = 1, onOpen, onClose, ...props }: { sn
     <BottomSheetContext.Provider
       value={{
         visible,
-        bottomSheetRef,
+        bottomSheetRef: bottomSheetRef as React.RefObject<GorhomBottomSheet>,
         handleClose,
         handleOpen,
       }}
@@ -166,14 +166,14 @@ export const BottomSheetContent = ({ ...props }: IBottomSheetContent) => {
   const keyDownHandlers = useMemo(() => {
     return Platform.OS === 'web'
       ? {
-          onKeyDown: (e: React.KeyboardEvent) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              handleClose();
-              return;
-            }
-          },
-        }
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            handleClose();
+            return;
+          }
+        },
+      }
       : {};
   }, [handleClose]);
 

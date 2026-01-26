@@ -11,7 +11,7 @@ import { useOfflineQueueStore } from '@/stores/offline-queue/store';
 
 class OfflineEventManager {
   private static instance: OfflineEventManager;
-  private processingInterval: number | null = null;
+  private processingInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing = false;
   private appStateSubscription: { remove: () => void } | null = null;
   private readonly PROCESSING_INTERVAL = 10000; // 10 seconds

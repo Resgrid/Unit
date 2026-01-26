@@ -4,7 +4,6 @@ import '../lib/i18n';
 
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { registerGlobals } from '@livekit/react-native';
 import notifee from '@notifee/react-native';
 import { createNavigationContainerRef, DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
@@ -12,7 +11,7 @@ import { isRunningInExpoGo } from 'expo';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import React, { useEffect } from 'react';
-import { LogBox, useColorScheme } from 'react-native';
+import { LogBox, Platform, useColorScheme } from 'react-native';
 import FlashMessage from 'react-native-flash-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -66,7 +65,12 @@ Sentry.init({
   },
 });
 
-registerGlobals();
+// Only register LiveKit globals on native platforms
+// Web/Electron uses livekit-client which handles WebRTC natively
+if (Platform.OS !== 'web') {
+  const { registerGlobals } = require('@livekit/react-native');
+  registerGlobals();
+}
 
 // Load the selected theme from storage and apply it
 loadSelectedTheme();

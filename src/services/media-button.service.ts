@@ -3,11 +3,7 @@ import { DeviceEventEmitter, NativeEventEmitter, NativeModules, Platform } from 
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { type AudioButtonEvent, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import {
-  createDefaultPTTSettings,
-  type MediaButtonPTTSettings,
-  type PTTMode,
-} from '@/types/ptt';
+import { createDefaultPTTSettings, type MediaButtonPTTSettings, type PTTMode } from '@/types/ptt';
 
 // Re-export PTT types for backwards compatibility
 export { type MediaButtonPTTSettings, type PTTMode };

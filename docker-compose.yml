@@ -1,0 +1,33 @@
+# Docker Compose for local development and testing
+# Run: docker-compose up --build
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    environment:
+      - APP_ENV=production
+      - UNIT_NAME=Resgrid Unit
+      - UNIT_SCHEME=ResgridUnit
+      - UNIT_VERSION=0.0.1
+      - UNIT_BASE_API_URL=https://api.resgrid.com
+      - UNIT_API_VERSION=v4
+      - UNIT_RESGRID_API_URL=/api/v4
+      - UNIT_CHANNEL_HUB_NAME=eventingHub
+      - UNIT_REALTIME_GEO_HUB_NAME=geolocationHub
+      - UNIT_LOGGING_KEY=
+      - UNIT_APP_KEY=
+      - UNIT_MAPBOX_PUBKEY=
+      - UNIT_SENTRY_DSN=
+      - UNIT_COUNTLY_APP_KEY=
+      - UNIT_COUNTLY_SERVER_URL=
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

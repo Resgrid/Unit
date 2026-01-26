@@ -32,6 +32,42 @@
 - Realtime Geolocation
 - Automatic Vehicle Location (AVL)
 
+### :package: Deployment Options
+
+Resgrid Unit can be deployed in multiple ways:
+
+#### 📱 Mobile Applications
+- **Android**: APK and AAB builds for Google Play Store and direct distribution
+- **iOS**: IPA builds for App Store and enterprise distribution
+- Download from [GitHub Releases](https://github.com/Resgrid/Unit/releases) or Firebase App Distribution
+
+#### 🌐 Web Application
+- Static web build that can be hosted on any web server or CDN
+- Fully responsive and works on tablets and desktops
+- See [Build Quick Reference](docs/build-quick-reference.md) for building
+
+#### 🐳 Docker Container
+- Pre-built multi-architecture Docker images (amd64, arm64)
+- All configuration via environment variables at runtime
+- Suitable for Kubernetes, Docker Compose, or standalone deployment
+- Pull from GitHub Container Registry:
+  ```bash
+  docker pull ghcr.io/resgrid/unit:latest
+  docker run -p 8080:80 -e UNIT_BASE_API_URL="..." ghcr.io/resgrid/unit:latest
+  ```
+- See [Docker Deployment Guide](docker/README.md) for details
+
+#### 🖥️ Desktop Applications (Electron)
+- **Windows**: Portable exe and NSIS installer
+- **macOS**: DMG and ZIP (Universal: x64 + arm64)
+- **Linux**: AppImage, deb, and rpm packages
+- Download from [GitHub Releases](https://github.com/Resgrid/Unit/releases)
+
+For detailed deployment instructions, see:
+- [CI/CD Build System Documentation](docs/cicd-build-system.md)
+- [Docker Deployment Guide](docker/README.md)
+- [Build Quick Reference](docs/build-quick-reference.md)
+
 
 ### :key: Environment Variables
 To run this project, you will need to add the following environment variables to your .env file

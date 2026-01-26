@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { Room, RoomEvent } from 'livekit-client';
 import { Platform } from 'react-native';
@@ -226,6 +226,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
             android: {
               channelId: 'notif',
               asForegroundService: true,
+              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
               smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
             },
           });

@@ -1,6 +1,6 @@
-import Mapbox from '@rnmapbox/maps';
 import React from 'react';
 
+import Mapbox from '@/components/maps/mapbox';
 import { type MAP_ICONS } from '@/constants/map-icons';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 

@@ -1,12 +1,7 @@
 import { type Peripheral } from 'react-native-ble-manager';
 import { create } from 'zustand';
 
-import {
-  createDefaultPTTSettings,
-  DEFAULT_MEDIA_BUTTON_PTT_SETTINGS,
-  type MediaButtonPTTSettings,
-  type PTTMode,
-} from '@/types/ptt';
+import { createDefaultPTTSettings, DEFAULT_MEDIA_BUTTON_PTT_SETTINGS, type MediaButtonPTTSettings, type PTTMode } from '@/types/ptt';
 
 // Re-export PTT types for backwards compatibility
 export { DEFAULT_MEDIA_BUTTON_PTT_SETTINGS, type MediaButtonPTTSettings, type PTTMode };
