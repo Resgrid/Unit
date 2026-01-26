@@ -106,7 +106,7 @@ export default function Calls() {
 
         {/* FAB button for creating new call - only show if user has permission */}
         {canUserCreateCalls ? (
-          <Fab placement="bottom right" size="lg" onPress={handleNewCall} testID="new-call-fab">
+          <Fab size="lg" onPress={handleNewCall} testID="new-call-fab">
             <FabIcon as={PlusIcon} size="lg" />
           </Fab>
         ) : null}

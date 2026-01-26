@@ -109,7 +109,7 @@ class PushNotificationService {
     }
   }
 
-  private handleRemoteMessage = async (remoteMessage: FirebaseMessagingTypes.RemoteMessage): Promise<void> => {
+  private handleRemoteMessage = async (remoteMessage: any): Promise<void> => {
     logger.info({
       message: 'FCM message received',
       context: {
@@ -238,7 +238,7 @@ class PushNotificationService {
 
     // Register background message handler (only once)
     if (!this.backgroundMessageHandlerRegistered) {
-      messaging().setBackgroundMessageHandler(async (remoteMessage) => {
+      messaging().setBackgroundMessageHandler(async (remoteMessage: any) => {
         logger.info({
           message: 'Background FCM message received',
           context: {
@@ -278,7 +278,7 @@ class PushNotificationService {
     this.fcmOnMessageUnsubscribe = messaging().onMessage(this.handleRemoteMessage);
 
     // Listen for notification opened app (when user taps on notification)
-    this.fcmOnNotificationOpenedAppUnsubscribe = messaging().onNotificationOpenedApp((remoteMessage) => {
+    this.fcmOnNotificationOpenedAppUnsubscribe = messaging().onNotificationOpenedApp((remoteMessage: any) => {
       logger.info({
         message: 'Notification opened app (from background)',
         context: {
@@ -319,7 +319,7 @@ class PushNotificationService {
     setTimeout(() => {
       messaging()
         .getInitialNotification()
-        .then((remoteMessage) => {
+        .then((remoteMessage: any) => {
           if (remoteMessage) {
             logger.info({
               message: 'App opened from notification (killed state)',
@@ -356,7 +356,7 @@ class PushNotificationService {
             }, 500);
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           logger.error({
             message: 'Error checking initial notification',
             context: { error },
@@ -468,7 +468,7 @@ class PushNotificationService {
       // Register device with backend
       await registerUnitDevice({
         UnitId: unitId,
-        Token: this.pushToken,
+        Token: this.pushToken || '',
         Platform: Platform.OS === 'ios' ? 1 : 2,
         DeviceUuid: getDeviceUuid() || '',
         Prefix: departmentCode,

@@ -14,7 +14,7 @@ import { Env } from '@/lib/env';
 mapboxgl.accessToken = Env.UNIT_MAPBOX_PUBKEY;
 
 // Context to share map instance with child components
-export const MapContext = React.createContext<mapboxgl.Map | null>(null);
+export const MapContext = React.createContext<any | null>(null);
 
 // StyleURL constants matching native Mapbox SDK
 export const StyleURL = {
@@ -76,7 +76,7 @@ export const MapView = forwardRef<any, MapViewProps>(
     ref
   ) => {
     const mapContainer = useRef<HTMLDivElement>(null);
-    const map = useRef<mapboxgl.Map | null>(null);
+    const map = useRef<any | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -166,7 +166,7 @@ interface CameraProps {
 // Camera component
 export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLevel, heading, pitch, animationDuration = 1000, followUserLocation, followZoomLevel }, ref) => {
   const map = React.useContext(MapContext);
-  const geolocateControl = useRef<mapboxgl.GeolocateControl | null>(null);
+  const geolocateControl = useRef<any | null>(null);
 
   useImperativeHandle(ref, () => ({
     setCamera: (options: { centerCoordinate?: [number, number]; zoomLevel?: number; heading?: number; pitch?: number; animationDuration?: number }) => {
@@ -203,6 +203,8 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
   useEffect(() => {
     if (!map || !followUserLocation) return;
 
+    let triggerTimeoutId: any;
+
     // Add geolocate control for following user
     if (!geolocateControl.current) {
       geolocateControl.current = new mapboxgl.GeolocateControl({
@@ -216,11 +218,14 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     }
 
     // Trigger tracking after control is added
-    setTimeout(() => {
+    triggerTimeoutId = setTimeout(() => {
       geolocateControl.current?.trigger();
     }, 100);
 
     return () => {
+      if (triggerTimeoutId) {
+        clearTimeout(triggerTimeoutId);
+      }
       if (geolocateControl.current) {
         map.removeControl(geolocateControl.current);
         geolocateControl.current = null;
@@ -246,7 +251,7 @@ interface PointAnnotationProps {
 // PointAnnotation component
 export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate, title, children, anchor = { x: 0.5, y: 0.5 }, onSelected }) => {
   const map = React.useContext(MapContext);
-  const markerRef = useRef<mapboxgl.Marker | null>(null);
+  const markerRef = useRef<any | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const containerRootRef = useRef<any>(null);
 
@@ -266,18 +271,16 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
     }
 
     // Determine marker options based on anchor prop
-    const markerOptions: mapboxgl.MarkerOptions = {
+    const markerOptions: any = {
       element: container,
     };
 
     // Handle anchor prop - if it's a string, use it as mapbox anchor
     if (typeof anchor === 'string') {
-      markerOptions.anchor = anchor as mapboxgl.Anchor;
+      markerOptions.anchor = anchor as any;
     }
 
-    markerRef.current = new mapboxgl.Marker(markerOptions)
-      .setLngLat(coordinate)
-      .addTo(map);
+    markerRef.current = new mapboxgl.Marker(markerOptions).setLngLat(coordinate).addTo(map);
 
     // If anchor is an {x, y} object, convert to pixel offset
     if (typeof anchor === 'object' && anchor !== null && 'x' in anchor && 'y' in anchor) {

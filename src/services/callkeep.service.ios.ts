@@ -247,7 +247,7 @@ export class CallKeepService {
     });
 
     // Call ended from CallKit UI
-    RNCallKeep.addEventListener('endCall', ({ callUUID }) => {
+    RNCallKeep.addEventListener('endCall', ({ callUUID }: { callUUID: string }) => {
       logger.info({
         message: 'CallKeep call ended from system UI',
         context: { callUUID },
@@ -260,7 +260,7 @@ export class CallKeepService {
     });
 
     // Call answered (not typically used for outgoing calls, but good to handle)
-    RNCallKeep.addEventListener('answerCall', ({ callUUID }) => {
+    RNCallKeep.addEventListener('answerCall', ({ callUUID }: { callUUID: string }) => {
       logger.debug({
         message: 'CallKeep call answered',
         context: { callUUID },
@@ -268,7 +268,7 @@ export class CallKeepService {
     });
 
     // Mute/unmute events
-    RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }) => {
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
       logger.debug({
         message: 'CallKeep mute state changed',
         context: { muted, callUUID },

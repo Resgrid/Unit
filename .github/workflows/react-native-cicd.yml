@@ -608,17 +608,15 @@ jobs:
 
       - name: 📦 Prepare Electron release artifacts
         run: |
-          # Find all matching Electron artifacts
-          FILES=$(find electron-artifacts/ -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \))
-          
-          if [ -z "$FILES" ]; then
+          # Find all matching Electron artifacts and check for existence
+          if [ -z "$(find electron-artifacts/ -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -print -quit)" ]; then
             echo "Error: No Electron artifacts found in electron-artifacts/ directory."
             exit 1
           fi
           
-          # Create release-artifacts directory and copy files
+          # Create release-artifacts directory and copy files using null-delimited find/xargs
           mkdir -p release-artifacts
-          echo "$FILES" | xargs -I {} cp {} release-artifacts/
+          find electron-artifacts/ -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -print0 | xargs -0 cp -t release-artifacts/
           
           echo "Release artifacts prepared:"
           ls -lh release-artifacts/

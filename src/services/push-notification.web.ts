@@ -222,10 +222,10 @@ class WebPushNotificationService {
       }
 
       const success = await this.pushSubscription.unsubscribe();
-      
+
       if (success) {
         this.pushSubscription = null;
-        
+
         // Clear any potential persisted client-side records
         // Explicitly clearing any typical local storage keys as a safety measure
         try {

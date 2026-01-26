@@ -158,8 +158,9 @@ describe('CallKeepService', () => {
       service.setMuteStateCallback(mockMuteCallback);
 
       // Simulate mute event
+      // Simulate mute event
       const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
-        call => call[0] === 'didPerformSetMutedCallAction'
+        (call: any[]) => call[0] === 'didPerformSetMutedCallAction'
       )?.[1] as any;
 
       expect(muteEventHandler).toBeDefined();
@@ -191,7 +192,7 @@ describe('CallKeepService', () => {
       service.setMuteStateCallback(errorCallback);
 
       const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
-        call => call[0] === 'didPerformSetMutedCallAction'
+        (call: any[]) => call[0] === 'didPerformSetMutedCallAction'
       )?.[1] as any;
 
       if (muteEventHandler) {
@@ -226,7 +227,7 @@ describe('CallKeepService', () => {
       service.setMuteStateCallback(null);
 
       const muteEventHandler = mockCallKeep.addEventListener.mock.calls.find(
-        call => call[0] === 'didPerformSetMutedCallAction'
+        (call: any[]) => call[0] === 'didPerformSetMutedCallAction'
       )?.[1] as any;
 
       if (muteEventHandler) {
