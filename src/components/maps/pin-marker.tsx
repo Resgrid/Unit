@@ -11,18 +11,17 @@ interface PinMarkerProps {
   imagePath?: MapIconKey;
   title: string;
   size?: number;
-  markerRef?: React.ElementRef<typeof Mapbox.PointAnnotation> | null;
   onPress?: () => void;
 }
 
 const PinMarker: React.FC<PinMarkerProps> = ({ imagePath, title, size = 32, onPress }) => {
   const { colorScheme } = useColorScheme();
 
-  const icon = imagePath ? MAP_ICONS[imagePath.toLowerCase() as MapIconKey] : MAP_ICONS['call'];
+  const icon = (imagePath && MAP_ICONS[imagePath.toLowerCase() as MapIconKey]) || MAP_ICONS['call'];
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      <Image fadeDuration={0} source={icon!.uri} style={[styles.image, { width: size, height: size }]} />
+      <Image fadeDuration={0} source={icon.uri} style={[styles.image, { width: size, height: size }]} />
       <Text style={[styles.title, { color: colorScheme === 'dark' ? '#FFFFFF' : '#000000' }]} numberOfLines={2}>
         {title}
       </Text>

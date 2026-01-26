@@ -61,7 +61,7 @@ declare global {
     };
     electronAPI?: {
       showNotification: (options: { title: string; body: string; data: any }) => Promise<boolean>;
-      onNotificationClicked: (callback: (data: any) => void) => void;
+      onNotificationClicked: (callback: (data: any) => void) => () => void;
       platform: string;
       isElectron: boolean;
     };

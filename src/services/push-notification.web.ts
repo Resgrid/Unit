@@ -49,6 +49,20 @@ class WebPushNotificationService {
       await navigator.serviceWorker.ready;
       this.sendClientReadyHandshake();
 
+      // Additionally add a one-time 'controllerchange' listener to handle cases where controller is null initially (first-install)
+      const onControllerChange = () => {
+        if (navigator.serviceWorker.controller) {
+          logger.info({
+            message: 'Service worker controller changed, sending CLIENT_READY',
+          });
+          navigator.serviceWorker.controller.postMessage({
+            type: 'CLIENT_READY',
+          });
+          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+        }
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+
       this.isInitialized = true;
     } catch (error) {
       logger.error({
@@ -68,7 +82,18 @@ class WebPushNotificationService {
         type: 'CLIENT_READY',
       });
       logger.info({
-        message: 'Sent CLIENT_READY handshake to service worker',
+        message: 'Sent CLIENT_READY handshake to service worker controller',
+      });
+    } else if (this.registration?.active) {
+      this.registration.active.postMessage({
+        type: 'CLIENT_READY',
+      });
+      logger.info({
+        message: 'Sent CLIENT_READY handshake to active service worker (registration.active fallback)',
+      });
+    } else {
+      logger.info({
+        message: 'Silently skipping send CLIENT_READY: no controller or active registration available',
       });
     }
   }
@@ -78,19 +103,26 @@ class WebPushNotificationService {
    */
   private handleServiceWorkerMessage = (event: MessageEvent): void => {
     if (event.data?.type === 'NOTIFICATION_CLICK') {
-      const data = event.data.data;
-      logger.info({
-        message: 'Notification clicked from service worker',
-        context: { data },
-      });
+      const data = event.data?.data ?? undefined;
 
-      // Show the notification modal
-      if (data.eventCode) {
+      // Only proceed if data is an object and has the expected fields
+      if (data && typeof data === 'object' && data.eventCode) {
+        logger.info({
+          message: 'Notification clicked from service worker',
+          context: { data },
+        });
+
+        // Show the notification modal
         usePushNotificationModalStore.getState().showNotificationModal({
           eventCode: data.eventCode,
           title: data.title,
           body: data.body || data.message,
           data,
+        });
+      } else {
+        logger.warn({
+          message: 'Notification click received with missing or invalid data',
+          context: { data: event.data },
         });
       }
     }
@@ -169,17 +201,50 @@ class WebPushNotificationService {
    * Unsubscribe from push notifications
    */
   async unsubscribe(): Promise<boolean> {
-    if (!this.pushSubscription) {
-      return true;
-    }
-
     try {
-      await this.pushSubscription.unsubscribe();
-      this.pushSubscription = null;
-      logger.info({
-        message: 'Successfully unsubscribed from push notifications',
-      });
-      return true;
+      // If pushSubscription is null, try to retrieve it from the push manager as a fallback
+      if (!this.pushSubscription && this.registration) {
+        try {
+          this.pushSubscription = await this.registration.pushManager.getSubscription();
+        } catch (error) {
+          logger.error({
+            message: 'Failed to retrieve active push subscription during unsubscribe',
+            context: { error },
+          });
+        }
+      }
+
+      if (!this.pushSubscription) {
+        logger.info({
+          message: 'No active push subscription found to unsubscribe',
+        });
+        return true;
+      }
+
+      const success = await this.pushSubscription.unsubscribe();
+      
+      if (success) {
+        this.pushSubscription = null;
+        
+        // Clear any potential persisted client-side records
+        // Explicitly clearing any typical local storage keys as a safety measure
+        try {
+          localStorage.removeItem('push_subscription');
+          localStorage.removeItem('push_endpoint');
+        } catch (storageError) {
+          // Ignore errors from localStorage if it's not available
+        }
+
+        logger.info({
+          message: 'Successfully unsubscribed from push notifications',
+        });
+      } else {
+        logger.warn({
+          message: 'Push subscription unsubscribe returned false',
+        });
+      }
+
+      return success;
     } catch (error) {
       logger.error({
         message: 'Failed to unsubscribe from push notifications',

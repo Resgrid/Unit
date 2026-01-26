@@ -248,6 +248,7 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
   const map = React.useContext(MapContext);
   const markerRef = useRef<mapboxgl.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRootRef = useRef<any>(null);
 
   useEffect(() => {
     if (!map || !coordinate) return;
@@ -257,9 +258,11 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
     container.style.cursor = 'pointer';
     containerRef.current = container;
 
-    // Render React children into the container using createPortal
+    // Render React children into the container using createRoot
     if (children) {
-      ReactDOM.render(<>{children}</>, container);
+      const root = (ReactDOM as any).createRoot(container);
+      root.render(<>{children}</>);
+      containerRootRef.current = root;
     }
 
     // Determine marker options based on anchor prop
@@ -302,9 +305,10 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
         containerRef.current.removeEventListener('click', onSelected);
       }
 
-      // Unmount React children from the portal
-      if (children && containerRef.current) {
-        ReactDOM.unmountComponentAtNode(containerRef.current);
+      // Unmount React children
+      if (children && containerRootRef.current) {
+        containerRootRef.current.unmount();
+        containerRootRef.current = null;
       }
 
       // Remove marker from map
