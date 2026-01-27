@@ -1,5 +1,5 @@
 ### STAGE 1: Build ###
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
