@@ -47,7 +47,6 @@ module.exports = {
       { target: 'portable', arch: ['x64'] },
     ],
     icon: 'assets/icon.ico',
-    publisherName: 'Resgrid',
   },
 
   nsis: {
@@ -71,13 +70,15 @@ module.exports = {
     ],
     category: 'Office',
     icon: 'assets/icon.png',
-    maintainer: 'Resgrid <support@resgrid.com>',
+    maintainer: 'Resgrid <team@resgrid.com>',
     vendor: 'Resgrid',
     desktop: {
-      Name: 'Resgrid Unit',
-      Comment: 'Resgrid Unit Management Application',
-      Category: 'Office;Utility;',
-      StartupWMClass: 'resgrid-unit',
+      entry: {
+        Name: 'Resgrid Unit',
+        Comment: 'Resgrid Unit Management Application',
+        Category: 'Office;Utility;',
+        StartupWMClass: 'resgrid-unit',
+      },
     },
   },
 
