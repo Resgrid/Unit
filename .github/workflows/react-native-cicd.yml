@@ -537,6 +537,7 @@ jobs:
           yarn electron:build:win
         env:
           NODE_ENV: production
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🖥️ Build Electron (macOS)
         if: matrix.os == 'macos-15'
@@ -545,6 +546,7 @@ jobs:
           yarn electron:build:mac
         env:
           NODE_ENV: production
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🖥️ Build Electron (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -553,6 +555,7 @@ jobs:
           yarn electron:build:linux
         env:
           NODE_ENV: production
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 📦 Upload Electron artifacts (Windows)
         if: matrix.os == 'windows-latest'
