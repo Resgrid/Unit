@@ -1,3 +1,4 @@
+/* eslint-env node */
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
@@ -30,8 +31,8 @@ try {
 
   console.log('Generating ICO file...');
   const pngBuffer = fs.readFileSync(tempPng);
-  const size = 256; // We resized it to 256
-  
+  // size variable removed as it was unused
+
   // ICO Header
   // 0-1: Reserved (0)
   // 2-3: Type (1 for ICO)
@@ -53,7 +54,7 @@ try {
   const entry = Buffer.alloc(16);
   entry.writeUInt8(0, 0); // 256 width -> 0
   entry.writeUInt8(0, 1); // 256 height -> 0
-  entry.writeUInt8(0, 2); 
+  entry.writeUInt8(0, 2);
   entry.writeUInt8(0, 3);
   entry.writeUInt16LE(1, 4);
   entry.writeUInt16LE(32, 6);
@@ -67,7 +68,6 @@ try {
   fs.unlinkSync(tempPng);
 
   console.log(`Successfully created ${outputIco}`);
-
 } catch (error) {
   console.error('Error generating ICO:', error);
   process.exit(1);
