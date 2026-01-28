@@ -1,4 +1,5 @@
 import { t } from 'i18next';
+import { Audio, InterruptionModeIOS } from 'expo-av';
 import { Headphones, Mic, MicOff, PhoneOff, Settings } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -145,6 +146,45 @@ export const LiveKitBottomSheet = () => {
       setCurrentView(BottomSheetView.ROOM_SELECT);
     }
   }, [isConnected, currentRoomInfo]);
+
+  // Audio Routing Logic
+  useEffect(() => {
+    const updateAudioRouting = async () => {
+      if (!selectedAudioDevices.speaker) return;
+
+      try {
+        const speaker = selectedAudioDevices.speaker;
+        console.log('Updating audio routing for:', speaker.type);
+
+        if (speaker.type === 'speaker') {
+          // Force Speakerphone
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false, // This forces speaker on Android
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          });
+        } else {
+          // Default (Earpiece) or Bluetooth
+          // For Bluetooth to work, we usually just need to NOT force speaker.
+          await Audio.setAudioModeAsync({
+            allowsRecordingIOS: true,
+            staysActiveInBackground: true,
+            playsInSilentModeIOS: true,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: true, // This allows earpiece/bluetooth
+            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to update audio routing:', error);
+      }
+    };
+
+    updateAudioRouting();
+  }, [selectedAudioDevices.speaker]);
 
   const handleRoomSelect = useCallback(
     (room: DepartmentVoiceChannelResultData) => {
@@ -303,7 +343,7 @@ export const LiveKitBottomSheet = () => {
         <View className="w-full p-4">
           <HStack className="mb-4 items-center justify-between">
             <Text className="text-xl font-bold">{t('livekit.title')}</Text>
-            {currentView === BottomSheetView.CONNECTED && (
+            {currentView !== BottomSheetView.AUDIO_SETTINGS && (
               <TouchableOpacity onPress={handleShowAudioSettings} testID="header-audio-settings-button">
                 <Headphones size={20} color="#6B7280" />
               </TouchableOpacity>
@@ -323,7 +363,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   roomList: {
     flex: 1,
@@ -334,6 +374,7 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    width: '100%',
     marginTop: 16,
   },
   controlButton: {
