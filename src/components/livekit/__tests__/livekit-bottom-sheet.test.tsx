@@ -130,8 +130,8 @@ const mockAvailableRooms = [
 ];
 
 const mockSelectedAudioDevices = {
-  microphone: { id: 'mic1', name: 'Default Microphone', type: 'default' as const, isAvailable: true },
-  speaker: { id: 'speaker1', name: 'Default Speaker', type: 'default' as const, isAvailable: true },
+  microphone: { id: 'mic1', name: 'Default Microphone', type: 'microphone' as const, isAvailable: true },
+  speaker: { id: 'speaker1', name: 'Default Speaker', type: 'speaker' as const, isAvailable: true },
 };
 
 describe('LiveKitBottomSheet', () => {

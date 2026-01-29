@@ -81,7 +81,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE',
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
       'android.permission.READ_PHONE_STATE',
-      'android.permission.READ_PHONE_NUMBERS',
       'android.permission.MANAGE_OWN_CALLS',
     ],
   },

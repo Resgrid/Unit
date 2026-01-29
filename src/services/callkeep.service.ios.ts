@@ -223,8 +223,8 @@ export class CallKeepService {
     const now = Date.now();
     this.ignoreEventsUntil = Math.max(this.ignoreEventsUntil, now + durationMs);
     logger.debug({
-       message: 'CallKeep mute events ignored via external lock',
-       context: { durationMs, until: this.ignoreEventsUntil }
+      message: 'CallKeep mute events ignored via external lock',
+      context: { durationMs, until: this.ignoreEventsUntil },
     });
   }
 
@@ -286,10 +286,10 @@ export class CallKeepService {
     // Mute/unmute events
     RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
       const now = Date.now();
-      
+
       // Check for external lock (e.g. set by PTT button logic)
       if (now < this.ignoreEventsUntil) {
-         logger.debug({
+        logger.debug({
           message: 'Ignored CallKeep mute state change (external lock)',
           context: { muted, callUUID, lockedUntil: this.ignoreEventsUntil },
         });
@@ -302,11 +302,11 @@ export class CallKeepService {
       // Storm Detection / Spam Protection
       // If events are coming in rapidly (< 500ms), we consider it a "storm" (e.g. faulty headset or HFP conflict)
       // We block ALL events during a storm and extend the block window as long as the storm continues.
-      
+
       // If the delta is small, it's definitely spam/storm part
       if (timeSinceLastEvent < 500) {
         this.muteEventStormEndTime = now + 800; // Block for 800ms from this event
-        
+
         logger.debug({
           message: 'Ignored CallKeep mute state change (storm detected)',
           context: { muted, callUUID, timeSinceLastEvent },
@@ -316,8 +316,8 @@ export class CallKeepService {
 
       // If we are still within the storm cooldown window (even if this specific delta was > 500, though unlikely given logic above)
       if (now < this.muteEventStormEndTime) {
-         this.muteEventStormEndTime = now + 800; // Extend block
-         logger.debug({
+        this.muteEventStormEndTime = now + 800; // Extend block
+        logger.debug({
           message: 'Ignored CallKeep mute state change (storm cooldown)',
           context: { muted, callUUID, stormEndsAt: this.muteEventStormEndTime },
         });
