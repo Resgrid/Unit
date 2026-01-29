@@ -10,7 +10,7 @@ import { logger } from '@/lib/logging';
 import { storage } from '@/lib/storage';
 import { removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
 import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
-import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
+import { INITIAL_STATE as BLUETOOTH_INITIAL_STATE, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
@@ -153,14 +153,7 @@ export const INITIAL_AUDIO_STREAM_STATE = {
   isBottomSheetVisible: false,
 };
 
-export const INITIAL_BLUETOOTH_AUDIO_STATE = {
-  connectedDevice: null,
-  isScanning: false,
-  isConnecting: false,
-  availableDevices: [] as never[],
-  connectionError: null,
-  isAudioRoutingActive: false,
-};
+export const INITIAL_BLUETOOTH_AUDIO_STATE = BLUETOOTH_INITIAL_STATE;
 
 export const INITIAL_PUSH_NOTIFICATION_MODAL_STATE = {
   isOpen: false,
@@ -227,7 +220,7 @@ export const resetAllStores = async (): Promise<void> => {
       });
     }
   }
-  useLiveKitStore.setState(INITIAL_LIVEKIT_STATE, true);
+  useLiveKitStore.setState(INITIAL_LIVEKIT_STATE);
 
   // Audio stream store - await async cleanup, then reset
   const audioStreamState = useAudioStreamStore.getState();
@@ -239,13 +232,13 @@ export const resetAllStores = async (): Promise<void> => {
       context: { error },
     });
   }
-  useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE, true);
+  useAudioStreamStore.setState(INITIAL_AUDIO_STREAM_STATE);
 
   // Bluetooth audio store - reset
-  useBluetoothAudioStore.setState(INITIAL_BLUETOOTH_AUDIO_STATE, true);
+  useBluetoothAudioStore.setState(INITIAL_BLUETOOTH_AUDIO_STATE);
 
   // Push notification modal store - reset
-  usePushNotificationModalStore.setState(INITIAL_PUSH_NOTIFICATION_MODAL_STATE, true);
+  usePushNotificationModalStore.setState(INITIAL_PUSH_NOTIFICATION_MODAL_STATE);
 };
 
 /**

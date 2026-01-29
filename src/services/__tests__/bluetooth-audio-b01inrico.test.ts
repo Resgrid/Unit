@@ -188,6 +188,20 @@ describe('BluetoothAudioService - B01 Inrico Button Parsing', () => {
       });
     });
 
+    it('should ignore long press on PTT stop (0x80)', () => {
+      const buffer = Buffer.from([0x80]); // PTT stop (0x00) with long press flag (0x80)
+      
+      const result = service.parseB01InricoButtonData(buffer);
+      
+      // Should be ignored (unknown) to prevent stopping PTT while holding
+      expect(result).toEqual({
+        type: 'long_press',
+        button: 'unknown',
+        timestamp: expect.any(Number),
+      });
+      });
+
+
     it('should handle unknown button codes gracefully', () => {
       const buffer = Buffer.from([0x7F]); // Unknown button code without long press flag
       

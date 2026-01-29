@@ -85,6 +85,19 @@ jest.mock('i18next', () => ({
   },
 }));
 
+// Mock Actionsheet
+jest.mock('../../ui/actionsheet', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    Actionsheet: ({ children, isOpen }: any) => isOpen ? <View testID="mock-actionsheet">{children}</View> : null,
+    ActionsheetBackdrop: () => null,
+    ActionsheetContent: ({ children }: any) => <View testID="mock-actionsheet-content">{children}</View>,
+    ActionsheetDragIndicatorWrapper: ({ children }: any) => <View>{children}</View>,
+    ActionsheetDragIndicator: () => null,
+  };
+});
+
 // Import after mocks to avoid the React Native CSS Interop issue
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
@@ -450,6 +463,63 @@ describe('LiveKitBottomSheet', () => {
 
       await audioService.playDisconnectionSound();
       expect(audioService.playDisconnectionSound).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return to room select when back is pressed from audio settings if entered from room select', () => {
+      const { fireEvent } = require('@testing-library/react-native');
+
+      mockUseLiveKitStore.mockReturnValue({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+      });
+
+      const component = render(<LiveKitBottomSheet />);
+
+      // Navigate to audio settings
+      const settingsButton = component.getByTestId('header-audio-settings-button');
+      fireEvent.press(settingsButton);
+
+      // Verify we are in audio settings
+      expect(component.getByTestId('audio-settings-view')).toBeTruthy();
+
+      // Press back
+      const backButton = component.getByTestId('back-button');
+      fireEvent.press(backButton);
+
+      // Verify we are back in room select (by checking for join buttons)
+      expect(component.getByTestId('room-list')).toBeTruthy();
+    });
+
+    it('should return to connected view when back is pressed from audio settings if entered from connected view', async () => {
+      const { fireEvent } = require('@testing-library/react-native');
+
+      mockUseLiveKitStore.mockReturnValue({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+      });
+
+      const component = render(<LiveKitBottomSheet />);
+
+      // Verify we are in connected view
+      await expect(component.findByTestId('connected-view')).resolves.toBeTruthy();
+
+      // Navigate to audio settings
+      const settingsButton = component.getByTestId('audio-settings-button');
+      fireEvent.press(settingsButton);
+
+      // Verify we are in audio settings
+      expect(component.getByTestId('audio-settings-view')).toBeTruthy();
+
+      // Press back
+      const backButton = component.getByTestId('back-button');
+      fireEvent.press(backButton);
+
+      // Verify we are back in connected view
+      expect(component.getByTestId('connected-view')).toBeTruthy();
     });
   });
 

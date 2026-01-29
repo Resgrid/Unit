@@ -1,16 +1,23 @@
 import { Asset } from 'expo-asset';
 import { Audio, type AVPlaybackSource, InterruptionModeIOS } from 'expo-av';
 import { Platform } from 'react-native';
+import Sound from 'react-native-sound';
 
 import { logger } from '@/lib/logging';
 
+// Enable playback in silence mode
+Sound.setCategory('Ambient', true);
+
 class AudioService {
   private static instance: AudioService;
-  private startTransmittingSound: Audio.Sound | null = null;
-  private stopTransmittingSound: Audio.Sound | null = null;
-  private connectedDeviceSound: Audio.Sound | null = null;
-  private connectToAudioRoomSound: Audio.Sound | null = null;
-  private disconnectedFromAudioRoomSound: Audio.Sound | null = null;
+  // Use specific type for react-native-sound instances
+  private startTransmittingSound: Sound | null = null;
+  private stopTransmittingSound: Sound | null = null;
+  
+  // Keep others as expo-av for now
+  private connectedDeviceSound: Sound | null = null;
+  private connectToAudioRoomSound: Sound | null = null;
+  private disconnectedFromAudioRoomSound: Sound | null = null;
   private isInitialized = false;
 
   private constructor() {
@@ -35,12 +42,15 @@ class AudioService {
 
     try {
       // Configure audio mode for production builds
+      // Note: react-native-sound handles its own session category (Ambient), 
+      // ensuring expo-av doesn't conflict is still good practice if used elsewhere.
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: true,
+        // For speaker, we want false (speaker). For others, simple routing.
+        playThroughEarpieceAndroid: false, 
         interruptionModeIOS: InterruptionModeIOS.DoNotMix,
       });
 
@@ -86,60 +96,60 @@ class AudioService {
 
   private async loadAudioFiles(): Promise<void> {
     try {
-      // Load start transmitting sound
+      // Load start transmitting sound (react-native-sound)
       const startTransmittingSoundAsset = Asset.fromModule(require('@assets/audio/ui/space_notification1.mp3'));
       await startTransmittingSoundAsset.downloadAsync();
-
-      const { sound: startSound } = await Audio.Sound.createAsync({ uri: startTransmittingSoundAsset.localUri || startTransmittingSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
+      const startUri = startTransmittingSoundAsset.localUri || startTransmittingSoundAsset.uri;
+      
+      this.startTransmittingSound = new Sound(startUri, '', (error) => {
+        if (error) {
+          logger.error({ message: 'Failed to load start transmitting sound', context: { error } });
+        }
       });
-      this.startTransmittingSound = startSound;
 
-      // Load stop transmitting sound
+      // Load stop transmitting sound (react-native-sound)
       const stopTransmittingSoundAsset = Asset.fromModule(require('@assets/audio/ui/space_notification2.mp3'));
       await stopTransmittingSoundAsset.downloadAsync();
+      const stopUri = stopTransmittingSoundAsset.localUri || stopTransmittingSoundAsset.uri;
 
-      const { sound: stopSound } = await Audio.Sound.createAsync({ uri: stopTransmittingSoundAsset.localUri || stopTransmittingSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
+      this.stopTransmittingSound = new Sound(stopUri, '', (error) => {
+        if (error) {
+          logger.error({ message: 'Failed to load stop transmitting sound', context: { error } });
+        }
       });
-      this.stopTransmittingSound = stopSound;
 
-      // Load connected device sound
+      // Load connected device sound (react-native-sound)
       const connectedDeviceSoundAsset = Asset.fromModule(require('@assets/audio/ui/positive_interface_beep.mp3'));
       await connectedDeviceSoundAsset.downloadAsync();
+      const connectedUri = connectedDeviceSoundAsset.localUri || connectedDeviceSoundAsset.uri;
 
-      const { sound: connectedSound } = await Audio.Sound.createAsync({ uri: connectedDeviceSoundAsset.localUri || connectedDeviceSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
+      this.connectedDeviceSound = new Sound(connectedUri, '', (error) => {
+        if (error) {
+            logger.error({ message: 'Failed to load connected device sound', context: { error } });
+        }
       });
-      this.connectedDeviceSound = connectedSound;
 
-      // Load connect to audio room sound
+      // Load connect to audio room sound (react-native-sound)
       const connectToAudioRoomSoundAsset = Asset.fromModule(require('@assets/audio/ui/software_interface_start.mp3'));
       await connectToAudioRoomSoundAsset.downloadAsync();
+      const connectRoomUri = connectToAudioRoomSoundAsset.localUri || connectToAudioRoomSoundAsset.uri;
 
-      const { sound: connectToRoomSound } = await Audio.Sound.createAsync({ uri: connectToAudioRoomSoundAsset.localUri || connectToAudioRoomSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
+      this.connectToAudioRoomSound = new Sound(connectRoomUri, '', (error) => {
+        if (error) {
+            logger.error({ message: 'Failed to load connect to audio room sound', context: { error } });
+        }
       });
-      this.connectToAudioRoomSound = connectToRoomSound;
 
-      // Load disconnect from audio room sound
+      // Load disconnect from audio room sound (react-native-sound)
       const disconnectedFromAudioRoomSoundAsset = Asset.fromModule(require('@assets/audio/ui/software_interface_back.mp3'));
       await disconnectedFromAudioRoomSoundAsset.downloadAsync();
+      const disconnectRoomUri = disconnectedFromAudioRoomSoundAsset.localUri || disconnectedFromAudioRoomSoundAsset.uri;
 
-      const { sound: disconnectFromRoomSound } = await Audio.Sound.createAsync({ uri: disconnectedFromAudioRoomSoundAsset.localUri || disconnectedFromAudioRoomSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
+      this.disconnectedFromAudioRoomSound = new Sound(disconnectRoomUri, '', (error) => {
+        if (error) {
+            logger.error({ message: 'Failed to load disconnect from audio room sound', context: { error } });
+        }
       });
-      this.disconnectedFromAudioRoomSound = disconnectFromRoomSound;
 
       logger.debug({
         message: 'Audio files loaded successfully',
@@ -152,39 +162,22 @@ class AudioService {
     }
   }
 
-  private async playSound(sound: Audio.Sound | null, soundName: string): Promise<void> {
-    try {
-      if (!sound) {
-        logger.warn({
-          message: `Sound not loaded: ${soundName}`,
-        });
-        return;
-      }
+  // Remove old playSound helper as we are using Sound directly now
+  // private async playSound... 
 
-      // Ensure audio service is initialized
-      if (!this.isInitialized) {
-        await this.initializeAudio();
-      }
-
-      // Reset to start and play
-      await sound.setPositionAsync(0);
-      await sound.playAsync();
-
-      logger.debug({
-        message: 'Sound played successfully',
-        context: { soundName },
-      });
-    } catch (error) {
-      logger.error({
-        message: 'Failed to play sound',
-        context: { soundName, error },
-      });
-    }
-  }
-
+  // Updated to use react-native-sound
   async playStartTransmittingSound(): Promise<void> {
     try {
-      await this.playSound(this.startTransmittingSound, 'startTransmitting');
+      if (this.startTransmittingSound) {
+        // Stop if playing
+        this.startTransmittingSound.stop();
+        // Play
+        this.startTransmittingSound.play((success) => {
+            if (!success) {
+                logger.warn({ message: 'Failed to play start transmitting sound (playback error)' });
+            }
+        });
+      }
     } catch (error) {
       logger.error({
         message: 'Failed to play start transmitting sound',
@@ -193,9 +186,19 @@ class AudioService {
     }
   }
 
+  // Updated to use react-native-sound
   async playStopTransmittingSound(): Promise<void> {
     try {
-      await this.playSound(this.stopTransmittingSound, 'stopTransmitting');
+        if (this.stopTransmittingSound) {
+            // Stop if playing
+            this.stopTransmittingSound.stop();
+            // Play
+            this.stopTransmittingSound.play((success) => {
+                if (!success) {
+                    logger.warn({ message: 'Failed to play stop transmitting sound (playback error)' });
+                }
+            });
+          }
     } catch (error) {
       logger.error({
         message: 'Failed to play stop transmitting sound',
@@ -206,7 +209,16 @@ class AudioService {
 
   async playConnectedDeviceSound(): Promise<void> {
     try {
-      await this.playSound(this.connectedDeviceSound, 'connectedDevice');
+      if (this.connectedDeviceSound) {
+        this.connectedDeviceSound.stop();
+        this.connectedDeviceSound.play((success) => {
+            if (success) {
+                logger.debug({ message: 'Sound played successfully', context: { soundName: 'connectedDevice' } });
+            } else {
+                logger.warn({ message: 'Failed to play connected device sound (playback error)' });
+            }
+        });
+      }
     } catch (error) {
       logger.error({
         message: 'Failed to play connected device sound',
@@ -217,7 +229,14 @@ class AudioService {
 
   async playConnectToAudioRoomSound(): Promise<void> {
     try {
-      await this.playSound(this.connectToAudioRoomSound, 'connectedToAudioRoom');
+        if (this.connectToAudioRoomSound) {
+            this.connectToAudioRoomSound.stop();
+            this.connectToAudioRoomSound.play((success) => {
+                if (!success) {
+                    logger.warn({ message: 'Failed to play connect to audio room sound' });
+                }
+            });
+        }
     } catch (error) {
       logger.error({
         message: 'Failed to play connected to audio room sound',
@@ -228,7 +247,14 @@ class AudioService {
 
   async playDisconnectedFromAudioRoomSound(): Promise<void> {
     try {
-      await this.playSound(this.disconnectedFromAudioRoomSound, 'disconnectedFromAudioRoom');
+        if (this.disconnectedFromAudioRoomSound) {
+            this.disconnectedFromAudioRoomSound.stop();
+            this.disconnectedFromAudioRoomSound.play((success) => {
+                if (!success) {
+                    logger.warn({ message: 'Failed to play disconnected from audio room sound' });
+                }
+            });
+        }
     } catch (error) {
       logger.error({
         message: 'Failed to play disconnected from audio room sound',
@@ -241,31 +267,31 @@ class AudioService {
     try {
       // Unload start transmitting sound
       if (this.startTransmittingSound) {
-        await this.startTransmittingSound.unloadAsync();
+        this.startTransmittingSound.release();
         this.startTransmittingSound = null;
       }
 
       // Unload stop transmitting sound
       if (this.stopTransmittingSound) {
-        await this.stopTransmittingSound.unloadAsync();
+        this.stopTransmittingSound.release();
         this.stopTransmittingSound = null;
       }
 
       // Unload connected device sound
       if (this.connectedDeviceSound) {
-        await this.connectedDeviceSound.unloadAsync();
+        this.connectedDeviceSound.release();
         this.connectedDeviceSound = null;
       }
 
       // Unload connect to audio room sound
       if (this.connectToAudioRoomSound) {
-        await this.connectToAudioRoomSound.unloadAsync();
+        this.connectToAudioRoomSound.release();
         this.connectToAudioRoomSound = null;
       }
 
       // Unload disconnect from audio room sound
       if (this.disconnectedFromAudioRoomSound) {
-        await this.disconnectedFromAudioRoomSound.unloadAsync();
+        this.disconnectedFromAudioRoomSound.release();
         this.disconnectedFromAudioRoomSound = null;
       }
 

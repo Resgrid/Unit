@@ -1,5 +1,4 @@
 import { t } from 'i18next';
-import { Audio, InterruptionModeIOS } from 'expo-av';
 import { Headphones, Mic, MicOff, PhoneOff, Settings } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,7 +11,7 @@ import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 import { Card } from '../../components/ui/card';
 import { Text } from '../../components/ui/text';
-import { useLiveKitStore } from '../../stores/app/livekit-store';
+import { applyAudioRouting, useLiveKitStore } from '../../stores/app/livekit-store';
 import { AudioDeviceSelection } from '../settings/audio-device-selection';
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
 import { HStack } from '../ui/hstack';
@@ -33,6 +32,7 @@ export const LiveKitBottomSheet = () => {
   const { trackEvent } = useAnalytics();
 
   const [currentView, setCurrentView] = useState<BottomSheetView>(BottomSheetView.ROOM_SELECT);
+  const [previousView, setPreviousView] = useState<BottomSheetView | null>(null);
   const [isMuted, setIsMuted] = useState(true); // Default to muted
   const [permissionsRequested, setPermissionsRequested] = useState(false);
 
@@ -156,28 +156,17 @@ export const LiveKitBottomSheet = () => {
         const speaker = selectedAudioDevices.speaker;
         console.log('Updating audio routing for:', speaker.type);
 
+        let targetType: 'bluetooth' | 'speaker' | 'earpiece' | 'default' = 'default';
+
         if (speaker.type === 'speaker') {
-          // Force Speakerphone
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: true,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-            shouldDuckAndroid: true,
-            playThroughEarpieceAndroid: false, // This forces speaker on Android
-            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-          });
+          targetType = 'speaker';
+        } else if (speaker.type === 'bluetooth') {
+          targetType = 'bluetooth';
         } else {
-          // Default (Earpiece) or Bluetooth
-          // For Bluetooth to work, we usually just need to NOT force speaker.
-          await Audio.setAudioModeAsync({
-            allowsRecordingIOS: true,
-            staysActiveInBackground: true,
-            playsInSilentModeIOS: true,
-            shouldDuckAndroid: true,
-            playThroughEarpieceAndroid: true, // This allows earpiece/bluetooth
-            interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-          });
+          targetType = 'earpiece';
         }
+
+        await applyAudioRouting(targetType);
       } catch (error) {
         console.error('Failed to update audio routing:', error);
       }
@@ -221,12 +210,18 @@ export const LiveKitBottomSheet = () => {
   }, [disconnectFromRoom]);
 
   const handleShowAudioSettings = useCallback(() => {
+    setPreviousView(currentView);
     setCurrentView(BottomSheetView.AUDIO_SETTINGS);
-  }, []);
+  }, [currentView]);
 
   const handleBackFromAudioSettings = useCallback(() => {
-    setCurrentView(BottomSheetView.CONNECTED);
-  }, []);
+    if (previousView) {
+      setCurrentView(previousView);
+      setPreviousView(null);
+    } else {
+      setCurrentView(isConnected && currentRoomInfo ? BottomSheetView.CONNECTED : BottomSheetView.ROOM_SELECT);
+    }
+  }, [previousView, isConnected, currentRoomInfo]);
 
   const renderRoomSelect = () => (
     <View style={styles.content}>

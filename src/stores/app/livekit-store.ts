@@ -1,7 +1,9 @@
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
+import { Audio, InterruptionModeIOS } from 'expo-av';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import { Room, RoomEvent } from 'livekit-client';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { create } from 'zustand';
 
 import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../api/voice';
@@ -12,11 +14,71 @@ import { callKeepService } from '../../services/callkeep.service';
 import { mediaButtonService } from '../../services/media-button.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
+// Helper function to apply audio routing
+export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'earpiece' | 'default') => {
+  try {
+    if (Platform.OS === 'android') {
+      logger.info({
+        message: 'Applying Android audio routing',
+        context: { deviceType },
+      });
+
+      // On Android, we use RTCAudioSession for precise control
+      // First, ensure the audio session is configured correctly
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        // For speaker, we want false (speaker). For others, simple routing.
+        playThroughEarpieceAndroid: deviceType !== 'speaker',
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+      });
+
+      // Use RTCAudioSession to force route selection for WebRTC (Not available on Android in this package)
+      // We rely on Audio.setAudioModeAsync and system behavior.
+      /*
+      const RTCAudioSessionAny = RTCAudioSession as any;
+      if (RTCAudioSessionAny.getAudioDevices && RTCAudioSessionAny.selectAudioDevice) {
+         // ... (Logic removed as it's iOS only)
+      } else {
+         logger.info({
+            message: 'RTCAudioSession Android methods not available (Relying on system routing)',
+         });
+      }
+      */
+      logger.info({
+        message: 'Android audio routing applied via Audio.setAudioModeAsync',
+      });
+
+    } else {
+      // iOS handling (Expo AV is usually sufficient, but CallKeep handles the session)
+      // Just ensure the mode is correct
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        staysActiveInBackground: true,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: true,
+        interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+      });
+    }
+  } catch (error) {
+    logger.error({
+      message: 'Failed to apply audio routing',
+      context: { error },
+    });
+  }
+};
+
 // Helper function to setup audio routing based on selected devices
 const setupAudioRouting = async (room: Room): Promise<void> => {
   try {
     const bluetoothStore = useBluetoothAudioStore.getState();
     const { selectedAudioDevices, connectedDevice } = bluetoothStore;
+
+    // Determine target device type
+    let targetType: 'bluetooth' | 'speaker' | 'earpiece' = 'earpiece';
 
     // If we have a connected Bluetooth device, prioritize it
     if (connectedDevice && connectedDevice.hasAudioCapability) {
@@ -38,19 +100,23 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
 
       bluetoothStore.setSelectedMicrophone(bluetoothMicrophone);
       bluetoothStore.setSelectedSpeaker(bluetoothSpeaker);
-
-      // Note: Actual audio routing would be implemented via native modules
-      // This is a placeholder for the audio routing logic
-      logger.debug({
-        message: 'Audio routing configured for Bluetooth device',
-      });
+      
+      targetType = 'bluetooth';
     } else {
       // Use default audio devices (selected devices or default)
       logger.debug({
         message: 'Using default audio devices',
         context: { selectedAudioDevices },
       });
+      
+      if (selectedAudioDevices.speaker?.type === 'speaker') {
+        targetType = 'speaker';
+      }
     }
+
+    // Apply the routing
+    await applyAudioRouting(targetType);
+
   } catch (error) {
     logger.error({
       message: 'Failed to setup audio routing',
@@ -141,9 +207,24 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // and don't require runtime permission requests. They are automatically granted
         // when the app is installed if declared in AndroidManifest.xml
         if (Platform.OS === 'android') {
-          logger.debug({
-            message: 'Foreground service permissions are handled at manifest level',
-          });
+          // Request phone state/numbers permissions for CallKeep (required for Android 11+)
+          try {
+             // We need these permissions to use the ConnectionService (CallKeep) properly without crashing
+             const granted = await PermissionsAndroid.requestMultiple([
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS,
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+             ]);
+             
+             logger.debug({
+                message: 'Android Phone permissions requested',
+                context: { result: granted },
+             });
+          } catch (err) {
+             logger.warn({
+                message: 'Failed to request Android phone permissions',
+                context: { error: err },
+             });
+          }
         }
       }
     } catch (error) {
@@ -203,7 +284,27 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await room.localParticipant.setMicrophoneEnabled(false);
       await room.localParticipant.setCameraEnabled(false);
 
+      // Initialize media button service for AirPods/earbuds PTT support
+      // Initialize this EARLY to ensure listeners are registered before complex audio routing changes
+      try {
+        await mediaButtonService.initialize();
+        // Apply stored settings from the Bluetooth audio store
+        const { mediaButtonPTTSettings } = useBluetoothAudioStore.getState();
+        mediaButtonService.updateSettings(mediaButtonPTTSettings);
+        logger.info({
+          message: 'Media button service initialized for PTT support',
+          context: { settings: mediaButtonPTTSettings },
+        });
+      } catch (mediaButtonError) {
+        logger.warn({
+          message: 'Failed to initialize media button service - AirPods/earbuds PTT may not work',
+          context: { error: mediaButtonError },
+        });
+        // Don't fail the connection if media button service fails
+      }
+
       // Setup audio routing based on selected devices
+      // This may change audio modes/focus, so it comes after media button init
       await setupAudioRouting(room);
 
       await audioService.playConnectToAudioRoomSound();
@@ -242,13 +343,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // The call will still work but may be killed in background
       }
 
-      // Start CallKeep call for iOS background audio support
-      if (Platform.OS === 'ios') {
+      // Start CallKeep call for iOS and Android background audio support
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
         try {
           const callUUID = await callKeepService.startCall(roomInfo.Name || 'Voice Channel');
           logger.info({
-            message: 'CallKeep call started for iOS background support',
-            context: { callUUID, roomName: roomInfo.Name },
+            message: 'CallKeep call started for background audio support',
+            context: { callUUID, roomName: roomInfo.Name, platform: Platform.OS },
           });
         } catch (callKeepError) {
           logger.warn({
@@ -257,24 +358,6 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           });
           // Don't fail the connection if CallKeep fails
         }
-      }
-
-      // Initialize media button service for AirPods/earbuds PTT support
-      try {
-        await mediaButtonService.initialize();
-        // Apply stored settings from the Bluetooth audio store
-        const { mediaButtonPTTSettings } = useBluetoothAudioStore.getState();
-        mediaButtonService.updateSettings(mediaButtonPTTSettings);
-        logger.info({
-          message: 'Media button service initialized for PTT support',
-          context: { settings: mediaButtonPTTSettings },
-        });
-      } catch (mediaButtonError) {
-        logger.warn({
-          message: 'Failed to initialize media button service - AirPods/earbuds PTT may not work',
-          context: { error: mediaButtonError },
-        });
-        // Don't fail the connection if media button service fails
       }
 
       set({
@@ -298,8 +381,8 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await currentRoom.disconnect();
       await audioService.playDisconnectedFromAudioRoomSound();
 
-      // End CallKeep call on iOS
-      if (Platform.OS === 'ios') {
+      // End CallKeep call on iOS and Android
+      if (Platform.OS === 'ios' || Platform.OS === 'android') {
         try {
           await callKeepService.endCall();
           logger.debug({
