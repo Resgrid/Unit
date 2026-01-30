@@ -83,7 +83,7 @@ export class CallKeepService {
       };
 
       await RNCallKeep.setup(options);
-
+      
       // Essential for Android to show the app as capable of calls
       RNCallKeep.setAvailable(true);
 
@@ -109,7 +109,7 @@ export class CallKeepService {
    */
   async startCall(roomName: string, handle?: string): Promise<string> {
     if (Platform.OS !== 'android') {
-      return '';
+        return '';
     }
 
     if (!this.isSetup) {
@@ -148,12 +148,12 @@ export class CallKeepService {
 
       // Start the call
       RNCallKeep.startCall(currentCallUUID, callHandle, contactIdentifier, 'generic', false);
-
+      
       // On Android, we should set the call active
       RNCallKeep.setCurrentCallActive(currentCallUUID);
 
       this.isCallActive = true;
-
+      
       return currentCallUUID;
     } catch (error) {
       logger.error({
@@ -171,7 +171,7 @@ export class CallKeepService {
    */
   async endCall(): Promise<void> {
     if (Platform.OS !== 'android') {
-      return;
+        return;
     }
 
     if (!currentCallUUID) {

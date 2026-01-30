@@ -1,8 +1,8 @@
 import { BluetoothIcon, RefreshCwIcon, WifiIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, useWindowDimensions } from 'react-native';
 import { showMessage } from 'react-native-flash-message';
+import { Alert, useWindowDimensions } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -108,6 +108,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         // Checking previous logs, service seems to play "connectedDevice".
 
         onClose();
+
       } catch (error) {
         logger.warn({
           message: 'Failed to connect to device',
@@ -118,7 +119,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         const errorMessage = error instanceof Error ? error.message : String(error);
         showMessage({
           message: t('bluetooth.connection_error_title') || 'Connection Failed',
-          description: errorMessage === 'Device disconnected' ? t('bluetooth.device_disconnected') : errorMessage || t('bluetooth.connection_error_message') || 'Could not connect to device',
+          description: errorMessage === 'Device disconnected' ? t('bluetooth.device_disconnected') : (errorMessage || t('bluetooth.connection_error_message') || 'Could not connect to device'),
           type: 'danger',
           duration: 4000,
         });

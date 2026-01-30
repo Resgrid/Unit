@@ -1,9 +1,9 @@
-import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
-import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { Audio, InterruptionModeIOS } from 'expo-av';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import { Room, RoomEvent } from 'livekit-client';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { create } from 'zustand';
 
 import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../api/voice';
@@ -50,6 +50,7 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
       logger.info({
         message: 'Android audio routing applied via Audio.setAudioModeAsync',
       });
+
     } else {
       // iOS handling (Expo AV is usually sufficient, but CallKeep handles the session)
       // Just ensure the mode is correct
@@ -99,7 +100,7 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
 
       bluetoothStore.setSelectedMicrophone(bluetoothMicrophone);
       bluetoothStore.setSelectedSpeaker(bluetoothSpeaker);
-
+      
       targetType = 'bluetooth';
     } else {
       // Use default audio devices (selected devices or default)
@@ -107,7 +108,7 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
         message: 'Using default audio devices',
         context: { selectedAudioDevices },
       });
-
+      
       if (selectedAudioDevices.speaker?.type === 'speaker') {
         targetType = 'speaker';
       }
@@ -115,6 +116,7 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
 
     // Apply the routing
     await applyAudioRouting(targetType);
+
   } catch (error) {
     logger.error({
       message: 'Failed to setup audio routing',
@@ -207,18 +209,21 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         if (Platform.OS === 'android') {
           // Request phone state/numbers permissions for CallKeep (required for Android 11+)
           try {
-            // We need these permissions to use the ConnectionService (CallKeep) properly without crashing
-            const granted = await PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS, PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE]);
-
-            logger.debug({
-              message: 'Android Phone permissions requested',
-              context: { result: granted },
-            });
+             // We need these permissions to use the ConnectionService (CallKeep) properly without crashing
+             const granted = await PermissionsAndroid.requestMultiple([
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS,
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+             ]);
+             
+             logger.debug({
+                message: 'Android Phone permissions requested',
+                context: { result: granted },
+             });
           } catch (err) {
-            logger.warn({
-              message: 'Failed to request Android phone permissions',
-              context: { error: err },
-            });
+             logger.warn({
+                message: 'Failed to request Android phone permissions',
+                context: { error: err },
+             });
           }
         }
       }

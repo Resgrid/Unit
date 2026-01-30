@@ -43,7 +43,7 @@ export interface ButtonAction {
 export interface AudioDeviceInfo {
   id: string;
   name: string;
-  type: 'bluetooth' | 'wired' | 'speaker' | 'microphone';
+  type: 'bluetooth' | 'wired' | 'speaker' | 'default' | 'microphone';
   isAvailable: boolean;
 }
 
