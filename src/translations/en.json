@@ -47,6 +47,7 @@
     "connected": "Connected",
     "connectionError": "Connection Error",
     "current_selection": "Current Selection",
+    "device_disconnected": "Device disconnected",
     "disconnect": "Disconnect",
     "doublePress": "Double ",
     "liveKitActive": "LiveKit Active",

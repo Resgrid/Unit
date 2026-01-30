@@ -1,9 +1,11 @@
 import { Buffer } from 'buffer';
+// @ts-ignore - callkeep service might not be resolvable in all contexts without barrel file updates
 import { Alert, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
 import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, type BleState, type Peripheral, type PeripheralInfo } from 'react-native-ble-manager';
 
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
+import { callKeepService } from '@/services/callkeep.service';
 import { type AudioButtonEvent, type BluetoothAudioDevice, type Device, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 
@@ -225,10 +227,14 @@ class BluetoothAudioService {
     }
 
     // Define RSSI threshold for strong signals (typical range: -100 to -20 dBm)
-    const STRONG_RSSI_THRESHOLD = -60; // Only allow devices with RSSI stronger than -60 dBm
+    const STRONG_RSSI_THRESHOLD = -95; // Relaxed threshold to improve discovery
 
     // Check RSSI signal strength - only proceed with strong signals
     if (!device.rssi || device.rssi < STRONG_RSSI_THRESHOLD) {
+      logger.debug({
+        message: 'Device ignored due to weak RSSI',
+        context: { deviceId: device.id, rssi: device.rssi, threshold: STRONG_RSSI_THRESHOLD },
+      });
       return;
     }
 
@@ -254,12 +260,13 @@ class BluetoothAudioService {
     const value = Buffer.from(data.value).toString('base64');
 
     logger.debug({
-      message: 'Characteristic value updated',
+      message: '[DEBUG_VALUE_UPDATE] Characteristic value updated',
       context: {
         peripheral: data.peripheral,
         service: data.service,
         characteristic: data.characteristic,
-        value: Buffer.from(data.value).toString('hex'),
+        valueHex: Buffer.from(data.value).toString('hex'),
+        valueBase64: value,
       },
     });
 
@@ -275,17 +282,14 @@ class BluetoothAudioService {
   }
 
   private handleButtonEventFromCharacteristic(serviceUuid: string, characteristicUuid: string, value: string): void {
-    const upperServiceUuid = serviceUuid.toUpperCase();
-    const upperCharUuid = characteristicUuid.toUpperCase();
-
     // Route to appropriate handler based on service/characteristic
-    if (upperServiceUuid === AINA_HEADSET_SERVICE.toUpperCase() && upperCharUuid === AINA_HEADSET_SVC_PROP.toUpperCase()) {
+    if (this.areUuidsEqual(serviceUuid, AINA_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, AINA_HEADSET_SVC_PROP)) {
       this.handleAinaButtonEvent(value);
-    } else if (upperServiceUuid === B01INRICO_HEADSET_SERVICE.toUpperCase() && upperCharUuid === B01INRICO_HEADSET_SERVICE_CHAR.toUpperCase()) {
+    } else if (this.areUuidsEqual(serviceUuid, B01INRICO_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, B01INRICO_HEADSET_SERVICE_CHAR)) {
       this.handleB01InricoButtonEvent(value);
-    } else if (upperServiceUuid === HYS_HEADSET_SERVICE.toUpperCase() && upperCharUuid === HYS_HEADSET_SERVICE_CHAR.toUpperCase()) {
+    } else if (this.areUuidsEqual(serviceUuid, HYS_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, HYS_HEADSET_SERVICE_CHAR)) {
       this.handleHYSButtonEvent(value);
-    } else if (BUTTON_CONTROL_UUIDS.some((uuid) => uuid.toUpperCase() === upperCharUuid)) {
+    } else if (BUTTON_CONTROL_UUIDS.some((uuid) => this.areUuidsEqual(characteristicUuid, uuid))) {
       this.handleGenericButtonEvent(value);
     }
   }
@@ -417,7 +421,7 @@ class BluetoothAudioService {
     }
 
     // Stop any existing scan first
-    this.stopScanning();
+    await this.stopScanning();
 
     useBluetoothAudioStore.getState().setIsScanning(true);
     useBluetoothAudioStore.getState().clearDevices();
@@ -818,9 +822,9 @@ class BluetoothAudioService {
     return serviceUUIDs.some((uuid: string) => [HFP_SERVICE_UUID, HSP_SERVICE_UUID].includes(uuid.toUpperCase()));
   }
 
-  stopScanning(): void {
+  async stopScanning(): Promise<void> {
     try {
-      BleManager.stopScan();
+      await BleManager.stopScan();
     } catch (error) {
       logger.debug({
         message: 'Error stopping scan',
@@ -842,9 +846,21 @@ class BluetoothAudioService {
 
   async connectToDevice(deviceId: string): Promise<void> {
     try {
+      useBluetoothAudioStore.getState().clearConnectionError();
       useBluetoothAudioStore.getState().setIsConnecting(true);
 
+      // Ensure scanning is stopped before connecting
+      // Connecting while scanning often fails on Android
+      await this.stopScanning();
+
+      // Small delay to allow radio to switch modes
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Connect to the device
+      logger.info({
+        message: 'Attempting to connect to device via BleManager',
+        context: { deviceId },
+      });
       await BleManager.connect(deviceId);
 
       logger.info({
@@ -861,7 +877,19 @@ class BluetoothAudioService {
       }
 
       // Discover services and characteristics
+      logger.info({
+        message: 'Retrieving services which triggers discovery',
+        context: { deviceId },
+      });
       const peripheralInfo = await BleManager.retrieveServices(deviceId);
+      logger.info({
+        message: 'Services retrieved successfully',
+        context: {
+          deviceId,
+          serviceCount: peripheralInfo.services?.length,
+          services: peripheralInfo.services?.map((s: any) => s.uuid),
+        },
+      });
 
       this.connectedDevice = device;
       useBluetoothAudioStore.getState().setConnectedDevice({
@@ -885,20 +913,40 @@ class BluetoothAudioService {
 
       useBluetoothAudioStore.getState().setIsConnecting(false);
     } catch (error) {
+      // Extract meaningful error message
+      let errorMessage = 'Unknown connection error';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to find a message property or basic string representation
+        if ('message' in error && typeof (error as any).message === 'string') {
+          errorMessage = (error as any).message;
+        } else {
+          try {
+            errorMessage = JSON.stringify(error);
+          } catch {
+            errorMessage = String(error);
+          }
+        }
+      }
+
       logger.error({
         message: 'Failed to connect to Bluetooth audio device',
-        context: { deviceId, error },
+        context: { deviceId, error, errorMessage },
       });
 
       useBluetoothAudioStore.getState().setIsConnecting(false);
-      useBluetoothAudioStore.getState().setConnectionError(error instanceof Error ? error.message : 'Unknown connection error');
+      useBluetoothAudioStore.getState().setConnectionError(errorMessage);
       throw error;
     }
   }
 
   private handleDeviceDisconnected(args: { peripheral: string }): void {
     logger.info({
-      message: 'Bluetooth audio device disconnected',
+      message: '[DISCONNECT EVENT] Bluetooth audio device disconnected',
       context: {
         deviceId: args.peripheral,
       },
@@ -945,13 +993,53 @@ class BluetoothAudioService {
       return false;
     }
 
-    const service = peripheralInfo.services.find((s: any) => s.uuid?.toUpperCase() === serviceUuid.toUpperCase());
-
-    if (!service || !(service as any).characteristics) {
+    if (!peripheralInfo.characteristics) {
       return false;
     }
 
-    return (service as any).characteristics.some((c: any) => c.characteristic?.toUpperCase() === characteristicUuid.toUpperCase());
+    const characteristicFound = peripheralInfo.characteristics.some((c: any) => this.areUuidsEqual(c.service, serviceUuid) && this.areUuidsEqual(c.characteristic, characteristicUuid));
+
+    logger.debug({
+      message: '[DEBUG_MATCH] Checking characteristic',
+      context: {
+        lookingForService: serviceUuid,
+        lookingForChar: characteristicUuid,
+        characteristicFound,
+      },
+    });
+
+    return characteristicFound;
+  }
+
+  /**
+   * Compare two UUIDs handling 16-bit and 128-bit formats
+   */
+  private areUuidsEqual(uuid1: string, uuid2: string): boolean {
+    if (!uuid1 || !uuid2) return false;
+
+    const u1 = uuid1.replace(/-/g, '').toUpperCase();
+    const u2 = uuid2.replace(/-/g, '').toUpperCase();
+
+    // If lengths match, just compare
+    if (u1.length === u2.length) {
+      return u1 === u2;
+    }
+
+    // Handle 16-bit vs 128-bit comparison
+    // 16-bit UUIDs are often returned as 4 characters, while 128-bit are 32 chars
+    // Standard base UUID: 0000xxxx-0000-1000-8000-00805F9B34FB
+
+    const longUuid = u1.length > u2.length ? u1 : u2;
+    const shortUuid = u1.length > u2.length ? u2 : u1;
+
+    // If short UUID is 4 chars (16-bit), check if it matches the 128-bit pattern
+    if (shortUuid.length === 4 && longUuid.length === 32) {
+      // Construct expected 128-bit UUID from 16-bit UUID
+      const expectedLong = `0000${shortUuid}00001000800000805F9B34FB`;
+      return longUuid === expectedLong;
+    }
+
+    return false;
   }
 
   private async startNotificationsForButtonControls(deviceId: string, peripheralInfo: PeripheralInfo): Promise<void> {
@@ -963,6 +1051,11 @@ class BluetoothAudioService {
       // Add generic button control UUIDs
       ...BUTTON_CONTROL_UUIDS.map((uuid) => ({ service: '00001800-0000-1000-8000-00805F9B34FB', characteristic: uuid })), // Generic service
     ];
+
+    logger.debug({
+      message: 'Iterating button control configs',
+      context: { configCount: buttonControlConfigs.length },
+    });
 
     for (const config of buttonControlConfigs) {
       try {
@@ -989,7 +1082,8 @@ class BluetoothAudioService {
           },
         });
       } catch (error) {
-        logger.debug({
+        logger.warn({
+          // Changed to warn to make it more visible
           message: 'Failed to start notifications for characteristic',
           context: {
             deviceId,
@@ -1161,6 +1255,9 @@ class BluetoothAudioService {
       },
     });
 
+    // FORCE LOG COMPATIBILITY
+    console.log(`[PTT_DEBUG] Raw Buffer: ${rawHex} | Bytes: ${allBytes}`);
+
     // B01 Inrico-specific parsing logic
     const byte = buffer[0];
     const byte2 = buffer[5] || 0; // Fallback to 0 if not present
@@ -1251,7 +1348,9 @@ class BluetoothAudioService {
       // Re-check button mapping with the actual button byte (without long press flag)
       switch (actualButtonByte) {
         case 0x00:
-          buttonType = 'ptt_stop';
+          // Ignore 0x80 (Long press on 0x00). This is often sent while holding PTT
+          // and should NOT be interpreted as a STOP command.
+          buttonType = 'unknown';
           break;
         case 0x01:
           buttonType = 'ptt_start';
@@ -1406,11 +1505,16 @@ class BluetoothAudioService {
     }
 
     if (buttonEvent.button === 'ptt_start') {
+      // Proactively lock CallKeep events to prevent HFP interactions/spam
+      // when we are explicitly handling PTT via SPP/GATT
+      callKeepService.ignoreMuteEvents(1000);
       this.setMicrophoneEnabled(true);
       return;
     }
 
     if (buttonEvent.button === 'ptt_stop') {
+      // Keep locked for a bit after release to handle trailing events
+      callKeepService.ignoreMuteEvents(1000);
       this.setMicrophoneEnabled(false);
       return;
     }
@@ -1600,11 +1704,12 @@ class BluetoothAudioService {
 
   async disconnectDevice(): Promise<void> {
     if (this.connectedDevice && this.connectedDevice.id) {
+      const deviceId = this.connectedDevice.id;
       try {
-        await BleManager.disconnect(this.connectedDevice.id);
+        await BleManager.disconnect(deviceId);
         logger.info({
           message: 'Bluetooth audio device disconnected manually',
-          context: { deviceId: this.connectedDevice.id },
+          context: { deviceId },
         });
       } catch (error) {
         logger.error({
@@ -1613,7 +1718,7 @@ class BluetoothAudioService {
         });
       }
 
-      this.handleDeviceDisconnected({ peripheral: this.connectedDevice.id });
+      this.handleDeviceDisconnected({ peripheral: deviceId });
     }
   }
 
@@ -1686,7 +1791,42 @@ class BluetoothAudioService {
 
     // Reset initialization flags
     this.isInitialized = false;
+    this.isInitialized = false;
     this.hasAttemptedPreferredDeviceConnection = false;
+  }
+
+  /**
+   * Fully reset the Bluetooth service state.
+   * Clears connections, scanning, and preferred device tracking.
+   */
+  async reset(): Promise<void> {
+    logger.info({
+      message: 'Resetting Bluetooth Audio Service state',
+    });
+
+    try {
+      await this.stopScanning();
+      await this.disconnectDevice();
+
+      this.connectedDevice = null;
+      this.hasAttemptedPreferredDeviceConnection = false;
+
+      // Revert LiveKit audio routing
+      this.revertLiveKitAudioRouting();
+
+      const store = useBluetoothAudioStore.getState();
+      store.clearDevices();
+      store.setConnectedDevice(null);
+      store.setPreferredDevice(null);
+      store.clearConnectionError();
+      store.setIsConnecting(false);
+      store.setIsScanning(false);
+    } catch (error) {
+      logger.error({
+        message: 'Error resetting Bluetooth Audio Service',
+        context: { error },
+      });
+    }
   }
 }
 

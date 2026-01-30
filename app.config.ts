@@ -80,6 +80,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.FOREGROUND_SERVICE_MICROPHONE',
       'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE',
       'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+      'android.permission.READ_PHONE_STATE',
+      'android.permission.MANAGE_OWN_CALLS',
     ],
   },
   web: {
@@ -208,6 +210,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './plugins/withForegroundNotifications.js',
     './plugins/withNotificationSounds.js',
     './plugins/withMediaButtonModule.js',
+    './plugins/withInCallAudioModule.js',
     ['app-icon-badge', appIconBadgeConfig],
   ],
   extra: {

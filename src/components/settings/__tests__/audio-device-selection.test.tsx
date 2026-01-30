@@ -235,7 +235,7 @@ describe('AudioDeviceSelection', () => {
 
       expect(screen.getAllByText('Available BT').length).toBeGreaterThan(0);
       expect(screen.queryByText('Unavailable BT')).toBeNull();
-      expect(screen.getAllByText('Wired Device').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Wired Device')).toBeNull();
     });
 
     it('filters out unavailable devices for speakers', () => {
@@ -247,9 +247,8 @@ describe('AudioDeviceSelection', () => {
       render(<AudioDeviceSelection />);
 
       expect(screen.getAllByText('Available Device').length).toBeGreaterThan(0);
-      // Note: The component actually shows ALL devices in microphone section unless they are unavailable bluetooth
-      // So the unavailable speaker will show in microphone section but not speaker section
-      expect(screen.getAllByText('Unavailable Device').length).toBeGreaterThan(0); // Shows in microphone section
+      // Note: We now filter out unavailable devices from BOTH sections.
+      expect(screen.queryByText('Unavailable Device')).toBeNull();
     });
   });
 
@@ -275,9 +274,8 @@ describe('AudioDeviceSelection', () => {
 
       render(<AudioDeviceSelection />);
 
-      // Device should appear but with fallback label
-      expect(screen.getAllByText('Unknown Device').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Unknown Device').length).toBeGreaterThan(0);
+      // Device should be filtered out as type is unknown
+      expect(screen.queryByText('Unknown Device')).toBeNull();
     });
   });
 });

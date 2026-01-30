@@ -70,9 +70,9 @@ export const AudioDeviceSelection: React.FC<AudioDeviceSelectionProps> = ({ show
     );
   };
 
-  const availableMicrophones = availableAudioDevices.filter((device) => (device.type === 'bluetooth' ? device.isAvailable : true));
+  const availableMicrophones = availableAudioDevices.filter((device) => device.isAvailable && (device.type === 'default' || device.type === 'microphone' || device.type === 'bluetooth' || device.type === 'wired'));
 
-  const availableSpeakers = availableAudioDevices.filter((device) => device.isAvailable);
+  const availableSpeakers = availableAudioDevices.filter((device) => device.isAvailable && (device.type === 'default' || device.type === 'speaker' || device.type === 'bluetooth' || device.type === 'wired'));
 
   return (
     <ScrollView className="flex-1">

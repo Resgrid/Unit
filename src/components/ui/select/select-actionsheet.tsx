@@ -389,15 +389,11 @@ const ActionsheetVirtualizedList = React.forwardRef<React.ComponentRef<typeof UI
   );
 });
 
-const ActionsheetFlatList = React.forwardRef<React.ComponentRef<typeof UIActionsheet.FlatList>, IActionsheetFlatListProps>(function ActionsheetFlatList({ className, ...props }, ref) {
+const ActionsheetFlatList = React.forwardRef<React.ComponentRef<typeof UIActionsheet.FlatList>, IActionsheetFlatListProps>(function ActionsheetFlatList({ className, style, ...props }, ref) {
   return (
-    <UIActionsheet.FlatList
-      className={actionsheetFlatListStyle({
-        class: className,
-      })}
-      ref={ref}
-      {...props}
-    />
+    <View className={actionsheetFlatListStyle({ class: className })} style={style}>
+      <UIActionsheet.FlatList ref={ref} estimatedItemSize={94} {...props} />
+    </View>
   );
 });
 

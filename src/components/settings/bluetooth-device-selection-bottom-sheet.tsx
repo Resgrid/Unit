@@ -2,6 +2,7 @@ import { BluetoothIcon, RefreshCwIcon, WifiIcon } from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, useWindowDimensions } from 'react-native';
+import { showMessage } from 'react-native-flash-message';
 
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -31,6 +32,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const { preferredDevice, setPreferredDevice } = usePreferredBluetoothDevice();
   const { availableDevices, isScanning, bluetoothState, connectedDevice, connectionError } = useBluetoothAudioStore();
   const [hasScanned, setHasScanned] = useState(false);
+  const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
 
   // Start scanning when sheet opens
   useEffect(() => {
@@ -58,74 +60,80 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const handleDeviceSelect = React.useCallback(
     async (device: BluetoothAudioDevice) => {
       try {
-        // First, clear any existing preferred device
-        await setPreferredDevice(null);
+        // Disconnect from any currently connected device first?
+        // The service connectToDevice usually handles this or we do it here.
+        // Previous code did disconnect manually.
+        /*
+        if (connectedDevice) {
+           ... disconnect ...
+        }
+        */
+        // User wants "When attempting to connect... display loading".
+        // User wants "If error... don't save device".
+
+        // 1. Set connecting state
+        // We can resolve this by using local state for the specific device being connected to,
+        // or rely on store's global isConnecting.
+        // Let's use the store's setIsConnecting to be consistent if the UI uses it.
+        useBluetoothAudioStore.getState().setIsConnecting(true);
+        setConnectingDeviceId(device.id);
+
+        // 2. Clear existing preferred temporarily? Or just wait?
+        // User said "don't save the save device, only do that when connection is successful".
+        // So we shouldn't touch preferredDevice yet.
 
         logger.info({
-          message: 'Clearing existing preferred Bluetooth device before setting new one',
-          context: { newDeviceId: device.id, newDeviceName: device.name },
+          message: 'Attempting to connect to Bluetooth device',
+          context: { deviceId: device.id, deviceName: device.name },
         });
 
-        // Disconnect from any currently connected device
-        if (connectedDevice) {
-          try {
-            await bluetoothAudioService.disconnectDevice();
-            logger.info({
-              message: 'Disconnected from previous Bluetooth device',
-              context: { previousDeviceId: connectedDevice.id },
-            });
-          } catch (disconnectError) {
-            logger.warn({
-              message: 'Failed to disconnect from previous device',
-              context: { previousDeviceId: connectedDevice.id, error: disconnectError },
-            });
-            // Continue with connection to new device even if disconnect fails
-          }
-        }
+        // 3. Connect
+        await bluetoothAudioService.connectToDevice(device.id);
 
-        // Set the new preferred device
+        // 4. Success handling
+        logger.info({
+          message: 'Successfully connected to new Bluetooth device',
+          context: { deviceId: device.id },
+        });
+
+        // Set as preferred only on success
         const selectedDevice = {
           id: device.id,
           name: device.name || t('bluetooth.unknown_device'),
         };
-
         await setPreferredDevice(selectedDevice);
 
-        logger.info({
-          message: 'New preferred Bluetooth device selected',
-          context: { deviceId: device.id, deviceName: device.name },
-        });
-
-        // Connect to the new device
-        try {
-          await bluetoothAudioService.connectToDevice(device.id);
-          logger.info({
-            message: 'Successfully connected to new Bluetooth device',
-            context: { deviceId: device.id },
-          });
-        } catch (connectionError) {
-          logger.warn({
-            message: 'Failed to connect to selected device immediately',
-            context: { deviceId: device.id, error: connectionError },
-          });
-          // Don't show error to user as they may just want to set preference
-        }
+        // Sound is handled by service or we can ensure it here:
+        // await audioService.playConnectedToAudioRoomSound(); // If service doesn't do it.
+        // Checking previous logs, service seems to play "connectedDevice".
 
         onClose();
       } catch (error) {
-        logger.error({
-          message: 'Failed to set preferred Bluetooth device',
-          context: { error },
+        logger.warn({
+          message: 'Failed to connect to device',
+          context: { error, deviceId: device.id },
         });
 
-        Alert.alert(t('bluetooth.selection_error_title'), t('bluetooth.selection_error_message'), [{ text: t('common.ok') }]);
+        // 5. Error handling
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        showMessage({
+          message: t('bluetooth.connection_error_title') || 'Connection Failed',
+          description: errorMessage === 'Device disconnected' ? t('bluetooth.device_disconnected') : errorMessage || t('bluetooth.connection_error_message') || 'Could not connect to device',
+          type: 'danger',
+          duration: 4000,
+        });
+        // Keep sheet open (don't call onClose)
+      } finally {
+        useBluetoothAudioStore.getState().setIsConnecting(false);
+        setConnectingDeviceId(null);
       }
     },
-    [setPreferredDevice, onClose, t, connectedDevice]
+    [setPreferredDevice, onClose, t]
   );
 
   const handleClearSelection = React.useCallback(async () => {
     try {
+      await bluetoothAudioService.reset();
       await setPreferredDevice(null);
       onClose();
     } catch (error) {
@@ -151,11 +159,13 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
     ({ item }: { item: BluetoothAudioDevice }) => {
       const isSelected = preferredDevice?.id === item.id;
       const isConnected = connectedDevice?.id === item.id;
+      const isConnectingToThisDevice = connectingDeviceId === item.id;
 
       return (
         <Pressable
           onPress={() => handleDeviceSelect(item)}
-          className={`mb-2 rounded-lg border p-4 ${isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'}`}
+          disabled={!!connectingDeviceId}
+          className={`mb-2 rounded-lg border p-4 ${isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
         >
           <HStack className="items-center justify-between">
             <VStack className="flex-1">
@@ -170,17 +180,19 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
                 {item.hasAudioCapability && <Text className="ml-2 text-xs text-green-600 dark:text-green-400">{t('bluetooth.audio_capable')}</Text>}
               </HStack>
             </VStack>
-            {isSelected && (
+            {isConnectingToThisDevice ? (
+              <Spinner size="small" className="text-primary-600" color="#2563EB" />
+            ) : isSelected ? (
               <VStack className="items-end">
                 <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('bluetooth.selected')}</Text>
                 {isConnected && <Text className="text-xs text-green-600 dark:text-green-400">{t('bluetooth.connected')}</Text>}
               </VStack>
-            )}
+            ) : null}
           </HStack>
         </Pressable>
       );
     },
-    [preferredDevice, connectedDevice, handleDeviceSelect, t]
+    [preferredDevice, connectedDevice, handleDeviceSelect, t, connectingDeviceId]
   );
 
   const renderEmptyState = useCallback(() => {
@@ -235,7 +247,17 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         </HStack>
 
         {/* Device List */}
-        <FlatList data={availableDevices} renderItem={renderDeviceItem} keyExtractor={(item) => item.id} ListEmptyComponent={renderEmptyState} className="flex-1" showsVerticalScrollIndicator={false} />
+        <Box className="flex-1">
+          <FlatList
+            data={availableDevices}
+            renderItem={renderDeviceItem}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={renderEmptyState}
+            showsVerticalScrollIndicator={false}
+            estimatedItemSize={60}
+            extraData={connectingDeviceId}
+          />
+        </Box>
 
         {/* Bluetooth State Info */}
         {bluetoothState !== State.PoweredOn && (

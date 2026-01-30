@@ -182,3 +182,5 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
     </KeyboardAvoidingView>
   );
 };
+
+export default LoginForm;

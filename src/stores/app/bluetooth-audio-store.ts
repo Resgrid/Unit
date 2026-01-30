@@ -43,7 +43,7 @@ export interface ButtonAction {
 export interface AudioDeviceInfo {
   id: string;
   name: string;
-  type: 'bluetooth' | 'wired' | 'speaker' | 'default';
+  type: 'bluetooth' | 'wired' | 'speaker' | 'default' | 'microphone';
   isAvailable: boolean;
 }
 
@@ -114,8 +114,31 @@ interface BluetoothAudioState {
   setMediaButtonPTTEnabled: (enabled: boolean) => void;
 }
 
-export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => ({
-  // Initial state
+// Initial state
+export const INITIAL_STATE: Omit<
+  BluetoothAudioState,
+  | 'setBluetoothState'
+  | 'setIsScanning'
+  | 'setIsConnecting'
+  | 'addDevice'
+  | 'updateDevice'
+  | 'removeDevice'
+  | 'clearDevices'
+  | 'setConnectedDevice'
+  | 'setPreferredDevice'
+  | 'setAvailableAudioDevices'
+  | 'setSelectedMicrophone'
+  | 'setSelectedSpeaker'
+  | 'updateAudioDeviceAvailability'
+  | 'setConnectionError'
+  | 'clearConnectionError'
+  | 'setAudioRoutingActive'
+  | 'addButtonEvent'
+  | 'clearButtonEvents'
+  | 'setLastButtonAction'
+  | 'setMediaButtonPTTSettings'
+  | 'setMediaButtonPTTEnabled'
+> = {
   bluetoothState: State.Unknown,
   isScanning: false,
   isConnecting: false,
@@ -123,11 +146,11 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   connectedDevice: null,
   preferredDevice: null,
   availableAudioDevices: [
-    { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
+    { id: 'default-mic', name: 'Default Microphone', type: 'microphone', isAvailable: true },
     { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
   ],
   selectedAudioDevices: {
-    microphone: { id: 'default-mic', name: 'Default Microphone', type: 'default', isAvailable: true },
+    microphone: { id: 'default-mic', name: 'Default Microphone', type: 'microphone', isAvailable: true },
     speaker: { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
   },
   connectionError: null,
@@ -135,6 +158,10 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   buttonEvents: [],
   lastButtonAction: null,
   mediaButtonPTTSettings: createDefaultPTTSettings(),
+};
+
+export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => ({
+  ...INITIAL_STATE,
 
   // Bluetooth state actions
   setBluetoothState: (state) => set({ bluetoothState: state }),

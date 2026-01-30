@@ -86,12 +86,12 @@ class AppInitializationService {
   }
 
   /**
-   * Initialize CallKeep service for iOS
+   * Initialize CallKeep service for iOS and Android
    */
   private async _initializeCallKeep(): Promise<void> {
-    if (Platform.OS !== 'ios') {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       logger.debug({
-        message: 'CallKeep initialization skipped - not iOS platform',
+        message: 'CallKeep initialization skipped - not supported platform',
         context: { platform: Platform.OS },
       });
       return;

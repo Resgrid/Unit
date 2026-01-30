@@ -67,14 +67,22 @@ jest.mock('@/lib/hooks/use-preferred-bluetooth-device', () => ({
   }),
 }));
 
-jest.mock('@/stores/app/bluetooth-audio-store', () => ({
-  State: {
-    PoweredOn: 'poweredOn',
-    PoweredOff: 'poweredOff',
-    Unauthorized: 'unauthorized',
-  },
-  useBluetoothAudioStore: jest.fn(),
-}));
+jest.mock('@/stores/app/bluetooth-audio-store', () => {
+  const mockStore = jest.fn();
+  // @ts-ignore
+  mockStore.getState = jest.fn(() => ({
+    setIsConnecting: jest.fn(),
+  }));
+
+  return {
+    State: {
+      PoweredOn: 'poweredOn',
+      PoweredOff: 'poweredOff',
+      Unauthorized: 'unauthorized',
+    },
+    useBluetoothAudioStore: mockStore,
+  };
+});
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -104,7 +112,21 @@ jest.mock('lucide-react-native', () => ({
   WifiIcon: 'WifiIcon',
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Mock gluestack UI components
+
+jest.mock('react-native-flash-message', () => ({
+  showMessage: jest.fn(),
+}));
+
 jest.mock('@/components/ui/bottom-sheet', () => ({
   CustomBottomSheet: ({ children, isOpen }: any) => isOpen ? children : null,
 }));
@@ -203,6 +225,9 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset implementations to successful defaults
+    (bluetoothAudioService.connectToDevice as jest.Mock).mockResolvedValue(undefined);
+
     mockUseBluetoothAudioStore.mockReturnValue({
       availableDevices: [
         {
@@ -310,7 +335,7 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
       jest.clearAllMocks();
     });
 
-    it('clears preferred device and disconnects before connecting to new device', async () => {
+    it('connects to new device successfully', async () => {
       const mockConnectedDevice = {
         id: 'current-device',
         name: 'Current Device',
@@ -346,13 +371,8 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
       fireEvent.press(deviceItem);
 
       await waitFor(() => {
-        // Should first clear the preferred device
-        expect(mockSetPreferredDevice).toHaveBeenCalledWith(null);
-      });
-
-      await waitFor(() => {
-        // Should disconnect from current device
-        expect(bluetoothAudioService.disconnectDevice).toHaveBeenCalled();
+        // Should connect to the new device
+        expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
       });
 
       await waitFor(() => {
@@ -363,71 +383,11 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
         });
       });
 
-      await waitFor(() => {
-        // Should connect to the new device
-        expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
-      });
-
       // Should close the modal
       expect(mockProps.onClose).toHaveBeenCalled();
     });
 
-    it('handles disconnect failure gracefully and continues with new connection', async () => {
-      const mockConnectedDevice = {
-        id: 'current-device',
-        name: 'Current Device',
-        rssi: -40,
-        isConnected: true,
-        hasAudioCapability: true,
-        supportsMicrophoneControl: true,
-        device: {} as any,
-      };
 
-      // Make disconnect fail
-      (bluetoothAudioService.disconnectDevice as jest.Mock).mockRejectedValue(new Error('Disconnect failed'));
-
-      mockUseBluetoothAudioStore.mockReturnValue({
-        availableDevices: [
-          {
-            id: 'test-device-1',
-            name: 'Test Headset',
-            rssi: -50,
-            isConnected: false,
-            hasAudioCapability: true,
-            supportsMicrophoneControl: true,
-            device: {} as any,
-          },
-        ],
-        isScanning: false,
-        bluetoothState: State.PoweredOn,
-        connectedDevice: mockConnectedDevice,
-        connectionError: null,
-      } as any);
-
-      render(<BluetoothDeviceSelectionBottomSheet {...mockProps} />);
-
-      // Find and tap on the test device
-      const deviceItem = screen.getByText('Test Headset');
-      fireEvent.press(deviceItem);
-
-      await waitFor(() => {
-        // Should still attempt disconnect
-        expect(bluetoothAudioService.disconnectDevice).toHaveBeenCalled();
-      });
-
-      await waitFor(() => {
-        // Should still continue with setting preferred device
-        expect(mockSetPreferredDevice).toHaveBeenCalledWith({
-          id: 'test-device-1',
-          name: 'Test Headset',
-        });
-      });
-
-      await waitFor(() => {
-        // Should still attempt to connect to new device
-        expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
-      });
-    });
 
     it('handles connection failure gracefully', async () => {
       // Make connect fail
@@ -458,11 +418,8 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
       fireEvent.press(deviceItem);
 
       await waitFor(() => {
-        // Should still set preferred device
-        expect(mockSetPreferredDevice).toHaveBeenCalledWith({
-          id: 'test-device-1',
-          name: 'Test Headset',
-        });
+        // Should NOT set preferred device if connection fails
+        expect(mockSetPreferredDevice).not.toHaveBeenCalled();
       });
 
       await waitFor(() => {
@@ -470,8 +427,8 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
         expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
       });
 
-      // Should still close the modal even if connection fails
-      expect(mockProps.onClose).toHaveBeenCalled();
+      // Should keep the modal open
+      expect(mockProps.onClose).not.toHaveBeenCalled();
     });
 
     it('processes device selection when no device is currently connected', async () => {
@@ -500,12 +457,9 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
       fireEvent.press(deviceItem);
 
       await waitFor(() => {
-        // Should clear preferred device first
-        expect(mockSetPreferredDevice).toHaveBeenCalledWith(null);
+        // Should connect to new device
+        expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
       });
-
-      // Should not call disconnect since no device is connected
-      expect(bluetoothAudioService.disconnectDevice).not.toHaveBeenCalled();
 
       await waitFor(() => {
         // Should set new preferred device
@@ -513,11 +467,6 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
           id: 'test-device-1',
           name: 'Test Headset',
         });
-      });
-
-      await waitFor(() => {
-        // Should connect to new device
-        expect(bluetoothAudioService.connectToDevice).toHaveBeenCalledWith('test-device-1');
       });
     });
   });

@@ -47,6 +47,7 @@
     "connected": "متصل",
     "connectionError": "خطأ في الاتصال",
     "current_selection": "الاختيار الحالي",
+    "device_disconnected": "Device disconnected",
     "disconnect": "قطع الاتصال",
     "doublePress": "ضغط مزدوج ",
     "liveKitActive": "LiveKit نشط",

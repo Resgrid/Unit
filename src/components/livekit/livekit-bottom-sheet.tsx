@@ -11,7 +11,7 @@ import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 import { Card } from '../../components/ui/card';
 import { Text } from '../../components/ui/text';
-import { useLiveKitStore } from '../../stores/app/livekit-store';
+import { applyAudioRouting, useLiveKitStore } from '../../stores/app/livekit-store';
 import { AudioDeviceSelection } from '../settings/audio-device-selection';
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
 import { HStack } from '../ui/hstack';
@@ -32,6 +32,7 @@ export const LiveKitBottomSheet = () => {
   const { trackEvent } = useAnalytics();
 
   const [currentView, setCurrentView] = useState<BottomSheetView>(BottomSheetView.ROOM_SELECT);
+  const [previousView, setPreviousView] = useState<BottomSheetView | null>(null);
   const [isMuted, setIsMuted] = useState(true); // Default to muted
   const [permissionsRequested, setPermissionsRequested] = useState(false);
 
@@ -146,6 +147,34 @@ export const LiveKitBottomSheet = () => {
     }
   }, [isConnected, currentRoomInfo]);
 
+  // Audio Routing Logic
+  useEffect(() => {
+    const updateAudioRouting = async () => {
+      if (!selectedAudioDevices.speaker) return;
+
+      try {
+        const speaker = selectedAudioDevices.speaker;
+        console.log('Updating audio routing for:', speaker.type);
+
+        let targetType: 'bluetooth' | 'speaker' | 'earpiece' | 'default' = 'default';
+
+        if (speaker.type === 'speaker') {
+          targetType = 'speaker';
+        } else if (speaker.type === 'bluetooth') {
+          targetType = 'bluetooth';
+        } else {
+          targetType = 'earpiece';
+        }
+
+        await applyAudioRouting(targetType);
+      } catch (error) {
+        console.error('Failed to update audio routing:', error);
+      }
+    };
+
+    updateAudioRouting();
+  }, [selectedAudioDevices.speaker]);
+
   const handleRoomSelect = useCallback(
     (room: DepartmentVoiceChannelResultData) => {
       connectToRoom(room, room.Token);
@@ -181,12 +210,18 @@ export const LiveKitBottomSheet = () => {
   }, [disconnectFromRoom]);
 
   const handleShowAudioSettings = useCallback(() => {
+    setPreviousView(currentView);
     setCurrentView(BottomSheetView.AUDIO_SETTINGS);
-  }, []);
+  }, [currentView]);
 
   const handleBackFromAudioSettings = useCallback(() => {
-    setCurrentView(BottomSheetView.CONNECTED);
-  }, []);
+    if (previousView) {
+      setCurrentView(previousView);
+      setPreviousView(null);
+    } else {
+      setCurrentView(isConnected && currentRoomInfo ? BottomSheetView.CONNECTED : BottomSheetView.ROOM_SELECT);
+    }
+  }, [previousView, isConnected, currentRoomInfo]);
 
   const renderRoomSelect = () => (
     <View style={styles.content}>
@@ -303,7 +338,7 @@ export const LiveKitBottomSheet = () => {
         <View className="w-full p-4">
           <HStack className="mb-4 items-center justify-between">
             <Text className="text-xl font-bold">{t('livekit.title')}</Text>
-            {currentView === BottomSheetView.CONNECTED && (
+            {currentView !== BottomSheetView.AUDIO_SETTINGS && (
               <TouchableOpacity onPress={handleShowAudioSettings} testID="header-audio-settings-button">
                 <Headphones size={20} color="#6B7280" />
               </TouchableOpacity>
@@ -323,7 +358,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     width: '100%',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   roomList: {
     flex: 1,
@@ -334,6 +369,7 @@ const styles = StyleSheet.create({
   controls: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    width: '100%',
     marginTop: 16,
   },
   controlButton: {

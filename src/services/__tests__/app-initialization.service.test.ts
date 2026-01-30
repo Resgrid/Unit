@@ -82,16 +82,22 @@ describe('AppInitializationService', () => {
       expect(appInitializationService.isAppInitialized()).toBe(true);
     });
 
-    it('should skip CallKeep initialization on Android', async () => {
+    it('should initialize CallKeep on Android', async () => {
       (Platform as any).OS = 'android';
 
       await appInitializationService.initialize();
 
-      expect(mockCallKeepService.setup).not.toHaveBeenCalled();
+      expect(mockCallKeepService.setup).toHaveBeenCalledWith({
+        appName: 'Resgrid Unit',
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        includesCallsInRecents: false,
+        supportsVideo: false,
+      });
       expect(mockPushNotificationService.initialize).toHaveBeenCalled();
-      expect(mockLogger.debug).toHaveBeenCalledWith({
-        message: 'CallKeep initialization skipped - not iOS platform',
-        context: { platform: 'android' },
+      
+      expect(mockLogger.info).toHaveBeenCalledWith({
+        message: 'CallKeep initialized successfully',
       });
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'App initialization completed successfully',
