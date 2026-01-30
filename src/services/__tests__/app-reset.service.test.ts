@@ -46,6 +46,14 @@ jest.mock('@/stores/app/audio-stream-store', () => ({
 }));
 
 jest.mock('@/stores/app/bluetooth-audio-store', () => ({
+  INITIAL_STATE: {
+    connectedDevice: null,
+    isScanning: false,
+    isConnecting: false,
+    availableDevices: [],
+    connectionError: null,
+    isAudioRoutingActive: false,
+  },
   useBluetoothAudioStore: {
     setState: jest.fn(),
     getState: jest.fn(() => ({})),
@@ -422,7 +430,7 @@ describe('app-reset.service', () => {
       await resetAllStores();
 
       expect(mockLiveKitDisconnect).toHaveBeenCalled();
-      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE, true);
+      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE);
     });
 
     it('should not disconnect from LiveKit room if not connected', async () => {
@@ -437,7 +445,7 @@ describe('app-reset.service', () => {
       await resetAllStores();
 
       expect(localMockDisconnect).not.toHaveBeenCalled();
-      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE, true);
+      expect(useLiveKitStore.setState).toHaveBeenCalledWith(INITIAL_LIVEKIT_STATE);
     });
   });
 

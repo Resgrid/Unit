@@ -997,9 +997,7 @@ class BluetoothAudioService {
       return false;
     }
 
-    const characteristicFound = peripheralInfo.characteristics.some(
-      (c: any) => this.areUuidsEqual(c.service, serviceUuid) && this.areUuidsEqual(c.characteristic, characteristicUuid)
-    );
+    const characteristicFound = peripheralInfo.characteristics.some((c: any) => this.areUuidsEqual(c.service, serviceUuid) && this.areUuidsEqual(c.characteristic, characteristicUuid));
 
     logger.debug({
       message: '[DEBUG_MATCH] Checking characteristic',
@@ -1084,7 +1082,8 @@ class BluetoothAudioService {
           },
         });
       } catch (error) {
-        logger.warn({ // Changed to warn to make it more visible
+        logger.warn({
+          // Changed to warn to make it more visible
           message: 'Failed to start notifications for characteristic',
           context: {
             deviceId,
@@ -1508,7 +1507,7 @@ class BluetoothAudioService {
     if (buttonEvent.button === 'ptt_start') {
       // Proactively lock CallKeep events to prevent HFP interactions/spam
       // when we are explicitly handling PTT via SPP/GATT
-      callKeepService.ignoreMuteEvents(1000); 
+      callKeepService.ignoreMuteEvents(1000);
       this.setMicrophoneEnabled(true);
       return;
     }
@@ -1808,13 +1807,13 @@ class BluetoothAudioService {
     try {
       await this.stopScanning();
       await this.disconnectDevice();
-      
+
       this.connectedDevice = null;
       this.hasAttemptedPreferredDeviceConnection = false;
-      
+
       // Revert LiveKit audio routing
       this.revertLiveKitAudioRouting();
-      
+
       const store = useBluetoothAudioStore.getState();
       store.clearDevices();
       store.setConnectedDevice(null);
@@ -1822,7 +1821,6 @@ class BluetoothAudioService {
       store.clearConnectionError();
       store.setIsConnecting(false);
       store.setIsScanning(false);
-      
     } catch (error) {
       logger.error({
         message: 'Error resetting Bluetooth Audio Service',

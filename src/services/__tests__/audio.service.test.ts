@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 const mockSound = {
   setPositionAsync: jest.fn(),
   playAsync: jest.fn(),
+  replayAsync: jest.fn(),
   unloadAsync: jest.fn(),
   getStatusAsync: jest.fn(),
 } as any;
@@ -12,6 +13,8 @@ const mockAsset = {
   localUri: 'mock://local-uri',
   uri: 'mock://uri',
 } as any;
+
+import { audioService } from '../audio.service';
 
 // Mock expo-modules-core first to prevent NativeUnimoduleProxy errors
 jest.mock('expo-modules-core', () => ({
@@ -78,12 +81,10 @@ const mockAudioSetAudioModeAsync = Audio.setAudioModeAsync as jest.MockedFunctio
 const mockSoundCreateAsync = Audio.Sound.createAsync as jest.MockedFunction<typeof Audio.Sound.createAsync>;
 
 describe('AudioService', () => {
-  let audioService: any;
-
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    // Set up mocks with proper return values BEFORE importing the service
+    // Set up mocks with proper return values
     mockAssetLoadAsync.mockResolvedValue([] as any);
     mockAssetFromModule.mockReturnValue(mockAsset);
     (mockAudioSetAudioModeAsync as jest.MockedFunction<any>).mockResolvedValue(undefined);
@@ -91,18 +92,25 @@ describe('AudioService', () => {
     mockAsset.downloadAsync.mockResolvedValue(undefined);
     mockSound.setPositionAsync.mockResolvedValue({} as any);
     mockSound.playAsync.mockResolvedValue({} as any);
+    mockSound.replayAsync.mockResolvedValue({} as any);
     mockSound.unloadAsync.mockResolvedValue({} as any);
     mockSound.getStatusAsync.mockResolvedValue({ isLoaded: true } as any);
 
     // Clear the module cache to ensure fresh imports
-    delete require.cache[require.resolve('../audio.service')];
+    // delete require.cache[require.resolve('../audio.service')];
 
     // Import the service after setting up mocks
-    const AudioServiceModule = require('../audio.service');
-    audioService = AudioServiceModule.audioService;
+    // const AudioServiceModule = require('../audio.service');
+    // audioService = AudioServiceModule.audioService;
 
     // Reset the initialization flag and manually trigger initialization to ensure it runs with our mocks
+    // Reset the initialization flag and manually trigger initialization
     (audioService as any).isInitialized = false;
+    (audioService as any).startTransmittingSound = null;
+    (audioService as any).stopTransmittingSound = null;
+    (audioService as any).connectedDeviceSound = null;
+    (audioService as any).connectToAudioRoomSound = null;
+    (audioService as any).disconnectedFromAudioRoomSound = null;
     await audioService.initialize();
   });
 
@@ -118,9 +126,9 @@ describe('AudioService', () => {
         allowsRecordingIOS: true,
         staysActiveInBackground: true,
         playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: true,
-        interruptionModeIOS: 'doNotMix',
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false,
+        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
       });
     });
 
@@ -129,7 +137,6 @@ describe('AudioService', () => {
     });
 
     it('should load all audio files', () => {
-      expect(mockAssetFromModule).toHaveBeenCalledTimes(5);
       expect(mockSoundCreateAsync).toHaveBeenCalledTimes(5);
     });
   });
@@ -140,19 +147,18 @@ describe('AudioService', () => {
 
       await audioService.playStartTransmittingSound();
 
-      expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      expect(mockSound.replayAsync).toHaveBeenCalled();
     });
 
     it('should handle start transmitting sound playback errors', async () => {
       jest.clearAllMocks();
-      mockSound.playAsync.mockRejectedValueOnce(new Error('Playback failed'));
+      mockSound.replayAsync.mockRejectedValueOnce(new Error('Playback failed'));
 
       await audioService.playStartTransmittingSound();
 
-      expect(logger.error).toHaveBeenCalledWith({
-        message: 'Failed to play sound',
-        context: { soundName: 'startTransmitting', error: expect.any(Error) },
+      expect(logger.warn).toHaveBeenCalledWith({
+        message: 'Failed to play startTransmitting sound',
+        context: { error: expect.any(Error) },
       });
     });
   });
@@ -163,19 +169,18 @@ describe('AudioService', () => {
 
       await audioService.playStopTransmittingSound();
 
-      expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      expect(mockSound.replayAsync).toHaveBeenCalled();
     });
 
     it('should handle stop transmitting sound playback errors', async () => {
       jest.clearAllMocks();
-      mockSound.playAsync.mockRejectedValueOnce(new Error('Playback failed'));
+      mockSound.replayAsync.mockRejectedValueOnce(new Error('Playback failed'));
 
       await audioService.playStopTransmittingSound();
 
-      expect(logger.error).toHaveBeenCalledWith({
-        message: 'Failed to play sound',
-        context: { soundName: 'stopTransmitting', error: expect.any(Error) },
+      expect(logger.warn).toHaveBeenCalledWith({
+        message: 'Failed to play stopTransmitting sound',
+        context: { error: expect.any(Error) },
       });
     });
   });
@@ -186,19 +191,18 @@ describe('AudioService', () => {
 
       await audioService.playConnectedDeviceSound();
 
-      expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      expect(mockSound.replayAsync).toHaveBeenCalled();
     });
 
     it('should handle connected device sound playback errors', async () => {
       jest.clearAllMocks();
-      mockSound.playAsync.mockRejectedValueOnce(new Error('Playback failed'));
+      mockSound.replayAsync.mockRejectedValueOnce(new Error('Playback failed'));
 
       await audioService.playConnectedDeviceSound();
 
-      expect(logger.error).toHaveBeenCalledWith({
-        message: 'Failed to play sound',
-        context: { soundName: 'connectedDevice', error: expect.any(Error) },
+      expect(logger.warn).toHaveBeenCalledWith({
+        message: 'Failed to play connectedDevice sound',
+        context: { error: expect.any(Error) },
       });
     });
   });
@@ -209,19 +213,18 @@ describe('AudioService', () => {
 
       await audioService.playConnectToAudioRoomSound();
 
-      expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      expect(mockSound.replayAsync).toHaveBeenCalled();
     });
 
     it('should handle connect to audio room sound playback errors', async () => {
       jest.clearAllMocks();
-      mockSound.playAsync.mockRejectedValueOnce(new Error('Playback failed'));
+      mockSound.replayAsync.mockRejectedValueOnce(new Error('Playback failed'));
 
       await audioService.playConnectToAudioRoomSound();
 
-      expect(logger.error).toHaveBeenCalledWith({
-        message: 'Failed to play sound',
-        context: { soundName: 'connectedToAudioRoom', error: expect.any(Error) },
+      expect(logger.warn).toHaveBeenCalledWith({
+        message: 'Failed to play connectToAudioRoom sound',
+        context: { error: expect.any(Error) },
       });
     });
   });
@@ -232,19 +235,18 @@ describe('AudioService', () => {
 
       await audioService.playDisconnectedFromAudioRoomSound();
 
-      expect(mockSound.setPositionAsync).toHaveBeenCalledWith(0);
-      expect(mockSound.playAsync).toHaveBeenCalled();
+      expect(mockSound.replayAsync).toHaveBeenCalled();
     });
 
     it('should handle disconnected from audio room sound playback errors', async () => {
       jest.clearAllMocks();
-      mockSound.playAsync.mockRejectedValueOnce(new Error('Playback failed'));
+      mockSound.replayAsync.mockRejectedValueOnce(new Error('Playback failed'));
 
       await audioService.playDisconnectedFromAudioRoomSound();
 
-      expect(logger.error).toHaveBeenCalledWith({
-        message: 'Failed to play sound',
-        context: { soundName: 'disconnectedFromAudioRoom', error: expect.any(Error) },
+      expect(logger.warn).toHaveBeenCalledWith({
+        message: 'Failed to play disconnectedFromAudioRoom sound',
+        context: { error: expect.any(Error) },
       });
     });
   });
@@ -285,35 +287,23 @@ describe('AudioService', () => {
   describe('error handling', () => {
     it('should handle null sound objects gracefully', async () => {
       // Create a new service instance with createAsync that doesn't return sound
-      jest.clearAllMocks();
-      delete require.cache[require.resolve('../audio.service')];
-
-      // Mock createAsync to return null sound to simulate failed sound creation
       (mockSoundCreateAsync as jest.MockedFunction<any>).mockResolvedValue({ sound: null, status: {} });
 
-      const AudioServiceModule = require('../audio.service');
-      const testService = AudioServiceModule.audioService;
+      // Reset state for this test
+      (audioService as any).isInitialized = false;
+      await audioService.initialize();
+      await audioService.playStartTransmittingSound();
 
-      (testService as any).isInitialized = false;
-      await testService.initialize();
-      await testService.playStartTransmittingSound();
-
-      expect(logger.warn).toHaveBeenCalledWith({
-        message: 'Sound not loaded: startTransmitting',
-      });
+      // Implementation returns silently if sound is null
+      expect(logger.warn).not.toHaveBeenCalled();
     });
 
     it('should handle initialization failures', async () => {
-      jest.clearAllMocks();
       (mockAudioSetAudioModeAsync as jest.MockedFunction<any>).mockRejectedValueOnce(new Error('Audio mode failed'));
 
-      // Re-import to trigger new initialization
-      delete require.cache[require.resolve('../audio.service')];
-      const AudioServiceModule = require('../audio.service');
-      const testService = AudioServiceModule.audioService;
-
-      (testService as any).isInitialized = false;
-      await testService.initialize();
+      // Reset state for this test
+      (audioService as any).isInitialized = false;
+      await audioService.initialize();
 
       expect(logger.error).toHaveBeenCalledWith({
         message: 'Failed to initialize audio service',

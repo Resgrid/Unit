@@ -167,9 +167,14 @@ describe('CallKeepService', () => {
 
       // Trigger mute event
       if (muteEventHandler) {
+        // First mute event
+        const now = 10000;
+        jest.spyOn(Date, 'now').mockReturnValue(now);
         muteEventHandler({ muted: true, callUUID: 'test-uuid' });
         expect(mockMuteCallback).toHaveBeenCalledWith(true);
 
+        // Second mute event - advance time > 500ms to bypass storm protection
+        jest.spyOn(Date, 'now').mockReturnValue(now + 600);
         muteEventHandler({ muted: false, callUUID: 'test-uuid' });
         expect(mockMuteCallback).toHaveBeenCalledWith(false);
       }
