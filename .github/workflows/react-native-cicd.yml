@@ -506,7 +506,7 @@ jobs:
         shell: bash
         run: |
           # Ensure jq exists on all platforms
-          if ! command -v jq >/dev/null 2>&1; then
+          if ! command -v jq > /dev/null 2>&1; then
             echo "Installing jq..."
             if [[ "$RUNNER_OS" == "Linux" ]]; then
               sudo apt-get update && sudo apt-get install -y jq
@@ -519,11 +519,11 @@ jobs:
             fi
           fi
 
-          # Update the package.json
+          # Update the package.json with 3-octet version for Electron (electron-builder requires semantic versioning)
           if [ -f ./package.json ]; then
             cp package.json package.json.bak
-            jq '.version = "7.${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
-            echo "Updated package.json version"
+            jq '.version = "7.${{ github.run_number }}.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+            echo "Updated package.json version for Electron build"
             cat package.json | grep "version"
           else
             echo "package.json not found"
