@@ -20,6 +20,7 @@ export class CallKeepService {
   private isSetup = false;
   private isCallActive = false;
   private muteStateCallback: ((muted: boolean) => void) | null = null;
+  private endCallCallback: (() => void) | null = null;
 
   private constructor() {}
 
@@ -207,10 +208,31 @@ export class CallKeepService {
   }
 
   /**
+   * Set a callback to handle end call events from CallKit
+   */
+  setEndCallCallback(callback: (() => void) | null): void {
+    this.endCallCallback = callback;
+  }
+
+  /**
    * Externally lock/ignore mute events (No-op on Android for now)
    */
   ignoreMuteEvents(durationMs: number): void {
     // No-op on Android
+  }
+
+  /**
+   * Remove the mute listener (interface compatibility)
+   */
+  removeMuteListener(): void {
+    // No-op on Android for now
+  }
+
+  /**
+   * Restore the mute listener (interface compatibility)
+   */
+  restoreMuteListener(): void {
+    // No-op on Android for now
   }
 
   /**
@@ -241,6 +263,10 @@ export class CallKeepService {
       if (callUUID === currentCallUUID) {
         currentCallUUID = null;
         this.isCallActive = false;
+      }
+
+      if (this.endCallCallback) {
+        this.endCallCallback();
       }
     });
 

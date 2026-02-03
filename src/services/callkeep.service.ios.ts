@@ -21,6 +21,7 @@ export class CallKeepService {
   private isSetup = false;
   private isCallActive = false;
   private muteStateCallback: ((muted: boolean) => void) | null = null;
+  private endCallCallback: (() => void) | null = null;
   private lastMuteEventTime: number = 0;
   private muteEventStormEndTime: number = 0;
   private ignoreEventsUntil: number = 0;
@@ -216,6 +217,13 @@ export class CallKeepService {
   }
 
   /**
+   * Set a callback to handle end call events from CallKit
+   */
+  setEndCallCallback(callback: (() => void) | null): void {
+    this.endCallCallback = callback;
+  }
+
+  /**
    * Externally lock/ignore mute events for a duration.
    * Useful when we know a PTT button is being pressed and want to ignore system side-effects.
    */
@@ -273,6 +281,10 @@ export class CallKeepService {
         currentCallUUID = null;
         this.isCallActive = false;
       }
+
+      if (this.endCallCallback) {
+        this.endCallCallback();
+      }
     });
 
     // Call answered (not typically used for outgoing calls, but good to handle)
@@ -283,65 +295,89 @@ export class CallKeepService {
       });
     });
 
-    // Mute/unmute events
-    RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
-      const now = Date.now();
+  // Mute/unmute events
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', this.handleMutedCallAction);
+  }
 
-      // Check for external lock (e.g. set by PTT button logic)
-      if (now < this.ignoreEventsUntil) {
-        logger.debug({
-          message: 'Ignored CallKeep mute state change (external lock)',
-          context: { muted, callUUID, lockedUntil: this.ignoreEventsUntil },
-        });
-        return;
-      }
-
-      const timeSinceLastEvent = now - this.lastMuteEventTime;
-      this.lastMuteEventTime = now;
-
-      // Storm Detection / Spam Protection
-      // If events are coming in rapidly (< 500ms), we consider it a "storm" (e.g. faulty headset or HFP conflict)
-      // We block ALL events during a storm and extend the block window as long as the storm continues.
-
-      // If the delta is small, it's definitely spam/storm part
-      if (timeSinceLastEvent < 500) {
-        this.muteEventStormEndTime = now + 800; // Block for 800ms from this event
-
-        logger.debug({
-          message: 'Ignored CallKeep mute state change (storm detected)',
-          context: { muted, callUUID, timeSinceLastEvent },
-        });
-        return;
-      }
-
-      // If we are still within the storm cooldown window (even if this specific delta was > 500, though unlikely given logic above)
-      if (now < this.muteEventStormEndTime) {
-        this.muteEventStormEndTime = now + 800; // Extend block
-        logger.debug({
-          message: 'Ignored CallKeep mute state change (storm cooldown)',
-          context: { muted, callUUID, stormEndsAt: this.muteEventStormEndTime },
-        });
-        return;
-      }
-
-      logger.debug({
-        message: 'CallKeep mute state changed',
-        context: { muted, callUUID },
-      });
-
-      // Call the registered callback if available
-      if (this.muteStateCallback) {
-        try {
-          this.muteStateCallback(muted);
-        } catch (error) {
-          logger.warn({
-            message: 'Failed to execute mute state callback',
-            context: { error, muted, callUUID },
-          });
-        }
-      }
+  /**
+   * Remove the mute listener to prevent conflicts with specialized PTT devices
+   */
+  removeMuteListener(): void {
+    RNCallKeep.removeEventListener('didPerformSetMutedCallAction');
+    logger.debug({
+      message: 'CallKeep mute listener removed',
     });
   }
+
+  /**
+   * Restore the mute listener
+   */
+  restoreMuteListener(): void {
+    // Remove first to ensure no duplicates
+    RNCallKeep.removeEventListener('didPerformSetMutedCallAction');
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', this.handleMutedCallAction);
+    logger.debug({
+      message: 'CallKeep mute listener restored',
+    });
+  }
+
+  private handleMutedCallAction = ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
+    const now = Date.now();
+
+    // Check for external lock (e.g. set by PTT button logic)
+    if (now < this.ignoreEventsUntil) {
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (external lock)',
+        context: { muted, callUUID, lockedUntil: this.ignoreEventsUntil },
+      });
+      return;
+    }
+
+    const timeSinceLastEvent = now - this.lastMuteEventTime;
+    this.lastMuteEventTime = now;
+
+    // Storm Detection / Spam Protection
+    // If events are coming in rapidly (< 500ms), we consider it a "storm" (e.g. faulty headset or HFP conflict)
+    // We block ALL events during a storm and extend the block window as long as the storm continues.
+
+    // If the delta is small, it's definitely spam/storm part
+    if (timeSinceLastEvent < 500) {
+      this.muteEventStormEndTime = now + 800; // Block for 800ms from this event
+
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (storm detected)',
+        context: { muted, callUUID, timeSinceLastEvent },
+      });
+      return;
+    }
+
+    // If we are still within the storm cooldown window (even if this specific delta was > 500, though unlikely given logic above)
+    if (now < this.muteEventStormEndTime) {
+      this.muteEventStormEndTime = now + 800; // Extend block
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (storm cooldown)',
+        context: { muted, callUUID, stormEndsAt: this.muteEventStormEndTime },
+      });
+      return;
+    }
+
+    logger.debug({
+      message: 'CallKeep mute state changed',
+      context: { muted, callUUID },
+    });
+
+    // Call the registered callback if available
+    if (this.muteStateCallback) {
+      try {
+        this.muteStateCallback(muted);
+      } catch (error) {
+        logger.warn({
+          message: 'Failed to execute mute state callback',
+          context: { error, muted, callUUID },
+        });
+      }
+    }
+  };
 
   /**
    * Generate a UUID for CallKeep calls

@@ -27,6 +27,13 @@ export interface BluetoothAudioDevice {
   hasAudioCapability: boolean;
   supportsMicrophoneControl: boolean;
   device: Device;
+  type: 'specialized' | 'system';
+}
+
+export interface BluetoothSystemAudioDevice {
+     id: string;
+     name: string;
+     type: 'system';
 }
 
 export interface AudioButtonEvent {
@@ -57,6 +64,7 @@ interface BluetoothAudioState {
   bluetoothState: State;
   isScanning: boolean;
   isConnecting: boolean;
+  isHeadsetButtonMonitoring: boolean;
 
   // Devices
   availableDevices: BluetoothAudioDevice[];
@@ -82,6 +90,7 @@ interface BluetoothAudioState {
   setBluetoothState: (state: State) => void;
   setIsScanning: (isScanning: boolean) => void;
   setIsConnecting: (isConnecting: boolean) => void;
+  setIsHeadsetButtonMonitoring: (isMonitoring: boolean) => void;
 
   // Device management
   addDevice: (device: BluetoothAudioDevice) => void;
@@ -138,10 +147,12 @@ export const INITIAL_STATE: Omit<
   | 'setLastButtonAction'
   | 'setMediaButtonPTTSettings'
   | 'setMediaButtonPTTEnabled'
+  | 'setIsHeadsetButtonMonitoring'
 > = {
   bluetoothState: State.Unknown,
   isScanning: false,
   isConnecting: false,
+  isHeadsetButtonMonitoring: false,
   availableDevices: [],
   connectedDevice: null,
   preferredDevice: null,
@@ -167,6 +178,7 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   setBluetoothState: (state) => set({ bluetoothState: state }),
   setIsScanning: (isScanning) => set({ isScanning }),
   setIsConnecting: (isConnecting) => set({ isConnecting }),
+  setIsHeadsetButtonMonitoring: (isHeadsetButtonMonitoring) => set({ isHeadsetButtonMonitoring }),
 
   // Device management actions
   addDevice: (device) => {

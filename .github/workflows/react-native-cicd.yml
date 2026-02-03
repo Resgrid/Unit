@@ -186,7 +186,7 @@ jobs:
             # Create a backup
             cp package.json package.json.bak
             # Update the package.json
-            jq '.version = "7.${{ github.run_number }}.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+            jq '.version = "7.${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
             jq '.versionCode = "7${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
             echo "Updated package.json versions"
             cat package.json | grep "version"
@@ -522,7 +522,7 @@ jobs:
           # Update the package.json
           if [ -f ./package.json ]; then
             cp package.json package.json.bak
-            jq '.version = "7.${{ github.run_number }}.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+            jq '.version = "7.${{ github.run_number }}"' package.json > package.json.tmp && mv package.json.tmp package.json
             echo "Updated package.json version"
             cat package.json | grep "version"
           else
