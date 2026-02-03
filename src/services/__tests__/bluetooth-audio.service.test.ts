@@ -51,6 +51,18 @@ jest.mock('@/services/audio.service', () => ({
   },
 }));
 
+jest.mock('@/stores/app/livekit-store', () => {
+  const actions = {
+    toggleMicrophone: jest.fn(),
+    setMicrophoneEnabled: jest.fn(),
+  };
+  return {
+    useLiveKitStore: {
+      getState: jest.fn(() => actions),
+    },
+  };
+});
+
 import { bluetoothAudioService } from '../bluetooth-audio.service';
 
 describe('BluetoothAudioService Refactoring', () => {
@@ -157,6 +169,30 @@ describe('BluetoothAudioService Refactoring', () => {
       
       // Flag should be reset, allowing new attempts
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(false);
+    });
+  });
+  describe('Microphone Control Delegation', () => {
+    it('should delegate mute toggle to livekitStore', async () => {
+      const service = bluetoothAudioService as any;
+
+      // Call private method via casting to any
+      await service.handleMuteToggle();
+
+      const storeMock = require('@/stores/app/livekit-store').useLiveKitStore.getState();
+      expect(storeMock.toggleMicrophone).toHaveBeenCalled();
+    });
+
+    it('should delegate setMicrophoneEnabled to livekitStore', async () => {
+      const service = bluetoothAudioService as any;
+
+      // Call private method via casting to any
+      await service.setMicrophoneEnabled(true);
+
+      const storeMock = require('@/stores/app/livekit-store').useLiveKitStore.getState();
+      expect(storeMock.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+
+      await service.setMicrophoneEnabled(false);
+      expect(storeMock.setMicrophoneEnabled).toHaveBeenCalledWith(false);
     });
   });
 });

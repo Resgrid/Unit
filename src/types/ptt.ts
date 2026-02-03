@@ -1,6 +1,6 @@
 /**
  * PTT (Push-to-Talk) types and settings for media button functionality.
- * Used by bluetooth-audio-store and media-button.service.
+ * Used by bluetooth-audio-store and headset-button.service.
  */
 
 /**

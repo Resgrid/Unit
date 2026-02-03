@@ -39,29 +39,11 @@ jest.mock('../../../services/callkeep.service.ios', () => ({
     getCurrentCallUUID: jest.fn(),
     cleanup: jest.fn(),
     setMuteStateCallback: jest.fn(),
+    setEndCallCallback: jest.fn(),
   },
 }));
 
-// Mock media button service
-jest.mock('../../../services/media-button.service', () => ({
-  mediaButtonService: {
-    initialize: jest.fn().mockResolvedValue(undefined),
-    destroy: jest.fn(),
-    updateSettings: jest.fn(),
-    getSettings: jest.fn().mockReturnValue({
-      enabled: true,
-      pttMode: 'toggle',
-      usePlayPauseForPTT: true,
-      doubleTapAction: 'toggle_mute',
-      doubleTapTimeoutMs: 400,
-    }),
-    setEnabled: jest.fn(),
-    isServiceInitialized: jest.fn().mockReturnValue(true),
-    isNativeModuleAvailable: jest.fn().mockReturnValue(true),
-    enableMicrophone: jest.fn().mockResolvedValue(undefined),
-    disableMicrophone: jest.fn().mockResolvedValue(undefined),
-  },
-}));
+
 
 import { Platform } from 'react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';

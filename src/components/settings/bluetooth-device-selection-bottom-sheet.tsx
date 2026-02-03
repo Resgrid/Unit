@@ -237,6 +237,57 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
           </Box>
         )}
 
+        {/* System Audio Option */}
+        <Box className="mb-4">
+          <Text className="mb-2 text-sm text-neutral-600 dark:text-neutral-400">{t('bluetooth.audio_output')}</Text>
+          <Pressable
+            onPress={async () => {
+              try {
+                useBluetoothAudioStore.getState().setIsConnecting(true);
+                // We use a dummy ID for loading state tracking if needed, or just rely on global loading
+                setConnectingDeviceId('system-audio');
+
+                await bluetoothAudioService.connectToSystemAudio();
+
+                // Update preferred device manually here to ensure UI reflects it immediately
+                // preventing race conditions with store updates
+                await setPreferredDevice({ id: 'system-audio', name: 'System Audio' });
+
+                onClose();
+              } catch (error) {
+                logger.error({ message: 'Failed to select System Audio', context: { error } });
+                showMessage({
+                  message: t('bluetooth.connection_error_title') || 'Selection Failed',
+                  description: t('bluetooth.system_audio_error') || 'Could not switch to System Audio',
+                  type: 'danger',
+                });
+              } finally {
+                useBluetoothAudioStore.getState().setIsConnecting(false);
+                setConnectingDeviceId(null);
+              }
+            }}
+            disabled={!!connectingDeviceId}
+            className={`rounded-lg border p-4 ${preferredDevice?.id === 'system-audio' ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
+          >
+            <HStack className="items-center justify-between">
+              <HStack className="items-center">
+                <BluetoothIcon size={16} className="mr-2 text-primary-600" />
+                <VStack>
+                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>
+                    System Audio
+                  </Text>
+                  <Text className="text-xs text-neutral-500">AirPods, Car, Wired Headset</Text>
+                </VStack>
+              </HStack>
+              {preferredDevice?.id === 'system-audio' && (
+                <VStack className="items-end">
+                  <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('bluetooth.selected')}</Text>
+                </VStack>
+              )}
+            </HStack>
+          </Pressable>
+        </Box>
+
         {/* Scan Button */}
         <HStack className="mb-4 w-full items-center justify-between">
           <Text className="text-sm text-neutral-600 dark:text-neutral-400">{t('bluetooth.available_devices')}</Text>

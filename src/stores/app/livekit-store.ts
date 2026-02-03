@@ -11,7 +11,6 @@ import { logger } from '../../lib/logging';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
 import { audioService } from '../../services/audio.service';
 import { callKeepService } from '../../services/callkeep.service';
-import { mediaButtonService } from '../../services/media-button.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to apply audio routing
@@ -136,9 +135,8 @@ interface LiveKitState {
   canConnectApiToken: string;
   canConnectToVoiceSession: boolean;
   // Available rooms
+  lastLocalMuteChangeTimestamp: number;
   availableRooms: DepartmentVoiceChannelResultData[];
-
-  // UI state
   isBottomSheetVisible: boolean;
 
   // Actions
@@ -149,6 +147,10 @@ interface LiveKitState {
   setIsTalking: (isTalking: boolean) => void;
   setAvailableRooms: (rooms: DepartmentVoiceChannelResultData[]) => void;
   setIsBottomSheetVisible: (visible: boolean) => void;
+
+  // Microphone Control
+  setMicrophoneEnabled: (enabled: boolean) => Promise<void>;
+  toggleMicrophone: () => Promise<void>;
 
   // Room operations
   connectToRoom: (roomInfo: DepartmentVoiceChannelResultData, token: string) => Promise<void>;
@@ -171,6 +173,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   callerIdName: '',
   canConnectApiToken: '',
   canConnectToVoiceSession: false,
+  lastLocalMuteChangeTimestamp: 0,
   setIsConnected: (isConnected) => set({ isConnected }),
   setIsConnecting: (isConnecting) => set({ isConnecting }),
   setCurrentRoom: (room) => set({ currentRoom: room }),
@@ -178,6 +181,63 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   setIsTalking: (isTalking) => set({ isTalking }),
   setAvailableRooms: (rooms) => set({ availableRooms: rooms }),
   setIsBottomSheetVisible: (visible) => set({ isBottomSheetVisible: visible }),
+
+  setMicrophoneEnabled: async (enabled: boolean) => {
+    const { currentRoom } = get();
+    if (!currentRoom) {
+      logger.warn({
+        message: 'Cannot set microphone - no active LiveKit room',
+        context: { enabled },
+      });
+      return;
+    }
+
+    try {
+      const currentMicEnabled = currentRoom.localParticipant.isMicrophoneEnabled;
+      // Skip if already in the desired state
+      if (enabled && currentMicEnabled) return;
+      if (!enabled && !currentMicEnabled) return;
+
+      // Update timestamp BEFORE changing state to ensure debounce logic catches it
+      set({ lastLocalMuteChangeTimestamp: Date.now() });
+
+      await currentRoom.localParticipant.setMicrophoneEnabled(enabled);
+
+      logger.info({
+        message: 'Microphone state set via store',
+        context: { enabled },
+      });
+
+      useBluetoothAudioStore.getState().setLastButtonAction({
+        action: enabled ? 'unmute' : 'mute',
+        timestamp: Date.now(),
+      });
+
+      if (enabled) {
+        await audioService.playStartTransmittingSound();
+      } else {
+        await audioService.playStopTransmittingSound();
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to set microphone state',
+        context: { error, enabled },
+      });
+    }
+  },
+
+  toggleMicrophone: async () => {
+    const { currentRoom } = get();
+    if (!currentRoom) {
+      logger.warn({
+         message: 'Cannot toggle microphone - no active LiveKit room'
+      });
+      return;
+    }
+
+    const currentMuteState = !currentRoom.localParticipant.isMicrophoneEnabled;
+    await get().setMicrophoneEnabled(currentMuteState);
+  },
 
   requestPermissions: async () => {
     try {
@@ -279,24 +339,55 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await room.localParticipant.setMicrophoneEnabled(false);
       await room.localParticipant.setCameraEnabled(false);
 
-      // Initialize media button service for AirPods/earbuds PTT support
-      // Initialize this EARLY to ensure listeners are registered before complex audio routing changes
-      try {
-        await mediaButtonService.initialize();
-        // Apply stored settings from the Bluetooth audio store
-        const { mediaButtonPTTSettings } = useBluetoothAudioStore.getState();
-        mediaButtonService.updateSettings(mediaButtonPTTSettings);
+      // Setup CallKeep mute sync
+      callKeepService.setMuteStateCallback(async (muted) => {
         logger.info({
-          message: 'Media button service initialized for PTT support',
-          context: { settings: mediaButtonPTTSettings },
+           message: 'Syncing mute state from CallKeep',
+           context: { muted }
         });
-      } catch (mediaButtonError) {
-        logger.warn({
-          message: 'Failed to initialize media button service - AirPods/earbuds PTT may not work',
-          context: { error: mediaButtonError },
+        
+        if (room.localParticipant.isMicrophoneEnabled === muted) {
+             // If CallKeep says "muted" (true), and Mic is enabled (true), we need to disable mic.
+             // If CallKeep says "unmuted" (false), and Mic is disabled (false), we need to enable mic.
+             // Wait, logic check:
+             // isMicrophoneEnabled = true means NOT MUTED.
+             // muted = true means MUTED.
+             // So if isMicrophoneEnabled (true) and muted (true) -> mismatch, we must mute.
+             // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
+             
+             // Actually effectively: setMicrophoneEnabled(!muted)
+             await room.localParticipant.setMicrophoneEnabled(!muted);
+             
+             // Play sound
+             if (!muted) {
+                 await audioService.playStartTransmittingSound();
+             } else {
+                 await audioService.playStopTransmittingSound();
+             }
+        }
+      });
+      
+      // Setup CallKeep End Call sync
+      callKeepService.setEndCallCallback(() => {
+        logger.info({
+           message: 'CallKeep end call event received, disconnecting room',
         });
-        // Don't fail the connection if media button service fails
-      }
+        get().disconnectFromRoom();
+      });
+
+      // Also ensure reverse sync: When app mutes, tell CallKeep? 
+      // CallKeep tracks its own state, usually triggered by UI or simple interactions.
+      // If we mute from within the app (e.g. on screen button), we might want to tell CallKeep we are muted.
+      // However, react-native-callkeep doesn't easily expose "setMuted" for the system call without ending logic or being complex?
+      // Actually RNCallKeep.setMutedCall(uuid, muted) exists.
+      
+      const onLocalTrackMuted = () => {
+         // Update CallKeep state if needed?
+         // For now, let's just trust CallKeep's own state management or system UI.
+      };
+      
+      // We attach these listeners to the local participant if needed for other UI sync
+
 
       // Setup audio routing based on selected devices
       // This may change audio modes/focus, so it comes after media button init
@@ -400,18 +491,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         });
       }
 
-      // Cleanup media button service
-      try {
-        mediaButtonService.destroy();
-        logger.debug({
-          message: 'Media button service cleaned up',
-        });
-      } catch (mediaButtonError) {
-        logger.warn({
-          message: 'Failed to cleanup media button service',
-          context: { error: mediaButtonError },
-        });
-      }
+      // Cleanup CallKeep Mute Callback
+      callKeepService.setMuteStateCallback(null);
+      callKeepService.setEndCallCallback(null);
+
+
 
       set({
         currentRoom: null,
