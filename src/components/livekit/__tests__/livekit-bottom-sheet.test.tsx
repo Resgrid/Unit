@@ -531,12 +531,10 @@ describe('LiveKitBottomSheet', () => {
     });
 
     it('should track analytics event when bottom sheet is opened', () => {
-      const requestPermissions = jest.fn();
       mockUseLiveKitStore.mockReturnValue({
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
-        requestPermissions,
       });
 
       render(<LiveKitBottomSheet />);
@@ -552,7 +550,6 @@ describe('LiveKitBottomSheet', () => {
         isTalking: false,
         hasBluetoothMicrophone: false,
         hasBluetoothSpeaker: false,
-        permissionsRequested: false,
       });
     });
 
@@ -568,7 +565,6 @@ describe('LiveKitBottomSheet', () => {
     });
 
     it('should track analytics event with connected state', () => {
-      const requestPermissions = jest.fn();
       mockUseLiveKitStore.mockReturnValue({
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
@@ -576,7 +572,6 @@ describe('LiveKitBottomSheet', () => {
         currentRoomInfo: mockCurrentRoomInfo,
         availableRooms: mockAvailableRooms,
         isTalking: true,
-        requestPermissions,
       });
 
       render(<LiveKitBottomSheet />);
@@ -592,12 +587,10 @@ describe('LiveKitBottomSheet', () => {
         isTalking: true,
         hasBluetoothMicrophone: false,
         hasBluetoothSpeaker: false,
-        permissionsRequested: false,
       });
     });
 
     it('should track analytics event with bluetooth devices', () => {
-      const requestPermissions = jest.fn();
       const bluetoothAudioDevices = {
         microphone: { id: 'bt-mic', name: 'Bluetooth Mic', type: 'bluetooth' as const, isAvailable: true },
         speaker: { id: 'bt-speaker', name: 'Bluetooth Speaker', type: 'bluetooth' as const, isAvailable: true },
@@ -607,7 +600,6 @@ describe('LiveKitBottomSheet', () => {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
-        requestPermissions,
       });
 
       mockUseBluetoothAudioStore.mockReturnValue({
@@ -627,7 +619,6 @@ describe('LiveKitBottomSheet', () => {
         isTalking: false,
         hasBluetoothMicrophone: true,
         hasBluetoothSpeaker: true,
-        permissionsRequested: false,
       });
     });
   });
