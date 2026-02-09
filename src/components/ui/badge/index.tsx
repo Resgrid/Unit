@@ -144,15 +144,12 @@ cssInterop(PrimitiveIcon, {
 
 type IBadgeProps = React.ComponentPropsWithoutRef<typeof ContextView> & VariantProps<typeof badgeStyle>;
 const Badge = ({ children, action = 'info', variant = 'solid', size = 'md', className, ...props }: { className?: string } & IBadgeProps) => {
+  const contextValue = useMemo(() => ({ action, variant, size }), [action, variant, size]);
   return (
     <ContextView
       className={badgeStyle({ action, variant, class: className })}
       {...props}
-      context={{
-        action,
-        variant,
-        size,
-      }}
+      context={contextValue}
     >
       {children}
     </ContextView>

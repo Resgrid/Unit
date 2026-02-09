@@ -100,7 +100,8 @@ const inputFieldStyle = tva({
 
 type IInputProps = React.ComponentProps<typeof UIInput> & VariantProps<typeof inputStyle> & { className?: string };
 const Input = React.forwardRef<React.ComponentRef<typeof UIInput>, IInputProps>(function Input({ className, variant = 'outline', size = 'md', ...props }, ref) {
-  return <UIInput ref={ref} {...props} className={inputStyle({ variant, size, class: className })} context={{ variant, size }} />;
+  const contextValue = React.useMemo(() => ({ variant, size }), [variant, size]);
+  return <UIInput ref={ref} {...props} className={inputStyle({ variant, size, class: className })} context={contextValue} />;
 });
 
 type IInputIconProps = React.ComponentProps<typeof UIInput.Icon> &

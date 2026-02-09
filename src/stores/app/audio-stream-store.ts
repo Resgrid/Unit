@@ -1,4 +1,5 @@
 import { Audio, type AVPlaybackSource, type AVPlaybackStatus } from 'expo-av';
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { getDepartmentAudioStreams } from '@/api/voice';
@@ -76,6 +77,12 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
   },
 
   playStream: async (stream: DepartmentAudioResultStreamData) => {
+    // Audio streaming is native-only
+    if (Platform.OS === 'web') {
+      logger.debug({ message: 'Audio streaming not supported on web' });
+      return;
+    }
+
     try {
       const { soundObject: currentSound, stopStream } = get();
 

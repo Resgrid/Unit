@@ -1,11 +1,12 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Loading } from '@/components/common/loading';
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import MapPins from '@/components/maps/map-pins';
 import Mapbox from '@/components/maps/mapbox';
@@ -16,7 +17,6 @@ import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
-import { onSortOptions } from '@/lib/utils';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -26,6 +26,18 @@ import { useToastStore } from '@/stores/toast/store';
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
 export default function Map() {
+  const { t } = useTranslation();
+  const isInitialized = useCoreStore((state) => state.isInitialized);
+
+  // Gate: don't mount the heavy map/location machinery until core init is done
+  if (!isInitialized) {
+    return <Loading message={t('common.loading')} />;
+  }
+
+  return <MapContent />;
+}
+
+function MapContent() {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const { colorScheme } = useColorScheme();
@@ -38,21 +50,10 @@ export default function Map() {
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
   const [isPinDetailModalOpen, setIsPinDetailModalOpen] = useState(false);
   const { isActive } = useAppLifecycle();
-  const location = useLocationStore((state) => ({
-    latitude: state.latitude,
-    longitude: state.longitude,
-    heading: state.heading,
-    isMapLocked: state.isMapLocked,
-  }));
-
-  const _mapOptions = Object.keys(Mapbox.StyleURL)
-    .map((key) => {
-      return {
-        label: key,
-        data: (Mapbox.StyleURL as any)[key],
-      };
-    })
-    .sort(onSortOptions);
+  const locationLatitude = useLocationStore((state) => state.latitude);
+  const locationLongitude = useLocationStore((state) => state.longitude);
+  const locationHeading = useLocationStore((state) => state.heading);
+  const isMapLocked = useLocationStore((state) => state.isMapLocked);
 
   // Get map style based on current theme
   const getMapStyle = useCallback(() => {
@@ -77,18 +78,18 @@ export default function Map() {
       setHasUserMovedMap(false);
 
       // Reset camera to current location when navigating back to map
-      if (isMapReady && location.latitude && location.longitude) {
+      if (isMapReady && locationLatitude && locationLongitude) {
         const cameraConfig: any = {
-          centerCoordinate: [location.longitude, location.latitude],
-          zoomLevel: location.isMapLocked ? 16 : 12,
+          centerCoordinate: [locationLongitude, locationLatitude],
+          zoomLevel: isMapLocked ? 16 : 12,
           animationDuration: 1000,
           heading: 0,
           pitch: 0,
         };
 
         // Add heading and pitch for navigation mode when locked
-        if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
-          cameraConfig.heading = location.heading;
+        if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
+          cameraConfig.heading = locationHeading;
           cameraConfig.pitch = 45;
         }
 
@@ -97,13 +98,13 @@ export default function Map() {
         logger.info({
           message: 'Map focused, resetting camera to current location',
           context: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-            isMapLocked: location.isMapLocked,
+            latitude: locationLatitude,
+            longitude: locationLongitude,
+            isMapLocked: isMapLocked,
           },
         });
       }
-    }, [isMapReady, location.latitude, location.longitude, location.isMapLocked, location.heading])
+    }, [isMapReady, locationLatitude, locationLongitude, isMapLocked, locationHeading])
   );
 
   useEffect(() => {
@@ -133,63 +134,50 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    if (isMapReady && location.latitude && location.longitude) {
-      logger.info({
-        message: 'Location updated and map is ready',
-        context: {
-          latitude: location.latitude,
-          longitude: location.longitude,
-          heading: location.heading,
-          isMapLocked: location.isMapLocked,
-        },
-      });
-
+    if (isMapReady && locationLatitude && locationLongitude) {
       // When map is locked, always follow the location
       // When map is unlocked, only follow if user hasn't moved the map
-      if (location.isMapLocked || !hasUserMovedMap) {
+      if (isMapLocked || !hasUserMovedMap) {
         const cameraConfig: any = {
-          centerCoordinate: [location.longitude, location.latitude],
-          zoomLevel: location.isMapLocked ? 16 : 12,
-          animationDuration: location.isMapLocked ? 500 : 1000,
+          centerCoordinate: [locationLongitude, locationLatitude],
+          zoomLevel: isMapLocked ? 16 : 12,
+          animationDuration: isMapLocked ? 500 : 1000,
         };
 
         // Add heading and pitch for navigation mode when locked
-        if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
-          cameraConfig.heading = location.heading;
+        if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
+          cameraConfig.heading = locationHeading;
           cameraConfig.pitch = 45;
         }
 
         cameraRef.current?.setCamera(cameraConfig);
       }
     }
-  }, [isMapReady, location.latitude, location.longitude, location.heading, location.isMapLocked, hasUserMovedMap]);
+  }, [isMapReady, locationLatitude, locationLongitude, locationHeading, isMapLocked]);
+  // NOTE: hasUserMovedMap intentionally excluded from deps to avoid toggle loop
+  // on web where programmatic easeTo → moveend → setHasUserMovedMap(true) → re-trigger.
 
   // Reset hasUserMovedMap when map gets locked and reset camera when unlocked
   useEffect(() => {
-    if (location.isMapLocked) {
+    if (isMapLocked) {
       setHasUserMovedMap(false);
     } else {
       // When exiting locked mode, reset camera to normal view and reset user interaction state
       setHasUserMovedMap(false);
 
-      if (isMapReady && location.latitude && location.longitude) {
+      if (isMapReady && locationLatitude && locationLongitude) {
         cameraRef.current?.setCamera({
-          centerCoordinate: [location.longitude, location.latitude],
+          centerCoordinate: [locationLongitude, locationLatitude],
           zoomLevel: 12,
           heading: 0,
           pitch: 0,
           animationDuration: 1000,
         });
-        logger.info({
-          message: 'Map unlocked, resetting camera to normal view and user interaction state',
-          context: {
-            latitude: location.latitude,
-            longitude: location.longitude,
-          },
-        });
       }
     }
-  }, [isMapReady, location.isMapLocked, location.latitude, location.longitude]);
+    // Only react to lock mode changes — NOT location changes (those are handled above)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMapReady, isMapLocked]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -225,21 +213,25 @@ export default function Map() {
     };
   }, []);
 
+  // Only run Animated.loop on native — on web, useNativeDriver falls back to JS driver
+  // which creates continuous requestAnimationFrame overhead. Web uses CSS animation instead.
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    if (Platform.OS !== 'web') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
   }, [pulseAnim]);
 
   // Track when map view is rendered
@@ -247,29 +239,29 @@ export default function Map() {
     trackEvent('map_view_rendered', {
       hasMapPins: mapPins.length > 0,
       mapPinsCount: mapPins.length,
-      isMapLocked: location.isMapLocked,
+      isMapLocked: isMapLocked,
       theme: colorScheme || 'light',
     });
-  }, [trackEvent, mapPins.length, location.isMapLocked, colorScheme]);
+  }, [trackEvent, mapPins.length, isMapLocked, colorScheme]);
 
-  const onCameraChanged = (event: any) => {
+  const onCameraChanged = useCallback((event: any) => {
     // Only register user interaction if map is not locked
-    if (event.properties.isUserInteraction && !location.isMapLocked) {
+    if (event.properties.isUserInteraction && !isMapLocked) {
       setHasUserMovedMap(true);
     }
-  };
+  }, [isMapLocked]);
 
   const handleRecenterMap = () => {
-    if (location.latitude && location.longitude) {
+    if (locationLatitude && locationLongitude) {
       const cameraConfig: any = {
-        centerCoordinate: [location.longitude, location.latitude],
-        zoomLevel: location.isMapLocked ? 16 : 12,
+        centerCoordinate: [locationLongitude, locationLatitude],
+        zoomLevel: isMapLocked ? 16 : 12,
         animationDuration: 1000,
       };
 
       // Add heading and pitch for navigation mode when locked
-      if (location.isMapLocked && location.heading !== null && location.heading !== undefined) {
-        cameraConfig.heading = location.heading;
+      if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
+        cameraConfig.heading = locationHeading;
         cameraConfig.pitch = 45;
       }
 
@@ -278,10 +270,10 @@ export default function Map() {
     }
   };
 
-  const handlePinPress = (pin: MapMakerInfoData) => {
+  const handlePinPress = useCallback((pin: MapMakerInfoData) => {
     setSelectedPin(pin);
     setIsPinDetailModalOpen(true);
-  };
+  }, []);
 
   const handleSetAsCurrentCall = async (pin: MapMakerInfoData) => {
     try {
@@ -315,10 +307,10 @@ export default function Map() {
   };
 
   // Show recenter button only when map is not locked and user has moved the map
-  const showRecenterButton = !location.isMapLocked && hasUserMovedMap && location.latitude && location.longitude;
+  const showRecenterButton = !isMapLocked && hasUserMovedMap && locationLatitude && locationLongitude;
 
-  // Create dynamic styles based on theme
-  const getThemedStyles = useCallback(() => {
+  // Create dynamic styles based on theme - useMemo to avoid new objects every render
+  const themedStyles = useMemo(() => {
     const isDark = colorScheme === 'dark';
     return {
       markerInnerContainer: {
@@ -361,8 +353,6 @@ export default function Map() {
     };
   }, [colorScheme, insets.bottom]);
 
-  const themedStyles = getThemedStyles();
-
   return (
     <>
       <Stack.Screen
@@ -382,38 +372,36 @@ export default function Map() {
           onCameraChanged={onCameraChanged}
           onDidFinishLoadingMap={() => setIsMapReady(true)}
           testID="map-view"
-          scrollEnabled={!location.isMapLocked}
-          zoomEnabled={!location.isMapLocked}
-          rotateEnabled={!location.isMapLocked}
-          pitchEnabled={!location.isMapLocked}
+          scrollEnabled={!isMapLocked}
+          zoomEnabled={!isMapLocked}
+          rotateEnabled={!isMapLocked}
+          pitchEnabled={!isMapLocked}
         >
           <Mapbox.Camera
             ref={cameraRef}
-            followZoomLevel={location.isMapLocked ? 16 : 12}
-            followUserLocation={location.isMapLocked}
-            followUserMode={location.isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
-            followPitch={location.isMapLocked ? 45 : undefined}
+            followZoomLevel={isMapLocked ? 16 : 12}
+            followUserLocation={isMapLocked}
+            followUserMode={isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
+            followPitch={isMapLocked ? 45 : undefined}
           />
 
-          {location.latitude && location.longitude && (
-            <Mapbox.PointAnnotation id="userLocation" coordinate={[location.longitude, location.latitude]} anchor={{ x: 0.5, y: 0.5 }}>
+          {locationLatitude && locationLongitude && (
+            <Mapbox.PointAnnotation id="userLocation" coordinate={[locationLongitude, locationLatitude]} anchor={{ x: 0.5, y: 0.5 }}>
               <Animated.View
                 style={[
                   styles.markerContainer,
-                  {
-                    transform: [{ scale: pulseAnim }],
-                  },
+                  Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] },
                 ]}
               >
-                <View style={styles.markerOuterRing} />
+                <View style={[styles.markerOuterRing, Platform.OS === 'web' && styles.markerOuterRingPulseWeb]} />
                 <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
                   <View style={styles.markerDot} />
-                  {location.heading !== null && location.heading !== undefined && (
+                  {locationHeading !== null && locationHeading !== undefined && (
                     <View
                       style={[
                         styles.directionIndicator,
                         {
-                          transform: [{ rotate: `${location.heading}deg` }],
+                          transform: [{ rotate: `${locationHeading}deg` }],
                         },
                       ]}
                     />
@@ -504,4 +492,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // elevation and shadow properties are handled by themedStyles
   },
+  // Web-only CSS pulse animation (replaces Animated.loop which falls back to JS driver on web)
+  markerPulseWeb: {
+    // No JS-driven transform on web — the outer ring animates via CSS instead
+  } as any,
+  markerOuterRingPulseWeb: Platform.OS === 'web'
+    ? {
+      // @ts-ignore — web-only CSS animation properties
+      animationName: 'pulse-ring',
+      animationDuration: '2s',
+      animationIterationCount: 'infinite',
+      animationTimingFunction: 'ease-in-out',
+    }
+    : ({} as any),
 });

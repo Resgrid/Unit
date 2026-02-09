@@ -1,5 +1,6 @@
 import { Asset } from 'expo-asset';
 import { Audio, type AVPlaybackSource, InterruptionModeIOS } from 'expo-av';
+import { Platform } from 'react-native';
 
 import { logger } from '@/lib/logging';
 import type { NotificationType } from '@/stores/push-notification/store';
@@ -46,6 +47,12 @@ class NotificationSoundService {
   }
 
   private async performInitialization(): Promise<void> {
+    // Notification sounds are native-only; skip on web
+    if (Platform.OS === 'web') {
+      this.isInitialized = true;
+      return;
+    }
+
     try {
       // Configure audio mode
       await Audio.setAudioModeAsync({

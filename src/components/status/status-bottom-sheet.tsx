@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useShallow } from 'zustand/react/shallow';
+
 import { invertColor } from '@/lib/utils';
 import { type CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
@@ -30,40 +32,48 @@ export const StatusBottomSheet = () => {
   const [selectedTab, setSelectedTab] = React.useState<'calls' | 'stations'>('calls');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const hasPreselectedRef = React.useRef(false);
-  const { showToast } = useToastStore();
+  const showToast = useToastStore((state) => state.showToast);
 
   // Initialize offline event manager on mount
   React.useEffect(() => {
     offlineEventManager.initialize();
   }, []);
 
-  const {
-    isOpen,
-    currentStep,
-    selectedCall,
-    selectedStation,
-    selectedDestinationType,
-    selectedStatus,
-    cameFromStatusSelection,
-    note,
-    availableCalls,
-    availableStations,
-    isLoading,
-    setIsOpen,
-    setCurrentStep,
-    setSelectedCall,
-    setSelectedStation,
-    setSelectedDestinationType,
-    setSelectedStatus,
-    setNote,
-    fetchDestinationData,
-    reset,
-  } = useStatusBottomSheetStore();
+  // Use individual selectors to avoid whole-store subscriptions (React 19 compatibility)
+  const isOpen = useStatusBottomSheetStore((state) => state.isOpen);
+  const currentStep = useStatusBottomSheetStore((state) => state.currentStep);
+  const selectedCall = useStatusBottomSheetStore((state) => state.selectedCall);
+  const selectedStation = useStatusBottomSheetStore((state) => state.selectedStation);
+  const selectedDestinationType = useStatusBottomSheetStore((state) => state.selectedDestinationType);
+  const selectedStatus = useStatusBottomSheetStore((state) => state.selectedStatus);
+  const cameFromStatusSelection = useStatusBottomSheetStore((state) => state.cameFromStatusSelection);
+  const note = useStatusBottomSheetStore((state) => state.note);
+  const availableCalls = useStatusBottomSheetStore((state) => state.availableCalls);
+  const availableStations = useStatusBottomSheetStore((state) => state.availableStations);
+  const isLoading = useStatusBottomSheetStore((state) => state.isLoading);
+  const setIsOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
+  const setCurrentStep = useStatusBottomSheetStore((state) => state.setCurrentStep);
+  const setSelectedCall = useStatusBottomSheetStore((state) => state.setSelectedCall);
+  const setSelectedStation = useStatusBottomSheetStore((state) => state.setSelectedStation);
+  const setSelectedDestinationType = useStatusBottomSheetStore((state) => state.setSelectedDestinationType);
+  const setSelectedStatus = useStatusBottomSheetStore((state) => state.setSelectedStatus);
+  const setNote = useStatusBottomSheetStore((state) => state.setNote);
+  const fetchDestinationData = useStatusBottomSheetStore((state) => state.fetchDestinationData);
+  const reset = useStatusBottomSheetStore((state) => state.reset);
 
-  const { activeUnit, activeCallId, setActiveCall, activeStatuses } = useCoreStore();
-  const { unitRoleAssignments } = useRolesStore();
-  const { saveUnitStatus } = useStatusesStore();
-  const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore();
+  const activeUnit = useCoreStore((state) => state.activeUnit);
+  const activeCallId = useCoreStore((state) => state.activeCallId);
+  const setActiveCall = useCoreStore((state) => state.setActiveCall);
+  const activeStatuses = useCoreStore((state) => state.activeStatuses);
+  const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
+  const saveUnitStatus = useStatusesStore((state) => state.saveUnitStatus);
+  const latitude = useLocationStore((state) => state.latitude);
+  const longitude = useLocationStore((state) => state.longitude);
+  const heading = useLocationStore((state) => state.heading);
+  const accuracy = useLocationStore((state) => state.accuracy);
+  const speed = useLocationStore((state) => state.speed);
+  const altitude = useLocationStore((state) => state.altitude);
+  const timestamp = useLocationStore((state) => state.timestamp);
 
   // Set default tab based on DetailType when status changes
   React.useEffect(() => {

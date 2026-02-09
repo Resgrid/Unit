@@ -18,6 +18,7 @@ type ISkeletonTextProps = React.ComponentProps<typeof View> &
   };
 
 const Skeleton = forwardRef<React.ElementRef<typeof View>, ISkeletonProps>(({ className, variant, children, startColor = 'bg-background-200', isLoaded = false, speed = 2, ...props }, ref) => {
+  const isWeb = Platform.OS === 'web';
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const customTimingFunction = Easing.bezier(0.4, 0, 0.6, 1);
@@ -25,25 +26,28 @@ const Skeleton = forwardRef<React.ElementRef<typeof View>, ISkeletonProps>(({ cl
   const animationDuration = (fadeDuration * 10000) / speed;
 
   useEffect(() => {
+    // On web, use CSS animation instead to avoid Animated.loop JS driver overhead
+    if (isWeb) return;
+
     if (!isLoaded) {
       const pulse = Animated.sequence([
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: animationDuration / 2,
           easing: customTimingFunction,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 0.75,
           duration: animationDuration / 2,
           easing: customTimingFunction,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: animationDuration / 2,
           easing: customTimingFunction,
-          useNativeDriver: Platform.OS !== 'web',
+          useNativeDriver: true,
         }),
       ]);
       animRef.current = Animated.loop(pulse);
@@ -57,9 +61,23 @@ const Skeleton = forwardRef<React.ElementRef<typeof View>, ISkeletonProps>(({ cl
       animRef.current?.stop();
       animRef.current = null;
     };
-  }, [isLoaded, animationDuration, pulseAnim, customTimingFunction]);
+  }, [isLoaded, isWeb, animationDuration, pulseAnim, customTimingFunction]);
 
   if (!isLoaded) {
+    // On web, use a CSS keyframe animation to avoid JS-driven Animated.loop
+    if (isWeb) {
+      return (
+        <View
+          style={{ animation: `skeleton-pulse ${animationDuration * 1.5}ms ease-in-out infinite` }}
+          className={`${startColor} ${skeletonStyle({
+            variant,
+            class: className,
+          })}`}
+          {...props}
+          ref={ref}
+        />
+      );
+    }
     return (
       <Animated.View
         style={{ opacity: pulseAnim }}

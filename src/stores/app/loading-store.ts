@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { create } from 'zustand';
 
 interface LoadingState {
@@ -42,12 +43,21 @@ export const useLoadingStore = create<LoadingState>((set, get) => ({
  * Hook to manage loading state for a specific key
  */
 export const useLoading = (key: string) => {
-  const { setLoading, isLoading } = useLoadingStore();
+  const setLoading = useLoadingStore((s) => s.setLoading);
+  const loadingStates = useLoadingStore((s) => s.loadingStates);
+  const loading = loadingStates[key] || false;
 
-  return {
-    isLoading: isLoading(key),
-    startLoading: () => setLoading(key, true),
-    stopLoading: () => setLoading(key, false),
-    toggleLoading: () => setLoading(key, !isLoading(key)),
-  };
+  const startLoading = useCallback(() => setLoading(key, true), [setLoading, key]);
+  const stopLoading = useCallback(() => setLoading(key, false), [setLoading, key]);
+  const toggleLoading = useCallback(() => setLoading(key, !loading), [setLoading, key, loading]);
+
+  return useMemo(
+    () => ({
+      isLoading: loading,
+      startLoading,
+      stopLoading,
+      toggleLoading,
+    }),
+    [loading, startLoading, stopLoading, toggleLoading]
+  );
 };

@@ -142,6 +142,7 @@ const Select = React.forwardRef<React.ComponentRef<typeof UISelect>, ISelectProp
 type ISelectTriggerProps = VariantProps<typeof selectTriggerStyle> & React.ComponentProps<typeof UISelect.Trigger> & { className?: string };
 
 const SelectTrigger = React.forwardRef<React.ComponentRef<typeof UISelect.Trigger>, ISelectTriggerProps>(function SelectTrigger({ className, size = 'md', variant = 'outline', ...props }, ref) {
+  const contextValue = React.useMemo(() => ({ size, variant }), [size, variant]);
   return (
     <UISelect.Trigger
       className={selectTriggerStyle({
@@ -150,7 +151,7 @@ const SelectTrigger = React.forwardRef<React.ComponentRef<typeof UISelect.Trigge
         variant,
       })}
       ref={ref}
-      context={{ size, variant }}
+      context={contextValue}
       {...props}
     />
   );

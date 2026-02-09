@@ -18,7 +18,12 @@ import { useProtocolsStore } from '@/stores/protocols/store';
 export default function Protocols() {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
-  const { protocols, searchQuery, setSearchQuery, selectProtocol, isLoading, fetchProtocols } = useProtocolsStore();
+  const protocols = useProtocolsStore((s) => s.protocols);
+  const searchQuery = useProtocolsStore((s) => s.searchQuery);
+  const setSearchQuery = useProtocolsStore((s) => s.setSearchQuery);
+  const selectProtocol = useProtocolsStore((s) => s.selectProtocol);
+  const isLoading = useProtocolsStore((s) => s.isLoading);
+  const fetchProtocols = useProtocolsStore((s) => s.fetchProtocols);
   const [refreshing, setRefreshing] = React.useState(false);
 
   React.useEffect(() => {

@@ -1,5 +1,7 @@
 // Axios interceptor setup
 
+import { useShallow } from 'zustand/react/shallow';
+
 import useAuthStore from '../../stores/auth/store';
 
 export { default as useAuthStore } from '../../stores/auth/store';
@@ -8,14 +10,23 @@ export * from './types';
 
 // Utility hooks and selectors
 export const useAuth = () => {
-  const store = useAuthStore();
+  const { accessToken, status, error, login, logout, hydrate } = useAuthStore(
+    useShallow((state) => ({
+      accessToken: state.accessToken,
+      status: state.status,
+      error: state.error,
+      login: state.login,
+      logout: state.logout,
+      hydrate: state.hydrate,
+    }))
+  );
   return {
-    isAuthenticated: !!store.accessToken,
-    isLoading: store.status === 'loading',
-    error: store.error,
-    login: store.login,
-    logout: store.logout,
-    status: store.status,
-    hydrate: store.hydrate,
+    isAuthenticated: !!accessToken,
+    isLoading: status === 'loading',
+    error,
+    login,
+    logout,
+    status,
+    hydrate,
   };
 };

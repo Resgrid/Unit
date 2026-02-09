@@ -22,7 +22,11 @@ export const NoteDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
-  const { notes, selectedNoteId, isDetailsOpen, closeDetails, deleteNote } = useNotesStore();
+  const notes = useNotesStore((s) => s.notes);
+  const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
+  const isDetailsOpen = useNotesStore((s) => s.isDetailsOpen);
+  const closeDetails = useNotesStore((s) => s.closeDetails);
+  const deleteNote = useNotesStore((s) => s.deleteNote);
 
   const selectedNote = notes.find((note) => note.NoteId === selectedNoteId);
 

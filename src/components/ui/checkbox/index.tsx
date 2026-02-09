@@ -138,6 +138,7 @@ const CheckboxGroup = UICheckbox.Group;
 type ICheckboxProps = React.ComponentPropsWithoutRef<typeof UICheckbox> & VariantProps<typeof checkboxStyle>;
 
 const Checkbox = React.forwardRef<React.ElementRef<typeof UICheckbox>, ICheckboxProps>(({ className, size = 'md', ...props }, ref) => {
+  const contextValue = React.useMemo(() => ({ size }), [size]);
   return (
     <UICheckbox
       className={checkboxStyle({
@@ -145,9 +146,7 @@ const Checkbox = React.forwardRef<React.ElementRef<typeof UICheckbox>, ICheckbox
         size,
       })}
       {...props}
-      context={{
-        size,
-      }}
+      context={contextValue}
       ref={ref}
     />
   );

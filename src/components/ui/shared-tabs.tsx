@@ -55,7 +55,8 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
 }) => {
   const { t } = useTranslation();
   const [localActiveIndex, setLocalActiveIndex] = useState(initialIndex);
-  const { activeIndex, setActiveIndex } = useTabStore();
+  const activeIndex = useTabStore((s) => s.activeIndex);
+  const setActiveIndex = useTabStore((s) => s.setActiveIndex);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { colorScheme } = useColorScheme();

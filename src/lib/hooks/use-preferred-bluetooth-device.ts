@@ -11,7 +11,8 @@ export interface PreferredBluetoothDevice {
 }
 
 export const usePreferredBluetoothDevice = () => {
-  const { preferredDevice, setPreferredDevice } = useBluetoothAudioStore();
+  const preferredDevice = useBluetoothAudioStore((s) => s.preferredDevice);
+  const setPreferredDevice = useBluetoothAudioStore((s) => s.setPreferredDevice);
 
   // Load preferred device from storage on mount
   useEffect(() => {

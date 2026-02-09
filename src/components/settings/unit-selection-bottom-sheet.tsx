@@ -57,8 +57,11 @@ interface UnitSelectionBottomSheetProps {
 export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps>(({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = React.useState(false);
-  const { units, fetchUnits, isLoading: isLoadingUnits } = useUnitsStore();
-  const { activeUnit, setActiveUnit } = useCoreStore();
+  const units = useUnitsStore((state) => state.units);
+  const fetchUnits = useUnitsStore((state) => state.fetchUnits);
+  const isLoadingUnits = useUnitsStore((state) => state.isLoading);
+  const activeUnit = useCoreStore((state) => state.activeUnit);
+  const setActiveUnit = useCoreStore((state) => state.setActiveUnit);
   const showToast = useToastStore((state) => state.showToast);
   const isProcessingRef = React.useRef(false);
 

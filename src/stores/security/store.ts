@@ -20,10 +20,13 @@ export const securityStore = create<SecurityState>()(
       getRights: async () => {
         try {
           const response = await getCurrentUsersRights();
-
-          set({
-            rights: response.Data,
-          });
+          // Only update if rights actually changed to prevent unnecessary re-renders
+          const current = _get().rights;
+          if (!current || JSON.stringify(current) !== JSON.stringify(response.Data)) {
+            set({
+              rights: response.Data,
+            });
+          }
         } catch (error) {
           // If refresh fails, log out the user
         }
@@ -32,20 +35,25 @@ export const securityStore = create<SecurityState>()(
     {
       name: 'security-storage',
       storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        rights: state.rights,
+        // Exclude: error (transient)
+      }),
     }
   )
 );
 
 export const useSecurityStore = () => {
-  const store = securityStore();
+  const rights = securityStore((state) => state.rights);
+  const getRights = securityStore((state) => state.getRights);
   return {
-    getRights: store.getRights,
-    isUserDepartmentAdmin: store.rights?.IsAdmin,
-    isUserGroupAdmin: (groupId: number) => store.rights?.Groups?.some((right) => right.GroupId === groupId && right.IsGroupAdmin) ?? false,
-    canUserCreateCalls: store.rights?.CanCreateCalls,
-    canUserCreateNotes: store.rights?.CanAddNote,
-    canUserCreateMessages: store.rights?.CanCreateMessage,
-    canUserViewPII: store.rights?.CanViewPII,
-    departmentCode: store.rights?.DepartmentCode,
+    getRights,
+    isUserDepartmentAdmin: rights?.IsAdmin,
+    isUserGroupAdmin: (groupId: number) => rights?.Groups?.some((right) => right.GroupId === groupId && right.IsGroupAdmin) ?? false,
+    canUserCreateCalls: rights?.CanCreateCalls,
+    canUserCreateNotes: rights?.CanAddNote,
+    canUserCreateMessages: rights?.CanCreateMessage,
+    canUserViewPII: rights?.CanViewPII,
+    departmentCode: rights?.DepartmentCode,
   };
 };

@@ -1,0 +1,30 @@
+diff --git a/node_modules/@gluestack-ui/overlay/lib/index.jsx b/node_modules/@gluestack-ui/overlay/lib/index.jsx
+index 3b04c3f..f54b9b9 100644
+--- a/node_modules/@gluestack-ui/overlay/lib/index.jsx
++++ b/node_modules/@gluestack-ui/overlay/lib/index.jsx
+@@ -9,6 +9,8 @@ export const ExitAnimationContext = React.createContext({
+ export { OverlayProvider } from '@react-native-aria/overlays';
+ const Overlay = React.forwardRef(({ children, isOpen, useRNModal = false, useRNModalOnAndroid = false, isKeyboardDismissable = true, animationPreset = 'fade', onRequestClose, style, }, ref) => {
+     const [exited, setExited] = React.useState(!isOpen);
++    // Memoize the context value to prevent re-render cascade to all consumers
++    const exitAnimCtxValue = React.useMemo(() => ({ exited, setExited }), [exited, setExited]);
+     useKeyboardDismissable({
+         enabled: isOpen && isKeyboardDismissable,
+         callback: onRequestClose ? onRequestClose : () => { },
+@@ -28,14 +30,14 @@ const Overlay = React.forwardRef(({ children, isOpen, useRNModal = false, useRNM
+         return null;
+     }
+     if (useRNModal || (useRNModalOnAndroid && Platform.OS === 'android')) {
+-        return (<ExitAnimationContext.Provider value={{ exited, setExited }}>
++        return (<ExitAnimationContext.Provider value={exitAnimCtxValue}>
+           <Modal statusBarTranslucent transparent visible={isOpen} onRequestClose={onRequestClose} animationType={animationPreset} ref={ref}>
+             {children}
+           </Modal>
+         </ExitAnimationContext.Provider>);
+     }
+     return (<OverlayContainer style={[style, styleObj]}>
+-        <ExitAnimationContext.Provider value={{ exited, setExited }}>
++        <ExitAnimationContext.Provider value={exitAnimCtxValue}>
+           {children}
+         </ExitAnimationContext.Provider>
+       </OverlayContainer>);

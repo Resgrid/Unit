@@ -1,0 +1,234 @@
+diff --git a/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.jsx b/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.jsx
+index 7721560..a0e6605 100644
+--- a/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.jsx
++++ b/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.jsx
+@@ -2,18 +2,41 @@
+ import React from 'react';
+ import { ParentContext } from '../context';
+ import { useParentContext } from '../context';
++
++// Shallow compare two plain objects (one level deep)
++function shallowEqual(a, b) {
++    if (a === b) return true;
++    if (!a || !b) return false;
++    if (typeof a !== 'object' || typeof b !== 'object') return a === b;
++    const aKeys = Object.keys(a);
++    const bKeys = Object.keys(b);
++    if (aKeys.length !== bKeys.length) return false;
++    for (let i = 0; i < aKeys.length; i++) {
++        const key = aKeys[i];
++        if (a[key] !== b[key]) return false;
++    }
++    return true;
++}
++
+ export const withStyleContext = (Component, scope = 'Global') => {
+     return React.forwardRef(({ context, ...props }, ref) => {
+-        let contextValues = {};
+         const parentContextValues = useParentContext();
+-        if (parentContextValues[scope] !== undefined) {
+-            parentContextValues[scope] = context;
+-            contextValues = parentContextValues;
++
++        // Use refs to maintain a stable Provider value across renders.
++        const mergedRef = React.useRef(null);
++        const prevParentRef = React.useRef(undefined);
++        const prevContextRef = React.useRef(undefined);
++
++        const parentChanged = !shallowEqual(parentContextValues, prevParentRef.current);
++        const contextChanged = !shallowEqual(context, prevContextRef.current);
++
++        if (mergedRef.current === null || parentChanged || contextChanged) {
++            mergedRef.current = { ...parentContextValues, [scope]: context };
++            prevParentRef.current = parentContextValues;
++            prevContextRef.current = context;
+         }
+-        else {
+-            contextValues = { ...parentContextValues, [scope]: context };
+-        }
+-        return (<ParentContext.Provider value={contextValues}>
++
++        return (<ParentContext.Provider value={mergedRef.current}>
+         <Component {...props} ref={ref}/>
+       </ParentContext.Provider>);
+     });
+diff --git a/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.tsx b/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.tsx
+index 59d04cf..8ed8a4f 100644
+--- a/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.tsx
++++ b/node_modules/@gluestack-ui/nativewind-utils/withStyleContext/index.tsx
+@@ -5,21 +5,49 @@ import { useParentContext } from '../context';
+ type WithStyleContextProps = {
+   context?: any;
+ };
++
++// Shallow compare two plain objects (one level deep)
++function shallowEqual(a: any, b: any): boolean {
++  if (a === b) return true;
++  if (!a || !b) return false;
++  if (typeof a !== 'object' || typeof b !== 'object') return a === b;
++  const aKeys = Object.keys(a);
++  const bKeys = Object.keys(b);
++  if (aKeys.length !== bKeys.length) return false;
++  for (let i = 0; i < aKeys.length; i++) {
++    const key = aKeys[i];
++    if (a[key] !== b[key]) return false;
++  }
++  return true;
++}
++
+ export const withStyleContext = <T extends React.ComponentType<any>>(
+   Component: T,
+   scope: string = 'Global'
+ ) => {
+   return React.forwardRef(({ context, ...props }, ref) => {
+-    let contextValues = {};
+     const parentContextValues = useParentContext();
+-    if (parentContextValues[scope] !== undefined) {
+-      parentContextValues[scope] = context;
+-      contextValues = parentContextValues;
+-    } else {
+-      contextValues = { ...parentContextValues, [scope]: context };
++
++    // Use refs to maintain a stable Provider value across renders.
++    // React Context only triggers consumer re-renders when the Provider
++    // value changes by reference (Object.is). By returning the same
++    // ref when nothing meaningful has changed, we break the re-render
++    // cascade in deeply nested withStyleContext components.
++    const mergedRef = React.useRef<any>(null);
++    const prevParentRef = React.useRef<any>(undefined);
++    const prevContextRef = React.useRef<any>(undefined);
++
++    const parentChanged = !shallowEqual(parentContextValues, prevParentRef.current);
++    const contextChanged = !shallowEqual(context, prevContextRef.current);
++
++    if (mergedRef.current === null || parentChanged || contextChanged) {
++      mergedRef.current = { ...parentContextValues, [scope]: context };
++      prevParentRef.current = parentContextValues;
++      prevContextRef.current = context;
+     }
++
+     return (
+-      <ParentContext.Provider value={contextValues}>
++      <ParentContext.Provider value={mergedRef.current}>
+         <Component {...(props as any)} ref={ref} />
+       </ParentContext.Provider>
+     );
+diff --git a/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.jsx b/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.jsx
+index a3750d4..1f8e011 100644
+--- a/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.jsx
++++ b/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.jsx
+@@ -3,23 +3,46 @@ import React from 'react';
+ import { extractDataClassName } from '../utils';
+ import { ParentContext } from '../context';
+ import { useParentContext } from '../context';
++
++// Shallow compare two plain objects (one level deep)
++function shallowEqual(a, b) {
++    if (a === b) return true;
++    if (!a || !b) return false;
++    if (typeof a !== 'object' || typeof b !== 'object') return a === b;
++    const aKeys = Object.keys(a);
++    const bKeys = Object.keys(b);
++    if (aKeys.length !== bKeys.length) return false;
++    for (let i = 0; i < aKeys.length; i++) {
++        const key = aKeys[i];
++        if (a[key] !== b[key]) return false;
++    }
++    return true;
++}
++
+ export const withStyleContextAndStates = (Component, scope = 'Global') => {
+     return React.forwardRef(({ context, className, states, ...props }, ref) => {
+-        let contextValues = {};
+         const parentContextValues = useParentContext();
+-        if (parentContextValues[scope] !== undefined) {
+-            parentContextValues[scope] = context;
+-            contextValues = parentContextValues;
+-        }
+-        else {
+-            contextValues = { ...parentContextValues, [scope]: context };
++
++        // Use refs to maintain a stable Provider value across renders.
++        const mergedRef = React.useRef(null);
++        const prevParentRef = React.useRef(undefined);
++        const prevContextRef = React.useRef(undefined);
++
++        const parentChanged = !shallowEqual(parentContextValues, prevParentRef.current);
++        const contextChanged = !shallowEqual(context, prevContextRef.current);
++
++        if (mergedRef.current === null || parentChanged || contextChanged) {
++            mergedRef.current = { ...parentContextValues, [scope]: context };
++            prevParentRef.current = parentContextValues;
++            prevContextRef.current = context;
+         }
++
+         const classNamesFinal = React.useMemo(() => {
+             if (!className)
+                 return;
+             return extractDataClassName(className, states);
+         }, [className, states]);
+-        return (<ParentContext.Provider value={contextValues}>
++        return (<ParentContext.Provider value={mergedRef.current}>
+         <Component className={classNamesFinal} {...props} ref={ref}/>
+       </ParentContext.Provider>);
+     });
+diff --git a/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.tsx b/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.tsx
+index ee777b0..09277e7 100644
+--- a/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.tsx
++++ b/node_modules/@gluestack-ui/nativewind-utils/withStyleContextAndStates/index.tsx
+@@ -10,18 +10,40 @@ type WithStyleContextProps = {
+   states?: any;
+ };
+ 
++// Shallow compare two plain objects (one level deep)
++function shallowEqual(a: any, b: any): boolean {
++  if (a === b) return true;
++  if (!a || !b) return false;
++  if (typeof a !== 'object' || typeof b !== 'object') return a === b;
++  const aKeys = Object.keys(a);
++  const bKeys = Object.keys(b);
++  if (aKeys.length !== bKeys.length) return false;
++  for (let i = 0; i < aKeys.length; i++) {
++    const key = aKeys[i];
++    if (a[key] !== b[key]) return false;
++  }
++  return true;
++}
++
+ export const withStyleContextAndStates = <T extends React.ComponentType<any>>(
+   Component: T,
+   scope: string = 'Global'
+ ) => {
+   return React.forwardRef(({ context, className, states, ...props }, ref) => {
+-    let contextValues = {};
+     const parentContextValues = useParentContext();
+-    if (parentContextValues[scope] !== undefined) {
+-      parentContextValues[scope] = context;
+-      contextValues = parentContextValues;
+-    } else {
+-      contextValues = { ...parentContextValues, [scope]: context };
++
++    // Use refs to maintain a stable Provider value across renders.
++    const mergedRef = React.useRef<any>(null);
++    const prevParentRef = React.useRef<any>(undefined);
++    const prevContextRef = React.useRef<any>(undefined);
++
++    const parentChanged = !shallowEqual(parentContextValues, prevParentRef.current);
++    const contextChanged = !shallowEqual(context, prevContextRef.current);
++
++    if (mergedRef.current === null || parentChanged || contextChanged) {
++      mergedRef.current = { ...parentContextValues, [scope]: context };
++      prevParentRef.current = parentContextValues;
++      prevContextRef.current = context;
+     }
+ 
+     const classNamesFinal = React.useMemo(() => {
+@@ -30,7 +52,7 @@ export const withStyleContextAndStates = <T extends React.ComponentType<any>>(
+     }, [className, states]);
+ 
+     return (
+-      <ParentContext.Provider value={contextValues}>
++      <ParentContext.Provider value={mergedRef.current}>
+         <Component className={classNamesFinal} {...(props as any)} ref={ref} />
+       </ParentContext.Provider>
+     );

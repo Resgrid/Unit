@@ -16,7 +16,17 @@ export const AudioStreamBottomSheet = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
 
-  const { isBottomSheetVisible, setIsBottomSheetVisible, availableStreams, currentStream, isLoadingStreams, isPlaying, isLoading, isBuffering, fetchAvailableStreams, playStream, stopStream } = useAudioStreamStore();
+  const isBottomSheetVisible = useAudioStreamStore((s) => s.isBottomSheetVisible);
+  const setIsBottomSheetVisible = useAudioStreamStore((s) => s.setIsBottomSheetVisible);
+  const availableStreams = useAudioStreamStore((s) => s.availableStreams);
+  const currentStream = useAudioStreamStore((s) => s.currentStream);
+  const isLoadingStreams = useAudioStreamStore((s) => s.isLoadingStreams);
+  const isPlaying = useAudioStreamStore((s) => s.isPlaying);
+  const isLoading = useAudioStreamStore((s) => s.isLoading);
+  const isBuffering = useAudioStreamStore((s) => s.isBuffering);
+  const fetchAvailableStreams = useAudioStreamStore((s) => s.fetchAvailableStreams);
+  const playStream = useAudioStreamStore((s) => s.playStream);
+  const stopStream = useAudioStreamStore((s) => s.stopStream);
 
   useEffect(() => {
     // Fetch available streams when bottom sheet opens

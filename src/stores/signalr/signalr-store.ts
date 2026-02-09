@@ -51,6 +51,11 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         return;
       }
 
+      // Remove any previously registered handlers to prevent accumulation
+      // across reconnections or repeated connectUpdateHub calls
+      const updateEvents = ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'onConnected'];
+      updateEvents.forEach((event) => signalRService.removeAllListeners(event));
+
       // Connect to the eventing hub
       await signalRService.connectToHubWithEventingUrl({
         name: Env.CHANNEL_HUB_NAME,
@@ -62,52 +67,27 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', parseInt(securityStore.getState().rights?.DepartmentId ?? '0'));
 
       signalRService.on('personnelStatusUpdated', (message) => {
-        logger.info({
-          message: 'personnelStatusUpdated',
-          context: { message },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
       });
 
       signalRService.on('personnelStaffingUpdated', (message) => {
-        logger.info({
-          message: 'personnelStaffingUpdated',
-          context: { message },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
       });
 
       signalRService.on('unitStatusUpdated', (message) => {
-        logger.info({
-          message: 'unitStatusUpdated',
-          context: { message },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
       });
 
       signalRService.on('callsUpdated', (message) => {
         const now = Date.now();
-
-        logger.info({
-          message: 'callsUpdated',
-          context: { message, now },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: now });
       });
 
       signalRService.on('callAdded', (message) => {
-        logger.info({
-          message: 'callAdded',
-          context: { message },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
       });
 
       signalRService.on('callClosed', (message) => {
-        logger.info({
-          message: 'callClosed',
-          context: { message },
-        });
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
       });
 
@@ -159,6 +139,10 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         set({ error: new Error(errorMessage) });
         return;
       }
+
+      // Remove any previously registered handlers to prevent accumulation
+      const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'];
+      geoEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Connect to the geolocation hub
       await signalRService.connectToHubWithEventingUrl({

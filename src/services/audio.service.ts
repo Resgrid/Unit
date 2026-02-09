@@ -36,6 +36,12 @@ class AudioService {
       return;
     }
 
+    // Audio services are native-only; skip on web to avoid OOM from loading audio files
+    if (Platform.OS === 'web') {
+      this.isInitialized = true;
+      return;
+    }
+
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,

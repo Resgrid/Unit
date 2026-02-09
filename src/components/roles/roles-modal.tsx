@@ -23,7 +23,11 @@ type RolesModalProps = {
 export const RolesModal: React.FC<RolesModalProps> = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const activeUnit = useCoreStore((state) => state.activeUnit);
-  const { roles, unitRoleAssignments, users, isLoading, error } = useRolesStore();
+  const roles = useRolesStore((state) => state.roles);
+  const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
+  const users = useRolesStore((state) => state.users);
+  const isLoading = useRolesStore((state) => state.isLoading);
+  const error = useRolesStore((state) => state.error);
 
   // Add state to track pending changes
   const [pendingAssignments, setPendingAssignments] = React.useState<{ roleId: string; userId?: string }[]>([]);

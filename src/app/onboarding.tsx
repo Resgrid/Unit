@@ -63,7 +63,7 @@ const Pagination: React.FC<{ currentIndex: number; length: number }> = ({ curren
 
 export default function Onboarding() {
   const [_, setIsFirstTime] = useIsFirstTime();
-  const { status, setIsOnboarding } = useAuthStore();
+  const setIsOnboarding = useAuthStore((state) => state.setIsOnboarding);
   const router = useRouter();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<OnboardingItemProps>>(null);

@@ -116,7 +116,8 @@ type IPopoverBackdropProps = React.ComponentProps<typeof UIPopover.Backdrop> & V
 type IPopoverCloseButtonProps = React.ComponentProps<typeof UIPopover.CloseButton> & VariantProps<typeof popoverCloseButtonStyle> & { className?: string };
 
 const Popover = React.forwardRef<React.ComponentRef<typeof UIPopover>, IPopoverProps>(function Popover({ className, size = 'md', placement = 'bottom', ...props }, ref) {
-  return <UIPopover ref={ref} placement={placement} {...props} className={popoverStyle({ size, class: className })} context={{ size, placement }} pointerEvents="box-none" />;
+  const contextValue = React.useMemo(() => ({ size, placement }), [size, placement]);
+  return <UIPopover ref={ref} placement={placement} {...props} className={popoverStyle({ size, class: className })} context={contextValue} pointerEvents="box-none" />;
 });
 
 const PopoverContent = React.forwardRef<React.ComponentRef<typeof UIPopover.Content>, IPopoverContentProps>(function PopoverContent({ className, size, ...props }, ref) {

@@ -14,7 +14,7 @@ interface PinMarkerProps {
   onPress?: () => void;
 }
 
-const PinMarker: React.FC<PinMarkerProps> = ({ imagePath, title, size = 32, onPress }) => {
+const PinMarker: React.FC<PinMarkerProps> = React.memo(({ imagePath, title, size = 32, onPress }) => {
   const { colorScheme } = useColorScheme();
 
   const icon = (imagePath && MAP_ICONS[imagePath.toLowerCase() as MapIconKey]) || MAP_ICONS['call'];
@@ -27,7 +27,9 @@ const PinMarker: React.FC<PinMarkerProps> = ({ imagePath, title, size = 32, onPr
       </Text>
     </TouchableOpacity>
   );
-};
+});
+
+PinMarker.displayName = 'PinMarker';
 
 const styles = StyleSheet.create({
   container: {

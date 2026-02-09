@@ -22,9 +22,18 @@ interface BluetoothAudioModalProps {
 }
 
 const BluetoothAudioModal: React.FC<BluetoothAudioModalProps> = ({ isOpen, onClose }) => {
-  const { bluetoothState, isScanning, isConnecting, availableDevices, connectedDevice, connectionError, isAudioRoutingActive, buttonEvents, lastButtonAction } = useBluetoothAudioStore();
+  const bluetoothState = useBluetoothAudioStore((s) => s.bluetoothState);
+  const isScanning = useBluetoothAudioStore((s) => s.isScanning);
+  const isConnecting = useBluetoothAudioStore((s) => s.isConnecting);
+  const availableDevices = useBluetoothAudioStore((s) => s.availableDevices);
+  const connectedDevice = useBluetoothAudioStore((s) => s.connectedDevice);
+  const connectionError = useBluetoothAudioStore((s) => s.connectionError);
+  const isAudioRoutingActive = useBluetoothAudioStore((s) => s.isAudioRoutingActive);
+  const buttonEvents = useBluetoothAudioStore((s) => s.buttonEvents);
+  const lastButtonAction = useBluetoothAudioStore((s) => s.lastButtonAction);
 
-  const { isConnected: isLiveKitConnected, currentRoom } = useLiveKitStore();
+  const isLiveKitConnected = useLiveKitStore((s) => s.isConnected);
+  const currentRoom = useLiveKitStore((s) => s.currentRoom);
   const [isMicMuted, setIsMicMuted] = useState(false);
 
   const handleStartScan = React.useCallback(async () => {

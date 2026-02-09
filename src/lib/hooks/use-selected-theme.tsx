@@ -1,5 +1,6 @@
 import { colorScheme, useColorScheme } from 'nativewind';
 import React from 'react';
+import { Platform } from 'react-native';
 import { useMMKVString } from 'react-native-mmkv';
 
 import { storage } from '../storage';
@@ -19,7 +20,11 @@ export const useSelectedTheme = () => {
 
   const setSelectedTheme = React.useCallback(
     (t: ColorSchemeType) => {
-      setColorScheme(t);
+      // On web with darkMode: 'media', nativewind's colorScheme.set() throws
+      // because manual override is not supported. Only persist the preference.
+      if (Platform.OS !== 'web') {
+        setColorScheme(t);
+      }
       _setTheme(t);
     },
     [setColorScheme, _setTheme]
@@ -30,6 +35,12 @@ export const useSelectedTheme = () => {
 };
 // to be used in the root file to load the selected theme from MMKV
 export const loadSelectedTheme = () => {
+  // On web with darkMode: 'media', the browser handles dark mode via CSS media
+  // queries. Calling colorScheme.set() would throw because manual override is
+  // not supported in media-query mode.
+  if (Platform.OS === 'web') {
+    return;
+  }
   try {
     const theme = storage.getString(SELECTED_THEME);
     if (theme !== undefined) {

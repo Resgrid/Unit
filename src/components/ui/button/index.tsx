@@ -246,7 +246,8 @@ const buttonGroupStyle = tva({
 type IButtonProps = Omit<React.ComponentPropsWithoutRef<typeof UIButton>, 'context'> & VariantProps<typeof buttonStyle> & { className?: string };
 
 const Button = React.forwardRef<React.ComponentRef<typeof UIButton>, IButtonProps>(function Button({ className, variant = 'solid', size = 'md', action = 'primary', ...props }, ref) {
-  return <UIButton ref={ref} {...props} className={buttonStyle({ variant, size, action, class: className })} context={{ variant, size, action }} />;
+  const contextValue = React.useMemo(() => ({ variant, size, action }), [variant, size, action]);
+  return <UIButton ref={ref} {...props} className={buttonStyle({ variant, size, action, class: className })} context={contextValue} />;
 });
 
 type IButtonTextProps = React.ComponentPropsWithoutRef<typeof UIButton.Text> & VariantProps<typeof buttonTextStyle> & { className?: string };

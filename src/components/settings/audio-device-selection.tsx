@@ -17,7 +17,10 @@ interface AudioDeviceSelectionProps {
 
 export const AudioDeviceSelection: React.FC<AudioDeviceSelectionProps> = ({ showTitle = true }) => {
   const { t } = useTranslation();
-  const { availableAudioDevices, selectedAudioDevices, setSelectedMicrophone, setSelectedSpeaker } = useBluetoothAudioStore();
+  const availableAudioDevices = useBluetoothAudioStore((s) => s.availableAudioDevices);
+  const selectedAudioDevices = useBluetoothAudioStore((s) => s.selectedAudioDevices);
+  const setSelectedMicrophone = useBluetoothAudioStore((s) => s.setSelectedMicrophone);
+  const setSelectedSpeaker = useBluetoothAudioStore((s) => s.setSelectedSpeaker);
 
   const renderDeviceIcon = (device: AudioDeviceInfo) => {
     switch (device.type) {

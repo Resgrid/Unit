@@ -176,7 +176,10 @@ export const ContactDetailsSheet: React.FC = () => {
   const { trackEvent } = useAnalytics();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const { contacts, selectedContactId, isDetailsOpen, closeDetails } = useContactsStore();
+  const contacts = useContactsStore((s) => s.contacts);
+  const selectedContactId = useContactsStore((s) => s.selectedContactId);
+  const isDetailsOpen = useContactsStore((s) => s.isDetailsOpen);
+  const closeDetails = useContactsStore((s) => s.closeDetails);
   const [activeTab, setActiveTab] = useState<'details' | 'notes'>('details');
 
   const selectedContact = React.useMemo(() => {

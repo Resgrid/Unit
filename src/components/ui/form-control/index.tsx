@@ -296,7 +296,8 @@ cssInterop(UIFormControl.Error.Icon, {
 type IFormControlProps = React.ComponentProps<typeof UIFormControl> & VariantProps<typeof formControlStyle>;
 
 const FormControl = React.forwardRef<React.ElementRef<typeof UIFormControl>, IFormControlProps>(({ className, size = 'md', ...props }, ref) => {
-  return <UIFormControl ref={ref} className={formControlStyle({ size, class: className })} {...props} context={{ size }} />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIFormControl ref={ref} className={formControlStyle({ size, class: className })} {...props} context={contextValue} />;
 });
 
 type IFormControlErrorProps = React.ComponentProps<typeof UIFormControl.Error> & VariantProps<typeof formControlErrorStyle>;

@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import { logger } from '../lib/logging';
-import { callKeepService } from './callkeep.service.ios';
+import { callKeepService } from './callkeep.service';
 import { notificationSoundService } from './notification-sound.service';
 import { pushNotificationService } from './push-notification';
 
@@ -123,6 +123,12 @@ class AppInitializationService {
    * Initialize Notification Sound Service
    */
   private async _initializeNotificationSoundService(): Promise<void> {
+    // Notification sounds are native-only
+    if (Platform.OS === 'web') {
+      logger.debug({ message: 'Notification sound service skipped on web' });
+      return;
+    }
+
     try {
       await notificationSoundService.initialize();
 
@@ -143,6 +149,12 @@ class AppInitializationService {
    * Initialize Push Notification Service
    */
   private async _initializePushNotifications(): Promise<void> {
+    // Push notifications are native-only
+    if (Platform.OS === 'web') {
+      logger.debug({ message: 'Push notification service skipped on web' });
+      return;
+    }
+
     try {
       await pushNotificationService.initialize();
 

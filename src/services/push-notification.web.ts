@@ -318,3 +318,13 @@ class WebPushNotificationService {
 }
 
 export const webPushNotificationService = WebPushNotificationService.getInstance();
+
+// Alias for cross-platform compatibility
+export const pushNotificationService = webPushNotificationService;
+
+// React hook for component usage (web stub)
+export const usePushNotifications = () => {
+  return {
+    pushToken: null,
+  };
+};

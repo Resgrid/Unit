@@ -24,10 +24,19 @@ export enum BottomSheetView {
 }
 
 export const LiveKitBottomSheet = () => {
-  const { isBottomSheetVisible, setIsBottomSheetVisible, availableRooms, fetchVoiceSettings, connectToRoom, disconnectFromRoom, currentRoomInfo, currentRoom, isConnected, isConnecting, isTalking } =
-    useLiveKitStore();
+  const isBottomSheetVisible = useLiveKitStore((s) => s.isBottomSheetVisible);
+  const setIsBottomSheetVisible = useLiveKitStore((s) => s.setIsBottomSheetVisible);
+  const availableRooms = useLiveKitStore((s) => s.availableRooms);
+  const fetchVoiceSettings = useLiveKitStore((s) => s.fetchVoiceSettings);
+  const connectToRoom = useLiveKitStore((s) => s.connectToRoom);
+  const disconnectFromRoom = useLiveKitStore((s) => s.disconnectFromRoom);
+  const currentRoomInfo = useLiveKitStore((s) => s.currentRoomInfo);
+  const currentRoom = useLiveKitStore((s) => s.currentRoom);
+  const isConnected = useLiveKitStore((s) => s.isConnected);
+  const isConnecting = useLiveKitStore((s) => s.isConnecting);
+  const isTalking = useLiveKitStore((s) => s.isTalking);
 
-  const { selectedAudioDevices } = useBluetoothAudioStore();
+  const selectedAudioDevices = useBluetoothAudioStore((s) => s.selectedAudioDevices);
   const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
 

@@ -193,6 +193,7 @@
     "@typescript-eslint/eslint-plugin": "~5.62.0",
     "@typescript-eslint/parser": "~5.62.0",
     "babel-jest": "~30.0.0",
+    "babel-plugin-transform-import-meta": "^2.3.3",
     "concurrently": "9.2.1",
     "cross-env": "~7.0.3",
     "dotenv": "~16.4.5",

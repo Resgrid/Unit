@@ -32,7 +32,11 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const colorScheme = useColorScheme();
-  const { callFiles, isLoadingFiles, errorFiles, fetchCallFiles, clearFiles } = useCallDetailStore();
+  const callFiles = useCallDetailStore((state) => state.callFiles);
+  const isLoadingFiles = useCallDetailStore((state) => state.isLoadingFiles);
+  const errorFiles = useCallDetailStore((state) => state.errorFiles);
+  const fetchCallFiles = useCallDetailStore((state) => state.fetchCallFiles);
+  const clearFiles = useCallDetailStore((state) => state.clearFiles);
   const [downloadingFiles, setDownloadingFiles] = useState<Record<string, number>>({});
 
   // Bottom sheet ref and snap points

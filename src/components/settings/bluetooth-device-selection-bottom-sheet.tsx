@@ -30,7 +30,11 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { preferredDevice, setPreferredDevice } = usePreferredBluetoothDevice();
-  const { availableDevices, isScanning, bluetoothState, connectedDevice, connectionError } = useBluetoothAudioStore();
+  const availableDevices = useBluetoothAudioStore((s) => s.availableDevices);
+  const isScanning = useBluetoothAudioStore((s) => s.isScanning);
+  const bluetoothState = useBluetoothAudioStore((s) => s.bluetoothState);
+  const connectedDevice = useBluetoothAudioStore((s) => s.connectedDevice);
+  const connectionError = useBluetoothAudioStore((s) => s.connectionError);
   const [hasScanned, setHasScanned] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
 

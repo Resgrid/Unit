@@ -12,7 +12,6 @@ interface UseSignalRLifecycleOptions {
 
 export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLifecycleOptions) {
   const { isActive, appState } = useAppLifecycle();
-  const signalRStore = useSignalRStore();
 
   // Track current values with refs for timer callbacks
   const currentIsActive = useRef(isActive);
@@ -62,8 +61,10 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
     });
 
     try {
+      // Use getState() to access store actions without subscribing to store changes
+      const store = useSignalRStore.getState();
       // Use Promise.allSettled to prevent one failure from blocking the other
-      const results = await Promise.allSettled([signalRStore.disconnectUpdateHub(), signalRStore.disconnectGeolocationHub()]);
+      const results = await Promise.allSettled([store.disconnectUpdateHub(), store.disconnectGeolocationHub()]);
 
       // Log any failures without throwing
       results.forEach((result, index) => {
@@ -86,7 +87,7 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
         pendingOperations.current = null;
       }
     }
-  }, [signalRStore]);
+  }, []);
 
   const handleAppResume = useCallback(async () => {
     logger.debug({
@@ -116,8 +117,10 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
     });
 
     try {
+      // Use getState() to access store actions without subscribing to store changes
+      const store = useSignalRStore.getState();
       // Use Promise.allSettled to prevent one failure from blocking the other
-      const results = await Promise.allSettled([signalRStore.connectUpdateHub(), signalRStore.connectGeolocationHub()]);
+      const results = await Promise.allSettled([store.connectUpdateHub(), store.connectGeolocationHub()]);
 
       // Log any failures without throwing
       results.forEach((result, index) => {
@@ -140,7 +143,7 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
         pendingOperations.current = null;
       }
     }
-  }, [signalRStore]);
+  }, []);
 
   // Clear timers helper
   const clearTimers = useCallback(() => {

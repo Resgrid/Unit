@@ -15,9 +15,10 @@ RUN yarn install --frozen-lockfile
 # Copy source files
 COPY . .
 
-# Build the web application without environment variables
-# Environment variables will be injected at runtime via docker-entrypoint.sh
-RUN yarn web:build
+# Build the web application with production defaults
+# Runtime environment variables will be injected at startup via docker-entrypoint.sh
+# APP_ENV=production ensures the build uses production defaults and no .env suffix on IDs
+RUN APP_ENV=production yarn web:build
 
 ### STAGE 2: Run ###
 FROM nginx:1.25-alpine
@@ -42,6 +43,8 @@ EXPOSE 80
 ENV APP_ENV=production \
     UNIT_NAME="Resgrid Unit" \
     UNIT_SCHEME="ResgridUnit" \
+    UNIT_BUNDLE_ID="com.resgrid.unit" \
+    UNIT_PACKAGE="com.resgrid.unit" \
     UNIT_VERSION="0.0.1" \
     UNIT_BASE_API_URL="https://api.resgrid.com" \
     UNIT_API_VERSION="v4" \

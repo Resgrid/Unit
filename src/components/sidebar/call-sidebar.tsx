@@ -20,11 +20,9 @@ import { HStack } from '../ui/hstack';
 
 export const SidebarCallCard = () => {
   const { colorScheme } = useColorScheme();
-  const { activeCall, activePriority, setActiveCall } = useCoreStore((state) => ({
-    activeCall: state.activeCall,
-    activePriority: state.activePriority,
-    setActiveCall: state.setActiveCall,
-  }));
+  const activeCall = useCoreStore((state) => state.activeCall);
+  const activePriority = useCoreStore((state) => state.activePriority);
+  const setActiveCall = useCoreStore((state) => state.setActiveCall);
 
   const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const { t } = useTranslation();
@@ -155,9 +153,8 @@ export const SidebarCallCard = () => {
                       console.error('Failed to handle call selection:', error);
                     });
                   }}
-                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                    activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                  }`}
+                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                    }`}
                   testID={`call-item-${call.CallId}`}
                 >
                   <HStack space="md" className="items-center justify-between">

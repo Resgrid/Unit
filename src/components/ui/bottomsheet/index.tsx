@@ -42,8 +42,8 @@ const BottomSheetContext = createContext<{
 }>({
   visible: false,
   bottomSheetRef: null,
-  handleClose: () => {},
-  handleOpen: () => {},
+  handleClose: () => { },
+  handleOpen: () => { },
 });
 
 type IBottomSheetProps = React.ComponentProps<typeof GorhomBottomSheet>;
@@ -64,15 +64,18 @@ export const BottomSheet = ({ snapToIndex = 1, onOpen, onClose, ...props }: { sn
     onClose && onClose();
   }, [onClose]);
 
+  const contextValue = useMemo(
+    () => ({
+      visible,
+      bottomSheetRef: bottomSheetRef as React.RefObject<GorhomBottomSheet>,
+      handleClose,
+      handleOpen,
+    }),
+    [visible, handleClose, handleOpen]
+  );
+
   return (
-    <BottomSheetContext.Provider
-      value={{
-        visible,
-        bottomSheetRef: bottomSheetRef as React.RefObject<GorhomBottomSheet>,
-        handleClose,
-        handleOpen,
-      }}
-    >
+    <BottomSheetContext.Provider value={contextValue}>
       {props.children}
     </BottomSheetContext.Provider>
   );
@@ -166,14 +169,14 @@ export const BottomSheetContent = ({ ...props }: IBottomSheetContent) => {
   const keyDownHandlers = useMemo(() => {
     return Platform.OS === 'web'
       ? {
-          onKeyDown: (e: React.KeyboardEvent) => {
-            if (e.key === 'Escape') {
-              e.preventDefault();
-              handleClose();
-              return;
-            }
-          },
-        }
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            handleClose();
+            return;
+          }
+        },
+      }
       : {};
   }, [handleClose]);
 

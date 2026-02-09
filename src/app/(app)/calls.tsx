@@ -16,11 +16,15 @@ import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { useCallsStore } from '@/stores/calls/store';
-import { useSecurityStore } from '@/stores/security/store';
+import { securityStore } from '@/stores/security/store';
 
 export default function Calls() {
-  const { calls, isLoading, error, fetchCalls, fetchCallPriorities } = useCallsStore();
-  const { canUserCreateCalls } = useSecurityStore();
+  const calls = useCallsStore((state) => state.calls);
+  const isLoading = useCallsStore((state) => state.isLoading);
+  const error = useCallsStore((state) => state.error);
+  const fetchCalls = useCallsStore((state) => state.fetchCalls);
+  const fetchCallPriorities = useCallsStore((state) => state.fetchCallPriorities);
+  const canUserCreateCalls = securityStore((state) => state.rights?.CanCreateCalls);
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState('');

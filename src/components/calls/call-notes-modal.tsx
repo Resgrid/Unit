@@ -32,8 +32,12 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   const { colorScheme } = useColorScheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [newNote, setNewNote] = useState('');
-  const { callNotes, addNote, searchNotes, isNotesLoading, fetchCallNotes } = useCallDetailStore();
-  const { profile } = useAuthStore();
+  const callNotes = useCallDetailStore((state) => state.callNotes);
+  const addNote = useCallDetailStore((state) => state.addNote);
+  const searchNotes = useCallDetailStore((state) => state.searchNotes);
+  const isNotesLoading = useCallDetailStore((state) => state.isNotesLoading);
+  const fetchCallNotes = useCallDetailStore((state) => state.fetchCallNotes);
+  const profile = useAuthStore((state) => state.profile);
 
   const isDark = colorScheme === 'dark';
 

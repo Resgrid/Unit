@@ -12,6 +12,7 @@ interface CallsState {
   callPriorities: CallPriorityResultData[];
   callTypes: CallTypeResultData[];
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   lastFetchedAt: number;
   fetchCalls: () => Promise<void>;
@@ -25,9 +26,14 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   callPriorities: [],
   callTypes: [],
   isLoading: false,
+  isInitialized: false,
   error: null,
   lastFetchedAt: 0,
   init: async () => {
+    // Prevent re-initialization during tree remounts
+    if (get().isInitialized || get().isLoading) {
+      return;
+    }
     set({ isLoading: true, error: null });
     const callsResponse = await getCalls();
     const callPrioritiesResponse = await getCallPriorities();
@@ -37,6 +43,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
       callPriorities: Array.isArray(callPrioritiesResponse.Data) ? callPrioritiesResponse.Data : [],
       callTypes: Array.isArray(callTypesResponse.Data) ? callTypesResponse.Data : [],
       isLoading: false,
+      isInitialized: true,
       lastFetchedAt: Date.now(),
     });
   },

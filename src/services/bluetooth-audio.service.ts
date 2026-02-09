@@ -46,6 +46,7 @@ class BluetoothAudioService {
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
+  private readonly isWeb = Platform.OS === 'web';
 
   static getInstance(): BluetoothAudioService {
     if (!BluetoothAudioService.instance) {
@@ -59,6 +60,15 @@ class BluetoothAudioService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
+      return;
+    }
+
+    // BLE is not available on web — skip initialization entirely
+    if (Platform.OS === 'web') {
+      logger.info({
+        message: 'Bluetooth Audio Service not available on web, skipping initialization',
+      });
+      this.isInitialized = true;
       return;
     }
 
@@ -321,6 +331,7 @@ class BluetoothAudioService {
   }
 
   async requestPermissions(): Promise<boolean> {
+    if (this.isWeb) return true;
     if (Platform.OS === 'android') {
       try {
         const permissions = [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT, PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
@@ -347,6 +358,7 @@ class BluetoothAudioService {
   }
 
   async checkBluetoothState(): Promise<State> {
+    if (this.isWeb) return State.PoweredOff;
     try {
       const bleState = await BleManager.checkState();
       return this.mapBleStateToState(bleState);
@@ -360,6 +372,7 @@ class BluetoothAudioService {
   }
 
   async startScanning(durationMs: number = 10000): Promise<void> {
+    if (this.isWeb) return;
     const hasPermissions = await this.requestPermissions();
     if (!hasPermissions) {
       throw new Error('Bluetooth permissions not granted');
@@ -418,6 +431,7 @@ class BluetoothAudioService {
    * Use this for troubleshooting device discovery issues
    */
   async startDebugScanning(durationMs: number = 15000): Promise<void> {
+    if (this.isWeb) return;
     const hasPermissions = await this.requestPermissions();
     if (!hasPermissions) {
       throw new Error('Bluetooth permissions not granted');
@@ -858,6 +872,7 @@ class BluetoothAudioService {
   }
 
   async stopScanning(): Promise<void> {
+    if (this.isWeb) return;
     try {
       await BleManager.stopScan();
     } catch (error) {
@@ -880,6 +895,7 @@ class BluetoothAudioService {
   }
 
   async connectToDevice(deviceId: string): Promise<void> {
+    if (this.isWeb) return;
     try {
       useBluetoothAudioStore.getState().clearConnectionError();
       useBluetoothAudioStore.getState().setIsConnecting(true);
@@ -993,6 +1009,7 @@ class BluetoothAudioService {
   }
 
   async connectToSystemAudio(): Promise<void> {
+    if (this.isWeb) return;
     try {
         logger.info({ message: 'Switching to System Audio' });
         
@@ -1743,6 +1760,7 @@ class BluetoothAudioService {
   }
 
   async disconnectDevice(): Promise<void> {
+    if (this.isWeb) return;
     if (this.connectedDevice && this.connectedDevice.id) {
       const deviceId = this.connectedDevice.id;
       try {
@@ -1767,6 +1785,7 @@ class BluetoothAudioService {
   }
 
   async isDeviceConnected(deviceId: string): Promise<boolean> {
+    if (this.isWeb) return false;
     try {
       const connectedPeripherals = await BleManager.getConnectedPeripherals();
       return connectedPeripherals.some((p) => p.id === deviceId);
@@ -1840,6 +1859,7 @@ class BluetoothAudioService {
    * Clears connections, scanning, and preferred device tracking.
    */
   async reset(): Promise<void> {
+    if (this.isWeb) return;
     logger.info({
       message: 'Resetting Bluetooth Audio Service state',
     });

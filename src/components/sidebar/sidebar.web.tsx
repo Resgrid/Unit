@@ -2,11 +2,13 @@ import React from 'react';
 
 import { Box } from '@/components/ui/box';
 
-import Sidebar from './sidebar';
+// Import from sidebar-content directly to avoid require cycle.
+// On web, './sidebar' resolves to sidebar.web.tsx (this file), not sidebar.tsx.
+import Sidebar from './sidebar-content';
 
 const WebSidebar = () => {
   return (
-    <Box className="hidden w-full max-w-[340px] flex-1 pl-12 md:flex md:web:max-h-[calc(100vh-144px)]">
+    <Box className="w-full flex-1 md:web:max-h-[calc(100vh-144px)]">
       {/* common sidebar contents for web and mobile */}
       <Sidebar />
     </Box>

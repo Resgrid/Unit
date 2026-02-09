@@ -14,6 +14,7 @@ interface RolesState {
   unitRoleAssignments: ActiveUnitRoleResultData[];
   users: PersonnelInfoResultData[];
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   init: () => Promise<void>;
   fetchRoles: () => Promise<void>;
@@ -27,8 +28,14 @@ export const useRolesStore = create<RolesState>((set) => ({
   unitRoleAssignments: [],
   users: [],
   isLoading: false,
+  isInitialized: false,
   error: null,
   init: async () => {
+    // Prevent re-initialization during tree remounts
+    const state = useRolesStore.getState();
+    if (state.isInitialized || state.isLoading) {
+      return;
+    }
     set({ isLoading: true, error: null });
     try {
       const response = await getAllUnitRolesAndAssignmentsForDepartment();
@@ -38,6 +45,7 @@ export const useRolesStore = create<RolesState>((set) => ({
         roles: response.Data,
         users: personnelResponse.Data,
         isLoading: false,
+        isInitialized: true,
       });
 
       const activeUnit = useCoreStore.getState().activeUnit;

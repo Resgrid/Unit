@@ -159,6 +159,7 @@ const sliderFilledTrackStyle = tva({
 type ISliderProps = React.ComponentProps<typeof UISlider> & VariantProps<typeof sliderStyle>;
 
 export const Slider = React.forwardRef<React.ElementRef<typeof UISlider>, ISliderProps>(({ className, size = 'md', orientation = 'horizontal', isReversed = false, ...props }, ref) => {
+  const contextValue = React.useMemo(() => ({ size, orientation, isReversed }), [size, orientation, isReversed]);
   return (
     <UISlider
       ref={ref}
@@ -170,7 +171,7 @@ export const Slider = React.forwardRef<React.ElementRef<typeof UISlider>, ISlide
         isReversed,
         class: className,
       })}
-      context={{ size, orientation, isReversed }}
+      context={contextValue}
     />
   );
 });

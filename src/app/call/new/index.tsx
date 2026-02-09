@@ -105,8 +105,13 @@ export default function NewCall() {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const insets = useSafeAreaInsets();
-  const { callPriorities, callTypes, isLoading, error, fetchCallPriorities, fetchCallTypes } = useCallsStore();
-  const { config } = useCoreStore();
+  const callPriorities = useCallsStore((state) => state.callPriorities);
+  const callTypes = useCallsStore((state) => state.callTypes);
+  const isLoading = useCallsStore((state) => state.isLoading);
+  const error = useCallsStore((state) => state.error);
+  const fetchCallPriorities = useCallsStore((state) => state.fetchCallPriorities);
+  const fetchCallTypes = useCallsStore((state) => state.fetchCallTypes);
+  const config = useCoreStore((state) => state.config);
   const { trackEvent } = useAnalytics();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);

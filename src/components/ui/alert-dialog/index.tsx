@@ -95,7 +95,8 @@ type IAlertDialogBodyProps = React.ComponentPropsWithoutRef<typeof UIAccessibleA
 type IAlertDialogBackdropProps = React.ComponentPropsWithoutRef<typeof UIAccessibleAlertDialog.Backdrop> & VariantProps<typeof alertDialogBackdropStyle> & { className?: string };
 
 const AlertDialog = React.forwardRef<React.ElementRef<typeof UIAccessibleAlertDialog>, IAlertDialogProps>(({ className, size = 'md', ...props }, ref) => {
-  return <UIAccessibleAlertDialog ref={ref} {...props} className={alertDialogStyle({ class: className })} context={{ size }} pointerEvents="box-none" />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIAccessibleAlertDialog ref={ref} {...props} className={alertDialogStyle({ class: className })} context={contextValue} pointerEvents="box-none" />;
 });
 
 const AlertDialogContent = React.forwardRef<React.ElementRef<typeof UIAccessibleAlertDialog.Content>, IAlertDialogContentProps>(({ className, size, ...props }, ref) => {

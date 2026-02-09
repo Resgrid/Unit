@@ -16,6 +16,9 @@ import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to apply audio routing
 export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'earpiece' | 'default') => {
+  // Audio routing is native-only
+  if (Platform.OS === 'web') return;
+
   try {
     if (Platform.OS === 'android') {
       logger.info({
@@ -503,11 +506,32 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Start CallKeep call for background audio support
       // On web, callKeepService provides no-op implementation but still tracks call state
       try {
-        const callUUID = await callKeepService.startCall(roomInfo.Name || 'Voice Channel');
-        logger.info({
-          message: 'CallKeep call started for background audio support',
-          context: { callUUID, roomName: roomInfo.Name, platform: Platform.OS },
-        });
+        // On Android, CallKeep's VoiceConnectionService requires READ_PHONE_NUMBERS
+        // permission. If not granted, skip CallKeep to avoid a SecurityException crash.
+        let shouldStartCallKeep = true;
+        if (Platform.OS === 'android') {
+          const hasPhoneNumbers = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS
+          );
+          const hasPhoneState = await PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE
+          );
+          if (!hasPhoneNumbers || !hasPhoneState) {
+            shouldStartCallKeep = false;
+            logger.warn({
+              message: 'Skipping CallKeep - phone permissions not granted (READ_PHONE_NUMBERS or READ_PHONE_STATE)',
+              context: { hasPhoneNumbers, hasPhoneState },
+            });
+          }
+        }
+
+        if (shouldStartCallKeep) {
+          const callUUID = await callKeepService.startCall(roomInfo.Name || 'Voice Channel');
+          logger.info({
+            message: 'CallKeep call started for background audio support',
+            context: { callUUID, roomName: roomInfo.Name, platform: Platform.OS },
+          });
+        }
       } catch (callKeepError) {
         logger.warn({
           message: 'Failed to start CallKeep call - background audio may not work',

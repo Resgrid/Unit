@@ -25,7 +25,14 @@ const LiveKitCallModal: React.FC<LiveKitCallModalProps> = ({
   onClose,
   participantIdentity = `user-${Math.random().toString(36).substring(7)}`, // Default unique enough for example
 }) => {
-  const { availableRooms, selectedRoomForJoining, currentRoomId, isConnecting, isConnected, error, localParticipant, actions } = useLiveKitCallStore();
+  const availableRooms = useLiveKitCallStore((s) => s.availableRooms);
+  const selectedRoomForJoining = useLiveKitCallStore((s) => s.selectedRoomForJoining);
+  const currentRoomId = useLiveKitCallStore((s) => s.currentRoomId);
+  const isConnecting = useLiveKitCallStore((s) => s.isConnecting);
+  const isConnected = useLiveKitCallStore((s) => s.isConnected);
+  const error = useLiveKitCallStore((s) => s.error);
+  const localParticipant = useLiveKitCallStore((s) => s.localParticipant);
+  const actions = useLiveKitCallStore((s) => s.actions);
 
   const [isMicrophoneEnabled, setIsMicrophoneEnabled] = useState(true);
 

@@ -168,3 +168,13 @@ class ElectronPushNotificationService {
 }
 
 export const electronPushNotificationService = ElectronPushNotificationService.getInstance();
+
+// Alias for cross-platform compatibility
+export const pushNotificationService = electronPushNotificationService;
+
+// React hook for component usage (electron stub)
+export const usePushNotifications = () => {
+  return {
+    pushToken: null,
+  };
+};

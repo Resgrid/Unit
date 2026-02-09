@@ -114,7 +114,8 @@ const fabIconStyle = tva({
 type IFabProps = Omit<React.ComponentPropsWithoutRef<typeof UIFab>, 'context'> & VariantProps<typeof fabStyle>;
 
 const Fab = React.forwardRef<React.ElementRef<typeof UIFab>, IFabProps>(({ size = 'md', placement = 'bottom right', className, ...props }, ref) => {
-  return <UIFab ref={ref} {...props} className={fabStyle({ size, placement, class: className })} context={{ size }} />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIFab ref={ref} {...props} className={fabStyle({ size, placement, class: className })} context={contextValue} />;
 });
 
 type IFabLabelProps = React.ComponentPropsWithoutRef<typeof UIFab.Label> & VariantProps<typeof fabLabelStyle>;
