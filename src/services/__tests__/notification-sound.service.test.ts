@@ -1,3 +1,12 @@
+// Mock react-native Platform before any imports
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((obj) => obj.ios || obj.default),
+    Version: 14,
+  },
+}));
+
 import { Audio } from 'expo-av';
 
 import { notificationSoundService } from '../notification-sound.service';

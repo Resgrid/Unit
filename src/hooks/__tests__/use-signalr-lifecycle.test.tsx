@@ -43,7 +43,14 @@ describe('useSignalRLifecycle', () => {
     };
 
     // Mock SignalR store
-    mockUseSignalRStore.mockReturnValue({
+    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      connectUpdateHub: mockConnectUpdateHub,
+      disconnectUpdateHub: mockDisconnectUpdateHub,
+      connectGeolocationHub: mockConnectGeolocationHub,
+      disconnectGeolocationHub: mockDisconnectGeolocationHub,
+      isUpdateHubConnected: false,
+      isGeolocationHubConnected: false,
+    } as any) : {
       connectUpdateHub: mockConnectUpdateHub,
       disconnectUpdateHub: mockDisconnectUpdateHub,
       connectGeolocationHub: mockConnectGeolocationHub,
@@ -51,6 +58,16 @@ describe('useSignalRLifecycle', () => {
       isUpdateHubConnected: false,
       isGeolocationHubConnected: false,
     } as any);
+
+    // Also mock getState for direct store access
+    (mockUseSignalRStore as any).getState = jest.fn().mockReturnValue({
+      connectUpdateHub: mockConnectUpdateHub,
+      disconnectUpdateHub: mockDisconnectUpdateHub,
+      connectGeolocationHub: mockConnectGeolocationHub,
+      disconnectGeolocationHub: mockDisconnectGeolocationHub,
+      isUpdateHubConnected: false,
+      isGeolocationHubConnected: false,
+    });
 
     // Mock useAppLifecycle to return shared state
     mockUseAppLifecycle.mockImplementation(() => appLifecycleState);

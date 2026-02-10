@@ -6,8 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { Animated, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Loading } from '@/components/common/loading';
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
+import { Loading } from '@/components/common/loading';
 import MapPins from '@/components/maps/map-pins';
 import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
@@ -31,7 +31,7 @@ export default function Map() {
 
   // Gate: don't mount the heavy map/location machinery until core init is done
   if (!isInitialized) {
-    return <Loading message={t('common.loading')} />;
+    return <Loading text={t('common.loading')} />;
   }
 
   return <MapContent />;
@@ -153,6 +153,7 @@ function MapContent() {
         cameraRef.current?.setCamera(cameraConfig);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMapReady, locationLatitude, locationLongitude, locationHeading, isMapLocked]);
   // NOTE: hasUserMovedMap intentionally excluded from deps to avoid toggle loop
   // on web where programmatic easeTo → moveend → setHasUserMovedMap(true) → re-trigger.
@@ -244,12 +245,15 @@ function MapContent() {
     });
   }, [trackEvent, mapPins.length, isMapLocked, colorScheme]);
 
-  const onCameraChanged = useCallback((event: any) => {
-    // Only register user interaction if map is not locked
-    if (event.properties.isUserInteraction && !isMapLocked) {
-      setHasUserMovedMap(true);
-    }
-  }, [isMapLocked]);
+  const onCameraChanged = useCallback(
+    (event: any) => {
+      // Only register user interaction if map is not locked
+      if (event.properties.isUserInteraction && !isMapLocked) {
+        setHasUserMovedMap(true);
+      }
+    },
+    [isMapLocked]
+  );
 
   const handleRecenterMap = () => {
     if (locationLatitude && locationLongitude) {
@@ -387,12 +391,7 @@ function MapContent() {
 
           {locationLatitude && locationLongitude && (
             <Mapbox.PointAnnotation id="userLocation" coordinate={[locationLongitude, locationLatitude]} anchor={{ x: 0.5, y: 0.5 }}>
-              <Animated.View
-                style={[
-                  styles.markerContainer,
-                  Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] },
-                ]}
-              >
+              <Animated.View style={[styles.markerContainer, Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] }]}>
                 <View style={[styles.markerOuterRing, Platform.OS === 'web' && styles.markerOuterRingPulseWeb]} />
                 <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
                   <View style={styles.markerDot} />
@@ -496,13 +495,14 @@ const styles = StyleSheet.create({
   markerPulseWeb: {
     // No JS-driven transform on web — the outer ring animates via CSS instead
   } as any,
-  markerOuterRingPulseWeb: Platform.OS === 'web'
-    ? {
-      // @ts-ignore — web-only CSS animation properties
-      animationName: 'pulse-ring',
-      animationDuration: '2s',
-      animationIterationCount: 'infinite',
-      animationTimingFunction: 'ease-in-out',
-    }
-    : ({} as any),
+  markerOuterRingPulseWeb:
+    Platform.OS === 'web'
+      ? {
+          // @ts-ignore — web-only CSS animation properties
+          animationName: 'pulse-ring',
+          animationDuration: '2s',
+          animationIterationCount: 'infinite',
+          animationTimingFunction: 'ease-in-out',
+        }
+      : ({} as any),
 });

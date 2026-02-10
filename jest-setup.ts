@@ -6,6 +6,34 @@ global.window = {};
 // @ts-ignore
 global.window = global;
 
+// Mock react-native Platform globally
+// Must include `default` export because react-native/index.js and processColor.js
+// access Platform via require('./Libraries/Utilities/Platform').default
+jest.mock('react-native/Libraries/Utilities/Platform', () => {
+  const platform = {
+    OS: 'ios' as const,
+    select: jest.fn((obj: any) => obj.ios ?? obj.native ?? obj.default),
+    Version: 14,
+    constants: {
+      osVersion: '14.0',
+      interfaceIdiom: 'phone',
+      isTesting: true,
+      reactNativeVersion: { major: 0, minor: 76, patch: 0 },
+      systemName: 'iOS',
+    },
+    isTesting: true,
+    isPad: false,
+    isTV: false,
+    isVision: false,
+    isMacCatalyst: false,
+  };
+  return {
+    __esModule: true,
+    default: platform,
+    ...platform,
+  };
+});
+
 // Mock expo-audio globally
 jest.mock('expo-audio', () => ({
   createAudioPlayer: jest.fn(() => ({

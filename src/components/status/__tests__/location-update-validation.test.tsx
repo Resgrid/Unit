@@ -42,7 +42,7 @@ describe('Location Update Validation', () => {
       setActiveUnitWithFetch: jest.fn().mockResolvedValue({}),
     };
 
-    mockUseCoreStore.mockReturnValue(mockCoreStore);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCoreStore) : mockCoreStore);
     (mockUseCoreStore as any).getState = jest.fn().mockReturnValue(mockCoreStore);
   });
 

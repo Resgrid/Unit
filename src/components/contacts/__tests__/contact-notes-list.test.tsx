@@ -56,7 +56,42 @@ describe('ContactNotesList', () => {
     jest.clearAllMocks();
 
     // Default mock store state
-    mockUseContactsStore.mockReturnValue({
+    mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contactNotes: {
+        'test-contact-123': [
+          {
+            ContactNoteId: 'note-1',
+            ContactId: 'test-contact-123',
+            Note: 'This is a test note',
+            NoteType: 'General',
+            Visibility: 1, // Public
+            ShouldAlert: false,
+            AddedBy: 'user-1',
+            AddedByName: 'John Doe',
+            AddedOn: '2023-01-15T10:30:00Z',
+            AddedOnUtc: '2023-01-15T10:30:00Z',
+            ExpiresOn: '2024-01-15T10:30:00Z',
+            ExpiresOnUtc: '2024-01-15T10:30:00Z',
+          },
+          {
+            ContactNoteId: 'note-2',
+            ContactId: 'test-contact-123',
+            Note: 'This is another test note',
+            NoteType: 'Important',
+            Visibility: 0, // Internal
+            ShouldAlert: true,
+            AddedBy: 'user-2',
+            AddedByName: 'Jane Smith',
+            AddedOn: '2023-02-15T14:30:00Z',
+            AddedOnUtc: '2023-02-15T14:30:00Z',
+            ExpiresOn: null,
+            ExpiresOnUtc: null,
+          },
+        ],
+      },
+      isNotesLoading: false,
+      fetchContactNotes: mockFetchContactNotes,
+    }) : {
       contactNotes: {
         'test-contact-123': [
           {
@@ -104,7 +139,11 @@ describe('ContactNotesList', () => {
     });
 
     it('should render loading state', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {},
+        isNotesLoading: true,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {},
         isNotesLoading: true,
         fetchContactNotes: mockFetchContactNotes,
@@ -116,7 +155,13 @@ describe('ContactNotesList', () => {
     });
 
     it('should render empty state when no notes', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {
+          'test-contact-123': [],
+        },
+        isNotesLoading: false,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {
           'test-contact-123': [],
         },
@@ -144,7 +189,13 @@ describe('ContactNotesList', () => {
     });
 
     it('should track analytics event when component is rendered without notes', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {
+          'test-contact-123': [],
+        },
+        isNotesLoading: false,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {
           'test-contact-123': [],
         },
@@ -163,7 +214,11 @@ describe('ContactNotesList', () => {
     });
 
     it('should track analytics event when component is in loading state', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {},
+        isNotesLoading: true,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {},
         isNotesLoading: true,
         fetchContactNotes: mockFetchContactNotes,
@@ -189,7 +244,11 @@ describe('ContactNotesList', () => {
       const { rerender } = render(<ContactNotesList contactId="contact-1" />);
 
       // Mock empty notes for contact-1
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {},
+        isNotesLoading: false,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {},
         isNotesLoading: false,
         fetchContactNotes: mockFetchContactNotes,
@@ -203,7 +262,28 @@ describe('ContactNotesList', () => {
       });
 
       // Mock different notes for the new contact
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contactNotes: {
+          'contact-2': [
+            {
+              ContactNoteId: 'note-3',
+              ContactId: 'contact-2',
+              Note: 'Note for contact 2',
+              NoteType: 'General',
+              Visibility: 1,
+              ShouldAlert: false,
+              AddedBy: 'user-1',
+              AddedByName: 'John Doe',
+              AddedOn: '2023-01-15T10:30:00Z',
+              AddedOnUtc: '2023-01-15T10:30:00Z',
+              ExpiresOn: null,
+              ExpiresOnUtc: null,
+            },
+          ],
+        },
+        isNotesLoading: false,
+        fetchContactNotes: mockFetchContactNotes,
+      }) : {
         contactNotes: {
           'contact-2': [
             {

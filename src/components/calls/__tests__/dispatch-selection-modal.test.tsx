@@ -140,7 +140,7 @@ const mockDispatchStore = {
 };
 
 jest.mock('@/stores/dispatch/store', () => ({
-  useDispatchStore: jest.fn(() => mockDispatchStore),
+  useDispatchStore: jest.fn((selector: any) => typeof selector === 'function' ? selector(mockDispatchStore) : mockDispatchStore),
 }));
 
 // Mock the color scheme and cssInterop

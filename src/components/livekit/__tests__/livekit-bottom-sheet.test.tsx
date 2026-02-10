@@ -135,8 +135,8 @@ const mockSelectedAudioDevices = {
 };
 
 describe('LiveKitBottomSheet', () => {
-  const mockUseLiveKitStore = useLiveKitStore as jest.MockedFunction<typeof useLiveKitStore>;
-  const mockUseBluetoothAudioStore = useBluetoothAudioStore as jest.MockedFunction<typeof useBluetoothAudioStore>;
+  const mockUseLiveKitStore = useLiveKitStore as unknown as jest.Mock;
+  const mockUseBluetoothAudioStore = useBluetoothAudioStore as unknown as jest.Mock;
 
   const defaultLiveKitState = {
     isBottomSheetVisible: false,
@@ -159,13 +159,16 @@ describe('LiveKitBottomSheet', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseLiveKitStore.mockReturnValue(defaultLiveKitState);
-    mockUseBluetoothAudioStore.mockReturnValue(defaultBluetoothState);
+    mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(defaultLiveKitState) : defaultLiveKitState);
+    mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(defaultBluetoothState) : defaultBluetoothState);
   });
 
   describe('Component Rendering', () => {
     it('should render successfully when bottom sheet is not visible', () => {
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: false,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: false,
       });
@@ -176,7 +179,12 @@ describe('LiveKitBottomSheet', () => {
 
     it('should render successfully when bottom sheet is visible', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
@@ -190,7 +198,12 @@ describe('LiveKitBottomSheet', () => {
 
     it('should render successfully when connecting', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnecting: true,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnecting: true,
@@ -204,7 +217,14 @@ describe('LiveKitBottomSheet', () => {
 
     it('should render successfully when connected', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -222,7 +242,11 @@ describe('LiveKitBottomSheet', () => {
   describe('Store Interactions', () => {
     it('should call fetchVoiceSettings when opening room selection view', () => {
       const mockFetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        fetchVoiceSettings: mockFetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         fetchVoiceSettings: mockFetchVoiceSettings,
@@ -234,7 +258,12 @@ describe('LiveKitBottomSheet', () => {
 
     it('should handle empty rooms list', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: [],
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: [],
@@ -248,7 +277,14 @@ describe('LiveKitBottomSheet', () => {
 
     it('should handle connected state with room info', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -264,7 +300,15 @@ describe('LiveKitBottomSheet', () => {
 
     it('should handle talking state', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        isTalking: true,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -283,7 +327,14 @@ describe('LiveKitBottomSheet', () => {
   describe('Audio Device State', () => {
     it('should handle missing microphone device', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -292,7 +343,12 @@ describe('LiveKitBottomSheet', () => {
         fetchVoiceSettings,
       });
 
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        selectedAudioDevices: {
+          microphone: null,
+          speaker: mockSelectedAudioDevices.speaker,
+        },
+      }) : {
         selectedAudioDevices: {
           microphone: null,
           speaker: mockSelectedAudioDevices.speaker,
@@ -305,7 +361,14 @@ describe('LiveKitBottomSheet', () => {
 
     it('should handle missing speaker device', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -314,7 +377,12 @@ describe('LiveKitBottomSheet', () => {
         fetchVoiceSettings,
       });
 
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        selectedAudioDevices: {
+          microphone: mockSelectedAudioDevices.microphone,
+          speaker: null,
+        },
+      }) : {
         selectedAudioDevices: {
           microphone: mockSelectedAudioDevices.microphone,
           speaker: null,
@@ -329,7 +397,14 @@ describe('LiveKitBottomSheet', () => {
   describe('Edge Cases', () => {
     it('should handle missing currentRoom gracefully', () => {
       const fetchVoiceSettings = jest.fn();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: null,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -348,7 +423,14 @@ describe('LiveKitBottomSheet', () => {
         localParticipant: null,
       };
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: roomWithoutParticipant,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -368,7 +450,14 @@ describe('LiveKitBottomSheet', () => {
         Name: '',
       };
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: roomInfoWithoutName,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -387,7 +476,12 @@ describe('LiveKitBottomSheet', () => {
       const fetchVoiceSettings = jest.fn();
 
       // Start with room selection view
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
@@ -399,7 +493,14 @@ describe('LiveKitBottomSheet', () => {
 
       // Connect to room - fetchVoiceSettings should not be called again since we're now in connected view
       fetchVoiceSettings.mockClear();
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -416,7 +517,14 @@ describe('LiveKitBottomSheet', () => {
       const fetchVoiceSettings = jest.fn();
 
       // Start with muted microphone in connected state
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -437,7 +545,14 @@ describe('LiveKitBottomSheet', () => {
         },
       };
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: enabledMockRoom,
+        fetchVoiceSettings,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -468,7 +583,11 @@ describe('LiveKitBottomSheet', () => {
     it('should return to room select when back is pressed from audio settings if entered from room select', () => {
       const { fireEvent } = require('@testing-library/react-native');
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
@@ -494,7 +613,13 @@ describe('LiveKitBottomSheet', () => {
     it('should return to connected view when back is pressed from audio settings if entered from connected view', async () => {
       const { fireEvent } = require('@testing-library/react-native');
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        currentRoom: mockRoom,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -526,12 +651,16 @@ describe('LiveKitBottomSheet', () => {
   describe('Analytics', () => {
     beforeEach(() => {
       jest.clearAllMocks();
-      mockUseLiveKitStore.mockReturnValue(defaultLiveKitState);
-      mockUseBluetoothAudioStore.mockReturnValue(defaultBluetoothState);
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(defaultLiveKitState) : defaultLiveKitState);
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(defaultBluetoothState) : defaultBluetoothState);
     });
 
     it('should track analytics event when bottom sheet is opened', () => {
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
@@ -554,7 +683,10 @@ describe('LiveKitBottomSheet', () => {
     });
 
     it('should not track analytics event when bottom sheet is closed', () => {
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: false,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: false,
       });
@@ -565,7 +697,14 @@ describe('LiveKitBottomSheet', () => {
     });
 
     it('should track analytics event with connected state', () => {
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        isConnected: true,
+        currentRoomInfo: mockCurrentRoomInfo,
+        availableRooms: mockAvailableRooms,
+        isTalking: true,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         isConnected: true,
@@ -596,13 +735,19 @@ describe('LiveKitBottomSheet', () => {
         speaker: { id: 'bt-speaker', name: 'Bluetooth Speaker', type: 'bluetooth' as const, isAvailable: true },
       };
 
-      mockUseLiveKitStore.mockReturnValue({
+      mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...defaultLiveKitState,
+        isBottomSheetVisible: true,
+        availableRooms: mockAvailableRooms,
+      }) : {
         ...defaultLiveKitState,
         isBottomSheetVisible: true,
         availableRooms: mockAvailableRooms,
       });
 
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        selectedAudioDevices: bluetoothAudioDevices,
+      }) : {
         selectedAudioDevices: bluetoothAudioDevices,
       });
 

@@ -198,15 +198,7 @@ jest.mock('@/stores/app/core-store', () => {
 });
 
 jest.mock('@/stores/app/location-store', () => ({
-  useLocationStore: jest.fn(() => ({
-    latitude: 37.7749,
-    longitude: -122.4194,
-    heading: 0,
-    accuracy: 10,
-    speed: 0,
-    altitude: 0,
-    timestamp: Date.now(),
-  })),
+  useLocationStore: jest.fn(),
 }));
 
 jest.mock('@/stores/roles/store', () => ({
@@ -225,6 +217,7 @@ import { useStatusBottomSheetStore, useStatusesStore } from '@/stores/status/sto
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
 import { useToastStore } from '@/stores/toast/store';
+import { useLocationStore } from '@/stores/app/location-store';
 
 import { StatusBottomSheet } from '../status-bottom-sheet';
 
@@ -285,6 +278,7 @@ const mockUseCoreStore = useCoreStore as unknown as jest.MockedFunction<any>;
 const mockGetState = (mockUseCoreStore as any).getState;
 const mockUseRolesStore = useRolesStore as jest.MockedFunction<typeof useRolesStore>;
 const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
+const mockUseLocationStore = useLocationStore as jest.MockedFunction<typeof useLocationStore>;
 
 describe('StatusBottomSheet', () => {
   const mockReset = jest.fn();
@@ -364,9 +358,28 @@ describe('StatusBottomSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseTranslation.mockReturnValue(mockTranslation as any);
-    mockUseStatusBottomSheetStore.mockReturnValue(defaultBottomSheetStore);
-    mockUseStatusesStore.mockReturnValue(defaultStatusesStore);
-    mockUseToastStore.mockReturnValue({ showToast: mockShowToast });
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(defaultBottomSheetStore);
+      }
+      return defaultBottomSheetStore;
+    });
+
+    mockUseStatusesStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(defaultStatusesStore);
+      }
+      return defaultStatusesStore;
+    });
+
+    mockUseToastStore.mockImplementation((selector: any) => {
+      const store = { showToast: mockShowToast };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
 
     // Set up the core store mock with getState that returns the store state
     mockGetState.mockReturnValue(defaultCoreStore as any);
@@ -377,7 +390,29 @@ describe('StatusBottomSheet', () => {
       }
       return defaultCoreStore;
     });
-    mockUseRolesStore.mockReturnValue(defaultRolesStore);
+
+    mockUseRolesStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(defaultRolesStore);
+      }
+      return defaultRolesStore;
+    });
+
+    mockUseLocationStore.mockImplementation((selector: any) => {
+      const store = {
+        latitude: 37.7749,
+        longitude: -122.4194,
+        heading: 0,
+        accuracy: 10,
+        speed: 0,
+        altitude: 0,
+        timestamp: Date.now(),
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
   });
 
   it('should be importable without error', () => {
@@ -398,10 +433,16 @@ describe('StatusBottomSheet', () => {
       Note: 1, // Note optional - this gives us 2 steps
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -420,11 +461,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -452,11 +499,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -484,11 +537,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableStations: [mockStation],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableStations: [mockStation],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -521,16 +580,22 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: null,
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: null,
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -564,16 +629,22 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: 'call-1',
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: 'call-1',
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -607,16 +678,22 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: 'call-1',
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: 'call-1',
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -637,12 +714,18 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [{ CallId: 'call-1', Number: 'C001', Name: 'Call', Address: '' }],
-      availableStations: [{ GroupId: 'station-1', Name: 'Station 1', Address: '', GroupType: 'Station' }],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [{ CallId: 'call-1', Number: 'C001', Name: 'Call', Address: '' }],
+        availableStations: [{ GroupId: 'station-1', Name: 'Station 1', Address: '', GroupType: 'Station' }],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -659,11 +742,17 @@ describe('StatusBottomSheet', () => {
       Note: 1, // Note optional
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -682,12 +771,18 @@ describe('StatusBottomSheet', () => {
       Note: 1, // Note optional
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'add-note',
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -708,11 +803,17 @@ describe('StatusBottomSheet', () => {
       Note: 1,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'add-note',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -731,11 +832,17 @@ describe('StatusBottomSheet', () => {
       Note: 2, // Note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'add-note',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -754,12 +861,18 @@ describe('StatusBottomSheet', () => {
       Note: 2, // Note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'add-note',
-      note: '', // Empty note
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+        note: '', // Empty note
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -785,12 +898,18 @@ describe('StatusBottomSheet', () => {
       Note: 2, // Note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'add-note',
-      note: 'Test note', // Note provided
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+        note: 'Test note', // Note provided
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -816,10 +935,16 @@ describe('StatusBottomSheet', () => {
       Note: 0, // No note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -845,13 +970,19 @@ describe('StatusBottomSheet', () => {
       { CallId: 'call-1', Name: 'Test Call', Number: '123', Address: 'Test Address' },
     ];
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'select-destination',
-      isLoading: true, // This should show loading instead of the call list
-      availableCalls: mockAvailableCalls,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'select-destination',
+        isLoading: true, // This should show loading instead of the call list
+        availableCalls: mockAvailableCalls,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -879,17 +1010,23 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: null,
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: null,
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -923,17 +1060,23 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: 'call-1',
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: 'call-1',
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -967,17 +1110,23 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: 'call-1',
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: 'call-1',
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -999,11 +1148,17 @@ describe('StatusBottomSheet', () => {
       Note: 0, // No note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1032,12 +1187,18 @@ describe('StatusBottomSheet', () => {
       Note: 0, // No note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedStation: mockStation,
-      selectedDestinationType: 'station',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedStation: mockStation,
+        selectedDestinationType: 'station',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1071,10 +1232,10 @@ describe('StatusBottomSheet', () => {
       ...defaultCoreStore,
       activeCallId: null,
     } as any);
-    (useCoreStore as any).mockImplementation(() => ({
+    (useCoreStore as any).mockImplementation((selector: any) => { const store = {
       ...defaultCoreStore,
       activeCallId: null,
-    }));
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
     const mockStore = {
       ...defaultBottomSheetStore,
@@ -1083,7 +1244,12 @@ describe('StatusBottomSheet', () => {
       availableCalls: [mockCall],
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue(mockStore);
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockStore);
+      }
+      return mockStore;
+    });
 
     render(<StatusBottomSheet />);
 
@@ -1096,10 +1262,16 @@ describe('StatusBottomSheet', () => {
     expect(mockSetActiveCall).not.toHaveBeenCalled();
 
     // Update mock store to reflect call selection
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...mockStore,
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...mockStore,
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     // Step 2: Navigate to next step
@@ -1110,11 +1282,17 @@ describe('StatusBottomSheet', () => {
     expect(mockSetActiveCall).not.toHaveBeenCalled();
 
     // Re-render to show the final step (submit)
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...mockStore,
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
-      currentStep: 'select-destination',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...mockStore,
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+        currentStep: 'select-destination',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1137,10 +1315,16 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1156,11 +1340,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1185,13 +1375,19 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1215,13 +1411,19 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableStations: [mockStation],
-      selectedStation: mockStation,
-      selectedDestinationType: 'station',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableStations: [mockStation],
+        selectedStation: mockStation,
+        selectedDestinationType: 'station',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1245,13 +1447,19 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1287,14 +1495,20 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
-      availableStations: [mockStation],
-      selectedStation: mockStation,
-      selectedDestinationType: 'station',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+        availableStations: [mockStation],
+        selectedStation: mockStation,
+        selectedDestinationType: 'station',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1330,14 +1544,20 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [mockCall],
-      availableStations: [mockStation],
-      selectedCall: mockCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [mockCall],
+        availableStations: [mockStation],
+        selectedCall: mockCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1371,11 +1591,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: manyCalls,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: manyCalls,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1409,11 +1635,17 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableStations: manyStations,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableStations: manyStations,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1466,14 +1698,20 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithActiveCall;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [otherCall, activeCall], // Active call is in the list
-      isLoading: false,
-      selectedCall: null, // No call initially selected
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [otherCall, activeCall], // Active call is in the list
+        isLoading: false,
+        selectedCall: null, // No call initially selected
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1513,15 +1751,21 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithActiveCall;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [activeCall],
-      availableStations: [{ GroupId: 'station-1', Name: 'Station 1', Address: '', GroupType: 'Station' }],
-      isLoading: false,
-      selectedCall: null,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [activeCall],
+        availableStations: [{ GroupId: 'station-1', Name: 'Station 1', Address: '', GroupType: 'Station' }],
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1554,14 +1798,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: 'active-call-123',
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [activeCall], // Active call is in the list but not relevant for this status
-      isLoading: false,
-      selectedCall: null,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [activeCall], // Active call is in the list but not relevant for this status
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1592,14 +1842,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: 'different-active-call-999',
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [availableCall], // Active call is NOT in this list
-      isLoading: false,
-      selectedCall: null,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [availableCall], // Active call is NOT in this list
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1630,14 +1886,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: null,
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [availableCall],
-      isLoading: false,
-      selectedCall: null,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [availableCall],
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1675,14 +1937,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: 'active-call-123',
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [activeCall, alreadySelectedCall],
-      isLoading: false,
-      selectedCall: alreadySelectedCall, // Already has a selected call
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [activeCall, alreadySelectedCall],
+        isLoading: false,
+        selectedCall: alreadySelectedCall, // Already has a selected call
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1713,14 +1981,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: 'active-call-123',
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [activeCall],
-      isLoading: false,
-      selectedCall: null,
-      selectedDestinationType: 'station', // Not 'none', so should not change selection
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [activeCall],
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'station', // Not 'none', so should not change selection
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1751,14 +2025,20 @@ describe('StatusBottomSheet', () => {
       activeCallId: 'active-call-123',
     } as any);
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      availableCalls: [activeCall],
-      isLoading: true, // Still loading
-      selectedCall: null,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [activeCall],
+        isLoading: true, // Still loading
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1807,7 +2087,12 @@ describe('StatusBottomSheet', () => {
       selectedDestinationType: 'none',
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue(currentStore);
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(currentStore);
+      }
+      return currentStore;
+    });
 
     const { rerender } = render(<StatusBottomSheet />);
 
@@ -1828,7 +2113,12 @@ describe('StatusBottomSheet', () => {
       selectedDestinationType: 'call' as const,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue(updatedStore);
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(updatedStore);
+      }
+      return updatedStore;
+    });
 
     rerender(<StatusBottomSheet />);
 
@@ -1884,7 +2174,12 @@ describe('StatusBottomSheet', () => {
       selectedDestinationType: 'none',
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue(loadingStore);
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(loadingStore);
+      }
+      return loadingStore;
+    });
 
     const { rerender } = render(<StatusBottomSheet />);
 
@@ -1900,12 +2195,18 @@ describe('StatusBottomSheet', () => {
 
   // New tests for status selection step
   it('should render status selection step when no status is pre-selected', () => {
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null, // No status pre-selected
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null, // No status pre-selected
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1919,11 +2220,17 @@ describe('StatusBottomSheet', () => {
   });
 
   it('should display checkmarks instead of radio buttons for status selection', () => {
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1946,10 +2253,16 @@ describe('StatusBottomSheet', () => {
       Note: 1, // Note optional
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1962,12 +2275,18 @@ describe('StatusBottomSheet', () => {
   it('should handle status selection', () => {
     const mockSetSelectedStatus = jest.fn();
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
-      setSelectedStatus: mockSetSelectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+        setSelectedStatus: mockSetSelectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -1986,11 +2305,17 @@ describe('StatusBottomSheet', () => {
   });
 
   it('should show status details in status selection', () => {
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2008,13 +2333,19 @@ describe('StatusBottomSheet', () => {
   it('should disable next button on status selection when no status is selected', () => {
     const mockSetCurrentStep = jest.fn();
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
-      cameFromStatusSelection: true,
-      setCurrentStep: mockSetCurrentStep,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+        cameFromStatusSelection: true,
+        setCurrentStep: mockSetCurrentStep,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2041,13 +2372,19 @@ describe('StatusBottomSheet', () => {
       Detail: 1,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus,
-      cameFromStatusSelection: true,
-      setCurrentStep: mockSetCurrentStep,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus,
+        cameFromStatusSelection: true,
+        setCurrentStep: mockSetCurrentStep,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2072,11 +2409,17 @@ describe('StatusBottomSheet', () => {
       Detail: 2, // Has destination step
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2102,11 +2445,17 @@ describe('StatusBottomSheet', () => {
 
     const mockHandleSubmit = jest.fn();
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2130,11 +2479,17 @@ describe('StatusBottomSheet', () => {
       Detail: 0, // No destination step
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2159,11 +2514,17 @@ describe('StatusBottomSheet', () => {
       Detail: 2,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-destination',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-destination',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2172,11 +2533,17 @@ describe('StatusBottomSheet', () => {
     fireEvent.press(nextButton);
 
     // Now in note step
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2200,11 +2567,17 @@ describe('StatusBottomSheet', () => {
       Detail: 0, // No destination step
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2230,36 +2603,54 @@ describe('StatusBottomSheet', () => {
     };
 
     // Step 1: Status selection (no status selected yet)
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null, // No status selected yet, so we see status selection
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null, // No status selected yet, so we see status selection
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     const { rerender } = render(<StatusBottomSheet />);
     expect(screen.getByText('Step 1 of 3')).toBeTruthy();
 
     // Step 2: After selecting status, now on destination step (from new flow)
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-destination',
-      selectedStatus: selectedStatusWithAll,
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-destination',
+        selectedStatus: selectedStatusWithAll,
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     rerender(<StatusBottomSheet />);
     expect(screen.getByText('Step 2 of 3')).toBeTruthy();
 
     // Step 3: Note step (from new flow)
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus: selectedStatusWithAll,
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus: selectedStatusWithAll,
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     rerender(<StatusBottomSheet />);
@@ -2301,24 +2692,36 @@ describe('StatusBottomSheet', () => {
     });
 
     // Status selection step
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     const { rerender } = render(<StatusBottomSheet />);
     expect(screen.getByText('Step 1 of 2')).toBeTruthy();
 
     // Note step (skipping destination)
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus: selectedStatusNoDestination,
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus: selectedStatusNoDestination,
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     rerender(<StatusBottomSheet />);
@@ -2343,11 +2746,17 @@ describe('StatusBottomSheet', () => {
       return coreStoreNoStatuses;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2370,11 +2779,17 @@ describe('StatusBottomSheet', () => {
       return coreStoreNullStatuses;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2406,14 +2821,20 @@ describe('StatusBottomSheet', () => {
       GroupType: 'Station',
     }));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus: committedStatus,
-      currentStep: 'select-destination',
-      availableCalls: mockCalls,
-      availableStations: mockStations,
-      isLoading: false,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus: committedStatus,
+        currentStep: 'select-destination',
+        availableCalls: mockCalls,
+        availableStations: mockStations,
+        isLoading: false,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2465,14 +2886,20 @@ describe('StatusBottomSheet', () => {
       GroupType: 'Station',
     }));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus: committedStatus,
-      currentStep: 'select-destination',
-      availableCalls: manyCalls,
-      availableStations: manyStations,
-      isLoading: false,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus: committedStatus,
+        currentStep: 'select-destination',
+        availableCalls: manyCalls,
+        availableStations: manyStations,
+        isLoading: false,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2521,12 +2948,18 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithManyStatuses;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
-      cameFromStatusSelection: true,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+        cameFromStatusSelection: true,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2570,13 +3003,19 @@ describe('StatusBottomSheet', () => {
       GroupType: 'Station',
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      selectedStatus,
-      currentStep: 'select-destination',
-      availableCalls: [mockCall],
-      availableStations: [mockStation],
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'select-destination',
+        availableCalls: [mockCall],
+        availableStations: [mockStation],
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2612,13 +3051,19 @@ describe('StatusBottomSheet', () => {
       Address: '123 Main St',
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedCall,
-      selectedDestinationType: 'call',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedCall,
+        selectedDestinationType: 'call',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2641,18 +3086,24 @@ describe('StatusBottomSheet', () => {
     // Mock a slow save operation
     const slowSaveUnitStatus = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 1000)));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
-    mockUseStatusesStore.mockReturnValue({
+    mockUseStatusesStore.mockImplementation((selector: any) => { const store = {
       ...defaultStatusesStore,
       saveUnitStatus: slowSaveUnitStatus,
-    });
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
     render(<StatusBottomSheet />);
 
@@ -2677,12 +3128,18 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2708,18 +3165,24 @@ describe('StatusBottomSheet', () => {
 
     const errorSaveUnitStatus = jest.fn().mockRejectedValue(new Error('Network error'));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
-    mockUseStatusesStore.mockReturnValue({
+    mockUseStatusesStore.mockImplementation((selector: any) => { const store = {
       ...defaultStatusesStore,
       saveUnitStatus: errorSaveUnitStatus,
-    });
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
     render(<StatusBottomSheet />);
 
@@ -2746,12 +3209,18 @@ describe('StatusBottomSheet', () => {
       Note: 0,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2781,18 +3250,24 @@ describe('StatusBottomSheet', () => {
     // Create a mock that resolves after a short delay to simulate API call
     const fastSaveUnitStatus = jest.fn().mockImplementation(() => Promise.resolve());
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
-    mockUseStatusesStore.mockReturnValue({
+    mockUseStatusesStore.mockImplementation((selector: any) => { const store = {
       ...defaultStatusesStore,
       saveUnitStatus: fastSaveUnitStatus,
-    });
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
     render(<StatusBottomSheet />);
 
@@ -2826,19 +3301,25 @@ describe('StatusBottomSheet', () => {
 
     const slowSaveUnitStatus = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
-      note: 'Test note',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+        note: 'Test note',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
-    mockUseStatusesStore.mockReturnValue({
+    mockUseStatusesStore.mockImplementation((selector: any) => { const store = {
       ...defaultStatusesStore,
       saveUnitStatus: slowSaveUnitStatus,
-    });
+    }; return typeof selector === 'function' ? selector(store) : store; });
 
     render(<StatusBottomSheet />);
 
@@ -2863,12 +3344,18 @@ describe('StatusBottomSheet', () => {
       Note: 1,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2909,14 +3396,20 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithActiveCall;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'call', // Set to call but no selectedCall yet
-      selectedCall: null, // This is the issue scenario
-      availableCalls,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'call', // Set to call but no selectedCall yet
+        selectedCall: null, // This is the issue scenario
+        availableCalls,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2948,14 +3441,20 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithActiveCall;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus,
-      selectedDestinationType: 'call', // Set to call but no selectedCall yet
-      selectedCall: null, // This is the issue scenario
-      availableCalls: [], // No calls available yet
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus,
+        selectedDestinationType: 'call', // Set to call but no selectedCall yet
+        selectedCall: null, // This is the issue scenario
+        availableCalls: [], // No calls available yet
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -2995,11 +3494,17 @@ describe('StatusBottomSheet', () => {
       return coreStoreWithBColor;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -3022,12 +3527,18 @@ describe('StatusBottomSheet', () => {
       Note: 1,
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'add-note',
-      selectedStatus: statusWithBColor,
-      selectedDestinationType: 'none',
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        selectedStatus: statusWithBColor,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -3066,11 +3577,17 @@ describe('StatusBottomSheet', () => {
       return coreStoreNoBColor;
     });
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-status',
-      selectedStatus: null,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-status',
+        selectedStatus: null,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);
@@ -3105,14 +3622,20 @@ describe('StatusBottomSheet', () => {
       GroupType: 'Fire Station',
     }));
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
-      ...defaultBottomSheetStore,
-      isOpen: true,
-      currentStep: 'select-destination',
-      selectedStatus: committedStatus,
-      availableCalls: manyCalls,
-      availableStations: manyStations,
-      isLoading: false,
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'select-destination',
+        selectedStatus: committedStatus,
+        availableCalls: manyCalls,
+        availableStations: manyStations,
+        isLoading: false,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
     });
 
     render(<StatusBottomSheet />);

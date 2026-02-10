@@ -263,7 +263,12 @@ describe('ContactDetailsSheet', () => {
       jest.clearAllMocks();
 
       // Setup default mock store state
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contacts: [mockPersonContact],
+        selectedContactId: 'contact-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      }) : {
         contacts: [mockPersonContact],
         selectedContactId: 'contact-1',
         isDetailsOpen: true,
@@ -296,7 +301,12 @@ describe('ContactDetailsSheet', () => {
         CompanyName: 'Acme Corp',
       };
 
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contacts: [companyContact],
+        selectedContactId: 'company-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      }) : {
         contacts: [companyContact],
         selectedContactId: 'company-1',
         isDetailsOpen: true,
@@ -320,7 +330,12 @@ describe('ContactDetailsSheet', () => {
     });
 
     it('should not track analytics event when sheet is closed', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contacts: [mockPersonContact],
+        selectedContactId: 'contact-1',
+        isDetailsOpen: false,
+        closeDetails: jest.fn(),
+      }) : {
         contacts: [mockPersonContact],
         selectedContactId: 'contact-1',
         isDetailsOpen: false,
@@ -333,7 +348,12 @@ describe('ContactDetailsSheet', () => {
     });
 
     it('should not track analytics event when no contact is selected', () => {
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contacts: [mockPersonContact],
+        selectedContactId: null,
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      }) : {
         contacts: [mockPersonContact],
         selectedContactId: null,
         isDetailsOpen: true,
@@ -365,7 +385,12 @@ describe('ContactDetailsSheet', () => {
         Notes: undefined,
       };
 
-      mockUseContactsStore.mockReturnValue({
+      mockUseContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        contacts: [minimalContact],
+        selectedContactId: 'minimal-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      }) : {
         contacts: [minimalContact],
         selectedContactId: 'minimal-1',
         isDetailsOpen: true,

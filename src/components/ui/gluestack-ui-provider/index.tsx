@@ -10,7 +10,7 @@ export function GluestackUIProvider({ mode = 'light', ...props }: { mode?: 'ligh
   // With darkMode: 'media', nativewind handles dark styling via CSS media queries,
   // so we only need the OS value to pick the right gluestack CSS-variable config.
   const osScheme = useColorScheme();
-  const colorSchemeName: 'light' | 'dark' = mode === 'system' ? (osScheme === 'dark' ? 'dark' : 'light') : (mode === 'dark' ? 'dark' : 'light');
+  const colorSchemeName: 'light' | 'dark' = mode === 'system' ? (osScheme === 'dark' ? 'dark' : 'light') : mode === 'dark' ? 'dark' : 'light';
 
   return (
     <View style={[config[colorSchemeName], { flex: 1, height: '100%', width: '100%' }, props.style]}>

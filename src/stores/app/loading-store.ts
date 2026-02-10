@@ -13,6 +13,11 @@ interface LoadingState {
   setLoading: (key: string, isLoading: boolean) => void;
 
   /**
+   * Toggle loading state for a specific key
+   */
+  toggleLoading: (key: string) => void;
+
+  /**
    * Check if a specific key is loading
    */
   isLoading: (key: string) => boolean;
@@ -34,6 +39,14 @@ export const useLoadingStore = create<LoadingState>((set, get) => ({
       },
     })),
 
+  toggleLoading: (key) =>
+    set((state) => ({
+      loadingStates: {
+        ...state.loadingStates,
+        [key]: !state.loadingStates[key],
+      },
+    })),
+
   isLoading: (key) => get().loadingStates[key] || false,
 
   resetLoading: () => set({ loadingStates: {} }),
@@ -44,12 +57,12 @@ export const useLoadingStore = create<LoadingState>((set, get) => ({
  */
 export const useLoading = (key: string) => {
   const setLoading = useLoadingStore((s) => s.setLoading);
-  const loadingStates = useLoadingStore((s) => s.loadingStates);
-  const loading = loadingStates[key] || false;
+  const toggleLoadingAction = useLoadingStore((s) => s.toggleLoading);
+  const loading = useLoadingStore((s) => s.loadingStates[key] ?? false);
 
   const startLoading = useCallback(() => setLoading(key, true), [setLoading, key]);
   const stopLoading = useCallback(() => setLoading(key, false), [setLoading, key]);
-  const toggleLoading = useCallback(() => setLoading(key, !loading), [setLoading, key, loading]);
+  const toggleLoading = useCallback(() => toggleLoadingAction(key), [toggleLoadingAction, key]);
 
   return useMemo(
     () => ({

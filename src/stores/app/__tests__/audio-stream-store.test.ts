@@ -1,3 +1,12 @@
+// Mock react-native Platform before any imports
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((obj: Record<string, unknown>) => (obj as Record<string, unknown>).ios || (obj as Record<string, unknown>).default),
+    Version: 14,
+  },
+}));
+
 // Mock dependencies first
 jest.mock('@/api/voice', () => ({
   getDepartmentAudioStreams: jest.fn(),

@@ -86,8 +86,8 @@ describe('SidebarRolesCard', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseCoreStore.mockReturnValue(mockActiveUnit);
-    mockUseRolesStore.mockReturnValue(mockUnitRoleAssignments);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: mockActiveUnit }) : { activeUnit: mockActiveUnit });
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: mockUnitRoleAssignments }) : { unitRoleAssignments: mockUnitRoleAssignments });
   });
 
   it('renders correctly with active unit and role assignments', () => {
@@ -97,7 +97,7 @@ describe('SidebarRolesCard', () => {
   });
 
   it('displays zero counts when no active unit', () => {
-    mockUseCoreStore.mockReturnValue(null);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: null }) : { activeUnit: null });
 
     render(<SidebarRolesCard />);
 
@@ -105,7 +105,7 @@ describe('SidebarRolesCard', () => {
   });
 
   it('displays zero counts when no role assignments', () => {
-    mockUseRolesStore.mockReturnValue([]);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: [] }) : { unitRoleAssignments: [] });
 
     render(<SidebarRolesCard />);
 
@@ -125,7 +125,7 @@ describe('SidebarRolesCard', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue(roleAssignmentsWithDifferentUnits);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: roleAssignmentsWithDifferentUnits }) : { unitRoleAssignments: roleAssignmentsWithDifferentUnits });
 
     render(<SidebarRolesCard />);
 
@@ -161,7 +161,7 @@ describe('SidebarRolesCard', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue(testAssignments);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: testAssignments }) : { unitRoleAssignments: testAssignments });
 
     render(<SidebarRolesCard />);
 
@@ -170,7 +170,7 @@ describe('SidebarRolesCard', () => {
   });
 
   it('handles empty unit role assignments gracefully', () => {
-    mockUseRolesStore.mockReturnValue([]);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: [] }) : { unitRoleAssignments: [] });
 
     render(<SidebarRolesCard />);
 
@@ -197,7 +197,7 @@ describe('SidebarRolesCard', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue(assignmentsWithUndefinedFullName);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: assignmentsWithUndefinedFullName }) : { unitRoleAssignments: assignmentsWithUndefinedFullName });
 
     render(<SidebarRolesCard />);
 
@@ -221,7 +221,7 @@ describe('SidebarRolesCard', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue(newAssignments);
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ unitRoleAssignments: newAssignments }) : { unitRoleAssignments: newAssignments });
 
     rerender(<SidebarRolesCard />);
 
@@ -240,7 +240,7 @@ describe('SidebarRolesCard', () => {
       Name: 'Unit 2',
     };
 
-    mockUseCoreStore.mockReturnValue(newUnit);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(newUnit) : newUnit);
 
     rerender(<SidebarRolesCard />);
 

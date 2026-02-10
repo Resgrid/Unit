@@ -234,7 +234,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     const { currentRoom } = get();
     if (!currentRoom) {
       logger.warn({
-         message: 'Cannot toggle microphone - no active LiveKit room'
+        message: 'Cannot toggle microphone - no active LiveKit room',
       });
       return;
     }
@@ -281,13 +281,9 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
               });
             } else {
               // Request READ_PHONE_STATE first
-              const phoneStateResult = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE
-              );
+              const phoneStateResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
               // Request READ_PHONE_NUMBERS
-              const phoneNumbersResult = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS
-              );
+              const phoneNumbersResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
 
               logger.debug({
                 message: 'Android Phone permissions requested',
@@ -312,15 +308,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
                     'Phone state permission was permanently denied. Voice functionality may not work correctly. Please open Settings and grant the Phone permission for this app.',
                     [
                       { text: 'Cancel', style: 'cancel' },
-                      { text: 'Open Settings', onPress: () => Linking.openSettings() }
+                      { text: 'Open Settings', onPress: () => Linking.openSettings() },
                     ]
                   );
                 } else {
-                  Alert.alert(
-                    'Voice Permissions Warning',
-                    'Phone state permission was not granted. Voice functionality may not work correctly. You can grant this permission in your device settings.',
-                    [{ text: 'OK' }]
-                  );
+                  Alert.alert('Voice Permissions Warning', 'Phone state permission was not granted. Voice functionality may not work correctly. You can grant this permission in your device settings.', [{ text: 'OK' }]);
                 }
               }
             }
@@ -329,11 +321,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
               message: 'Failed to request Android phone permissions - voice functionality may not work',
               context: { error: err },
             });
-            Alert.alert(
-              'Voice Permissions Error',
-              'Failed to request phone permissions. Voice functionality may not work correctly.',
-              [{ text: 'OK' }]
-            );
+            Alert.alert('Voice Permissions Error', 'Failed to request phone permissions. Voice functionality may not work correctly.', [{ text: 'OK' }]);
           }
         }
         return true;
@@ -412,52 +400,51 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Setup CallKeep mute sync
       callKeepService.setMuteStateCallback(async (muted) => {
         logger.info({
-           message: 'Syncing mute state from CallKeep',
-           context: { muted }
+          message: 'Syncing mute state from CallKeep',
+          context: { muted },
         });
-        
+
         if (room.localParticipant.isMicrophoneEnabled === muted) {
-             // If CallKeep says "muted" (true), and Mic is enabled (true), we need to disable mic.
-             // If CallKeep says "unmuted" (false), and Mic is disabled (false), we need to enable mic.
-             // Wait, logic check:
-             // isMicrophoneEnabled = true means NOT MUTED.
-             // muted = true means MUTED.
-             // So if isMicrophoneEnabled (true) and muted (true) -> mismatch, we must mute.
-             // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
-             
-             // Actually effectively: setMicrophoneEnabled(!muted)
-             await room.localParticipant.setMicrophoneEnabled(!muted);
-             
-             // Play sound
-             if (!muted) {
-                 await audioService.playStartTransmittingSound();
-             } else {
-                 await audioService.playStopTransmittingSound();
-             }
+          // If CallKeep says "muted" (true), and Mic is enabled (true), we need to disable mic.
+          // If CallKeep says "unmuted" (false), and Mic is disabled (false), we need to enable mic.
+          // Wait, logic check:
+          // isMicrophoneEnabled = true means NOT MUTED.
+          // muted = true means MUTED.
+          // So if isMicrophoneEnabled (true) and muted (true) -> mismatch, we must mute.
+          // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
+
+          // Actually effectively: setMicrophoneEnabled(!muted)
+          await room.localParticipant.setMicrophoneEnabled(!muted);
+
+          // Play sound
+          if (!muted) {
+            await audioService.playStartTransmittingSound();
+          } else {
+            await audioService.playStopTransmittingSound();
+          }
         }
       });
-      
+
       // Setup CallKeep End Call sync
       callKeepService.setEndCallCallback(() => {
         logger.info({
-           message: 'CallKeep end call event received, disconnecting room',
+          message: 'CallKeep end call event received, disconnecting room',
         });
         get().disconnectFromRoom();
       });
 
-      // Also ensure reverse sync: When app mutes, tell CallKeep? 
+      // Also ensure reverse sync: When app mutes, tell CallKeep?
       // CallKeep tracks its own state, usually triggered by UI or simple interactions.
       // If we mute from within the app (e.g. on screen button), we might want to tell CallKeep we are muted.
       // However, react-native-callkeep doesn't easily expose "setMuted" for the system call without ending logic or being complex?
       // Actually RNCallKeep.setMutedCall(uuid, muted) exists.
-      
-      const onLocalTrackMuted = () => {
-         // Update CallKeep state if needed?
-         // For now, let's just trust CallKeep's own state management or system UI.
-      };
-      
-      // We attach these listeners to the local participant if needed for other UI sync
 
+      const onLocalTrackMuted = () => {
+        // Update CallKeep state if needed?
+        // For now, let's just trust CallKeep's own state management or system UI.
+      };
+
+      // We attach these listeners to the local participant if needed for other UI sync
 
       // Setup audio routing based on selected devices
       // This may change audio modes/focus, so it comes after media button init
@@ -510,12 +497,8 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // permission. If not granted, skip CallKeep to avoid a SecurityException crash.
         let shouldStartCallKeep = true;
         if (Platform.OS === 'android') {
-          const hasPhoneNumbers = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS
-          );
-          const hasPhoneState = await PermissionsAndroid.check(
-            PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE
-          );
+          const hasPhoneNumbers = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
+          const hasPhoneState = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
           if (!hasPhoneNumbers || !hasPhoneState) {
             shouldStartCallKeep = false;
             logger.warn({
@@ -589,8 +572,6 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Cleanup CallKeep Mute Callback
       callKeepService.setMuteStateCallback(null);
       callKeepService.setEndCallCallback(null);
-
-
 
       set({
         currentRoom: null,

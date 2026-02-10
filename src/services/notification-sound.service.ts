@@ -170,6 +170,11 @@ class NotificationSoundService {
 
   private async playSound(sound: Audio.Sound | null, soundName: string): Promise<void> {
     try {
+      // Notification sounds are native-only; return silently on web
+      if (Platform.OS === 'web') {
+        return;
+      }
+
       if (!sound) {
         logger.warn({
           message: `Notification sound not loaded: ${soundName}`,

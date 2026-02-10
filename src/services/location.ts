@@ -62,33 +62,33 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
 // Define the background task (native only — TaskManager is unsupported on web)
 if (!isWeb) {
   TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
-  if (error) {
-    logger.error({
-      message: 'Location task error',
-      context: { error },
-    });
-    return;
-  }
-  if (data) {
-    const { locations } = data as { locations: Location.LocationObject[] };
-    const location = locations[0];
-    if (location) {
-      logger.info({
-        message: 'Background location update received',
-        context: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          heading: location.coords.heading,
-        },
+    if (error) {
+      logger.error({
+        message: 'Location task error',
+        context: { error },
       });
-
-      // Update local store
-      useLocationStore.getState().setLocation(location);
-
-      // Send to API
-      await sendLocationToAPI(location);
+      return;
     }
-  }
+    if (data) {
+      const { locations } = data as { locations: Location.LocationObject[] };
+      const location = locations[0];
+      if (location) {
+        logger.info({
+          message: 'Background location update received',
+          context: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            heading: location.coords.heading,
+          },
+        });
+
+        // Update local store
+        useLocationStore.getState().setLocation(location);
+
+        // Send to API
+        await sendLocationToAPI(location);
+      }
+    }
   });
 }
 
@@ -176,7 +176,7 @@ class LocationService {
           (err) => {
             logger.warn({ message: 'Web geolocation error', context: { code: err.code, msg: err.message } });
           },
-          { enableHighAccuracy: false, maximumAge: 15000, timeout: 30000 },
+          { enableHighAccuracy: false, maximumAge: 15000, timeout: 30000 }
         );
         // Store a compatible subscription object
         this.locationSubscription = { remove: () => navigator.geolocation.clearWatch(watchId) } as unknown as Location.LocationSubscription;

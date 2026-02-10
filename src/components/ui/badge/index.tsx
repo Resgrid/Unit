@@ -146,11 +146,7 @@ type IBadgeProps = React.ComponentPropsWithoutRef<typeof ContextView> & VariantP
 const Badge = ({ children, action = 'info', variant = 'solid', size = 'md', className, ...props }: { className?: string } & IBadgeProps) => {
   const contextValue = useMemo(() => ({ action, variant, size }), [action, variant, size]);
   return (
-    <ContextView
-      className={badgeStyle({ action, variant, class: className })}
-      {...props}
-      context={contextValue}
-    >
+    <ContextView className={badgeStyle({ action, variant, class: className })} {...props} context={contextValue}>
       {children}
     </ContextView>
   );

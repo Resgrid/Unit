@@ -34,10 +34,13 @@ jest.mock('react-hook-form', () => ({
 }));
 
 jest.mock('@/stores/app/server-url-store', () => ({
-  useServerUrlStore: () => ({
+  useServerUrlStore: (selector: any) => typeof selector === 'function' ? selector({
     getUrl: jest.fn().mockResolvedValue('https://example.com/api/v4'),
     setUrl: jest.fn(),
-  }),
+  }) : {
+    getUrl: jest.fn().mockResolvedValue('https://example.com/api/v4'),
+    setUrl: jest.fn(),
+  },
 }));
 
 jest.mock('@/lib/env', () => ({ Env: { API_VERSION: 'v4' } }));

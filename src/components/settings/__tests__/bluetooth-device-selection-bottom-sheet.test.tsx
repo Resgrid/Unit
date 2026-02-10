@@ -228,7 +228,40 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
     // Reset implementations to successful defaults
     (bluetoothAudioService.connectToDevice as jest.Mock).mockResolvedValue(undefined);
 
-    mockUseBluetoothAudioStore.mockReturnValue({
+    mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      availableDevices: [
+        {
+          id: 'test-device-1',
+          name: 'Test Headset',
+          rssi: -50,
+          isConnected: false,
+          hasAudioCapability: true,
+          supportsMicrophoneControl: true,
+          device: {} as any,
+        },
+        {
+          id: 'test-device-2',
+          name: 'Test Speaker',
+          rssi: -70,
+          isConnected: true,
+          hasAudioCapability: true,
+          supportsMicrophoneControl: false,
+          device: {} as any,
+        },
+      ],
+      isScanning: false,
+      bluetoothState: State.PoweredOn,
+      connectedDevice: {
+        id: 'test-device-2',
+        name: 'Test Speaker',
+        rssi: -70,
+        isConnected: true,
+        hasAudioCapability: true,
+        supportsMicrophoneControl: false,
+        device: {} as any,
+      },
+      connectionError: null,
+    } as any) : {
       availableDevices: [
         {
           id: 'test-device-1',
@@ -289,7 +322,13 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
   });
 
   it('displays bluetooth state warnings', () => {
-    mockUseBluetoothAudioStore.mockReturnValue({
+    mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      availableDevices: [],
+      isScanning: false,
+      bluetoothState: State.PoweredOff,
+      connectedDevice: null,
+      connectionError: null,
+    } as any) : {
       availableDevices: [],
       isScanning: false,
       bluetoothState: State.PoweredOff,
@@ -303,7 +342,13 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
   });
 
   it('displays connection errors', () => {
-    mockUseBluetoothAudioStore.mockReturnValue({
+    mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      availableDevices: [],
+      isScanning: false,
+      bluetoothState: State.PoweredOn,
+      connectedDevice: null,
+      connectionError: 'Failed to connect to device',
+    } as any) : {
       availableDevices: [],
       isScanning: false,
       bluetoothState: State.PoweredOn,
@@ -317,7 +362,13 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
   });
 
   it('shows scanning state', () => {
-    mockUseBluetoothAudioStore.mockReturnValue({
+    mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      availableDevices: [],
+      isScanning: true,
+      bluetoothState: State.PoweredOn,
+      connectedDevice: null,
+      connectionError: null,
+    } as any) : {
       availableDevices: [],
       isScanning: true,
       bluetoothState: State.PoweredOn,
@@ -346,7 +397,23 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
         device: {} as any,
       };
 
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        availableDevices: [
+          {
+            id: 'test-device-1',
+            name: 'Test Headset',
+            rssi: -50,
+            isConnected: false,
+            hasAudioCapability: true,
+            supportsMicrophoneControl: true,
+            device: {} as any,
+          },
+        ],
+        isScanning: false,
+        bluetoothState: State.PoweredOn,
+        connectedDevice: mockConnectedDevice,
+        connectionError: null,
+      } as any) : {
         availableDevices: [
           {
             id: 'test-device-1',
@@ -393,7 +460,23 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
       // Make connect fail
       (bluetoothAudioService.connectToDevice as jest.Mock).mockRejectedValue(new Error('Connection failed'));
 
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        availableDevices: [
+          {
+            id: 'test-device-1',
+            name: 'Test Headset',
+            rssi: -50,
+            isConnected: false,
+            hasAudioCapability: true,
+            supportsMicrophoneControl: true,
+            device: {} as any,
+          },
+        ],
+        isScanning: false,
+        bluetoothState: State.PoweredOn,
+        connectedDevice: null,
+        connectionError: null,
+      } as any) : {
         availableDevices: [
           {
             id: 'test-device-1',
@@ -432,7 +515,23 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
     });
 
     it('processes device selection when no device is currently connected', async () => {
-      mockUseBluetoothAudioStore.mockReturnValue({
+      mockUseBluetoothAudioStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        availableDevices: [
+          {
+            id: 'test-device-1',
+            name: 'Test Headset',
+            rssi: -50,
+            isConnected: false,
+            hasAudioCapability: true,
+            supportsMicrophoneControl: true,
+            device: {} as any,
+          },
+        ],
+        isScanning: false,
+        bluetoothState: State.PoweredOn,
+        connectedDevice: null,
+        connectionError: null,
+      } as any) : {
         availableDevices: [
           {
             id: 'test-device-1',

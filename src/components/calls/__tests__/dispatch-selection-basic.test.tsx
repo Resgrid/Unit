@@ -6,7 +6,7 @@ import { DispatchSelectionModal } from '../dispatch-selection-modal';
 
 // Mock dependencies
 jest.mock('@/stores/dispatch/store', () => ({
-  useDispatchStore: () => ({
+  useDispatchStore: (selector: any) => typeof selector === 'function' ? selector({
     data: {
       users: [],
       groups: [],
@@ -38,7 +38,39 @@ jest.mock('@/stores/dispatch/store', () => ({
       roles: [],
       units: [],
     }),
-  }),
+  }) : {
+    data: {
+      users: [],
+      groups: [],
+      roles: [],
+      units: [],
+    },
+    selection: {
+      everyone: false,
+      users: [],
+      groups: [],
+      roles: [],
+      units: [],
+    },
+    isLoading: false,
+    error: null,
+    searchQuery: '',
+    fetchDispatchData: jest.fn(),
+    setSelection: jest.fn(),
+    toggleEveryone: jest.fn(),
+    toggleUser: jest.fn(),
+    toggleGroup: jest.fn(),
+    toggleRole: jest.fn(),
+    toggleUnit: jest.fn(),
+    setSearchQuery: jest.fn(),
+    clearSelection: jest.fn(),
+    getFilteredData: () => ({
+      users: [],
+      groups: [],
+      roles: [],
+      units: [],
+    }),
+  },
 }));
 
 jest.mock('nativewind', () => ({

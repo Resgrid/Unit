@@ -68,7 +68,7 @@ const Skeleton = forwardRef<React.ElementRef<typeof View>, ISkeletonProps>(({ cl
     if (isWeb) {
       return (
         <View
-          style={{ animation: `skeleton-pulse ${animationDuration * 1.5}ms ease-in-out infinite` }}
+          style={{ animation: `skeleton-pulse ${animationDuration * 1.5}ms ease-in-out infinite` } as any}
           className={`${startColor} ${skeletonStyle({
             variant,
             class: className,

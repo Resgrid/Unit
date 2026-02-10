@@ -64,7 +64,13 @@ const mockSaveUnitStatus = saveUnitStatus as jest.MockedFunction<typeof saveUnit
 describe('Status GPS Debug Test', () => {
   it('should render Submit button with minimal setup', () => {
     // Mock all required stores
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: {
+        UnitId: 'unit1',
+        Name: 'Unit 1',
+        Type: 'Engine',
+      },
+    }) : {
       activeUnit: {
         UnitId: 'unit1',
         Name: 'Unit 1',
@@ -72,11 +78,21 @@ describe('Status GPS Debug Test', () => {
       },
     });
 
-    mockUseStatusesStore.mockReturnValue({
+    mockUseStatusesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      saveUnitStatus: mockSaveUnitStatus,
+    }) : {
       saveUnitStatus: mockSaveUnitStatus,
     });
 
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      latitude: 40.7128,
+      longitude: -74.0060,
+      accuracy: 10,
+      altitude: 50,
+      speed: 0,
+      heading: 180,
+      timestamp: '2025-08-06T17:30:00.000Z',
+    }) : {
       latitude: 40.7128,
       longitude: -74.0060,
       accuracy: 10,
@@ -86,7 +102,9 @@ describe('Status GPS Debug Test', () => {
       timestamp: '2025-08-06T17:30:00.000Z',
     });
 
-    mockUseRolesStore.mockReturnValue({
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      unitRoleAssignments: [],
+    }) : {
       unitRoleAssignments: [],
     });
 
@@ -119,7 +137,11 @@ describe('Status GPS Debug Test', () => {
       Note: 0, // No note required
     };
 
-    mockUseStatusBottomSheetStore.mockReturnValue({
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...defaultBottomSheetStore,
+      isOpen: true,
+      selectedStatus,
+    }) : {
       ...defaultBottomSheetStore,
       isOpen: true,
       selectedStatus,

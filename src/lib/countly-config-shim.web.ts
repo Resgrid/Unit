@@ -6,6 +6,7 @@
  */
 
 class CountlyConfig {
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
   constructor(_serverURL?: string, _appKey?: string) {}
   enableCrashReporting() {
     return this;

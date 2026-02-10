@@ -154,7 +154,7 @@ describe('Status GPS Integration', () => {
     // Also mock getState for the location store logic
     (mockUseLocationStore as any).getState = jest.fn().mockReturnValue(mockLocationStore);
 
-    mockUseCoreStore.mockReturnValue(mockCoreStore);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCoreStore) : mockCoreStore);
     // Also mock getState for the status store logic
     (mockUseCoreStore as any).getState = jest.fn().mockReturnValue(mockCoreStore);
     mockOfflineEventManager.queueUnitStatusEvent.mockReturnValue('queued-event-id');

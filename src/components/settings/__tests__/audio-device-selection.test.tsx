@@ -43,7 +43,7 @@ const mockStore = {
 };
 
 jest.mock('@/stores/app/bluetooth-audio-store', () => ({
-  useBluetoothAudioStore: () => mockStore,
+  useBluetoothAudioStore: (selector: any) => typeof selector === 'function' ? selector(mockStore) : mockStore,
 }));
 
 describe('AudioDeviceSelection', () => {

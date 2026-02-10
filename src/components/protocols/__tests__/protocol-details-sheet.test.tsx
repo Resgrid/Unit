@@ -46,7 +46,7 @@ const mockProtocolsStore = {
 };
 
 jest.mock('@/stores/protocols/store', () => ({
-  useProtocolsStore: () => mockProtocolsStore,
+  useProtocolsStore: (selector: any) => typeof selector === 'function' ? selector(mockProtocolsStore) : mockProtocolsStore,
 }));
 
 // Mock the UI components

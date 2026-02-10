@@ -31,9 +31,9 @@ export interface BluetoothAudioDevice {
 }
 
 export interface BluetoothSystemAudioDevice {
-     id: string;
-     name: string;
-     type: 'system';
+  id: string;
+  name: string;
+  type: 'system';
 }
 
 export interface AudioButtonEvent {

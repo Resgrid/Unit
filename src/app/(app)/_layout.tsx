@@ -418,38 +418,18 @@ export default function TabLayout() {
 
         {/* Main content area */}
         <View className={`flex-1 ${isLandscape ? 'w-3/4' : 'w-full'}`}>
-          <Tabs
-            screenOptions={screenOptions}
-          >
-            <Tabs.Screen
-              name="index"
-              options={indexOptions}
-            />
+          <Tabs screenOptions={screenOptions}>
+            <Tabs.Screen name="index" options={indexOptions} />
 
-            <Tabs.Screen
-              name="calls"
-              options={callsOptions}
-            />
+            <Tabs.Screen name="calls" options={callsOptions} />
 
-            <Tabs.Screen
-              name="contacts"
-              options={contactsOptions}
-            />
+            <Tabs.Screen name="contacts" options={contactsOptions} />
 
-            <Tabs.Screen
-              name="notes"
-              options={notesOptions}
-            />
+            <Tabs.Screen name="notes" options={notesOptions} />
 
-            <Tabs.Screen
-              name="protocols"
-              options={protocolsOptions}
-            />
+            <Tabs.Screen name="protocols" options={protocolsOptions} />
 
-            <Tabs.Screen
-              name="settings"
-              options={settingsOptions}
-            />
+            <Tabs.Screen name="settings" options={settingsOptions} />
           </Tabs>
 
           {/* NotificationInbox positioned within the tab content area — only after init and Novu is ready */}

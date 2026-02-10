@@ -4,12 +4,23 @@
  */
 
 class CountlyConfig {
+  // eslint-disable-next-line @typescript-eslint/no-useless-constructor
   constructor(_serverURL?: string, _appKey?: string) {}
-  enableCrashReporting() { return this; }
-  setRequiresConsent(_v: boolean) { return this; }
-  setLoggingEnabled(_v: boolean) { return this; }
-  setDeviceId(_id: string) { return this; }
-  setParameterTamperingProtectionSalt(_salt: string) { return this; }
+  enableCrashReporting() {
+    return this;
+  }
+  setRequiresConsent(_v: boolean) {
+    return this;
+  }
+  setLoggingEnabled(_v: boolean) {
+    return this;
+  }
+  setDeviceId(_id: string) {
+    return this;
+  }
+  setParameterTamperingProtectionSalt(_salt: string) {
+    return this;
+  }
 }
 
 const Countly = {

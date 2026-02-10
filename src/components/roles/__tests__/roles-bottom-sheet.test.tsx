@@ -150,8 +150,17 @@ describe('RolesBottomSheet', () => {
       trackEvent: mockTrackEvent,
     });
 
-    mockUseCoreStore.mockReturnValue(mockActiveUnit);
-    mockUseRolesStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: mockActiveUnit }) : { activeUnit: mockActiveUnit });
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: mockRoles,
+      unitRoleAssignments: mockUnitRoleAssignments,
+      users: mockUsers,
+      isLoading: false,
+      error: null,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: mockRoles,
       unitRoleAssignments: mockUnitRoleAssignments,
       users: mockUsers,
@@ -162,7 +171,9 @@ describe('RolesBottomSheet', () => {
       assignRoles: mockAssignRoles,
     } as any);
 
-    mockUseToastStore.mockReturnValue({
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      showToast: mockShowToast,
+    } as any) : {
       showToast: mockShowToast,
     } as any);
 
@@ -209,7 +220,16 @@ describe('RolesBottomSheet', () => {
 
   it('displays error state correctly', () => {
     const errorMessage = 'Failed to load roles';
-    mockUseRolesStore.mockReturnValue({
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: [],
+      unitRoleAssignments: [],
+      users: [],
+      isLoading: false,
+      error: errorMessage,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: [],
       unitRoleAssignments: [],
       users: [],
@@ -226,7 +246,7 @@ describe('RolesBottomSheet', () => {
   });
 
   it('handles missing active unit gracefully', () => {
-    mockUseCoreStore.mockReturnValue(null);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: null }) : { activeUnit: null });
 
     render(<RolesBottomSheet isOpen={true} onClose={mockOnClose} />);
 
@@ -244,7 +264,16 @@ describe('RolesBottomSheet', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue({
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: rolesWithDifferentUnits,
+      unitRoleAssignments: mockUnitRoleAssignments,
+      users: mockUsers,
+      isLoading: false,
+      error: null,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: rolesWithDifferentUnits,
       unitRoleAssignments: mockUnitRoleAssignments,
       users: mockUsers,
@@ -286,7 +315,16 @@ describe('RolesBottomSheet', () => {
         },
       ];
 
-      mockUseRolesStore.mockReturnValue({
+      mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        roles: rolesWithSameName,
+        unitRoleAssignments: [],
+        users: mockUsers,
+        isLoading: false,
+        error: null,
+        fetchRolesForUnit: mockFetchRolesForUnit,
+        fetchUsers: mockFetchUsers,
+        assignRoles: mockAssignRoles,
+      } as any) : {
         roles: rolesWithSameName,
         unitRoleAssignments: [],
         users: mockUsers,
@@ -325,7 +363,16 @@ describe('RolesBottomSheet', () => {
         },
       ];
 
-      mockUseRolesStore.mockReturnValue({
+      mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        roles: mockRoles,
+        unitRoleAssignments: assignmentsWithEmpty,
+        users: mockUsers,
+        isLoading: false,
+        error: null,
+        fetchRolesForUnit: mockFetchRolesForUnit,
+        fetchUsers: mockFetchUsers,
+        assignRoles: mockAssignRoles,
+      } as any) : {
         roles: mockRoles,
         unitRoleAssignments: assignmentsWithEmpty,
         users: mockUsers,
@@ -393,7 +440,16 @@ describe('RolesBottomSheet', () => {
 
         React.useEffect(() => {
           // Override the roles store to include our test pending assignments
-          mockUseRolesStore.mockReturnValue({
+          mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+            roles: rolesWithMixedAssignments,
+            unitRoleAssignments: assignmentsWithEmpty,
+            users: mockUsers,
+            isLoading: false,
+            error: null,
+            fetchRolesForUnit: mockFetchRolesForUnit,
+            fetchUsers: mockFetchUsers,
+            assignRoles: mockAssignRoles,
+          } as any) : {
             roles: rolesWithMixedAssignments,
             unitRoleAssignments: assignmentsWithEmpty,
             users: mockUsers,

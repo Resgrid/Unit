@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 import mapboxgl from 'mapbox-gl';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+// @ts-ignore - react-dom/client types may not be available
 import { createRoot } from 'react-dom/client';
 
 import { Env } from '@/lib/env';
@@ -176,13 +177,16 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     setCamera: (options: { centerCoordinate?: [number, number]; zoomLevel?: number; heading?: number; pitch?: number; animationDuration?: number }) => {
       if (!map) return;
 
-      map.easeTo({
-        center: options.centerCoordinate,
-        zoom: options.zoomLevel,
-        bearing: options.heading,
-        pitch: options.pitch,
-        duration: options.animationDuration || 1000,
-      }, { _programmatic: true });
+      map.easeTo(
+        {
+          center: options.centerCoordinate,
+          zoom: options.zoomLevel,
+          bearing: options.heading,
+          pitch: options.pitch,
+          duration: options.animationDuration || 1000,
+        },
+        { _programmatic: true }
+      );
     },
     flyTo: (options: any) => {
       if (!map) return;
@@ -194,13 +198,16 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     if (!map) return;
 
     if (centerCoordinate) {
-      map.easeTo({
-        center: centerCoordinate,
-        zoom: zoomLevel,
-        bearing: heading,
-        pitch: pitch,
-        duration: animationDuration,
-      }, { _programmatic: true });
+      map.easeTo(
+        {
+          center: centerCoordinate,
+          zoom: zoomLevel,
+          bearing: heading,
+          pitch: pitch,
+          duration: animationDuration,
+        },
+        { _programmatic: true }
+      );
     }
   }, [map, centerCoordinate, zoomLevel, heading, pitch, animationDuration]);
 

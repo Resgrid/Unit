@@ -70,19 +70,7 @@ export const LiveKitBottomSheet = () => {
         hasBluetoothSpeaker: selectedAudioDevices?.speaker?.type === 'bluetooth',
       });
     }
-  }, [
-    isBottomSheetVisible,
-    trackEvent,
-    availableRooms.length,
-    isConnected,
-    isConnecting,
-    currentView,
-    currentRoomInfo,
-    isMuted,
-    isTalking,
-    selectedAudioDevices?.microphone?.type,
-    selectedAudioDevices?.speaker?.type,
-  ]);
+  }, [isBottomSheetVisible, trackEvent, availableRooms.length, isConnected, isConnecting, currentView, currentRoomInfo, isMuted, isTalking, selectedAudioDevices?.microphone?.type, selectedAudioDevices?.speaker?.type]);
 
   // Note: Permissions are now requested in connectToRoom when the user actually tries to join a voice call
   // This ensures permissions are granted before the Android foreground service starts

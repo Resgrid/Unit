@@ -185,12 +185,19 @@ describe('UnitSelectionBottomSheet Import Test', () => {
     const mockUseRolesStore = require('@/stores/roles/store').useRolesStore;
 
     // Minimal mock setup
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: null,
+      setActiveUnit: jest.fn(),
+    }) : {
       activeUnit: null,
       setActiveUnit: jest.fn(),
     });
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: jest.fn().mockResolvedValue(undefined),
+      isLoading: false,
+    }) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
@@ -297,12 +304,19 @@ describe('UnitSelectionBottomSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: mockUnits[0],
+      setActiveUnit: mockSetActiveUnit,
+    } as any) : {
       activeUnit: mockUnits[0],
       setActiveUnit: mockSetActiveUnit,
     } as any);
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: mockUnits,
+      fetchUnits: mockFetchUnits,
+      isLoading: false,
+    } as any) : {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
@@ -350,7 +364,11 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('displays loading state when fetching units', () => {
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: jest.fn().mockResolvedValue(undefined),
+      isLoading: true,
+    } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: true,
@@ -363,7 +381,11 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('displays empty state when no units available', () => {
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: jest.fn().mockResolvedValue(undefined),
+      isLoading: false,
+    } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
@@ -377,7 +399,11 @@ describe('UnitSelectionBottomSheet', () => {
   it('fetches units when sheet opens and no units are loaded', async () => {
     const spyFetchUnits = jest.fn().mockResolvedValue(undefined);
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: spyFetchUnits,
+      isLoading: false,
+    } as any) : {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
@@ -516,7 +542,10 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('renders with no active unit', () => {
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: null,
+      setActiveUnit: mockSetActiveUnit,
+    } as any) : {
       activeUnit: null,
       setActiveUnit: mockSetActiveUnit,
     } as any);

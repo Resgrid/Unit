@@ -3,31 +3,43 @@ import React from 'react';
 
 // Mock the store hooks directly without importing the actual stores
 jest.mock('@/stores/app/core-store', () => ({
-  useCoreStore: jest.fn(() => ({ activeUnit: null })),
+  useCoreStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({ activeUnit: null }) : { activeUnit: null }),
 }));
 
 jest.mock('@/stores/app/location-store', () => ({
-  useLocationStore: jest.fn(() => ({
+  useLocationStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     isMapLocked: false,
     setMapLocked: jest.fn()
-  })),
+  }) : {
+    isMapLocked: false,
+    setMapLocked: jest.fn()
+  }),
 }));
 
 jest.mock('@/stores/app/livekit-store', () => ({
-  useLiveKitStore: jest.fn(() => ({
+  useLiveKitStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,
-  })),
+  }) : {
+    setIsBottomSheetVisible: jest.fn(),
+    currentRoomInfo: null,
+    isConnected: false,
+    isTalking: false,
+  }),
 }));
 
 jest.mock('@/stores/app/audio-stream-store', () => ({
-  useAudioStreamStore: jest.fn(() => ({
+  useAudioStreamStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
     currentStream: null,
     isPlaying: false,
-  })),
+  }) : {
+    setIsBottomSheetVisible: jest.fn(),
+    currentStream: null,
+    isPlaying: false,
+  }),
 }));
 
 // Mock the AudioStreamBottomSheet component
@@ -62,23 +74,37 @@ describe('SidebarUnitCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: null,
+    }) : {
       activeUnit: null,
     });
 
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      isMapLocked: false,
+      setMapLocked: mockSetMapLocked,
+    }) : {
       isMapLocked: false,
       setMapLocked: mockSetMapLocked,
     });
 
-    mockUseLiveKitStore.mockReturnValue({
+    mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      currentRoomInfo: null,
+      isConnected: false,
+      isTalking: false,
+    }) : {
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     });
 
-    mockUseAudioStreamStore.mockReturnValue({
+    mockUseAudioStreamStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: mockSetAudioStreamBottomSheetVisible,
+      currentStream: null,
+      isPlaying: false,
+    }) : {
       setIsBottomSheetVisible: mockSetAudioStreamBottomSheetVisible,
       currentStream: null,
       isPlaying: false,
