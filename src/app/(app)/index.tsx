@@ -394,13 +394,13 @@ function MapContent() {
             followPitch={isMapLocked ? 45 : undefined}
           />
 
-          {locationLatitude && locationLongitude && (
+          {locationLatitude != null && locationLongitude != null ? (
             <Mapbox.PointAnnotation id="userLocation" coordinate={[locationLongitude, locationLatitude]} anchor={{ x: 0.5, y: 0.5 }}>
               <Animated.View style={[styles.markerContainer, Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] }]}>
                 <View style={[styles.markerOuterRing, Platform.OS === 'web' && styles.markerOuterRingPulseWeb]} />
                 <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
                   <View style={styles.markerDot} />
-                  {locationHeading !== null && locationHeading !== undefined && (
+                  {locationHeading != null ? (
                     <View
                       style={[
                         styles.directionIndicator,
@@ -409,20 +409,20 @@ function MapContent() {
                         },
                       ]}
                     />
-                  )}
+                  ) : null}
                 </View>
               </Animated.View>
             </Mapbox.PointAnnotation>
-          )}
+          ) : null}
           <MapPins pins={mapPins} onPinPress={handlePinPress} />
         </Mapbox.MapView>
 
         {/* Recenter Button - only show when map is not locked and user has moved the map */}
-        {showRecenterButton && (
+        {showRecenterButton ? (
           <TouchableOpacity style={[styles.recenterButton, themedStyles.recenterButton]} onPress={handleRecenterMap} testID="recenter-button">
             <NavigationIcon size={20} color="#ffffff" />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
       {/* Pin Detail Modal */}
@@ -503,11 +503,11 @@ const styles = StyleSheet.create({
   markerOuterRingPulseWeb:
     Platform.OS === 'web'
       ? {
-          // @ts-ignore — web-only CSS animation properties
-          animationName: 'pulse-ring',
-          animationDuration: '2s',
-          animationIterationCount: 'infinite',
-          animationTimingFunction: 'ease-in-out',
-        }
+        // @ts-ignore — web-only CSS animation properties
+        animationName: 'pulse-ring',
+        animationDuration: '2s',
+        animationIterationCount: 'infinite',
+        animationTimingFunction: 'ease-in-out',
+      }
       : ({} as any),
 });
