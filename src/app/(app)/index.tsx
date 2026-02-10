@@ -218,7 +218,7 @@ function MapContent() {
   // which creates continuous requestAnimationFrame overhead. Web uses CSS animation instead.
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      Animated.loop(
+      const loopAnim = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.2,
@@ -231,7 +231,12 @@ function MapContent() {
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      );
+      loopAnim.start();
+
+      return () => {
+        loopAnim.stop();
+      };
     }
   }, [pulseAnim]);
 

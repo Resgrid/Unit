@@ -1,16 +1,16 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import { AppState, type AppStateStatus, Platform } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 
 import { setUnitLocation } from '@/api/units/unitLocation';
 import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolocation';
 import { logger } from '@/lib/logging';
+import { isWeb } from '@/lib/platform';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 
-const isWeb = Platform.OS === 'web';
 const LOCATION_TASK_NAME = 'location-updates';
 
 // Helper function to send location to API
@@ -155,7 +155,12 @@ class LocationService {
   async startLocationUpdates(): Promise<void> {
     // On web, use a lightweight browser geolocation watcher instead of expo-location/TaskManager
     if (isWeb) {
-      if (!this.locationSubscription && 'geolocation' in navigator) {
+      if (!('geolocation' in navigator)) {
+        logger.warn({ message: 'Geolocation API not available in this browser' });
+        return;
+      }
+
+      if (!this.locationSubscription) {
         const watchId = navigator.geolocation.watchPosition(
           (pos) => {
             const loc: Location.LocationObject = {
@@ -180,6 +185,7 @@ class LocationService {
         );
         // Store a compatible subscription object
         this.locationSubscription = { remove: () => navigator.geolocation.clearWatch(watchId) } as unknown as Location.LocationSubscription;
+        logger.info({ message: 'Foreground location updates started' });
       }
       return;
     }

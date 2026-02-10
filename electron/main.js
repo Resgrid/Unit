@@ -184,8 +184,9 @@ app.whenReady().then(() => {
 
   protocol.handle('app', (request) => {
     const url = new URL(request.url);
-    // Decode the pathname and resolve to a file in dist/
-    const resolvedPath = path.resolve(distPath, decodeURIComponent(url.pathname));
+    // Decode the pathname, join with base path, then canonicalize to prevent directory traversal
+    const joinedPath = path.join(distPath, decodeURIComponent(url.pathname));
+    const resolvedPath = path.resolve(joinedPath);
 
     // Security check: ensure resolved path is within distPath to prevent directory traversal
     let filePath;
