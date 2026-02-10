@@ -36,7 +36,7 @@ describe('SidebarStatusCard', () => {
   });
 
   it('should render with unknown status when activeUnitStatus is null', () => {
-    mockUseCoreStore.mockReturnValue(null);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: null }) : { activeUnitStatus: null });
 
     render(<SidebarStatusCard />);
 
@@ -44,7 +44,7 @@ describe('SidebarStatusCard', () => {
   });
 
   it('should render with unknown status when activeUnitStatus is undefined', () => {
-    mockUseCoreStore.mockReturnValue(undefined);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: undefined }) : { activeUnitStatus: undefined });
 
     render(<SidebarStatusCard />);
 
@@ -53,7 +53,7 @@ describe('SidebarStatusCard', () => {
 
   it('should render the correct status text', () => {
     const mockStatus = createMockStatus();
-    mockUseCoreStore.mockReturnValue(mockStatus);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
     render(<SidebarStatusCard />);
 
@@ -62,7 +62,7 @@ describe('SidebarStatusCard', () => {
 
   it('should render status with empty string when State is missing', () => {
     const mockStatus = createMockStatus({ State: '' });
-    mockUseCoreStore.mockReturnValue(mockStatus);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
     render(<SidebarStatusCard />);
 
@@ -89,7 +89,7 @@ describe('SidebarStatusCard', () => {
           StateStyle: styleClass,
         });
 
-        mockUseCoreStore.mockReturnValue(mockStatus);
+        mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
         const { getByTestId } = render(<SidebarStatusCard />);
 
@@ -109,7 +109,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: 'unknown-style',
       });
 
-      mockUseCoreStore.mockReturnValue(mockStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
       const { getByTestId } = render(<SidebarStatusCard />);
 
@@ -127,7 +127,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: '',
       });
 
-      mockUseCoreStore.mockReturnValue(mockStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
       const { getByTestId } = render(<SidebarStatusCard />);
 
@@ -143,7 +143,7 @@ describe('SidebarStatusCard', () => {
   describe('Status updates', () => {
     it('should re-render when activeUnitStatus changes', () => {
       const initialStatus = createMockStatus();
-      mockUseCoreStore.mockReturnValue(initialStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: initialStatus }) : { activeUnitStatus: initialStatus });
 
       const { rerender } = render(<SidebarStatusCard />);
 
@@ -157,7 +157,7 @@ describe('SidebarStatusCard', () => {
         Note: 'Updated note',
       });
 
-      mockUseCoreStore.mockReturnValue(updatedStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: updatedStatus }) : { activeUnitStatus: updatedStatus });
 
       rerender(<SidebarStatusCard />);
 
@@ -166,7 +166,7 @@ describe('SidebarStatusCard', () => {
     });
 
     it('should handle transition from null to valid status', () => {
-      mockUseCoreStore.mockReturnValue(null);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: null }) : { activeUnitStatus: null });
 
       const { rerender } = render(<SidebarStatusCard />);
 
@@ -178,7 +178,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: 'label-enroute',
       });
 
-      mockUseCoreStore.mockReturnValue(status);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: status }) : { activeUnitStatus: status });
 
       rerender(<SidebarStatusCard />);
 
@@ -192,14 +192,14 @@ describe('SidebarStatusCard', () => {
         StateStyle: 'label-onscene',
       });
 
-      mockUseCoreStore.mockReturnValue(status);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: status }) : { activeUnitStatus: status });
 
       const { rerender } = render(<SidebarStatusCard />);
 
       expect(screen.getByText('On Scene')).toBeTruthy();
 
       // Update to null
-      mockUseCoreStore.mockReturnValue(null);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: null }) : { activeUnitStatus: null });
 
       rerender(<SidebarStatusCard />);
 
@@ -215,7 +215,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: 'label-info',
       });
 
-      mockUseCoreStore.mockReturnValue(mockStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
       render(<SidebarStatusCard />);
 
@@ -229,7 +229,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: 'label-info',
       });
 
-      mockUseCoreStore.mockReturnValue(mockStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
       render(<SidebarStatusCard />);
 
@@ -242,7 +242,7 @@ describe('SidebarStatusCard', () => {
         StateStyle: null as any,
       });
 
-      mockUseCoreStore.mockReturnValue(mockStatus);
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus });
 
       const { getByTestId } = render(<SidebarStatusCard />);
 

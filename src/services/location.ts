@@ -5,6 +5,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import { setUnitLocation } from '@/api/units/unitLocation';
 import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolocation';
 import { logger } from '@/lib/logging';
+import { isWeb } from '@/lib/platform';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -58,36 +59,38 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
   }
 };
 
-// Define the task
-TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
-  if (error) {
-    logger.error({
-      message: 'Location task error',
-      context: { error },
-    });
-    return;
-  }
-  if (data) {
-    const { locations } = data as { locations: Location.LocationObject[] };
-    const location = locations[0];
-    if (location) {
-      logger.info({
-        message: 'Background location update received',
-        context: {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          heading: location.coords.heading,
-        },
+// Define the background task (native only — TaskManager is unsupported on web)
+if (!isWeb) {
+  TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+    if (error) {
+      logger.error({
+        message: 'Location task error',
+        context: { error },
       });
-
-      // Update local store
-      useLocationStore.getState().setLocation(location);
-
-      // Send to API
-      await sendLocationToAPI(location);
+      return;
     }
-  }
-});
+    if (data) {
+      const { locations } = data as { locations: Location.LocationObject[] };
+      const location = locations[0];
+      if (location) {
+        logger.info({
+          message: 'Background location update received',
+          context: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            heading: location.coords.heading,
+          },
+        });
+
+        // Update local store
+        useLocationStore.getState().setLocation(location);
+
+        // Send to API
+        await sendLocationToAPI(location);
+      }
+    }
+  });
+}
 
 class LocationService {
   private static instance: LocationService;
@@ -150,6 +153,43 @@ class LocationService {
   }
 
   async startLocationUpdates(): Promise<void> {
+    // On web, use a lightweight browser geolocation watcher instead of expo-location/TaskManager
+    if (isWeb) {
+      if (!('geolocation' in navigator)) {
+        logger.warn({ message: 'Geolocation API not available in this browser' });
+        return;
+      }
+
+      if (!this.locationSubscription) {
+        const watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const loc: Location.LocationObject = {
+              coords: {
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                altitude: pos.coords.altitude ?? 0,
+                accuracy: pos.coords.accuracy ?? 0,
+                altitudeAccuracy: pos.coords.altitudeAccuracy ?? 0,
+                heading: pos.coords.heading ?? 0,
+                speed: pos.coords.speed ?? 0,
+              },
+              timestamp: pos.timestamp,
+            };
+            useLocationStore.getState().setLocation(loc);
+            sendLocationToAPI(loc);
+          },
+          (err) => {
+            logger.warn({ message: 'Web geolocation error', context: { code: err.code, msg: err.message } });
+          },
+          { enableHighAccuracy: false, maximumAge: 15000, timeout: 30000 }
+        );
+        // Store a compatible subscription object
+        this.locationSubscription = { remove: () => navigator.geolocation.clearWatch(watchId) } as unknown as Location.LocationSubscription;
+        logger.info({ message: 'Foreground location updates started' });
+      }
+      return;
+    }
+
     // Load background geolocation setting first
     this.isBackgroundGeolocationEnabled = await loadBackgroundGeolocationState();
 
@@ -231,6 +271,7 @@ class LocationService {
   }
 
   async startBackgroundUpdates(): Promise<void> {
+    if (isWeb) return; // Background location not supported on web
     if (this.backgroundSubscription || !this.isBackgroundGeolocationEnabled) {
       return;
     }
@@ -273,6 +314,7 @@ class LocationService {
   }
 
   async stopBackgroundUpdates(): Promise<void> {
+    if (isWeb) return;
     if (this.backgroundSubscription) {
       logger.info({
         message: 'Stopping background location updates',
@@ -284,6 +326,7 @@ class LocationService {
   }
 
   async updateBackgroundGeolocationSetting(enabled: boolean): Promise<void> {
+    if (isWeb) return; // Background geolocation not applicable on web
     this.isBackgroundGeolocationEnabled = enabled;
 
     if (enabled) {
@@ -344,16 +387,23 @@ class LocationService {
 
   async stopLocationUpdates(): Promise<void> {
     if (this.locationSubscription) {
-      await this.locationSubscription.remove();
+      if (isWeb) {
+        // On web the subscription is our own shim wrapping clearWatch
+        (this.locationSubscription as any).remove();
+      } else {
+        await this.locationSubscription.remove();
+      }
       this.locationSubscription = null;
     }
 
-    await this.stopBackgroundUpdates();
+    if (!isWeb) {
+      await this.stopBackgroundUpdates();
 
-    // Check if task is registered before stopping
-    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-    if (isTaskRegistered) {
-      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      // Check if task is registered before stopping
+      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+      if (isTaskRegistered) {
+        await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      }
     }
 
     logger.info({

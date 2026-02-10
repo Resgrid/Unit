@@ -1,6 +1,24 @@
 /* eslint-disable no-undef */
-const { app, BrowserWindow, ipcMain, Notification, nativeTheme, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, nativeTheme, Menu, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+// Register custom protocol scheme before app is ready
+// This allows serving the Expo web export with absolute paths (/_expo/static/...)
+// via a custom protocol instead of file://, which breaks absolute path resolution.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'app',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -33,9 +51,14 @@ function createWindow() {
   });
 
   // Load the app
-  const startUrl = isDev ? 'http://localhost:8081' : `file://${path.join(__dirname, '../dist/index.html')}`;
-
-  mainWindow.loadURL(startUrl);
+  if (isDev) {
+    // In development, load from the Expo dev server
+    mainWindow.loadURL('http://localhost:8081');
+  } else {
+    // In production, load via the custom app:// protocol
+    // which correctly resolves absolute paths (/_expo/static/...) from the dist directory
+    mainWindow.loadURL('app://bundle/index.html');
+  }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
@@ -154,6 +177,41 @@ ipcMain.handle('get-platform', () => {
 
 // Handle app ready
 app.whenReady().then(() => {
+  // Register custom protocol handler for serving the Expo web export
+  // This resolves absolute paths like /_expo/static/js/... from the dist directory
+  const distPath = path.join(__dirname, '..', 'dist');
+  const resolvedDist = path.resolve(distPath);
+
+  protocol.handle('app', (request) => {
+    const url = new URL(request.url);
+    // Decode the pathname, join with base path, then canonicalize to prevent directory traversal
+    const joinedPath = path.join(distPath, decodeURIComponent(url.pathname));
+    const resolvedPath = path.resolve(joinedPath);
+
+    // Security check: ensure resolved path is within distPath to prevent directory traversal
+    let filePath;
+    if (!resolvedPath.startsWith(resolvedDist + path.sep) && resolvedPath !== resolvedDist) {
+      // Path escapes distPath - fall back to index.html
+      filePath = path.join(resolvedDist, 'index.html');
+    } else {
+      filePath = resolvedPath;
+
+      // If the path points to a directory or file doesn't exist, fall back to index.html
+      // This supports SPA client-side routing
+      try {
+        const stat = fs.statSync(filePath);
+        if (stat.isDirectory()) {
+          filePath = path.join(resolvedDist, 'index.html');
+        }
+      } catch {
+        // File not found - serve index.html for client-side routing
+        filePath = path.join(resolvedDist, 'index.html');
+      }
+    }
+
+    return net.fetch(pathToFileURL(filePath).toString());
+  });
+
   createMenu();
   createWindow();
 

@@ -236,7 +236,9 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
 export const ContactNotesList: React.FC<ContactNotesListProps> = ({ contactId }) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
-  const { contactNotes, isNotesLoading, fetchContactNotes } = useContactsStore();
+  const contactNotes = useContactsStore((s) => s.contactNotes);
+  const isNotesLoading = useContactsStore((s) => s.isNotesLoading);
+  const fetchContactNotes = useContactsStore((s) => s.fetchContactNotes);
 
   React.useEffect(() => {
     if (contactId) {

@@ -47,14 +47,14 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
 Sentry.init({
   dsn: Env.SENTRY_DSN,
   debug: __DEV__, // Only debug in development, not production
-  tracesSampleRate: __DEV__ ? 1.0 : 0.2, // 100% in dev, 20% in production to reduce performance impact
-  profilesSampleRate: __DEV__ ? 1.0 : 0.2, // 100% in dev, 20% in production to reduce performance impact
+  tracesSampleRate: __DEV__ ? 0.1 : 0.2, // 10% in dev (low to avoid setTimeout wrapping overhead), 20% in production
+  profilesSampleRate: __DEV__ ? 0.1 : 0.2, // 10% in dev, 20% in production
   sendDefaultPii: false,
   integrations: [
     // Pass integration
     navigationIntegration,
   ],
-  enableNativeFramesTracking: true, //!isRunningInExpoGo(), // Tracks slow and frozen frames in the application
+  enableNativeFramesTracking: Platform.OS !== 'web', //!isRunningInExpoGo(), // Tracks slow and frozen frames in the application
   // Add additional options to prevent timing issues
   beforeSendTransaction(event: any) {
     // Filter out problematic navigation transactions that might cause timestamp errors
@@ -105,20 +105,22 @@ function RootLayout() {
       navigationIntegration.registerNavigationContainer(ref);
     }
 
-    // Clear the badge count on app startup
-    notifee
-      .setBadgeCount(0)
-      .then(() => {
-        logger.info({
-          message: 'Badge count cleared on startup',
+    // Clear the badge count on app startup (native only — notifee has no web implementation)
+    if (Platform.OS !== 'web') {
+      notifee
+        .setBadgeCount(0)
+        .then(() => {
+          logger.info({
+            message: 'Badge count cleared on startup',
+          });
+        })
+        .catch((error: Error) => {
+          logger.error({
+            message: 'Failed to clear badge count on startup',
+            context: { error },
+          });
         });
-      })
-      .catch((error: Error) => {
-        logger.error({
-          message: 'Failed to clear badge count on startup',
-          context: { error },
-        });
-      });
+    }
 
     // Load keep alive state on app startup
     loadKeepAliveState()

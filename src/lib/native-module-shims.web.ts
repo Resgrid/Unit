@@ -184,3 +184,6 @@ export const expoAudioShim = {
   getRecordingPermissionsAsync: async () => ({ granted: true, status: 'granted' }),
   requestRecordingPermissionsAsync: async () => ({ granted: true, status: 'granted' }),
 };
+
+// Countly SDK shim for web platform - re-exported from canonical source
+export { default as Countly, CountlyConfig } from './countly-shim.web';

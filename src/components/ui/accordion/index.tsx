@@ -169,7 +169,8 @@ type IAccordionTitleTextProps = React.ComponentPropsWithoutRef<typeof UIAccordio
 /** Components */
 
 const Accordion = React.forwardRef<React.ElementRef<typeof UIAccordion>, IAccordionProps>(({ className, variant = 'filled', size = 'md', ...props }, ref) => {
-  return <UIAccordion ref={ref} {...props} className={accordionStyle({ variant, class: className })} context={{ variant, size }} />;
+  const contextValue = React.useMemo(() => ({ variant, size }), [variant, size]);
+  return <UIAccordion ref={ref} {...props} className={accordionStyle({ variant, class: className })} context={contextValue} />;
 });
 
 const AccordionItem = React.forwardRef<React.ElementRef<typeof UIAccordion.Item>, IAccordionItemProps>(({ className, ...props }, ref) => {

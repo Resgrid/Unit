@@ -148,31 +148,31 @@ type IDrawerFooterProps = React.ComponentProps<typeof UIDrawer.Footer> & Variant
 type IDrawerCloseButtonProps = React.ComponentProps<typeof UIDrawer.CloseButton> & VariantProps<typeof drawerCloseButtonStyle> & { className?: string };
 
 const Drawer = React.forwardRef<React.ElementRef<typeof UIDrawer>, IDrawerProps>(({ className, size = 'sm', anchor = 'left', ...props }, ref) => {
-  return <UIDrawer ref={ref} {...props} pointerEvents="box-none" className={drawerStyle({ size, anchor, class: className })} context={{ size, anchor }} />;
+  const contextValue = React.useMemo(() => ({ size, anchor }), [size, anchor]);
+  return <UIDrawer ref={ref} {...props} pointerEvents="box-none" className={drawerStyle({ size, anchor, class: className })} context={contextValue} />;
 });
+
+const backdropInitial = { opacity: 0 };
+const backdropAnimate = { opacity: 0.5 };
+const backdropExit = { opacity: 0 };
+const backdropTransition = {
+  type: 'spring' as const,
+  damping: 18,
+  stiffness: 250,
+  opacity: {
+    type: 'timing' as const,
+    duration: 250,
+  },
+};
 
 const DrawerBackdrop = React.forwardRef<React.ElementRef<typeof UIDrawer.Backdrop>, IDrawerBackdropProps>(({ className, ...props }, ref) => {
   return (
     <UIDrawer.Backdrop
       ref={ref}
-      initial={{
-        opacity: 0,
-      }}
-      animate={{
-        opacity: 0.5,
-      }}
-      exit={{
-        opacity: 0,
-      }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 250,
-        opacity: {
-          type: 'timing',
-          duration: 250,
-        },
-      }}
+      initial={backdropInitial}
+      animate={backdropAnimate}
+      exit={backdropExit}
+      transition={backdropTransition}
       {...props}
       className={drawerBackdropStyle({
         class: className,
@@ -189,35 +189,41 @@ const DrawerContent = React.forwardRef<React.ElementRef<typeof UIDrawer.Content>
 
   const isHorizontal = parentAnchor === 'left' || parentAnchor === 'right';
 
-  const initialObj = isHorizontal ? { x: parentAnchor === 'left' ? -drawerWidth : drawerWidth } : { y: parentAnchor === 'top' ? -drawerHeight : drawerHeight };
+  const initialObj = React.useMemo(
+    () => (isHorizontal ? { x: parentAnchor === 'left' ? -drawerWidth : drawerWidth } : { y: parentAnchor === 'top' ? -drawerHeight : drawerHeight }),
+    [isHorizontal, parentAnchor, drawerWidth, drawerHeight]
+  );
 
-  const animateObj = isHorizontal ? { x: 0 } : { y: 0 };
+  const animateObj = React.useMemo(() => (isHorizontal ? { x: 0 } : { y: 0 }), [isHorizontal]);
 
-  const exitObj = isHorizontal ? { x: parentAnchor === 'left' ? -drawerWidth : drawerWidth } : { y: parentAnchor === 'top' ? -drawerHeight : drawerHeight };
+  const exitObj = React.useMemo(
+    () => (isHorizontal ? { x: parentAnchor === 'left' ? -drawerWidth : drawerWidth } : { y: parentAnchor === 'top' ? -drawerHeight : drawerHeight }),
+    [isHorizontal, parentAnchor, drawerWidth, drawerHeight]
+  );
 
   const customClass = isHorizontal ? `top-0 ${parentAnchor === 'left' ? 'left-0' : 'right-0'}` : `left-0 ${parentAnchor === 'top' ? 'top-0' : 'bottom-0'}`;
 
-  return (
-    <UIDrawer.Content
-      ref={ref}
-      initial={initialObj}
-      animate={animateObj}
-      exit={exitObj}
-      transition={{
-        type: 'timing',
-        duration: 300,
-      }}
-      {...props}
-      className={drawerContentStyle({
+  const transitionConfig = React.useMemo(
+    () => ({
+      type: 'timing' as const,
+      duration: 300,
+    }),
+    []
+  );
+
+  const contentClassName = React.useMemo(
+    () =>
+      drawerContentStyle({
         parentVariants: {
           size: parentSize,
           anchor: parentAnchor,
         },
         class: `${className} ${customClass}`,
-      })}
-      pointerEvents="auto"
-    />
+      }),
+    [parentSize, parentAnchor, className, customClass]
   );
+
+  return <UIDrawer.Content ref={ref} initial={initialObj} animate={animateObj} exit={exitObj} transition={transitionConfig} {...props} className={contentClassName} pointerEvents="auto" />;
 });
 
 const DrawerHeader = React.forwardRef<React.ElementRef<typeof UIDrawer.Header>, IDrawerHeaderProps>(({ className, ...props }, ref) => {

@@ -1,4 +1,4 @@
-.eslintignorenode_modules
+node_modules
 __tests__/
 .vscode/
 android/
@@ -8,3 +8,8 @@ ios/
 .expo-shared
 docs/
 cli/
+electron/
+fastlane/
+patches/
+public/
+scripts/

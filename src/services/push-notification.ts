@@ -171,6 +171,12 @@ class PushNotificationService {
   };
 
   async initialize(): Promise<void> {
+    // Push notifications are native-only; skip on web
+    if (Platform.OS === 'web') {
+      logger.debug({ message: 'Push notification service skipped on web' });
+      return;
+    }
+
     // Set up notification channels/categories based on platform
     await this.setupAndroidNotificationChannels();
     await this.setupIOSNotificationCategories();
@@ -510,6 +516,9 @@ export const usePushNotifications = () => {
   const previousUnitIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Push notifications are native-only; skip on web
+    if (Platform.OS === 'web') return;
+
     // Only register if we have an active unit ID and it's different from the previous one
     if (rights && activeUnitId && activeUnitId !== previousUnitIdRef.current) {
       pushNotificationService

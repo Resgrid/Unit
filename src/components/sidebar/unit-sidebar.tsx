@@ -20,9 +20,15 @@ type ItemProps = {
 
 export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUnitType, unitGroup: defaultUnitGroup, bgColor }: ItemProps) => {
   const activeUnit = useCoreStore((state) => state.activeUnit);
-  const { setIsBottomSheetVisible, currentRoomInfo, isConnected, isTalking } = useLiveKitStore();
-  const { isMapLocked, setMapLocked } = useLocationStore();
-  const { setIsBottomSheetVisible: setAudioStreamBottomSheetVisible, currentStream, isPlaying } = useAudioStreamStore();
+  const setIsBottomSheetVisible = useLiveKitStore((state) => state.setIsBottomSheetVisible);
+  const currentRoomInfo = useLiveKitStore((state) => state.currentRoomInfo);
+  const isConnected = useLiveKitStore((state) => state.isConnected);
+  const isTalking = useLiveKitStore((state) => state.isTalking);
+  const isMapLocked = useLocationStore((state) => state.isMapLocked);
+  const setMapLocked = useLocationStore((state) => state.setMapLocked);
+  const setAudioStreamBottomSheetVisible = useAudioStreamStore((state) => state.setIsBottomSheetVisible);
+  const currentStream = useAudioStreamStore((state) => state.currentStream);
+  const isPlaying = useAudioStreamStore((state) => state.isPlaying);
 
   // Derive the display values from activeUnit when available, otherwise use defaults
   const displayName = activeUnit?.Name ?? defaultUnitName;

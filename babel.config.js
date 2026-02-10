@@ -25,6 +25,7 @@ module.exports = function (api) {
           extensions: ['.ios.ts', '.android.ts', '.ts', '.ios.tsx', '.android.tsx', '.tsx', '.jsx', '.js', '.json'],
         },
       ],
+      'babel-plugin-transform-import-meta',
       'react-native-reanimated/plugin',
     ],
   };

@@ -295,7 +295,7 @@ export class CallKeepService {
       });
     });
 
-  // Mute/unmute events
+    // Mute/unmute events
     RNCallKeep.addEventListener('didPerformSetMutedCallAction', this.handleMutedCallAction);
   }
 

@@ -1,6 +1,13 @@
+import { Platform } from 'react-native';
 import { consoleTransport, logger as rnLogger } from 'react-native-logs';
 
 import type { LogEntry, Logger, LogLevel } from './types';
+
+// On web, async: true wraps every log call in setTimeout which — combined with
+// Sentry's setTimeout instrumentation — creates unbounded memory growth.
+// Setting async: false on web prevents this. Severity stays 'debug' in dev
+// on all platforms so console output is visible for debugging.
+const isWeb = Platform.OS === 'web';
 
 const config = {
   levels: {
@@ -19,7 +26,7 @@ const config = {
       error: 'redBright',
     },
   },
-  async: true,
+  async: !isWeb,
   dateFormat: 'time',
   printLevel: true,
   printDate: true,

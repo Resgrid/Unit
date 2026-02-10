@@ -1,9 +1,14 @@
-import { Platform } from 'react-native';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react-native';
 
-// Mock Platform
-const mockPlatform = Platform as jest.Mocked<typeof Platform>;
+// Mock Platform before any imports - must be inlined to avoid hoisting issues
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios' as 'ios' | 'android' | 'web' | 'windows' | 'macos',
+    select: jest.fn((obj: any) => obj.ios || obj.default),
+    Version: 14,
+  },
+}));
 
 // Mock the CallKeep service module
 jest.mock('../../../../services/callkeep.service.ios', () => ({
@@ -68,7 +73,7 @@ const MockedRoom = require('livekit-client').Room as jest.MockedClass<any>;
 describe('useLiveKitCallStore with CallKeep Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockPlatform.OS = 'ios';
+    require('react-native').Platform.OS = 'ios';
     
     // Reset mock implementations
     mockCallKeepService.setup.mockResolvedValue(undefined);
@@ -112,7 +117,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
 
   describe('CallKeep Mute State Callback', () => {
     beforeEach(() => {
-      mockPlatform.OS = 'ios';
+      require('react-native').Platform.OS = 'ios';
     });
 
     it('should register mute state callback when connecting on iOS', async () => {
@@ -142,7 +147,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     });
 
     it('should not register callback on non-iOS platforms', async () => {
-      mockPlatform.OS = 'android';
+      require('react-native').Platform.OS = 'android';
       const { result } = renderHook(() => useLiveKitCallStore());
       
       await act(async () => {
@@ -178,7 +183,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     });
 
     it('should not start CallKeep call on Android', async () => {
-      mockPlatform.OS = 'android';
+      require('react-native').Platform.OS = 'android';
       const { result } = renderHook(() => useLiveKitCallStore());
       
       await act(async () => {
@@ -226,7 +231,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     });
 
     it('should not end CallKeep call on Android', async () => {
-      mockPlatform.OS = 'android';
+      require('react-native').Platform.OS = 'android';
       const { result } = renderHook(() => useLiveKitCallStore());
       
       // First set up a connected state
@@ -280,7 +285,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
 
   describe('Connection State Changes with CallKeep', () => {
     it('should end CallKeep call on connection lost (iOS)', async () => {
-      mockPlatform.OS = 'ios';
+      require('react-native').Platform.OS = 'ios';
       
       // Mock the room event listener
       let connectionStateListener: Function | null = null;
@@ -310,7 +315,7 @@ describe('useLiveKitCallStore with CallKeep Integration', () => {
     });
 
     it('should not end CallKeep call on Android disconnection', async () => {
-      mockPlatform.OS = 'android';
+      require('react-native').Platform.OS = 'android';
       
       // Mock the room event listener
       let connectionStateListener: Function | null = null;

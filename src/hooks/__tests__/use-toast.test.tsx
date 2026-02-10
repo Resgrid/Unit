@@ -14,7 +14,9 @@ describe('useToast', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseToastStore.mockReturnValue({
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      showToast: mockShowToast,
+    }) : {
       showToast: mockShowToast,
     });
   });

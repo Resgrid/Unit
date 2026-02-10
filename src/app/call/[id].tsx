@@ -25,7 +25,7 @@ import { openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
-import { useSecurityStore } from '@/stores/security/store';
+import { securityStore } from '@/stores/security/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -51,10 +51,19 @@ export default function CallDetail() {
     latitude: null,
     longitude: null,
   });
-  const { call, callExtraData, callPriority, isLoading, error, fetchCallDetail, reset } = useCallDetailStore();
-  const { canUserCreateCalls } = useSecurityStore();
-  const { activeCall, activeStatuses, activeUnit } = useCoreStore();
-  const { setIsOpen: setStatusBottomSheetOpen, setSelectedCall } = useStatusBottomSheetStore();
+  const call = useCallDetailStore((state) => state.call);
+  const callExtraData = useCallDetailStore((state) => state.callExtraData);
+  const callPriority = useCallDetailStore((state) => state.callPriority);
+  const isLoading = useCallDetailStore((state) => state.isLoading);
+  const error = useCallDetailStore((state) => state.error);
+  const fetchCallDetail = useCallDetailStore((state) => state.fetchCallDetail);
+  const reset = useCallDetailStore((state) => state.reset);
+  const canUserCreateCalls = securityStore((state) => state.rights?.CanCreateCalls);
+  const activeCall = useCoreStore((state) => state.activeCall);
+  const activeStatuses = useCoreStore((state) => state.activeStatuses);
+  const activeUnit = useCoreStore((state) => state.activeUnit);
+  const setStatusBottomSheetOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
+  const setSelectedCall = useStatusBottomSheetStore((state) => state.setSelectedCall);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [isImagesModalOpen, setIsImagesModalOpen] = useState(false);
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
@@ -66,10 +75,8 @@ export default function CallDetail() {
   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
 
   // Get current user location from the location store
-  const userLocation = useLocationStore((state) => ({
-    latitude: state.latitude,
-    longitude: state.longitude,
-  }));
+  const userLatitude = useLocationStore((state) => state.latitude);
+  const userLongitude = useLocationStore((state) => state.longitude);
 
   const handleBack = () => {
     router.back();
@@ -186,7 +193,7 @@ export default function CallDetail() {
 
     try {
       const destinationName = call?.Address || t('call_detail.call_location');
-      const success = await openMapsWithDirections(coordinates.latitude, coordinates.longitude, destinationName, userLocation.latitude || undefined, userLocation.longitude || undefined);
+      const success = await openMapsWithDirections(coordinates.latitude, coordinates.longitude, destinationName, userLatitude || undefined, userLongitude || undefined);
 
       if (!success) {
         showToast('error', t('call_detail.failed_to_open_maps'));

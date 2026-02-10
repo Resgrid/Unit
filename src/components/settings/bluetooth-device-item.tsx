@@ -15,7 +15,7 @@ import { BluetoothDeviceSelectionBottomSheet } from './bluetooth-device-selectio
 export const BluetoothDeviceItem = () => {
   const { t } = useTranslation();
   const { preferredDevice } = usePreferredBluetoothDevice();
-  const { connectedDevice } = useBluetoothAudioStore();
+  const connectedDevice = useBluetoothAudioStore((s) => s.connectedDevice);
   const [showDeviceSelection, setShowDeviceSelection] = useState(false);
 
   const deviceDisplayName = React.useMemo(() => {

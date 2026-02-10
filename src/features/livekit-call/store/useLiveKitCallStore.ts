@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { logger } from '../../../lib/logging';
-import { callKeepService } from '../../../services/callkeep.service.ios';
+import { callKeepService } from '../../../services/callkeep.service';
 
 export interface RoomInfo {
   id: string;

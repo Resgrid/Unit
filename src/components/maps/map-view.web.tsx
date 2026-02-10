@@ -6,7 +6,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 import mapboxgl from 'mapbox-gl';
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import ReactDOM from 'react-dom';
+// @ts-ignore - react-dom/client types may not be available
+import { createRoot } from 'react-dom/client';
 
 import { Env } from '@/lib/env';
 
@@ -118,8 +119,12 @@ export const MapView = forwardRef<any, MapViewProps>(
         onDidFinishLoadingMap?.();
       });
 
-      newMap.on('moveend', () => {
-        onCameraChanged?.({ properties: { isUserInteraction: true } });
+      newMap.on('moveend', (e: any) => {
+        // mapbox-gl propagates eventData from easeTo/flyTo into the event object.
+        // We tag all programmatic camera moves with { _programmatic: true } so the
+        // moveend handler can distinguish them from real user interactions.
+        const wasUser = !e._programmatic;
+        onCameraChanged?.({ properties: { isUserInteraction: wasUser } });
       });
 
       map.current = newMap;
@@ -172,17 +177,20 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     setCamera: (options: { centerCoordinate?: [number, number]; zoomLevel?: number; heading?: number; pitch?: number; animationDuration?: number }) => {
       if (!map) return;
 
-      map.easeTo({
-        center: options.centerCoordinate,
-        zoom: options.zoomLevel,
-        bearing: options.heading,
-        pitch: options.pitch,
-        duration: options.animationDuration || 1000,
-      });
+      map.easeTo(
+        {
+          center: options.centerCoordinate,
+          zoom: options.zoomLevel,
+          bearing: options.heading,
+          pitch: options.pitch,
+          duration: options.animationDuration || 1000,
+        },
+        { _programmatic: true }
+      );
     },
     flyTo: (options: any) => {
       if (!map) return;
-      map.flyTo(options);
+      map.flyTo(options, { _programmatic: true });
     },
   }));
 
@@ -190,13 +198,16 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     if (!map) return;
 
     if (centerCoordinate) {
-      map.easeTo({
-        center: centerCoordinate,
-        zoom: zoomLevel,
-        bearing: heading,
-        pitch: pitch,
-        duration: animationDuration,
-      });
+      map.easeTo(
+        {
+          center: centerCoordinate,
+          zoom: zoomLevel,
+          bearing: heading,
+          pitch: pitch,
+          duration: animationDuration,
+        },
+        { _programmatic: true }
+      );
     }
   }, [map, centerCoordinate, zoomLevel, heading, pitch, animationDuration]);
 
@@ -255,6 +266,7 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
   const containerRef = useRef<HTMLDivElement | null>(null);
   const containerRootRef = useRef<any>(null);
 
+  // Create marker once when map/id/coordinate are available
   useEffect(() => {
     if (!map || !coordinate) return;
 
@@ -263,12 +275,9 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
     container.style.cursor = 'pointer';
     containerRef.current = container;
 
-    // Render React children into the container using createRoot
-    if (children) {
-      const root = (ReactDOM as any).createRoot(container);
-      root.render(<>{children}</>);
-      containerRootRef.current = root;
-    }
+    // Create a persistent React root for rendering children
+    const root = createRoot(container);
+    containerRootRef.current = root;
 
     // Determine marker options based on anchor prop
     const markerOptions: any = {
@@ -284,9 +293,6 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
 
     // If anchor is an {x, y} object, convert to pixel offset
     if (typeof anchor === 'object' && anchor !== null && 'x' in anchor && 'y' in anchor) {
-      // Calculate offset based on container size
-      // Mapbox expects offset in pixels, anchor is typically 0-1 range
-      // Convert anchor position to offset (center is anchor {0.5, 0.5})
       const rect = container.getBoundingClientRect();
       const xOffset = (anchor.x - 0.5) * rect.width;
       const yOffset = (anchor.y - 0.5) * rect.height;
@@ -297,35 +303,48 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
       markerRef.current.setPopup(new mapboxgl.Popup().setText(title));
     }
 
-    // Attach click listener to container
-    if (onSelected && containerRef.current) {
-      containerRef.current.addEventListener('click', onSelected);
-    }
-
     return () => {
-      // Clean up click listener
-      if (onSelected && containerRef.current) {
-        containerRef.current.removeEventListener('click', onSelected);
-      }
-
-      // Unmount React children
-      if (children && containerRootRef.current) {
+      // Unmount React root
+      if (containerRootRef.current) {
         containerRootRef.current.unmount();
         containerRootRef.current = null;
       }
 
       // Remove marker from map
       markerRef.current?.remove();
+      markerRef.current = null;
+      containerRef.current = null;
     };
+    // Only recreate marker when map, id, or anchor change — NOT children
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, coordinate, id, children, anchor, onSelected, title]);
+  }, [map, id]);
 
-  // Update position when coordinate changes
+  // Update coordinate when values actually change (by value, not reference)
   useEffect(() => {
     if (markerRef.current && coordinate) {
       markerRef.current.setLngLat(coordinate);
     }
-  }, [coordinate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coordinate?.[0], coordinate?.[1]]);
+
+  // Render children into the marker's React root whenever children identity changes.
+  // Using a layout effect with [children] dep so it only fires when children actually change.
+  useEffect(() => {
+    if (containerRootRef.current && children) {
+      containerRootRef.current.render(<>{children}</>);
+    }
+  }, [children]);
+
+  // Update click handler
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !onSelected) return;
+
+    container.addEventListener('click', onSelected);
+    return () => {
+      container.removeEventListener('click', onSelected);
+    };
+  }, [onSelected]);
 
   return null;
 };

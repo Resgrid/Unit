@@ -20,7 +20,10 @@ import { VStack } from '../ui/vstack';
 export const ProtocolDetailsSheet: React.FC = () => {
   const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
-  const { protocols, selectedProtocolId, isDetailsOpen, closeDetails } = useProtocolsStore();
+  const protocols = useProtocolsStore((s) => s.protocols);
+  const selectedProtocolId = useProtocolsStore((s) => s.selectedProtocolId);
+  const isDetailsOpen = useProtocolsStore((s) => s.isDetailsOpen);
+  const closeDetails = useProtocolsStore((s) => s.closeDetails);
 
   const selectedProtocol = protocols.find((protocol) => protocol.ProtocolId === selectedProtocolId);
 

@@ -90,7 +90,8 @@ const radioLabelStyle = tva({
 
 type IRadioProps = Omit<React.ComponentProps<typeof UIRadio>, 'context'> & VariantProps<typeof radioStyle>;
 const Radio = React.forwardRef<React.ComponentRef<typeof UIRadio>, IRadioProps>(function Radio({ className, size = 'md', ...props }, ref) {
-  return <UIRadio className={radioStyle({ class: className, size })} {...props} ref={ref} context={{ size }} />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIRadio className={radioStyle({ class: className, size })} {...props} ref={ref} context={contextValue} />;
 });
 
 type IRadioGroupProps = React.ComponentProps<typeof UIRadio.Group> & VariantProps<typeof radioGroupStyle>;

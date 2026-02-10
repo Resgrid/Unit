@@ -17,7 +17,12 @@ import { useNotesStore } from '@/stores/notes/store';
 
 export default function Notes() {
   const { t } = useTranslation();
-  const { notes, searchQuery, setSearchQuery, selectNote, isLoading, fetchNotes } = useNotesStore();
+  const notes = useNotesStore((s) => s.notes);
+  const searchQuery = useNotesStore((s) => s.searchQuery);
+  const setSearchQuery = useNotesStore((s) => s.setSearchQuery);
+  const selectNote = useNotesStore((s) => s.selectNote);
+  const isLoading = useNotesStore((s) => s.isLoading);
+  const fetchNotes = useNotesStore((s) => s.fetchNotes);
   const { trackEvent } = useAnalytics();
   const [refreshing, setRefreshing] = React.useState(false);
 

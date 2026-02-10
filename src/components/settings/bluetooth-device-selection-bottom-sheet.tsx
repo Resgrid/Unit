@@ -30,7 +30,11 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const { preferredDevice, setPreferredDevice } = usePreferredBluetoothDevice();
-  const { availableDevices, isScanning, bluetoothState, connectedDevice, connectionError } = useBluetoothAudioStore();
+  const availableDevices = useBluetoothAudioStore((s) => s.availableDevices);
+  const isScanning = useBluetoothAudioStore((s) => s.isScanning);
+  const bluetoothState = useBluetoothAudioStore((s) => s.bluetoothState);
+  const connectedDevice = useBluetoothAudioStore((s) => s.connectedDevice);
+  const connectionError = useBluetoothAudioStore((s) => s.connectionError);
   const [hasScanned, setHasScanned] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
 
@@ -273,10 +277,8 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
               <HStack className="items-center">
                 <BluetoothIcon size={16} className="mr-2 text-primary-600" />
                 <VStack>
-                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>
-                    System Audio
-                  </Text>
-                  <Text className="text-xs text-neutral-500">AirPods, Car, Wired Headset</Text>
+                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>{t('bluetooth.systemAudio')}</Text>
+                  <Text className="text-xs text-neutral-500">{t('bluetooth.systemAudioDescription')}</Text>
                 </VStack>
               </HStack>
               {preferredDevice?.id === 'system-audio' && (

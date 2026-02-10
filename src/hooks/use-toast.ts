@@ -1,7 +1,7 @@
 import { type ToastType, useToastStore } from '../stores/toast/store';
 
 export const useToast = () => {
-  const { showToast } = useToastStore();
+  const showToast = useToastStore((state) => state.showToast);
 
   return {
     show: (type: ToastType, message: string, title?: string) => {

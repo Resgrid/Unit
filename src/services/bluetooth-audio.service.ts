@@ -46,6 +46,7 @@ class BluetoothAudioService {
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
+  private readonly isWeb = Platform.OS === 'web';
 
   static getInstance(): BluetoothAudioService {
     if (!BluetoothAudioService.instance) {
@@ -59,6 +60,15 @@ class BluetoothAudioService {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
+      return;
+    }
+
+    // BLE is not available on web — skip initialization entirely
+    if (Platform.OS === 'web') {
+      logger.info({
+        message: 'Bluetooth Audio Service not available on web, skipping initialization',
+      });
+      this.isInitialized = true;
       return;
     }
 
@@ -133,11 +143,11 @@ class BluetoothAudioService {
         useBluetoothAudioStore.getState().setPreferredDevice(preferredDevice);
 
         if (preferredDevice.id === 'system-audio') {
-            logger.info({
-                message: 'Preferred device is System Audio, ensuring no specialized device is connected',
-            });
-            // We are already in system audio mode by default if no device is connected
-            return;
+          logger.info({
+            message: 'Preferred device is System Audio, ensuring no specialized device is connected',
+          });
+          // We are already in system audio mode by default if no device is connected
+          return;
         }
 
         // Try to connect directly to the preferred device
@@ -321,6 +331,7 @@ class BluetoothAudioService {
   }
 
   async requestPermissions(): Promise<boolean> {
+    if (this.isWeb) return true;
     if (Platform.OS === 'android') {
       try {
         const permissions = [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT, PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
@@ -347,6 +358,7 @@ class BluetoothAudioService {
   }
 
   async checkBluetoothState(): Promise<State> {
+    if (this.isWeb) return State.PoweredOff;
     try {
       const bleState = await BleManager.checkState();
       return this.mapBleStateToState(bleState);
@@ -360,6 +372,7 @@ class BluetoothAudioService {
   }
 
   async startScanning(durationMs: number = 10000): Promise<void> {
+    if (this.isWeb) return;
     const hasPermissions = await this.requestPermissions();
     if (!hasPermissions) {
       throw new Error('Bluetooth permissions not granted');
@@ -418,6 +431,7 @@ class BluetoothAudioService {
    * Use this for troubleshooting device discovery issues
    */
   async startDebugScanning(durationMs: number = 15000): Promise<void> {
+    if (this.isWeb) return;
     const hasPermissions = await this.requestPermissions();
     if (!hasPermissions) {
       throw new Error('Bluetooth permissions not granted');
@@ -591,14 +605,10 @@ class BluetoothAudioService {
   private getDeviceType(device: Device): 'specialized' | 'system' {
     const advertisingData = device.advertising;
     const serviceUUIDs = advertisingData?.serviceUUIDs || [];
-    
+
     // Check for specialized PTT service UUIDs
     const isSpecialized = serviceUUIDs.some((uuid: string) => {
-      return [
-        AINA_HEADSET_SERVICE, 
-        B01INRICO_HEADSET_SERVICE, 
-        HYS_HEADSET_SERVICE
-      ].some(specialized => this.areUuidsEqual(uuid, specialized));
+      return [AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE].some((specialized) => this.areUuidsEqual(uuid, specialized));
     });
 
     if (isSpecialized) {
@@ -608,7 +618,7 @@ class BluetoothAudioService {
     // Check by name for known specialized devices if UUID check fails
     const name = device.name?.toLowerCase() || '';
     if (name.includes('aina') || name.includes('inrico') || name.includes('hys')) {
-        return 'specialized';
+      return 'specialized';
     }
 
     return 'system';
@@ -858,6 +868,7 @@ class BluetoothAudioService {
   }
 
   async stopScanning(): Promise<void> {
+    if (this.isWeb) return;
     try {
       await BleManager.stopScan();
     } catch (error) {
@@ -880,6 +891,7 @@ class BluetoothAudioService {
   }
 
   async connectToDevice(deviceId: string): Promise<void> {
+    if (this.isWeb) return;
     try {
       useBluetoothAudioStore.getState().clearConnectionError();
       useBluetoothAudioStore.getState().setIsConnecting(true);
@@ -946,8 +958,8 @@ class BluetoothAudioService {
           context: { deviceId },
         });
       } else {
-         // Ensure listener is active for system devices
-         callKeepService.restoreMuteListener();
+        // Ensure listener is active for system devices
+        callKeepService.restoreMuteListener();
       }
 
       // Set up button event monitoring with peripheral info
@@ -993,42 +1005,42 @@ class BluetoothAudioService {
   }
 
   async connectToSystemAudio(): Promise<void> {
+    if (this.isWeb) return;
     try {
-        logger.info({ message: 'Switching to System Audio' });
-        
-        // Disconnect any currently connected specialized device
-        if (this.connectedDevice) {
-            try {
-                await BleManager.disconnect(this.connectedDevice.id);
-            } catch (error) {
-                logger.warn({ message: 'Error disconnecting device for System Audio switch', context: { error } });
-            }
-            this.connectedDevice = null;
-            useBluetoothAudioStore.getState().setConnectedDevice(null);
+      logger.info({ message: 'Switching to System Audio' });
+
+      // Disconnect any currently connected specialized device
+      if (this.connectedDevice) {
+        try {
+          await BleManager.disconnect(this.connectedDevice.id);
+        } catch (error) {
+          logger.warn({ message: 'Error disconnecting device for System Audio switch', context: { error } });
         }
+        this.connectedDevice = null;
+        useBluetoothAudioStore.getState().setConnectedDevice(null);
+      }
 
-        // Ensure system audio state
-        callKeepService.restoreMuteListener();
-        
-        // Revert LiveKit audio routing explicitly to be safe
-        this.revertLiveKitAudioRouting();
+      // Ensure system audio state
+      callKeepService.restoreMuteListener();
 
-        // Update preferred device
-        const systemAudioDevice = { id: 'system-audio', name: 'System Audio' };
-        useBluetoothAudioStore.getState().setPreferredDevice(systemAudioDevice);
-        
-        // Save to storage (implied by previous code loading it from storage, but we need to save it too? 
-        // usage of usePreferredBluetoothDevice hook elsewhere handles saving, 
-        // but here we are in service. The UI calls logic that saves it eventually 
-        // or we should do it here if we want persistence.)
-        // The service reads from storage using require('@/lib/storage'), so we should probably save it too if we want it to persist.
-        // However, the UI calls setPreferredDevice from the hook which likely saves it.
-        // We will let the UI handle the persistence call or add it here if needed.
-        // For now, updating the store is enough for the session.
+      // Revert LiveKit audio routing explicitly to be safe
+      this.revertLiveKitAudioRouting();
 
+      // Update preferred device
+      const systemAudioDevice = { id: 'system-audio', name: 'System Audio' };
+      useBluetoothAudioStore.getState().setPreferredDevice(systemAudioDevice);
+
+      // Save to storage (implied by previous code loading it from storage, but we need to save it too?
+      // usage of usePreferredBluetoothDevice hook elsewhere handles saving,
+      // but here we are in service. The UI calls logic that saves it eventually
+      // or we should do it here if we want persistence.)
+      // The service reads from storage using require('@/lib/storage'), so we should probably save it too if we want it to persist.
+      // However, the UI calls setPreferredDevice from the hook which likely saves it.
+      // We will let the UI handle the persistence call or add it here if needed.
+      // For now, updating the store is enough for the session.
     } catch (error) {
-        logger.error({ message: 'Failed to switch to System Audio', context: { error } });
-        throw error;
+      logger.error({ message: 'Failed to switch to System Audio', context: { error } });
+      throw error;
     }
   }
 
@@ -1743,6 +1755,7 @@ class BluetoothAudioService {
   }
 
   async disconnectDevice(): Promise<void> {
+    if (this.isWeb) return;
     if (this.connectedDevice && this.connectedDevice.id) {
       const deviceId = this.connectedDevice.id;
       try {
@@ -1767,6 +1780,7 @@ class BluetoothAudioService {
   }
 
   async isDeviceConnected(deviceId: string): Promise<boolean> {
+    if (this.isWeb) return false;
     try {
       const connectedPeripherals = await BleManager.getConnectedPeripherals();
       return connectedPeripherals.some((p) => p.id === deviceId);
@@ -1840,6 +1854,7 @@ class BluetoothAudioService {
    * Clears connections, scanning, and preferred device tracking.
    */
   async reset(): Promise<void> {
+    if (this.isWeb) return;
     logger.info({
       message: 'Resetting Bluetooth Audio Service state',
     });

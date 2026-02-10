@@ -1,4 +1,5 @@
 import { type HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
+import { Platform } from 'react-native';
 
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
@@ -184,6 +185,9 @@ class SignalRService {
       // Store the config for potential reconnections
       this.hubConfigs.set(config.name, config);
 
+      // Use Warning level on web to prevent timer floods from async logger
+      const signalRLogLevel = Platform.OS === 'web' ? LogLevel.Warning : LogLevel.Information;
+
       const connectionBuilder = new HubConnectionBuilder()
         .withUrl(
           fullUrl,
@@ -194,7 +198,7 @@ class SignalRService {
               }
         )
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-        .configureLogging(LogLevel.Information);
+        .configureLogging(signalRLogLevel);
 
       const connection = connectionBuilder.build();
 
@@ -226,7 +230,7 @@ class SignalRService {
         });
 
         connection.on(method, (data) => {
-          logger.info({
+          logger.debug({
             message: `Received ${method} message from hub: ${config.name}`,
             context: { method, data },
           });
@@ -317,12 +321,14 @@ class SignalRService {
         context: { config },
       });
 
+      const signalRLogLevel = Platform.OS === 'web' ? LogLevel.Warning : LogLevel.Information;
+
       const connection = new HubConnectionBuilder()
         .withUrl(config.url, {
           accessTokenFactory: () => token,
         })
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-        .configureLogging(LogLevel.Information)
+        .configureLogging(signalRLogLevel)
         .build();
 
       // Set up event handlers
@@ -353,7 +359,7 @@ class SignalRService {
         });
 
         connection.on(method, (data) => {
-          logger.info({
+          logger.debug({
             message: `Received ${method} message from hub: ${config.name}`,
             context: { method, data },
           });
@@ -493,11 +499,7 @@ class SignalRService {
     }
   }
 
-  private handleMessage(hubName: string, method: string, data: unknown): void {
-    logger.debug({
-      message: `Received message from hub: ${hubName}`,
-      context: { method, data },
-    });
+  private handleMessage(_hubName: string, method: string, data: unknown): void {
     // Emit event for subscribers using the method name as the event name
     this.emit(method, data);
   }
@@ -609,6 +611,10 @@ class SignalRService {
 
   public off(event: string, callback: (data: unknown) => void): void {
     this.eventListeners.get(event)?.delete(callback);
+  }
+
+  public removeAllListeners(event: string): void {
+    this.eventListeners.delete(event);
   }
 
   private emit(event: string, data: unknown): void {

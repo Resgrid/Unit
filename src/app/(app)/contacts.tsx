@@ -17,7 +17,12 @@ import { useContactsStore } from '@/stores/contacts/store';
 
 export default function Contacts() {
   const { t } = useTranslation();
-  const { contacts, searchQuery, setSearchQuery, selectContact, isLoading, fetchContacts } = useContactsStore();
+  const contacts = useContactsStore((s) => s.contacts);
+  const searchQuery = useContactsStore((s) => s.searchQuery);
+  const setSearchQuery = useContactsStore((s) => s.setSearchQuery);
+  const selectContact = useContactsStore((s) => s.selectContact);
+  const isLoading = useContactsStore((s) => s.isLoading);
+  const fetchContacts = useContactsStore((s) => s.fetchContacts);
   const { trackEvent } = useAnalytics();
   const [refreshing, setRefreshing] = React.useState(false);
 

@@ -24,17 +24,25 @@ export enum BottomSheetView {
 }
 
 export const LiveKitBottomSheet = () => {
-  const { isBottomSheetVisible, setIsBottomSheetVisible, availableRooms, fetchVoiceSettings, connectToRoom, disconnectFromRoom, currentRoomInfo, currentRoom, isConnected, isConnecting, isTalking, requestPermissions } =
-    useLiveKitStore();
+  const isBottomSheetVisible = useLiveKitStore((s) => s.isBottomSheetVisible);
+  const setIsBottomSheetVisible = useLiveKitStore((s) => s.setIsBottomSheetVisible);
+  const availableRooms = useLiveKitStore((s) => s.availableRooms);
+  const fetchVoiceSettings = useLiveKitStore((s) => s.fetchVoiceSettings);
+  const connectToRoom = useLiveKitStore((s) => s.connectToRoom);
+  const disconnectFromRoom = useLiveKitStore((s) => s.disconnectFromRoom);
+  const currentRoomInfo = useLiveKitStore((s) => s.currentRoomInfo);
+  const currentRoom = useLiveKitStore((s) => s.currentRoom);
+  const isConnected = useLiveKitStore((s) => s.isConnected);
+  const isConnecting = useLiveKitStore((s) => s.isConnecting);
+  const isTalking = useLiveKitStore((s) => s.isTalking);
 
-  const { selectedAudioDevices } = useBluetoothAudioStore();
+  const selectedAudioDevices = useBluetoothAudioStore((s) => s.selectedAudioDevices);
   const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
 
   const [currentView, setCurrentView] = useState<BottomSheetView>(BottomSheetView.ROOM_SELECT);
   const [previousView, setPreviousView] = useState<BottomSheetView | null>(null);
   const [isMuted, setIsMuted] = useState(true); // Default to muted
-  const [permissionsRequested, setPermissionsRequested] = useState(false);
 
   // Use ref to track if component is mounted to prevent state updates after unmount
   const isMountedRef = useRef(true);
@@ -60,68 +68,12 @@ export const LiveKitBottomSheet = () => {
         isTalking: isTalking,
         hasBluetoothMicrophone: selectedAudioDevices?.microphone?.type === 'bluetooth',
         hasBluetoothSpeaker: selectedAudioDevices?.speaker?.type === 'bluetooth',
-        permissionsRequested: permissionsRequested,
       });
     }
-  }, [
-    isBottomSheetVisible,
-    trackEvent,
-    availableRooms.length,
-    isConnected,
-    isConnecting,
-    currentView,
-    currentRoomInfo,
-    isMuted,
-    isTalking,
-    selectedAudioDevices?.microphone?.type,
-    selectedAudioDevices?.speaker?.type,
-    permissionsRequested,
-  ]);
+  }, [isBottomSheetVisible, trackEvent, availableRooms.length, isConnected, isConnecting, currentView, currentRoomInfo, isMuted, isTalking, selectedAudioDevices?.microphone?.type, selectedAudioDevices?.speaker?.type]);
 
-  // Request permissions when the component becomes visible
-  useEffect(() => {
-    if (isBottomSheetVisible && !permissionsRequested && isMountedRef.current) {
-      // Check if we're in a test environment
-      const isTestEnvironment = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
-
-      if (isTestEnvironment) {
-        // In tests, handle permissions synchronously to avoid act warnings
-        try {
-          // Call requestPermissions but don't await it in tests
-          const result = requestPermissions();
-          // Only call .catch if the result is a promise
-          if (result && typeof result.catch === 'function') {
-            result.catch(() => {
-              // Silently handle any errors in test environment
-            });
-          }
-          setPermissionsRequested(true);
-        } catch (error) {
-          console.error('Failed to request permissions:', error);
-        }
-      } else {
-        // In production, use the async approach with timeout
-        const timeoutId = setTimeout(async () => {
-          if (isMountedRef.current && !permissionsRequested) {
-            try {
-              await requestPermissions();
-              if (isMountedRef.current) {
-                setPermissionsRequested(true);
-              }
-            } catch (error) {
-              if (isMountedRef.current) {
-                console.error('Failed to request permissions:', error);
-              }
-            }
-          }
-        }, 0);
-
-        return () => {
-          clearTimeout(timeoutId);
-        };
-      }
-    }
-  }, [isBottomSheetVisible, permissionsRequested, requestPermissions]);
+  // Note: Permissions are now requested in connectToRoom when the user actually tries to join a voice call
+  // This ensures permissions are granted before the Android foreground service starts
 
   // Sync mute state with LiveKit room
   useEffect(() => {

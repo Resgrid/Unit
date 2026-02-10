@@ -42,7 +42,7 @@ export default function Settings() {
   const [showUnitSelection, setShowUnitSelection] = React.useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
-  const { units } = useUnitsStore();
+  const units = useUnitsStore((state) => state.units);
 
   const activeUnitName = React.useMemo(() => {
     if (!activeUnit) return t('settings.none_selected');

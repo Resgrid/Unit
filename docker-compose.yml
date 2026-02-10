@@ -12,6 +12,8 @@ services:
       - APP_ENV=production
       - UNIT_NAME=Resgrid Unit
       - UNIT_SCHEME=ResgridUnit
+      - UNIT_BUNDLE_ID=com.resgrid.unit
+      - UNIT_PACKAGE=com.resgrid.unit
       - UNIT_VERSION=0.0.1
       - UNIT_BASE_API_URL=https://api.resgrid.com
       - UNIT_API_VERSION=v4

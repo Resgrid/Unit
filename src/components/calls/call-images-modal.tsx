@@ -39,7 +39,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const { colorScheme } = useColorScheme();
-  const { latitude, longitude } = useLocationStore();
+  const latitude = useLocationStore((state) => state.latitude);
+  const longitude = useLocationStore((state) => state.longitude);
 
   const isDark = colorScheme === 'dark';
 
@@ -52,7 +53,12 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
   const flatListRef = useRef<FlatList<CallFileResultData>>(null);
 
-  const { callImages, isLoadingImages, errorImages, fetchCallImages, uploadCallImage, clearImages } = useCallDetailStore();
+  const callImages = useCallDetailStore((state) => state.callImages);
+  const isLoadingImages = useCallDetailStore((state) => state.isLoadingImages);
+  const errorImages = useCallDetailStore((state) => state.errorImages);
+  const fetchCallImages = useCallDetailStore((state) => state.fetchCallImages);
+  const uploadCallImage = useCallDetailStore((state) => state.uploadCallImage);
+  const clearImages = useCallDetailStore((state) => state.clearImages);
 
   // Filter out images without proper data or URL
   const validImages = useMemo(() => {

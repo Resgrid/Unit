@@ -76,7 +76,8 @@ const avatarImageStyle = tva({
 type IAvatarProps = Omit<React.ComponentPropsWithoutRef<typeof UIAvatar>, 'context'> & VariantProps<typeof avatarStyle>;
 
 export const Avatar = React.forwardRef<React.ElementRef<typeof UIAvatar>, IAvatarProps>(({ className, size = 'md', ...props }, ref) => {
-  return <UIAvatar ref={ref} {...props} className={avatarStyle({ size, class: className })} context={{ size }} />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIAvatar ref={ref} {...props} className={avatarStyle({ size, class: className })} context={contextValue} />;
 });
 
 type IAvatarBadgeProps = React.ComponentPropsWithoutRef<typeof UIAvatar.Badge> & VariantProps<typeof avatarBadgeStyle>;

@@ -42,7 +42,14 @@ describe('SignalR Lifecycle Management', () => {
     jest.clearAllMocks();
 
     // Mock SignalR store
-    mockUseSignalRStore.mockReturnValue({
+    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      connectUpdateHub: mockConnectUpdateHub,
+      disconnectUpdateHub: mockDisconnectUpdateHub,
+      connectGeolocationHub: mockConnectGeolocationHub,
+      disconnectGeolocationHub: mockDisconnectGeolocationHub,
+      isUpdateHubConnected: false,
+      isGeolocationHubConnected: false,
+    } as any) : {
       connectUpdateHub: mockConnectUpdateHub,
       disconnectUpdateHub: mockDisconnectUpdateHub,
       connectGeolocationHub: mockConnectGeolocationHub,

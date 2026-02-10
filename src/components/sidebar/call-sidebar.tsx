@@ -20,11 +20,9 @@ import { HStack } from '../ui/hstack';
 
 export const SidebarCallCard = () => {
   const { colorScheme } = useColorScheme();
-  const { activeCall, activePriority, setActiveCall } = useCoreStore((state) => ({
-    activeCall: state.activeCall,
-    activePriority: state.activePriority,
-    setActiveCall: state.setActiveCall,
-  }));
+  const activeCall = useCoreStore((state) => state.activeCall);
+  const activePriority = useCoreStore((state) => state.activePriority);
+  const setActiveCall = useCoreStore((state) => state.setActiveCall);
 
   const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const { t } = useTranslation();

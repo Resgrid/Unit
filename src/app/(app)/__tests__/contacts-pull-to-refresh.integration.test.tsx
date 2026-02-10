@@ -107,7 +107,14 @@ describe('Contacts Pull-to-Refresh Integration', () => {
   it('should properly configure pull-to-refresh with force cache refresh', async () => {
     const mockFetchContacts = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: mockFetchContacts,
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -135,7 +142,14 @@ describe('Contacts Pull-to-Refresh Integration', () => {
   it('should maintain refresh state correctly during pull-to-refresh', async () => {
     const mockFetchContacts = jest.fn().mockImplementation(() => Promise.resolve());
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: mockFetchContacts,
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -163,7 +177,14 @@ describe('Contacts Pull-to-Refresh Integration', () => {
 
   it('should show proper loading states during refresh vs initial load', () => {
     // Test initial loading state
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: [],
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: true,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: [],
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -178,7 +199,14 @@ describe('Contacts Pull-to-Refresh Integration', () => {
     expect(getByText('Loading')).toBeTruthy();
 
     // Test refresh loading state (with existing contacts)
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: true, // Loading is true but contacts exist
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),

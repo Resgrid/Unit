@@ -120,7 +120,14 @@ describe('Contacts Page', () => {
   });
 
   it('should render loading state during initial fetch', () => {
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: [],
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: true,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: [],
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -139,7 +146,14 @@ describe('Contacts Page', () => {
     const mockSelectContact = jest.fn();
     const mockSetSearchQuery = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: mockSetSearchQuery,
+      selectContact: mockSelectContact,
+      isLoading: false,
+      fetchContacts: mockFetchContacts,
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: mockSetSearchQuery,
@@ -160,7 +174,14 @@ describe('Contacts Page', () => {
   });
 
   it('should render zero state when no contacts are available', () => {
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: [],
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: [],
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -177,7 +198,14 @@ describe('Contacts Page', () => {
   it('should filter contacts based on search query', async () => {
     const mockSetSearchQuery = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: 'john',
+      setSearchQuery: mockSetSearchQuery,
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: 'john',
       setSearchQuery: mockSetSearchQuery,
@@ -197,7 +225,14 @@ describe('Contacts Page', () => {
   });
 
   it('should show zero state when search returns no results', () => {
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: 'nonexistent',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: 'nonexistent',
       setSearchQuery: jest.fn(),
@@ -214,7 +249,14 @@ describe('Contacts Page', () => {
   it('should handle search input changes', async () => {
     const mockSetSearchQuery = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: mockSetSearchQuery,
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: mockSetSearchQuery,
@@ -234,7 +276,14 @@ describe('Contacts Page', () => {
   it('should clear search query when X button is pressed', async () => {
     const mockSetSearchQuery = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: 'john',
+      setSearchQuery: mockSetSearchQuery,
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: 'john',
       setSearchQuery: mockSetSearchQuery,
@@ -258,7 +307,14 @@ describe('Contacts Page', () => {
   it('should handle contact selection', async () => {
     const mockSelectContact = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: mockSelectContact,
+      isLoading: false,
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -278,7 +334,14 @@ describe('Contacts Page', () => {
   it('should handle refresh functionality', async () => {
     const mockFetchContacts = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: mockFetchContacts,
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -302,7 +365,14 @@ describe('Contacts Page', () => {
   it('should call fetchContacts with force refresh when pulling to refresh', async () => {
     const mockFetchContacts = jest.fn();
 
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: false,
+      fetchContacts: mockFetchContacts,
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),
@@ -330,7 +400,14 @@ describe('Contacts Page', () => {
   });
 
   it('should not show loading when contacts are already loaded during refresh', () => {
-    useContactsStore.mockReturnValue({
+    useContactsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      contacts: mockContacts,
+      searchQuery: '',
+      setSearchQuery: jest.fn(),
+      selectContact: jest.fn(),
+      isLoading: true, // Loading is true but contacts exist
+      fetchContacts: jest.fn(),
+    }) : {
       contacts: mockContacts,
       searchQuery: '',
       setSearchQuery: jest.fn(),

@@ -345,8 +345,21 @@ describe('CallImagesModal', () => {
     jest.clearAllMocks();
     mockReadAsStringAsync.mockClear();
     mockManipulateAsync.mockClear();
-    mockUseCallDetailStore.mockReturnValue(mockStore as any);
-    mockUseLocationStore.mockReturnValue({
+    mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockStore as any) : mockStore as any);
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      latitude: 40.7128,
+      longitude: -74.0060,
+      heading: null,
+      accuracy: null,
+      speed: null,
+      altitude: null,
+      timestamp: null,
+      isBackgroundEnabled: false,
+      isMapLocked: false,
+      setLocation: jest.fn(),
+      setBackgroundEnabled: jest.fn(),
+      setMapLocked: jest.fn(),
+    }) : {
       latitude: 40.7128,
       longitude: -74.0060,
       heading: null,
@@ -398,7 +411,10 @@ describe('CallImagesModal', () => {
     });
 
     it('shows loading state', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        isLoadingImages: true,
+      } as any) : {
         ...mockStore,
         isLoadingImages: true,
       } as any);
@@ -408,7 +424,10 @@ describe('CallImagesModal', () => {
     });
 
     it('shows error state', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        errorImages: 'Failed to load images',
+      } as any) : {
         ...mockStore,
         errorImages: 'Failed to load images',
       } as any);
@@ -418,7 +437,10 @@ describe('CallImagesModal', () => {
     });
 
     it('shows zero state when no images', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        callImages: [],
+      } as any) : {
         ...mockStore,
         callImages: [],
       } as any);
@@ -473,7 +495,7 @@ describe('CallImagesModal', () => {
         ]
       };
 
-      mockUseCallDetailStore.mockReturnValue(invalidImagesStore as any);
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(invalidImagesStore as any) : invalidImagesStore as any);
 
       const { getByTestId, queryByTestId } = render(<MockCallImagesModal {...defaultProps} />);
 
@@ -682,7 +704,7 @@ describe('CallImagesModal', () => {
         ]
       };
 
-      mockUseCallDetailStore.mockReturnValue(invalidImagesStore as any);
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(invalidImagesStore as any) : invalidImagesStore as any);
 
       const { getByTestId, queryByTestId } = render(<MockCallImagesModal {...defaultProps} />);
 
@@ -753,7 +775,7 @@ describe('CallImagesModal', () => {
         ],
       };
 
-      mockUseCallDetailStore.mockReturnValue(mockImagesStore as any);
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockImagesStore as any) : mockImagesStore as any);
 
       render(<MockCallImagesModal {...defaultProps} callId="test-call-456" />);
 
@@ -767,7 +789,10 @@ describe('CallImagesModal', () => {
     });
 
     it('should track analytics event with loading state', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        isLoadingImages: true,
+      } as any) : {
         ...mockStore,
         isLoadingImages: true,
       } as any);
@@ -784,7 +809,10 @@ describe('CallImagesModal', () => {
     });
 
     it('should track analytics event with error state', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        errorImages: 'Failed to load images',
+      } as any) : {
         ...mockStore,
         errorImages: 'Failed to load images',
       } as any);
@@ -825,7 +853,10 @@ describe('CallImagesModal', () => {
     });
 
     it('should track analytics event with no images', () => {
-      mockUseCallDetailStore.mockReturnValue({
+      mockUseCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockStore,
+        callImages: [],
+      } as any) : {
         ...mockStore,
         callImages: [],
       } as any);
@@ -1040,7 +1071,7 @@ describe('CallImagesModal', () => {
         setMapLocked: jest.fn(),
       };
 
-      mockUseLocationStore.mockReturnValue(mockLocationStore);
+      mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockLocationStore) : mockLocationStore);
 
       // Simulate the upload logic
       const uploadParams = {
@@ -1068,7 +1099,7 @@ describe('CallImagesModal', () => {
         setMapLocked: jest.fn(),
       };
 
-      mockUseLocationStore.mockReturnValue(mockLocationStoreNoLocation);
+      mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockLocationStoreNoLocation) : mockLocationStoreNoLocation);
 
       // Simulate the upload logic
       const uploadParams = {
@@ -1096,7 +1127,7 @@ describe('CallImagesModal', () => {
         setMapLocked: jest.fn(),
       };
 
-      mockUseLocationStore.mockReturnValue(mockLocationStorePartial);
+      mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockLocationStorePartial) : mockLocationStorePartial);
 
       // In the actual implementation, this would be handled by the API
       // which checks if both latitude and longitude are provided

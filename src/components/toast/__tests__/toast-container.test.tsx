@@ -41,7 +41,7 @@ describe('ToastContainer', () => {
   });
 
   it('renders nothing when no toasts are present', () => {
-    mockUseToastStore.mockReturnValue([]);
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ toasts: [] }) : { toasts: [] });
 
     const { queryByTestId } = render(<ToastContainer />);
 
@@ -55,7 +55,7 @@ describe('ToastContainer', () => {
       { id: '2', type: 'error' as const, message: 'Error message', title: 'Error Title' },
     ];
 
-    mockUseToastStore.mockReturnValue(mockToasts);
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ toasts: mockToasts }) : { toasts: mockToasts });
 
     const { getByTestId } = render(<ToastContainer />);
 
@@ -68,7 +68,7 @@ describe('ToastContainer', () => {
       { id: '1', type: 'warning' as const, message: 'Warning message', title: 'Warning Title' },
     ];
 
-    mockUseToastStore.mockReturnValue(mockToasts);
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ toasts: mockToasts }) : { toasts: mockToasts });
 
     const { getByTestId } = render(<ToastContainer />);
 

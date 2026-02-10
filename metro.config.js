@@ -42,6 +42,52 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
         type: 'sourceFile',
       };
     }
+
+    // Countly SDK needs its own shim with proper default export.
+    // The CountlyConfig subpath must resolve to a dedicated shim whose
+    // default export is the CountlyConfig class (not the Countly object).
+    if (moduleName === 'countly-sdk-react-native-bridge/CountlyConfig') {
+      return {
+        filePath: path.resolve(__dirname, 'src/lib/countly-config-shim.web.ts'),
+        type: 'sourceFile',
+      };
+    }
+    if (moduleName === 'countly-sdk-react-native-bridge' || moduleName.startsWith('countly-sdk-react-native-bridge/')) {
+      return {
+        filePath: path.resolve(__dirname, 'src/lib/countly-shim.web.ts'),
+        type: 'sourceFile',
+      };
+    }
+
+    // Force zustand and related packages to use CJS build instead of ESM
+    // The ESM build uses import.meta.env which Metro doesn't support
+    const zustandModules = {
+      zustand: path.resolve(__dirname, 'node_modules/zustand/index.js'),
+      'zustand/shallow': path.resolve(__dirname, 'node_modules/zustand/shallow.js'),
+      'zustand/middleware': path.resolve(__dirname, 'node_modules/zustand/middleware.js'),
+      'zustand/traditional': path.resolve(__dirname, 'node_modules/zustand/traditional.js'),
+      'zustand/vanilla': path.resolve(__dirname, 'node_modules/zustand/vanilla.js'),
+      'zustand/context': path.resolve(__dirname, 'node_modules/zustand/context.js'),
+    };
+
+    if (zustandModules[moduleName]) {
+      return {
+        filePath: zustandModules[moduleName],
+        type: 'sourceFile',
+      };
+    }
+
+    // Block build-time/dev packages that use import.meta from being bundled
+    // These are dev tools that should never be included in a client bundle
+    const buildTimePackages = ['tinyglobby', 'fdir', 'node-gyp', 'electron-builder', 'electron-rebuild', '@electron/rebuild', 'app-builder-lib', 'dmg-builder'];
+
+    if (buildTimePackages.some((pkg) => moduleName === pkg || moduleName.startsWith(`${pkg}/`))) {
+      // Return an empty module shim
+      return {
+        filePath: path.resolve(__dirname, 'src/lib/empty-module.web.js'),
+        type: 'sourceFile',
+      };
+    }
   }
 
   // Use the original resolver for everything else

@@ -139,8 +139,17 @@ describe('RolesModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCoreStore.mockReturnValue(mockActiveUnit);
-    mockUseRolesStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: mockActiveUnit }) : { activeUnit: mockActiveUnit });
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: mockRoles,
+      unitRoleAssignments: mockUnitRoleAssignments,
+      users: mockUsers,
+      isLoading: false,
+      error: null,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: mockRoles,
       unitRoleAssignments: mockUnitRoleAssignments,
       users: mockUsers,
@@ -151,7 +160,9 @@ describe('RolesModal', () => {
       assignRoles: mockAssignRoles,
     } as any);
 
-    mockUseToastStore.mockReturnValue({
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      showToast: mockShowToast,
+    } as any) : {
       showToast: mockShowToast,
     } as any);
 
@@ -197,7 +208,16 @@ describe('RolesModal', () => {
 
   it('displays error state correctly', () => {
     const errorMessage = 'Failed to load roles';
-    mockUseRolesStore.mockReturnValue({
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: [],
+      unitRoleAssignments: [],
+      users: [],
+      isLoading: false,
+      error: errorMessage,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: [],
       unitRoleAssignments: [],
       users: [],
@@ -214,7 +234,7 @@ describe('RolesModal', () => {
   });
 
   it('handles missing active unit gracefully', () => {
-    mockUseCoreStore.mockReturnValue(null);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ activeUnit: null }) : { activeUnit: null });
 
     render(<RolesModal isOpen={true} onClose={mockOnClose} />);
 
@@ -231,7 +251,16 @@ describe('RolesModal', () => {
       },
     ];
 
-    mockUseRolesStore.mockReturnValue({
+    mockUseRolesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      roles: rolesWithDifferentUnits,
+      unitRoleAssignments: mockUnitRoleAssignments,
+      users: mockUsers,
+      isLoading: false,
+      error: null,
+      fetchRolesForUnit: mockFetchRolesForUnit,
+      fetchUsers: mockFetchUsers,
+      assignRoles: mockAssignRoles,
+    } as any) : {
       roles: rolesWithDifferentUnits,
       unitRoleAssignments: mockUnitRoleAssignments,
       users: mockUsers,

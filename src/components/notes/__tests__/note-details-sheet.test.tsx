@@ -59,7 +59,13 @@ describe('NoteDetailsSheet', () => {
       };
 
       // Setup store mock
-      require('@/stores/notes/store').useNotesStore.mockReturnValue({
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        notes: [mockNote],
+        selectedNoteId: 'note-123',
+        isDetailsOpen: true,
+        closeDetails: mockCloseDetails,
+        deleteNote: mockDeleteNote,
+      }) : {
         notes: [mockNote],
         selectedNoteId: 'note-123',
         isDetailsOpen: true,
@@ -88,7 +94,13 @@ describe('NoteDetailsSheet', () => {
       };
 
       // Setup store mock with closed sheet
-      require('@/stores/notes/store').useNotesStore.mockReturnValue({
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        notes: [mockNote],
+        selectedNoteId: 'note-123',
+        isDetailsOpen: false,
+        closeDetails: mockCloseDetails,
+        deleteNote: mockDeleteNote,
+      }) : {
         notes: [mockNote],
         selectedNoteId: 'note-123',
         isDetailsOpen: false,
@@ -103,7 +115,13 @@ describe('NoteDetailsSheet', () => {
 
     it('should not track analytics event when no note is selected', () => {
       // Setup store mock with no selected note
-      require('@/stores/notes/store').useNotesStore.mockReturnValue({
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        notes: [],
+        selectedNoteId: null,
+        isDetailsOpen: true,
+        closeDetails: mockCloseDetails,
+        deleteNote: mockDeleteNote,
+      }) : {
         notes: [],
         selectedNoteId: null,
         isDetailsOpen: true,
@@ -126,7 +144,13 @@ describe('NoteDetailsSheet', () => {
       };
 
       // Setup store mock
-      require('@/stores/notes/store').useNotesStore.mockReturnValue({
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        notes: [minimalNote],
+        selectedNoteId: 'note-minimal',
+        isDetailsOpen: true,
+        closeDetails: mockCloseDetails,
+        deleteNote: mockDeleteNote,
+      }) : {
         notes: [minimalNote],
         selectedNoteId: 'note-minimal',
         isDetailsOpen: true,
@@ -163,7 +187,7 @@ describe('NoteDetailsSheet', () => {
         deleteNote: mockDeleteNote,
       };
 
-      require('@/stores/notes/store').useNotesStore.mockReturnValue(mockStore);
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockStore) : mockStore);
 
       const { rerender } = render(<NoteDetailsSheet />);
 
@@ -172,7 +196,7 @@ describe('NoteDetailsSheet', () => {
 
       // Update store to opened state
       mockStore.isDetailsOpen = true;
-      require('@/stores/notes/store').useNotesStore.mockReturnValue(mockStore);
+      require('@/stores/notes/store').useNotesStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockStore) : mockStore);
 
       rerender(<NoteDetailsSheet />);
 

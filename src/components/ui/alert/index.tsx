@@ -168,7 +168,8 @@ cssInterop(IconWrapper, {
 type IAlertProps = Omit<React.ComponentPropsWithoutRef<typeof UIAlert>, 'context'> & VariantProps<typeof alertStyle>;
 
 const Alert = React.forwardRef<React.ElementRef<typeof UIAlert>, IAlertProps>(({ className, variant = 'solid', action = 'muted', ...props }, ref) => {
-  return <UIAlert className={alertStyle({ action, variant, class: className })} context={{ variant, action }} ref={ref} {...props} />;
+  const contextValue = React.useMemo(() => ({ variant, action }), [variant, action]);
+  return <UIAlert className={alertStyle({ action, variant, class: className })} context={contextValue} ref={ref} {...props} />;
 });
 
 type IAlertTextProps = React.ComponentPropsWithoutRef<typeof UIAlert.Text> & VariantProps<typeof alertTextStyle>;

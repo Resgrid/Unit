@@ -31,7 +31,9 @@ const NotificationIcon = ({ type }: { type: NotificationType }) => {
 export const PushNotificationModal: React.FC = () => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
-  const { isOpen, notification, hideNotificationModal } = usePushNotificationModalStore();
+  const isOpen = usePushNotificationModalStore((s) => s.isOpen);
+  const notification = usePushNotificationModalStore((s) => s.notification);
+  const hideNotificationModal = usePushNotificationModalStore((s) => s.hideNotificationModal);
 
   const handleClose = () => {
     if (notification) {

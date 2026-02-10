@@ -31,7 +31,8 @@ export function ServerUrlBottomSheet({ isOpen, onClose }: ServerUrlBottomSheetPr
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(false);
-  const { setUrl, getUrl } = useServerUrlStore();
+  const setUrl = useServerUrlStore((s) => s.setUrl);
+  const getUrl = useServerUrlStore((s) => s.getUrl);
 
   const {
     control,

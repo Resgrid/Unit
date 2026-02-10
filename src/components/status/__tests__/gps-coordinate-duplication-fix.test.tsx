@@ -62,7 +62,7 @@ describe('GPS Coordinate Duplication Fix', () => {
       setActiveUnitWithFetch: jest.fn().mockResolvedValue({}),
     };
 
-    mockUseCoreStore.mockReturnValue(mockCoreStore);
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCoreStore) : mockCoreStore);
     (mockUseCoreStore as any).getState = jest.fn().mockReturnValue(mockCoreStore);
   });
 

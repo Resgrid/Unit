@@ -149,7 +149,8 @@ type IToastProps = React.ComponentProps<typeof Root> & {
 } & VariantProps<typeof toastStyle>;
 
 const Toast = React.forwardRef<React.ComponentRef<typeof Root>, IToastProps>(function Toast({ className, variant = 'solid', action = 'muted', ...props }, ref) {
-  return <Root ref={ref} className={toastStyle({ variant, action, class: className })} context={{ variant, action }} {...props} />;
+  const contextValue = React.useMemo(() => ({ variant, action }), [variant, action]);
+  return <Root ref={ref} className={toastStyle({ variant, action, class: className })} context={contextValue} {...props} />;
 });
 
 type IToastTitleProps = React.ComponentProps<typeof Text> & {

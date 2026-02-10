@@ -1,3 +1,15 @@
+// Mock nativewind before any imports
+jest.mock('nativewind', () => ({
+  cssInterop: jest.fn((Component: any) => Component),
+  useColorScheme: jest.fn(() => ({
+    colorScheme: 'light',
+    get: jest.fn(() => 'light'),
+    setColorScheme: jest.fn(),
+    toggleColorScheme: jest.fn(),
+  })),
+  __esModule: true,
+}));
+
 import { render, waitFor } from '@testing-library/react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
@@ -65,26 +77,32 @@ jest.mock('react-i18next', () => ({
     t: (key: string) => key,
   }),
 }));
-jest.mock('nativewind', () => ({
-  useColorScheme: jest.fn(() => ({
-    colorScheme: 'light',
-  })),
-}));
 jest.mock('@/stores/toast/store', () => ({
-  useToastStore: () => ({
+  useToastStore: (selector: any) => typeof selector === 'function' ? selector({
     showToast: jest.fn(),
     getState: () => ({
       showToast: jest.fn(),
     }),
-  }),
-}));
-jest.mock('@/stores/app/core-store', () => ({
-  useCoreStore: {
+  }) : {
+    showToast: jest.fn(),
     getState: () => ({
-      setActiveCall: jest.fn(),
+      showToast: jest.fn(),
     }),
   },
 }));
+jest.mock('@/stores/app/core-store', () => {
+  const storeState = {
+    setActiveCall: jest.fn(),
+    isInitialized: true,
+    activeCall: null,
+    activePriority: null,
+    activeUnit: null,
+    activeUnitStatus: null,
+  };
+  const mockFn = jest.fn((selector) => typeof selector === 'function' ? selector(storeState) : storeState) as jest.Mock & { getState: () => typeof storeState };
+  mockFn.getState = () => storeState;
+  return { useCoreStore: mockFn };
+});
 jest.mock('@/components/maps/map-pins', () => ({
   __esModule: true,
   default: ({ pins, onPinPress }: any) => null,
@@ -133,7 +151,7 @@ describe('Map Component - App Lifecycle', () => {
     jest.useFakeTimers();
 
     // Setup default mocks with stable objects
-    mockUseLocationStore.mockReturnValue(defaultLocationState);
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(defaultLocationState) : defaultLocationState);
     mockUseAppLifecycle.mockReturnValue(defaultAppLifecycleState);
     mockUseColorScheme.mockReturnValue({
       colorScheme: 'light',
@@ -208,7 +226,10 @@ describe('Map Component - App Lifecycle', () => {
 
   it('should handle map lock state changes', async () => {
     // Start with unlocked map
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...defaultLocationState,
+      isMapLocked: false,
+    }) : {
       ...defaultLocationState,
       isMapLocked: false,
     });
@@ -216,7 +237,10 @@ describe('Map Component - App Lifecycle', () => {
     const { rerender, unmount } = render(<Map />, { wrapper: TestWrapper });
 
     // Change to locked map
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...defaultLocationState,
+      isMapLocked: true,
+    }) : {
       ...defaultLocationState,
       isMapLocked: true,
     });
@@ -232,7 +256,11 @@ describe('Map Component - App Lifecycle', () => {
 
   it('should handle navigation mode with heading', async () => {
     // Mock locked map with heading
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...defaultLocationState,
+      heading: 90,
+      isMapLocked: true,
+    }) : {
       ...defaultLocationState,
       heading: 90,
       isMapLocked: true,

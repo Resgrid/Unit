@@ -5,6 +5,16 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+// Mock logging module to prevent Platform.OS undefined error
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Mock Platform first, before any other imports
 jest.mock('react-native/Libraries/Utilities/Platform', () => ({
   OS: 'ios',
@@ -233,18 +243,25 @@ describe('UnitSelectionBottomSheet', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeUnit: mockUnits[0],
+      setActiveUnit: mockSetActiveUnit,
+    } as any) : {
       activeUnit: mockUnits[0],
       setActiveUnit: mockSetActiveUnit,
     } as any);
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: mockUnits,
+      fetchUnits: mockFetchUnits,
+      isLoading: false,
+    } as any) : {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
     } as any);
 
-    mockUseToastStore.mockReturnValue(mockShowToast);
+    mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ showToast: mockShowToast }) : { showToast: mockShowToast });
 
     // Mock the roles store
     (useRolesStore.getState as jest.Mock).mockReturnValue({
@@ -268,7 +285,11 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('displays loading state when fetching units', () => {
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: jest.fn().mockResolvedValue(undefined),
+      isLoading: true,
+    } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: true,
@@ -281,7 +302,11 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('displays empty state when no units available', () => {
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: jest.fn().mockResolvedValue(undefined),
+      isLoading: false,
+    } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
@@ -295,7 +320,11 @@ describe('UnitSelectionBottomSheet', () => {
   it('fetches units when sheet opens and no units are loaded', async () => {
     const spyFetchUnits = jest.fn().mockResolvedValue(undefined);
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: spyFetchUnits,
+      isLoading: false,
+    } as any) : {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
@@ -416,7 +445,11 @@ describe('UnitSelectionBottomSheet', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => { });
     const errorFetchUnits = jest.fn().mockRejectedValue(new Error('Network error'));
 
-    mockUseUnitsStore.mockReturnValue({
+    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      units: [],
+      fetchUnits: errorFetchUnits,
+      isLoading: false,
+    } as any) : {
       units: [],
       fetchUnits: errorFetchUnits,
       isLoading: false,
@@ -444,7 +477,10 @@ describe('UnitSelectionBottomSheet', () => {
 
   describe('Edge Cases', () => {
     it('handles missing active unit gracefully', () => {
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeUnit: null,
+        setActiveUnit: mockSetActiveUnit,
+      } as any) : {
         activeUnit: null,
         setActiveUnit: mockSetActiveUnit,
       } as any);
@@ -481,7 +517,11 @@ describe('UnitSelectionBottomSheet', () => {
         } as UnitResultData,
       ];
 
-      mockUseUnitsStore.mockReturnValue({
+      mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        units: unitsWithMissingNames,
+        fetchUnits: mockFetchUnits,
+        isLoading: false,
+      } as any) : {
         units: unitsWithMissingNames,
         fetchUnits: mockFetchUnits,
         isLoading: false,

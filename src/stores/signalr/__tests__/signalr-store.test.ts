@@ -22,6 +22,7 @@ jest.mock('@/services/signalr.service', () => {
     disconnectFromHub: jest.fn().mockResolvedValue(undefined),
     invoke: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
+    removeAllListeners: jest.fn(),
     connectToHub: jest.fn().mockResolvedValue(undefined),
     disconnectAll: jest.fn().mockResolvedValue(undefined),
   };

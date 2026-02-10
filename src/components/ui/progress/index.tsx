@@ -46,7 +46,8 @@ type IProgressProps = VariantProps<typeof progressStyle> & React.ComponentProps<
 type IProgressFilledTrackProps = VariantProps<typeof progressFilledTrackStyle> & React.ComponentProps<typeof UIProgress.FilledTrack>;
 
 export const Progress = React.forwardRef<React.ElementRef<typeof UIProgress>, IProgressProps>(({ className, size = 'md', ...props }, ref) => {
-  return <UIProgress ref={ref} {...props} className={progressStyle({ size, class: className })} context={{ size }} />;
+  const contextValue = React.useMemo(() => ({ size }), [size]);
+  return <UIProgress ref={ref} {...props} className={progressStyle({ size, class: className })} context={contextValue} />;
 });
 
 export const ProgressFilledTrack = React.forwardRef<React.ElementRef<typeof UIProgress.FilledTrack>, IProgressFilledTrackProps>(({ className, ...props }, ref) => {

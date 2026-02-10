@@ -29,8 +29,8 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
   const router = useRouter();
   const showToast = useToastStore((state) => state.showToast);
   const { trackEvent } = useAnalytics();
-  const { closeCall } = useCallDetailStore();
-  const { fetchCalls } = useCallsStore();
+  const closeCall = useCallDetailStore((state) => state.closeCall);
+  const fetchCalls = useCallsStore((state) => state.fetchCalls);
   const [closeCallType, setCloseCallType] = useState('');
   const [closeCallNote, setCloseCallNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

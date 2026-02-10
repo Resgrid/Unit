@@ -53,28 +53,37 @@ jest.mock('lucide-react-native', () => {
 
 // Mock all stores inline
 jest.mock('@/stores/app/core-store', () => ({
-  useCoreStore: jest.fn(() => ({ activeUnit: null })),
+  useCoreStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({ activeUnit: null }) : { activeUnit: null }),
 }));
 
 jest.mock('@/stores/app/location-store', () => ({
-  useLocationStore: jest.fn(() => ({ isMapLocked: false, setMapLocked: jest.fn() })),
+  useLocationStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({ isMapLocked: false, setMapLocked: jest.fn() }) : { isMapLocked: false, setMapLocked: jest.fn() }),
 }));
 
 jest.mock('@/stores/app/livekit-store', () => ({
-  useLiveKitStore: jest.fn(() => ({
+  useLiveKitStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,
-  })),
+  }) : {
+    setIsBottomSheetVisible: jest.fn(),
+    currentRoomInfo: null,
+    isConnected: false,
+    isTalking: false,
+  }),
 }));
 
 jest.mock('@/stores/app/audio-stream-store', () => ({
-  useAudioStreamStore: jest.fn(() => ({
+  useAudioStreamStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
     currentStream: null,
     isPlaying: false,
-  })),
+  }) : {
+    setIsBottomSheetVisible: jest.fn(),
+    currentStream: null,
+    isPlaying: false,
+  }),
 }));
 
 jest.mock('@/components/audio-stream/audio-stream-bottom-sheet', () => ({

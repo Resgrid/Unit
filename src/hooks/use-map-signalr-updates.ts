@@ -17,9 +17,13 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
 
   const lastUpdateTimestamp = useSignalRStore((state) => state.lastUpdateTimestamp);
 
+  // Use a ref so the callback doesn't need lastUpdateTimestamp in its deps
+  const lastUpdateTimestampRef = useRef(lastUpdateTimestamp);
+  lastUpdateTimestampRef.current = lastUpdateTimestamp;
+
   const fetchAndUpdateMarkers = useCallback(
     async (requestedTimestamp?: number) => {
-      const timestampToProcess = requestedTimestamp || lastUpdateTimestamp;
+      const timestampToProcess = requestedTimestamp || lastUpdateTimestampRef.current;
 
       // If a fetch is in progress, queue the latest timestamp for processing after completion
       if (isUpdating.current) {
@@ -112,7 +116,7 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
         }
       }
     },
-    [lastUpdateTimestamp, onMarkersUpdate]
+    [onMarkersUpdate]
   );
 
   useEffect(() => {

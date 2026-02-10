@@ -61,7 +61,12 @@ const resetMockStoreState = () => {
 };
 
 jest.mock('@/stores/calls/detail-store', () => ({
-  useCallDetailStore: () => mockStoreState,
+  useCallDetailStore: (selector: any) => {
+    if (selector) {
+      return selector(mockStoreState);
+    }
+    return mockStoreState;
+  },
 }));
 
 // Mock analytics

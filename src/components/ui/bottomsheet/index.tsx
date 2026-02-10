@@ -64,18 +64,17 @@ export const BottomSheet = ({ snapToIndex = 1, onOpen, onClose, ...props }: { sn
     onClose && onClose();
   }, [onClose]);
 
-  return (
-    <BottomSheetContext.Provider
-      value={{
-        visible,
-        bottomSheetRef: bottomSheetRef as React.RefObject<GorhomBottomSheet>,
-        handleClose,
-        handleOpen,
-      }}
-    >
-      {props.children}
-    </BottomSheetContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      visible,
+      bottomSheetRef: bottomSheetRef as React.RefObject<GorhomBottomSheet>,
+      handleClose,
+      handleOpen,
+    }),
+    [visible, handleClose, handleOpen]
   );
+
+  return <BottomSheetContext.Provider value={contextValue}>{props.children}</BottomSheetContext.Provider>;
 };
 
 export const BottomSheetPortal = ({

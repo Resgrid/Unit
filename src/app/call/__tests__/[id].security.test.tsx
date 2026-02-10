@@ -120,6 +120,7 @@ jest.mock('@/stores/calls/detail-store', () => ({
 }));
 
 jest.mock('@/stores/security/store', () => ({
+  securityStore: jest.fn(),
   useSecurityStore: jest.fn(),
 }));
 
@@ -308,7 +309,7 @@ import CallDetail from '../[id]';
 
 describe('CallDetail', () => {
   const { useCallDetailStore } = require('@/stores/calls/detail-store');
-  const { useSecurityStore } = require('@/stores/security/store');
+  const { securityStore, useSecurityStore } = require('@/stores/security/store');
   const { useCoreStore } = require('@/stores/app/core-store');
   const { useLocationStore } = require('@/stores/app/location-store');
   const { useStatusBottomSheetStore } = require('@/stores/status/store');
@@ -316,17 +317,64 @@ describe('CallDetail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    useCallDetailStore.mockReturnValue(mockCallDetailStore);
-    useSecurityStore.mockReturnValue(mockSecurityStore);
-    useCoreStore.mockReturnValue(mockCoreStore);
-    useLocationStore.mockReturnValue(mockLocationStore);
-    useStatusBottomSheetStore.mockReturnValue(mockStatusBottomSheetStore);
-    useToastStore.mockReturnValue(mockToastStore);
+    
+    // Setup stores as selector-based stores
+    useCallDetailStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockCallDetailStore);
+      }
+      return mockCallDetailStore;
+    });
+    
+    useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore);
+    
+    useCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockCoreStore);
+      }
+      return mockCoreStore;
+    });
+    
+    useLocationStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockLocationStore);
+      }
+      return mockLocationStore;
+    });
+    
+    useStatusBottomSheetStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockStatusBottomSheetStore);
+      }
+      return mockStatusBottomSheetStore;
+    });
+    
+    useToastStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(mockToastStore);
+      }
+      return mockToastStore;
+    });
+    
+    // Setup securityStore as a selector-based store
+    securityStore.mockImplementation((selector: any) => {
+      const state = {
+        rights: {
+          CanCreateCalls: mockSecurityStore.canUserCreateCalls,
+        },
+      };
+      if (selector) {
+        return selector(state);
+      }
+      return state;
+    });
   });
 
   describe('Security-dependent rendering', () => {
     it('should render successfully when user has create calls permission', () => {
-      useSecurityStore.mockReturnValue({
+      useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        canUserCreateCalls: true,
+      }) : {
         canUserCreateCalls: true,
       });
 
@@ -334,7 +382,9 @@ describe('CallDetail', () => {
     });
 
     it('should render successfully when user does not have create calls permission', () => {
-      useSecurityStore.mockReturnValue({
+      useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        canUserCreateCalls: false,
+      }) : {
         canUserCreateCalls: false,
       });
 
@@ -355,7 +405,11 @@ describe('CallDetail', () => {
 
   describe('Loading and error states', () => {
     it('should handle loading state', () => {
-      useCallDetailStore.mockReturnValue({
+      useCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockCallDetailStore,
+        isLoading: true,
+        call: null,
+      }) : {
         ...mockCallDetailStore,
         isLoading: true,
         call: null,
@@ -365,7 +419,12 @@ describe('CallDetail', () => {
     });
 
     it('should handle error state', () => {
-      useCallDetailStore.mockReturnValue({
+      useCallDetailStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        ...mockCallDetailStore,
+        isLoading: false,
+        error: 'Network error',
+        call: null,
+      }) : {
         ...mockCallDetailStore,
         isLoading: false,
         error: 'Network error',

@@ -2,8 +2,9 @@ import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
 import { Audio, InterruptionModeIOS } from 'expo-av';
+import * as Device from 'expo-device';
 import { Room, RoomEvent } from 'livekit-client';
-import { PermissionsAndroid, Platform } from 'react-native';
+import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../api/voice';
@@ -15,6 +16,9 @@ import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
 // Helper function to apply audio routing
 export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'earpiece' | 'default') => {
+  // Audio routing is native-only
+  if (Platform.OS === 'web') return;
+
   try {
     if (Platform.OS === 'android') {
       logger.info({
@@ -157,7 +161,7 @@ interface LiveKitState {
   disconnectFromRoom: () => void;
   fetchVoiceSettings: () => Promise<void>;
   fetchCanConnectToVoice: () => Promise<void>;
-  requestPermissions: () => Promise<void>;
+  requestPermissions: () => Promise<boolean>;
 }
 
 export const useLiveKitStore = create<LiveKitState>((set, get) => ({
@@ -230,7 +234,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     const { currentRoom } = get();
     if (!currentRoom) {
       logger.warn({
-         message: 'Cannot toggle microphone - no active LiveKit room'
+        message: 'Cannot toggle microphone - no active LiveKit room',
       });
       return;
     }
@@ -239,7 +243,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     await get().setMicrophoneEnabled(currentMuteState);
   },
 
-  requestPermissions: async () => {
+  requestPermissions: async (): Promise<boolean> => {
     try {
       if (Platform.OS === 'android' || Platform.OS === 'ios') {
         // Use expo-audio for both Android and iOS microphone permissions
@@ -252,7 +256,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
               message: 'Microphone permission not granted',
               context: { platform: Platform.OS },
             });
-            return;
+            return false;
           }
         }
 
@@ -265,33 +269,87 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // and don't require runtime permission requests. They are automatically granted
         // when the app is installed if declared in AndroidManifest.xml
         if (Platform.OS === 'android') {
-          // Request phone state/numbers permissions for CallKeep (required for Android 11+)
+          // Request phone state and phone numbers permissions separately
           try {
-            // We need these permissions to use the ConnectionService (CallKeep) properly without crashing
-            const granted = await PermissionsAndroid.requestMultiple([PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS, PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE]);
+            // Check if device has telephony capability (phones vs tablets without SIM)
+            // On non-telephony devices, READ_PHONE_STATE always returns never_ask_again
+            const hasTelephony = await Device.hasPlatformFeatureAsync('android.hardware.telephony');
 
-            logger.debug({
-              message: 'Android Phone permissions requested',
-              context: { result: granted },
-            });
+            if (!hasTelephony) {
+              logger.info({
+                message: 'Device does not have telephony capability - skipping phone state permission request',
+              });
+            } else {
+              // Request READ_PHONE_STATE first
+              const phoneStateResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+              // Request READ_PHONE_NUMBERS
+              const phoneNumbersResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
+
+              logger.debug({
+                message: 'Android Phone permissions requested',
+                context: {
+                  phoneStateResult,
+                  phoneNumbersResult,
+                  grantedValue: PermissionsAndroid.RESULTS.GRANTED,
+                },
+              });
+
+              // Only check READ_PHONE_STATE - this is the critical permission for CallKeep
+              if (phoneStateResult !== PermissionsAndroid.RESULTS.GRANTED) {
+                logger.warn({
+                  message: 'Phone state permission not granted - voice functionality may be limited',
+                  context: { phoneStateResult },
+                });
+
+                // On devices without telephony, never_ask_again is expected - don't alert
+                if (phoneStateResult === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+                  Alert.alert(
+                    'Voice Permissions Required',
+                    'Phone state permission was permanently denied. Voice functionality may not work correctly. Please open Settings and grant the Phone permission for this app.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                    ]
+                  );
+                } else {
+                  Alert.alert('Voice Permissions Warning', 'Phone state permission was not granted. Voice functionality may not work correctly. You can grant this permission in your device settings.', [{ text: 'OK' }]);
+                }
+              }
+            }
           } catch (err) {
-            logger.warn({
-              message: 'Failed to request Android phone permissions',
+            logger.error({
+              message: 'Failed to request Android phone permissions - voice functionality may not work',
               context: { error: err },
             });
+            Alert.alert('Voice Permissions Error', 'Failed to request phone permissions. Voice functionality may not work correctly.', [{ text: 'OK' }]);
           }
         }
+        return true;
       }
+      return true; // Web/other platforms don't need runtime permissions
     } catch (error) {
       logger.error({
         message: 'Failed to request permissions',
         context: { error, platform: Platform.OS },
       });
+      return false;
     }
   },
 
   connectToRoom: async (roomInfo, token) => {
     try {
+      // Request permissions before connecting (critical for Android foreground service)
+      // On Android 14+, the foreground service with microphone type requires RECORD_AUDIO
+      // permission to be granted BEFORE the service starts
+      const permissionsGranted = await get().requestPermissions();
+      if (!permissionsGranted) {
+        logger.error({
+          message: 'Cannot connect to room - permissions not granted',
+          context: { roomName: roomInfo.Name },
+        });
+        return;
+      }
+
       const { currentRoom, voipServerWebsocketSslAddress } = get();
 
       // Disconnect from current room if connected
@@ -342,52 +400,51 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Setup CallKeep mute sync
       callKeepService.setMuteStateCallback(async (muted) => {
         logger.info({
-           message: 'Syncing mute state from CallKeep',
-           context: { muted }
+          message: 'Syncing mute state from CallKeep',
+          context: { muted },
         });
-        
+
         if (room.localParticipant.isMicrophoneEnabled === muted) {
-             // If CallKeep says "muted" (true), and Mic is enabled (true), we need to disable mic.
-             // If CallKeep says "unmuted" (false), and Mic is disabled (false), we need to enable mic.
-             // Wait, logic check:
-             // isMicrophoneEnabled = true means NOT MUTED.
-             // muted = true means MUTED.
-             // So if isMicrophoneEnabled (true) and muted (true) -> mismatch, we must mute.
-             // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
-             
-             // Actually effectively: setMicrophoneEnabled(!muted)
-             await room.localParticipant.setMicrophoneEnabled(!muted);
-             
-             // Play sound
-             if (!muted) {
-                 await audioService.playStartTransmittingSound();
-             } else {
-                 await audioService.playStopTransmittingSound();
-             }
+          // If CallKeep says "muted" (true), and Mic is enabled (true), we need to disable mic.
+          // If CallKeep says "unmuted" (false), and Mic is disabled (false), we need to enable mic.
+          // Wait, logic check:
+          // isMicrophoneEnabled = true means NOT MUTED.
+          // muted = true means MUTED.
+          // So if isMicrophoneEnabled (true) and muted (true) -> mismatch, we must mute.
+          // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
+
+          // Actually effectively: setMicrophoneEnabled(!muted)
+          await room.localParticipant.setMicrophoneEnabled(!muted);
+
+          // Play sound
+          if (!muted) {
+            await audioService.playStartTransmittingSound();
+          } else {
+            await audioService.playStopTransmittingSound();
+          }
         }
       });
-      
+
       // Setup CallKeep End Call sync
       callKeepService.setEndCallCallback(() => {
         logger.info({
-           message: 'CallKeep end call event received, disconnecting room',
+          message: 'CallKeep end call event received, disconnecting room',
         });
         get().disconnectFromRoom();
       });
 
-      // Also ensure reverse sync: When app mutes, tell CallKeep? 
+      // Also ensure reverse sync: When app mutes, tell CallKeep?
       // CallKeep tracks its own state, usually triggered by UI or simple interactions.
       // If we mute from within the app (e.g. on screen button), we might want to tell CallKeep we are muted.
       // However, react-native-callkeep doesn't easily expose "setMuted" for the system call without ending logic or being complex?
       // Actually RNCallKeep.setMutedCall(uuid, muted) exists.
-      
-      const onLocalTrackMuted = () => {
-         // Update CallKeep state if needed?
-         // For now, let's just trust CallKeep's own state management or system UI.
-      };
-      
-      // We attach these listeners to the local participant if needed for other UI sync
 
+      const onLocalTrackMuted = () => {
+        // Update CallKeep state if needed?
+        // For now, let's just trust CallKeep's own state management or system UI.
+      };
+
+      // We attach these listeners to the local participant if needed for other UI sync
 
       // Setup audio routing based on selected devices
       // This may change audio modes/focus, so it comes after media button init
@@ -395,55 +452,75 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       await audioService.playConnectToAudioRoomSound();
 
-      try {
-        const startForegroundService = async () => {
-          notifee.registerForegroundService(async () => {
-            // Minimal function with no interval or tasks to reduce strain on the main thread
-            return new Promise(() => {
-              logger.debug({
-                message: 'Foreground service registered',
+      // Android foreground service for background audio
+      // Only needed on Android - iOS uses CallKeep, web browsers handle audio natively
+      if (Platform.OS === 'android') {
+        try {
+          const startForegroundService = async () => {
+            notifee.registerForegroundService(async () => {
+              // Minimal function with no interval or tasks to reduce strain on the main thread
+              return new Promise(() => {
+                logger.debug({
+                  message: 'Foreground service registered',
+                });
               });
             });
-          });
 
-          // Step 3: Display the notification as a foreground service
-          await notifee.displayNotification({
-            title: 'Active PTT Call',
-            body: 'There is an active PTT call in progress.',
-            android: {
-              channelId: 'notif',
-              asForegroundService: true,
-              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
-              smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
-            },
-          });
-        };
+            // Display the notification as a foreground service
+            await notifee.displayNotification({
+              title: 'Active PTT Call',
+              body: 'There is an active PTT call in progress.',
+              android: {
+                channelId: 'notif',
+                asForegroundService: true,
+                foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
+                smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
+              },
+            });
+          };
 
-        await startForegroundService();
-      } catch (error) {
-        logger.error({
-          message: 'Failed to register foreground service',
-          context: { error },
-        });
-        // Don't fail the connection if foreground service fails on Android
-        // The call will still work but may be killed in background
+          await startForegroundService();
+        } catch (error) {
+          logger.error({
+            message: 'Failed to register foreground service',
+            context: { error },
+          });
+          // Don't fail the connection if foreground service fails on Android
+          // The call will still work but may be killed in background
+        }
       }
 
-      // Start CallKeep call for iOS and Android background audio support
-      if (Platform.OS === 'ios' || Platform.OS === 'android') {
-        try {
+      // Start CallKeep call for background audio support
+      // On web, callKeepService provides no-op implementation but still tracks call state
+      try {
+        // On Android, CallKeep's VoiceConnectionService requires READ_PHONE_NUMBERS
+        // permission. If not granted, skip CallKeep to avoid a SecurityException crash.
+        let shouldStartCallKeep = true;
+        if (Platform.OS === 'android') {
+          const hasPhoneNumbers = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
+          const hasPhoneState = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+          if (!hasPhoneNumbers || !hasPhoneState) {
+            shouldStartCallKeep = false;
+            logger.warn({
+              message: 'Skipping CallKeep - phone permissions not granted (READ_PHONE_NUMBERS or READ_PHONE_STATE)',
+              context: { hasPhoneNumbers, hasPhoneState },
+            });
+          }
+        }
+
+        if (shouldStartCallKeep) {
           const callUUID = await callKeepService.startCall(roomInfo.Name || 'Voice Channel');
           logger.info({
             message: 'CallKeep call started for background audio support',
             context: { callUUID, roomName: roomInfo.Name, platform: Platform.OS },
           });
-        } catch (callKeepError) {
-          logger.warn({
-            message: 'Failed to start CallKeep call - background audio may not work',
-            context: { error: callKeepError },
-          });
-          // Don't fail the connection if CallKeep fails
         }
+      } catch (callKeepError) {
+        logger.warn({
+          message: 'Failed to start CallKeep call - background audio may not work',
+          context: { error: callKeepError },
+        });
+        // Don't fail the connection if CallKeep fails
       }
 
       set({
@@ -467,35 +544,34 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await currentRoom.disconnect();
       await audioService.playDisconnectedFromAudioRoomSound();
 
-      // End CallKeep call on iOS and Android
-      if (Platform.OS === 'ios' || Platform.OS === 'android') {
-        try {
-          await callKeepService.endCall();
-          logger.debug({
-            message: 'CallKeep call ended',
-          });
-        } catch (callKeepError) {
-          logger.warn({
-            message: 'Failed to end CallKeep call',
-            context: { error: callKeepError },
-          });
-        }
+      // End CallKeep call (works on all platforms - web has no-op implementation)
+      try {
+        await callKeepService.endCall();
+        logger.debug({
+          message: 'CallKeep call ended',
+        });
+      } catch (callKeepError) {
+        logger.warn({
+          message: 'Failed to end CallKeep call',
+          context: { error: callKeepError },
+        });
       }
 
-      try {
-        await notifee.stopForegroundService();
-      } catch (error) {
-        logger.error({
-          message: 'Failed to stop foreground service',
-          context: { error },
-        });
+      // Stop Android foreground service
+      if (Platform.OS === 'android') {
+        try {
+          await notifee.stopForegroundService();
+        } catch (error) {
+          logger.error({
+            message: 'Failed to stop foreground service',
+            context: { error },
+          });
+        }
       }
 
       // Cleanup CallKeep Mute Callback
       callKeepService.setMuteStateCallback(null);
       callKeepService.setEndCallCallback(null);
-
-
 
       set({
         currentRoom: null,

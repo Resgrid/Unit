@@ -73,6 +73,10 @@ jest.mock('react-native', () => ({
     })),
     currentState: 'active',
   },
+  Platform: {
+    OS: 'ios',
+    select: jest.fn((options) => options.ios),
+  },
 }));
 
 import * as Location from 'expo-location';

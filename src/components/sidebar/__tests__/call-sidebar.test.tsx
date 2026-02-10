@@ -208,13 +208,20 @@ describe('SidebarCallCard', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    mockUseCoreStore.mockReturnValue({
+    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      activeCall: null,
+      activePriority: null,
+      setActiveCall: mockSetActiveCall,
+    }) : {
       activeCall: null,
       activePriority: null,
       setActiveCall: mockSetActiveCall,
     });
 
-    mockUseCallsStore.mockReturnValue({
+    mockUseCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      calls: [],
+      fetchCalls: mockFetchCalls,
+    }) : {
       calls: [],
       fetchCalls: mockFetchCalls,
     });
@@ -243,7 +250,11 @@ describe('SidebarCallCard', () => {
     });
 
     it('should render with active call', () => {
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCall,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: mockCall,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -258,7 +269,11 @@ describe('SidebarCallCard', () => {
     });
 
     it('should show action buttons when active call exists with coordinates', () => {
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCall,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: mockCall,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -279,7 +294,11 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: callWithAddressOnly,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -300,7 +319,11 @@ describe('SidebarCallCard', () => {
         Address: '',
       };
 
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithoutLocation,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: callWithoutLocation,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -321,7 +344,11 @@ describe('SidebarCallCard', () => {
         Address: '   ',
       };
 
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithEmptyAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: callWithEmptyAddress,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -395,7 +422,11 @@ describe('SidebarCallCard', () => {
 
   describe('Action Buttons', () => {
     beforeEach(() => {
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCall,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: mockCall,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -447,7 +478,11 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: callWithAddressOnly,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,
@@ -486,7 +521,11 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockReturnValue({
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
         activeCall: callWithAddressOnly,
         activePriority: mockPriority,
         setActiveCall: mockSetActiveCall,

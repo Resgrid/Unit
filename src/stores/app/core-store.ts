@@ -1,5 +1,5 @@
 import { Env } from '@env';
-import _ from 'lodash';
+import find from 'lodash/find';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -135,10 +135,10 @@ export const useCoreStore = create<CoreState>()(
           if (activeUnit) {
             let activeStatuses: UnitTypeStatusResultData | undefined = undefined;
             const allStatuses = await getAllUnitStatuses();
-            const defaultStatuses = _.find(allStatuses.Data, ['UnitType', '0']);
+            const defaultStatuses = find(allStatuses.Data, ['UnitType', '0']);
 
             if (activeUnit.Type) {
-              const statusesForType = _.find(allStatuses.Data, ['UnitType', activeUnit.Type.toString()]);
+              const statusesForType = find(allStatuses.Data, ['UnitType', activeUnit.Type.toString()]);
 
               if (statusesForType) {
                 activeStatuses = statusesForType;
@@ -244,7 +244,14 @@ export const useCoreStore = create<CoreState>()(
       fetchConfig: async () => {
         try {
           const config = await getConfig(Env.APP_KEY);
-          set({ config: config.Data, error: null });
+          // Only update if config actually changed to prevent unnecessary re-renders
+          const current = get().config;
+          if (!current || JSON.stringify(current) !== JSON.stringify(config.Data)) {
+            set({ config: config.Data, error: null });
+          } else if (get().error) {
+            // Clear error even if config hasn't changed
+            set({ error: null });
+          }
         } catch (error) {
           set({ error: 'Failed to fetch config', isLoading: false });
           logger.error({
@@ -258,6 +265,19 @@ export const useCoreStore = create<CoreState>()(
     {
       name: 'core-storage',
       storage: createJSONStorage(() => zustandStorage),
+      partialize: (state) => ({
+        activeUnitId: state.activeUnitId,
+        activeUnit: state.activeUnit,
+        activeUnitStatus: state.activeUnitStatus,
+        activeUnitStatusType: state.activeUnitStatusType,
+        activeCallId: state.activeCallId,
+        activeCall: state.activeCall,
+        activePriority: state.activePriority,
+        config: state.config,
+        activeStatuses: state.activeStatuses,
+        // Exclude: isLoading, isInitialized, isInitializing, error
+        // These are transient flags that must NOT persist across reloads
+      }),
     }
   )
 );

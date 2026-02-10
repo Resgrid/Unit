@@ -57,14 +57,23 @@ describe('SidebarUnitCard', () => {
 
     // Reset to default mocks
     mockUseCoreStore.mockImplementation((selector) => selector({ activeUnit: null } as any));
-    mockUseLocationStore.mockReturnValue({ isMapLocked: false, setMapLocked: jest.fn() });
-    mockUseLiveKitStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ isMapLocked: false, setMapLocked: jest.fn() }) : { isMapLocked: false, setMapLocked: jest.fn() });
+    mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: jest.fn(),
+      currentRoomInfo: null,
+      isConnected: false,
+      isTalking: false,
+    }) : {
       setIsBottomSheetVisible: jest.fn(),
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     });
-    mockUseAudioStreamStore.mockReturnValue({
+    mockUseAudioStreamStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: jest.fn(),
+      currentStream: null,
+      isPlaying: false,
+    }) : {
       setIsBottomSheetVisible: jest.fn(),
       currentStream: null,
       isPlaying: false,
@@ -105,7 +114,10 @@ describe('SidebarUnitCard', () => {
 
   it('handles map lock button press', () => {
     const mockSetMapLocked = jest.fn();
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      isMapLocked: false,
+      setMapLocked: mockSetMapLocked
+    }) : {
       isMapLocked: false,
       setMapLocked: mockSetMapLocked
     });
@@ -120,7 +132,11 @@ describe('SidebarUnitCard', () => {
 
   it('handles audio stream button press', () => {
     const mockSetAudioStreamBottomSheetVisible = jest.fn();
-    mockUseAudioStreamStore.mockReturnValue({
+    mockUseAudioStreamStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: mockSetAudioStreamBottomSheetVisible,
+      currentStream: null,
+      isPlaying: false,
+    }) : {
       setIsBottomSheetVisible: mockSetAudioStreamBottomSheetVisible,
       currentStream: null,
       isPlaying: false,
@@ -136,7 +152,12 @@ describe('SidebarUnitCard', () => {
 
   it('handles call button press', () => {
     const mockSetIsBottomSheetVisible = jest.fn();
-    mockUseLiveKitStore.mockReturnValue({
+    mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      currentRoomInfo: null,
+      isConnected: false,
+      isTalking: false,
+    }) : {
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
       currentRoomInfo: null,
       isConnected: false,
@@ -153,7 +174,12 @@ describe('SidebarUnitCard', () => {
 
   it('shows room status when connected', () => {
     const mockRoomInfo = { Name: 'Emergency Call Room' };
-    mockUseLiveKitStore.mockReturnValue({
+    mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      setIsBottomSheetVisible: jest.fn(),
+      currentRoomInfo: mockRoomInfo as any,
+      isConnected: true,
+      isTalking: false,
+    }) : {
       setIsBottomSheetVisible: jest.fn(),
       currentRoomInfo: mockRoomInfo as any,
       isConnected: true,
@@ -167,7 +193,10 @@ describe('SidebarUnitCard', () => {
 
   it('toggles map lock correctly when currently locked', () => {
     const mockSetMapLocked = jest.fn();
-    mockUseLocationStore.mockReturnValue({
+    mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      isMapLocked: true,
+      setMapLocked: mockSetMapLocked
+    }) : {
       isMapLocked: true,
       setMapLocked: mockSetMapLocked
     });

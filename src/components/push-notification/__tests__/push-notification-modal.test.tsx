@@ -108,7 +108,7 @@ describe('PushNotificationModal', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useAnalytics as jest.Mock).mockReturnValue(mockAnalytics);
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue(mockStore);
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockStore) : mockStore);
   });
 
   describe('Push Notification Modal', () => {
@@ -128,7 +128,11 @@ describe('PushNotificationModal', () => {
         body: 'Structure fire reported at Main St',
       };
 
-      (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+      (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        isOpen: true,
+        notification: callNotification,
+        hideNotificationModal: jest.fn(),
+      }) : {
         isOpen: true,
         notification: callNotification,
         hideNotificationModal: jest.fn(),
@@ -154,7 +158,11 @@ describe('PushNotificationModal', () => {
       body: 'You have a new message from dispatch',
     };
 
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: messageNotification,
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: messageNotification,
@@ -179,7 +187,11 @@ describe('PushNotificationModal', () => {
       body: 'New message in chat',
     };
 
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: chatNotification,
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: chatNotification,
@@ -204,7 +216,11 @@ describe('PushNotificationModal', () => {
       body: 'New message in group chat',
     };
 
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: groupChatNotification,
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: groupChatNotification,
@@ -223,7 +239,18 @@ describe('PushNotificationModal', () => {
   it('should handle close button press', () => {
     const hideNotificationModalMock = jest.fn();
 
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'call' as const,
+        id: '1234',
+        eventCode: 'C:1234',
+        title: 'Emergency Call',
+        body: 'Structure fire',
+      },
+      hideNotificationModal: hideNotificationModalMock,
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -253,7 +280,18 @@ describe('PushNotificationModal', () => {
   it('should handle view call button press', async () => {
     const hideNotificationModalMock = jest.fn();
 
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'call' as const,
+        id: '1234',
+        eventCode: 'C:1234',
+        title: 'Emergency Call',
+        body: 'Structure fire',
+      },
+      hideNotificationModal: hideNotificationModalMock,
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -283,7 +321,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should display correct icon for call notification', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'call' as const,
+        id: '1234',
+        eventCode: 'C:1234',
+        title: 'Emergency Call',
+        body: 'Structure fire',
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -303,7 +351,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should display correct icon for message notification', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'message' as const,
+        id: '5678',
+        eventCode: 'M:5678',
+        title: 'New Message',
+        body: 'Message content',
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -323,7 +381,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should display correct icon for chat notification', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'chat' as const,
+        id: '9101',
+        eventCode: 'T:9101',
+        title: 'Chat Message',
+        body: 'Chat content',
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -343,7 +411,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should display correct icon for group chat notification', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'group-chat' as const,
+        id: '1121',
+        eventCode: 'G:1121',
+        title: 'Group Chat',
+        body: 'Group chat content',
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -363,7 +441,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should display correct icon for unknown notification', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'unknown' as const,
+        id: '9999',
+        eventCode: 'X:9999',
+        title: 'Unknown',
+        body: 'Unknown notification',
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -383,7 +471,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should handle notification without title', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'call' as const,
+        id: '1234',
+        eventCode: 'C:1234',
+        body: 'Structure fire',
+        // No title provided
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
@@ -402,7 +500,17 @@ describe('PushNotificationModal', () => {
   });
 
   it('should handle notification without body', () => {
-    (usePushNotificationModalStore as unknown as jest.Mock).mockReturnValue({
+    (usePushNotificationModalStore as unknown as jest.Mock).mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+      ...mockStore,
+      isOpen: true,
+      notification: {
+        type: 'call' as const,
+        id: '1234',
+        eventCode: 'C:1234',
+        title: 'Emergency Call',
+        // No body provided
+      },
+    }) : {
       ...mockStore,
       isOpen: true,
       notification: {
