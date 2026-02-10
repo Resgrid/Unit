@@ -120,7 +120,7 @@ jobs:
     needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     permissions:
-      contents: write  # Required for creating releases
+      contents: write # Required for creating releases
     strategy:
       matrix:
         platform: [android, ios]
@@ -129,6 +129,34 @@ jobs:
     steps:
       - name: 🏗 Checkout repository
         uses: actions/checkout@v4
+
+      - name: 🧹 Free up disk space (Android)
+        if: matrix.platform == 'android'
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+
+          # Remove unnecessary large packages
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/share/swift
+          sudo rm -rf /usr/local/.ghcup
+          sudo rm -rf /usr/lib/jvm/temurin-11-jdk-amd64
+
+          # Remove Docker images
+          docker system prune -af || true
+
+          # Remove cached apt packages
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/*
+
+          # Remove swap
+          sudo swapoff -a || true
+          sudo rm -f /swapfile || true
+
+          echo "Disk space after cleanup:"
+          df -h
 
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
@@ -307,17 +335,17 @@ jobs:
         if: ${{ matrix.platform == 'android' }}
         run: |
           set -eo pipefail
-          
+
           # Check if required secrets are set
           if [ -z "$CHANGERAWR_API_URL" ] || [ -z "$CHANGERAWR_API_KEY" ]; then
             echo "⚠️  Changerawr API credentials not configured, skipping release notes submission"
             exit 0
           fi
-          
+
           # Read release notes
           RELEASE_NOTES=$(cat RELEASE_NOTES.md)
           VERSION="7.${{ github.run_number }}"
-          
+
           # Prepare JSON payload
           PAYLOAD=$(jq -n \
             --arg version "$VERSION" \
@@ -327,9 +355,9 @@ jobs:
               "title": ("Release v" + $version),
               "content": $notes
             }')
-          
+
           echo "Sending release notes to Changerawr..."
-          
+
           # Send to Changerawr API
           RESPONSE=$(curl -X POST "$CHANGERAWR_API_URL" \
             -H "Content-Type: application/json" \
@@ -337,10 +365,10 @@ jobs:
             -d "$PAYLOAD" \
             -w "\n%{http_code}" \
             -s)
-          
+
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           RESPONSE_BODY=$(echo "$RESPONSE" | sed '$d')
-          
+
           if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
             echo "✅ Successfully sent release notes to Changerawr (HTTP $HTTP_CODE)"
             echo "Response: $RESPONSE_BODY"
@@ -397,6 +425,21 @@ jobs:
           yarn web:build
         env:
           NODE_ENV: production
+          APP_ENV: production
+          # Unset DISPATCH_* env vars for web build to use defaults from env.js
+          # Actual values will be injected at Docker container runtime via envsubst
+          UNIT_BASE_API_URL: ''
+          UNIT_API_VERSION: ''
+          UNIT_RESGRID_API_URL: ''
+          UNIT_CHANNEL_HUB_NAME: ''
+          UNIT_REALTIME_GEO_HUB_NAME: ''
+          UNIT_LOGGING_KEY: ''
+          UNIT_APP_KEY: ''
+          UNIT_MAPBOX_PUBKEY: ''
+          UNIT_MAPBOX_DLKEY: ''
+          UNIT_SENTRY_DSN: ''
+          UNIT_COUNTLY_APP_KEY: ''
+          UNIT_COUNTLY_SERVER_URL: ''
 
       - name: 📦 Upload web build artifacts
         uses: actions/upload-artifact@v4
@@ -410,7 +453,7 @@ jobs:
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-      packages: write  # Required for pushing to GHCR
+      packages: write # Required for pushing to GHCR
     runs-on: ubuntu-latest
     environment: RNBuild
     steps:
@@ -447,9 +490,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ steps.docker-creds.outputs.available == 'true' && format('{0}/resgrid-unit', secrets.DOCKER_USERNAME) || '' }}
-            ghcr.io/${{ github.repository }}
+          images: resgridllc/unit
           tags: |
             type=raw,value=7.${{ github.run_number }}
             type=raw,value=latest
@@ -473,7 +514,7 @@ jobs:
     needs: test
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     permissions:
-      contents: write  # Required for creating releases
+      contents: write # Required for creating releases
     strategy:
       matrix:
         os: [windows-latest, macos-15, ubuntu-latest]
@@ -592,7 +633,7 @@ jobs:
     needs: build-electron
     if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) || github.event_name == 'workflow_dispatch'
     permissions:
-      contents: write  # Required for creating releases
+      contents: write # Required for creating releases
     runs-on: ubuntu-latest
     environment: RNBuild
     steps:
@@ -616,11 +657,11 @@ jobs:
             echo "Error: No Electron artifacts found in electron-artifacts/ directory."
             exit 1
           fi
-          
+
           # Create release-artifacts directory and copy files using null-delimited find/xargs
           mkdir -p release-artifacts
           find electron-artifacts/ -type f \( -name "*.exe" -o -name "*.msi" -o -name "*.dmg" -o -name "*.zip" -o -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) -print0 | xargs -0 cp -t release-artifacts/
-          
+
           echo "Release artifacts prepared:"
           ls -lh release-artifacts/
 
@@ -634,4 +675,3 @@ jobs:
           name: '7.${{ github.run_number }}'
           artifacts: 'release-artifacts/*'
           bodyFile: 'RELEASE_NOTES.md'
-
