@@ -1,9 +1,8 @@
 import { Calendar, Tag, X } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
-import WebView from 'react-native-webview';
 
+import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString, stripHtmlTags } from '@/lib/utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
@@ -18,7 +17,6 @@ import { Text } from '../ui/text';
 import { VStack } from '../ui/vstack';
 
 export const ProtocolDetailsSheet: React.FC = () => {
-  const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
   const protocols = useProtocolsStore((s) => s.protocols);
   const selectedProtocolId = useProtocolsStore((s) => s.selectedProtocolId);
@@ -49,8 +47,6 @@ export const ProtocolDetailsSheet: React.FC = () => {
       </Actionsheet>
     );
   }
-
-  const textColor = colorScheme === 'dark' ? '#E5E7EB' : '#1F2937'; // gray-200 : gray-800
 
   return (
     <Actionsheet isOpen={isDetailsOpen} onClose={closeDetails} snapPoints={[67]}>
@@ -86,42 +82,12 @@ export const ProtocolDetailsSheet: React.FC = () => {
               </Box>
             )}
 
-            {/* Protocol content in WebView */}
-            <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
-              <WebView
-                key={selectedProtocolId}
-                style={styles.container}
-                originWhitelist={['*']}
-                scrollEnabled={true}
-                showsVerticalScrollIndicator={true}
-                source={{
-                  html: `
-                    <!DOCTYPE html>
-                    <html>
-                      <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                        <style>
-                          body {
-                            color: ${textColor};
-                            font-family: system-ui, -apple-system, sans-serif;
-                            margin: 0;
-                            padding: 8px;
-                            font-size: 16px;
-                            line-height: 1.5;
-                            background-color: ${colorScheme === 'dark' ? '#374151' : '#F9FAFB'};
-                          }
-                          * {
-                            max-width: 100%;
-                          }
-                        </style>
-                      </head>
-                      <body>${selectedProtocol.ProtocolText}</body>
-                    </html>
-                  `,
-                }}
-                androidLayerType="software"
-              />
-            </Box>
+            {/* Protocol content */}
+            {selectedProtocol.ProtocolText && (
+              <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
+                <HtmlRenderer html={selectedProtocol.ProtocolText} style={styles.container} scrollEnabled={true} showsVerticalScrollIndicator={true} rendererKey={selectedProtocolId ?? undefined} />
+              </Box>
+            )}
 
             <Divider />
 

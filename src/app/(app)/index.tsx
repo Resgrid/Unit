@@ -503,11 +503,11 @@ const styles = StyleSheet.create({
   markerOuterRingPulseWeb:
     Platform.OS === 'web'
       ? {
-        // @ts-ignore — web-only CSS animation properties
-        animationName: 'pulse-ring',
-        animationDuration: '2s',
-        animationIterationCount: 'infinite',
-        animationTimingFunction: 'ease-in-out',
-      }
+          // @ts-ignore — web-only CSS animation properties
+          animationName: 'pulse-ring',
+          animationDuration: '2s',
+          animationIterationCount: 'infinite',
+          animationTimingFunction: 'ease-in-out',
+        }
       : ({} as any),
 });

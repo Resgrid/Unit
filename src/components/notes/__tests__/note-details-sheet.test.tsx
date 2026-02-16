@@ -3,12 +3,12 @@ import React from 'react';
 
 import { NoteDetailsSheet } from '../note-details-sheet';
 
-// Mock react-native-webview
-jest.mock('react-native-webview', () => {
+// Mock HtmlRenderer
+jest.mock('@/components/ui/html-renderer', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: View,
+    HtmlRenderer: View,
   };
 });
 

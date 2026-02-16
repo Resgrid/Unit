@@ -1,10 +1,9 @@
 import { Calendar, Tag, X } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
-import WebView from 'react-native-webview';
 
+import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/store';
@@ -20,7 +19,6 @@ import { VStack } from '../ui/vstack';
 
 export const NoteDetailsSheet: React.FC = () => {
   const { t } = useTranslation();
-  const { colorScheme } = useColorScheme();
   const { trackEvent } = useAnalytics();
   const notes = useNotesStore((s) => s.notes);
   const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
@@ -45,8 +43,6 @@ export const NoteDetailsSheet: React.FC = () => {
 
   if (!selectedNote) return null;
 
-  const textColor = colorScheme === 'dark' ? '#E5E7EB' : '#1F2937'; // gray-200 : gray-800
-
   return (
     <Actionsheet isOpen={isDetailsOpen} onClose={closeDetails} snapPoints={[67]}>
       <ActionsheetBackdrop />
@@ -66,40 +62,9 @@ export const NoteDetailsSheet: React.FC = () => {
           </HStack>
 
           <VStack space="md" className="flex-1">
-            {/* Note content in WebView */}
+            {/* Note content */}
             <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
-              <WebView
-                style={[styles.container, { height: 120 }]}
-                originWhitelist={['*']}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-                source={{
-                  html: `
-                    <!DOCTYPE html>
-                    <html>
-                      <head>
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                        <style>
-                          body {
-                            color: ${textColor};
-                            font-family: system-ui, -apple-system, sans-serif;
-                            margin: 0;
-                            padding: 8px;
-                            font-size: 16px;
-                            line-height: 1.5;
-                            background-color: ${colorScheme === 'dark' ? '#374151' : '#F9FAFB'};
-                          }
-                          * {
-                            max-width: 100%;
-                          }
-                        </style>
-                      </head>
-                      <body>${selectedNote.Body}</body>
-                    </html>
-                  `,
-                }}
-                androidLayerType="software"
-              />
+              <HtmlRenderer html={selectedNote?.Body ?? ''} style={StyleSheet.flatten([styles.container, { height: 120 }])} />
             </Box>
 
             <Divider />

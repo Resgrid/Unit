@@ -4,12 +4,12 @@ import React from 'react';
 import { ContactDetailsSheet } from '../contact-details-sheet';
 import { ContactType, type ContactResultData } from '@/models/v4/contacts/contactResultData';
 
-// Mock react-native-webview
-jest.mock('react-native-webview', () => {
+// Mock HtmlRenderer
+jest.mock('@/components/ui/html-renderer', () => {
   const { View } = require('react-native');
   return {
     __esModule: true,
-    default: (props: any) => <View testID="mock-webview" {...props} />,
+    HtmlRenderer: (props: any) => <View testID="mock-webview" {...props} />,
   };
 });
 
