@@ -13,25 +13,22 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
-// Mock react-native-webview
-jest.mock('react-native-webview', () => {
+// Mock HtmlRenderer
+jest.mock('@/components/ui/html-renderer', () => {
   const React = require('react');
   const { View, Text } = require('react-native');
 
   return {
     __esModule: true,
-    default: React.forwardRef((props: any, ref: any) => {
-      // Extract HTML content from source.html for testing
-      const htmlContent = props.source?.html || '';
+    HtmlRenderer: (props: any) => {
+      const htmlContent = props.html || '';
       // Simple extraction of text content from HTML (removing tags)
       const textContent = htmlContent.replace(/<[^>]*>/g, '').trim();
 
       return React.createElement(View, {
-        ...props,
-        ref,
-        testID: props.testID || 'webview',
+        testID: 'webview',
       }, React.createElement(Text, { testID: 'webview-content' }, textContent));
-    }),
+    },
   };
 });
 

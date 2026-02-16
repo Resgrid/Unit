@@ -25,13 +25,38 @@ jest.mock('nativewind', () => ({
   cssInterop: jest.fn(),
 }));
 
-jest.mock('react-native-webview', () => ({
+jest.mock('@/components/ui/html-renderer', () => ({
   __esModule: true,
-  default: ({ source }: { source: any }) => {
+  HtmlRenderer: ({ html, ...rest }: { html: string;[key: string]: any }) => {
     const { View, Text } = require('react-native');
+    // Mirror the real component's theme-aware defaults (light mode in test)
+    const textColor = rest.textColor || '#1F2937';
+    const bgColor = rest.backgroundColor || '#F9FAFB';
     return (
       <View testID="webview">
-        <Text testID="webview-content">{source.html}</Text>
+        <Text testID="webview-content">{`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+        <style>
+          body {
+            color: ${textColor};
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 8px;
+            font-size: 16px;
+            line-height: 1.5;
+            background-color: ${bgColor};
+          }
+          * {
+            max-width: 100%;
+          }
+        </style>
+      </head>
+      <body>${html}</body>
+    </html>
+  `}</Text>
       </View>
     );
   },

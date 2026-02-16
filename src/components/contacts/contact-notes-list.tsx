@@ -3,7 +3,8 @@ import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, StyleSheet } from 'react-native';
-import { WebView } from 'react-native-webview';
+
+import { HtmlRenderer } from '@/components/ui/html-renderer';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
@@ -31,8 +32,6 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
   const isInternal = note.Visibility === 0;
 
   const { colorScheme } = useColorScheme();
-  const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
-  const backgroundColor = colorScheme === 'dark' ? '#374151' : '#F9FAFB';
 
   const formatDate = (dateString: string) => {
     try {
@@ -83,120 +82,73 @@ const ContactNoteCard: React.FC<ContactNoteCardProps> = ({ note }) => {
               {noteContent}
             </Text>
           ) : (
-            <WebView
+            <HtmlRenderer
+              html={noteContent}
               style={styles.webView}
-              // Security: Only allow local content, no external origins
-              originWhitelist={['about:']}
               scrollEnabled={true}
               showsVerticalScrollIndicator={true}
-              showsHorizontalScrollIndicator={false}
-              androidLayerType="software"
-              // Security: Disable JavaScript and DOM storage by default
-              // Only re-enable for pre-sanitized, trusted content that requires it
-              javaScriptEnabled={false}
-              domStorageEnabled={false}
-              startInLoadingState={false}
-              mixedContentMode="compatibility"
-              // Security: Handle navigation to prevent in-WebView navigation and open external links safely
-              onShouldStartLoadWithRequest={(request) => {
-                // Allow initial load of our HTML content
-                if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
-                  return true;
+              onLinkPress={(url) => Linking.openURL(url)}
+              customCSS={`
+                html, body {
+                  width: 100%;
+                  height: auto;
+                  min-height: 100%;
+                  word-wrap: break-word;
+                  overflow-wrap: break-word;
+                  box-sizing: border-box;
                 }
-
-                // For any external links, open in system browser instead
-                Linking.openURL(request.url);
-                return false;
-              }}
-              onNavigationStateChange={(navState) => {
-                // Additional protection: if navigation occurs to external URL, open in system browser
-                if (navState.url && !navState.url.startsWith('about:') && !navState.url.startsWith('data:')) {
-                  Linking.openURL(navState.url);
+                p, div, span {
+                  margin: 0 0 12px 0;
                 }
-              }}
-              source={{
-                html: `
-                  <!DOCTYPE html>
-                  <html>
-                    <head>
-                      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-                      <style>
-                        html, body {
-                          margin: 0;
-                          padding: 12px;
-                          width: 100%;
-                          height: auto;
-                          min-height: 100%;
-                          color: ${textColor};
-                          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                          font-size: 16px;
-                          line-height: 1.6;
-                          word-wrap: break-word;
-                          overflow-wrap: break-word;
-                          background-color: transparent;
-                          box-sizing: border-box;
-                        }
-                        * {
-                          max-width: 100%;
-                          box-sizing: border-box;
-                        }
-                        p, div, span {
-                          margin: 0 0 12px 0;
-                        }
-                        p:last-child, div:last-child {
-                          margin-bottom: 0;
-                        }
-                        img {
-                          max-width: 100%;
-                          height: auto;
-                        }
-                        a {
-                          color: ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
-                          text-decoration: none;
-                        }
-                        a:hover {
-                          text-decoration: underline;
-                        }
-                        ul, ol {
-                          padding-left: 20px;
-                          margin: 12px 0;
-                        }
-                        li {
-                          margin: 4px 0;
-                        }
-                        blockquote {
-                          border-left: 4px solid ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
-                          margin: 12px 0;
-                          padding-left: 16px;
-                          font-style: italic;
-                        }
-                        pre, code {
-                          background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F3F4F6'};
-                          padding: 8px;
-                          border-radius: 4px;
-                          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                          font-size: 14px;
-                        }
-                        table {
-                          width: 100%;
-                          border-collapse: collapse;
-                          margin: 12px 0;
-                        }
-                        th, td {
-                          border: 1px solid ${colorScheme === 'dark' ? '#374151' : '#E5E7EB'};
-                          padding: 8px;
-                          text-align: left;
-                        }
-                        th {
-                          background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F9FAFB'};
-                          font-weight: bold;
-                        }
-                      </style>
-                    </head>
-                    <body>${noteContent}</body>
-                  </html>
-                `,
-              }}
+                p:last-child, div:last-child {
+                  margin-bottom: 0;
+                }
+                img {
+                  max-width: 100%;
+                  height: auto;
+                }
+                a {
+                  color: ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
+                  text-decoration: none;
+                }
+                a:hover {
+                  text-decoration: underline;
+                }
+                ul, ol {
+                  padding-left: 20px;
+                  margin: 12px 0;
+                }
+                li {
+                  margin: 4px 0;
+                }
+                blockquote {
+                  border-left: 4px solid ${colorScheme === 'dark' ? '#60A5FA' : '#3B82F6'};
+                  margin: 12px 0;
+                  padding-left: 16px;
+                  font-style: italic;
+                }
+                pre, code {
+                  background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F3F4F6'};
+                  padding: 8px;
+                  border-radius: 4px;
+                  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                  font-size: 14px;
+                }
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin: 12px 0;
+                }
+                th, td {
+                  border: 1px solid ${colorScheme === 'dark' ? '#374151' : '#E5E7EB'};
+                  padding: 8px;
+                  text-align: left;
+                }
+                th {
+                  background-color: ${colorScheme === 'dark' ? '#1F2937' : '#F9FAFB'};
+                  font-weight: bold;
+                }
+              `}
             />
           )}
         </Box>

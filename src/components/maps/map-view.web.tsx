@@ -54,6 +54,10 @@ interface MapViewProps {
   rotateEnabled?: boolean;
   scrollEnabled?: boolean;
   pitchEnabled?: boolean;
+  /** Initial center [lng, lat] passed to the map constructor so it starts at the right place */
+  initialCenter?: [number, number];
+  /** Initial zoom level passed to the map constructor */
+  initialZoom?: number;
 }
 
 // MapView component
@@ -73,68 +77,223 @@ export const MapView = forwardRef<any, MapViewProps>(
       rotateEnabled = true,
       scrollEnabled = true,
       pitchEnabled = true,
+      initialCenter,
+      initialZoom,
     },
     ref
   ) => {
     const mapContainer = useRef<HTMLDivElement>(null);
     const map = useRef<any | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [hasSize, setHasSize] = useState(false);
 
     useImperativeHandle(ref, () => ({
       getMap: () => map.current,
     }));
 
+    // Wait until the container has non-zero dimensions before initializing mapbox-gl.
+    // Mapbox crashes with "null is not an object (evaluating 'r[3]')" in its
+    // projection-matrix code when the container has 0×0 size.
     useEffect(() => {
-      if (map.current || !mapContainer.current) return;
+      const el = mapContainer.current;
+      if (!el) return;
 
-      const newMap = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: styleURL,
-        center: [-98.5795, 39.8283], // Default US center
-        zoom: 4,
-        attributionControl: attributionEnabled,
-        logoPosition: logoEnabled ? 'bottom-left' : undefined,
-        dragRotate: rotateEnabled,
-        scrollZoom: zoomEnabled,
-        dragPan: scrollEnabled,
-        pitchWithRotate: pitchEnabled,
+      const check = () => {
+        if (el.clientWidth > 0 && el.clientHeight > 0) {
+          setHasSize(true);
+          return true;
+        }
+        return false;
+      };
+
+      // Already has size (common path)
+      if (check()) return;
+
+      // Watch for layout via ResizeObserver
+      const ro = new ResizeObserver(() => {
+        if (check()) {
+          ro.disconnect();
+        }
       });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }, []);
 
-      if (!logoEnabled) {
-        // Hide logo via CSS if not enabled
-        newMap.on('load', () => {
-          const logoEl = mapContainer.current?.querySelector('.mapboxgl-ctrl-logo');
-          if (logoEl) {
-            (logoEl as HTMLElement).style.display = 'none';
-          }
+    useEffect(() => {
+      if (!hasSize || map.current || !mapContainer.current) return;
+
+      // Double-check the container actually has layout dimensions.
+      // mapbox-gl's projection matrix code will throw if the canvas is 0×0.
+      const { clientWidth, clientHeight } = mapContainer.current;
+      if (clientWidth === 0 || clientHeight === 0) return;
+
+      try {
+        // Use initialCenter/initialZoom if provided so the map starts at the
+        // correct position without needing a programmatic camera move later.
+        const startCenter = (initialCenter && isFinite(initialCenter[0]) && isFinite(initialCenter[1]))
+          ? initialCenter
+          : [-98.5795, 39.8283] as [number, number]; // Default US center
+        const startZoom = (initialZoom != null && isFinite(initialZoom)) ? initialZoom : 4;
+
+        const newMap = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: styleURL,
+          center: startCenter,
+          zoom: startZoom,
+          attributionControl: attributionEnabled,
+          logoPosition: logoEnabled ? 'bottom-left' : undefined,
+          dragRotate: rotateEnabled,
+          scrollZoom: zoomEnabled,
+          dragPan: scrollEnabled,
+          pitchWithRotate: pitchEnabled,
         });
+
+        if (!logoEnabled) {
+          // Hide logo via CSS if not enabled
+          newMap.on('load', () => {
+            const logoEl = mapContainer.current?.querySelector('.mapboxgl-ctrl-logo');
+            if (logoEl) {
+              (logoEl as HTMLElement).style.display = 'none';
+            }
+          });
+        }
+
+        if (compassEnabled) {
+          newMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
+        }
+
+        newMap.on('load', () => {
+          setIsLoaded(true);
+          onDidFinishLoadingMap?.();
+        });
+
+        newMap.on('moveend', (e: any) => {
+          // mapbox-gl propagates eventData from easeTo/flyTo into the event object.
+          // We tag all programmatic camera moves with { _programmatic: true } so the
+          // moveend handler can distinguish them from real user interactions.
+          const wasUser = !e._programmatic;
+          onCameraChanged?.({ properties: { isUserInteraction: wasUser } });
+        });
+
+        map.current = newMap;
+
+        // Patch unproject to gracefully handle NaN results.
+        // mapbox-gl's internal mouse event handlers (mouseout, mousemove, etc.)
+        // call map.unproject() which throws "Invalid LngLat object: (NaN, NaN)"
+        // when the canvas/transform is in an invalid state (zero-size, mid-resize).
+        // These DOM events fire synchronously and can't be caught by error events
+        // or the _render patch below.
+        const origUnproject = newMap.unproject.bind(newMap);
+        newMap.unproject = (point: unknown) => {
+          try {
+            return origUnproject(point);
+          } catch {
+            // Return a safe fallback LngLat (0,0) instead of crashing
+            return new mapboxgl.LngLat(0, 0);
+          }
+        };
+
+        // Patch easeTo / flyTo to catch "Invalid LngLat object: (NaN, NaN)"
+        // errors that occur when resetNorth or other compass interactions read
+        // a corrupted transform center (e.g. after resize or animation race).
+        const origEaseTo = newMap.easeTo.bind(newMap);
+        newMap.easeTo = function (options: any, eventData?: any) {
+          try {
+            return origEaseTo(options, eventData);
+          } catch (e: any) {
+            if (e?.message?.includes('Invalid LngLat')) {
+              return this;
+            }
+            throw e;
+          }
+        };
+
+        const origFlyTo = newMap.flyTo.bind(newMap);
+        newMap.flyTo = function (options: any, eventData?: any) {
+          try {
+            return origFlyTo(options, eventData);
+          } catch (e: any) {
+            if (e?.message?.includes('Invalid LngLat')) {
+              return this;
+            }
+            throw e;
+          }
+        };
+
+        // Patch the internal _render method to gracefully handle zero-size
+        // containers. mapbox-gl v3 crashes in _calcMatrices → fromInvProjectionMatrix
+        // ("null is not an object evaluating r[3]") when the canvas has 0×0
+        // dimensions (e.g. during route transitions or before layout completes).
+        const origRender = newMap._render;
+        if (typeof origRender === 'function') {
+          newMap._render = function (...args: unknown[]) {
+            try {
+              const canvas = this.getCanvas?.();
+              if (canvas && (canvas.width === 0 || canvas.height === 0)) {
+                return this; // skip frame when canvas is zero-sized
+              }
+              return origRender.apply(this, args);
+            } catch {
+              // Suppress projection-matrix errors from zero-size containers
+              return this;
+            }
+          };
+        }
+
+        // Suppress non-fatal mapbox-gl error events (e.g. "Invalid LngLat object: (NaN, NaN)")
+        // that occur when mouse events fire while the map canvas is resizing.
+        newMap.on('error', (e: { error?: Error }) => {
+          const msg = e.error?.message ?? '';
+          if (msg.includes('Invalid LngLat') || msg.includes('r[3]')) {
+            return;
+          }
+          console.warn('[MapView.web] mapbox-gl error:', e.error);
+        });
+      } catch (e) {
+        // mapbox-gl can throw during initialization if the container is not
+        // properly laid out (e.g. zero-size canvas). We silently ignore this;
+        // the map will simply not render rather than crash the app.
+        console.warn('[MapView.web] Failed to initialize mapbox-gl:', e);
       }
-
-      if (compassEnabled) {
-        newMap.addControl(new mapboxgl.NavigationControl({ showCompass: true, showZoom: false }), 'top-right');
-      }
-
-      newMap.on('load', () => {
-        setIsLoaded(true);
-        onDidFinishLoadingMap?.();
-      });
-
-      newMap.on('moveend', (e: any) => {
-        // mapbox-gl propagates eventData from easeTo/flyTo into the event object.
-        // We tag all programmatic camera moves with { _programmatic: true } so the
-        // moveend handler can distinguish them from real user interactions.
-        const wasUser = !e._programmatic;
-        onCameraChanged?.({ properties: { isUserInteraction: wasUser } });
-      });
-
-      map.current = newMap;
 
       return () => {
-        map.current?.remove();
-        map.current = null;
+        // Mark the map as removed so child components can detect it
+        if (map.current) {
+          (map.current as any).__removed = true;
+          map.current.remove();
+          map.current = null;
+        }
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [hasSize]);
+
+    // Keep the map canvas in sync with container size changes.
+    // Also do an immediate resize so the canvas matches the container
+    // before any mouse events can fire (prevents NaN unproject errors).
+    useEffect(() => {
+      if (!map.current || !mapContainer.current) return;
+
+      // Only resize when the container has non-zero dimensions.
+      // Calling resize() with a zero-size container sets invalid dimensions
+      // on mapbox's internal transform, causing _calcMatrices to crash.
+      const safeResize = () => {
+        const el = mapContainer.current;
+        if (el && el.clientWidth > 0 && el.clientHeight > 0) {
+          try {
+            map.current?.resize();
+          } catch {
+            // ignore resize errors during teardown
+          }
+        }
+      };
+
+      // Immediate resize to sync canvas with current container size
+      safeResize();
+
+      const ro = new ResizeObserver(() => safeResize());
+      ro.observe(mapContainer.current);
+      return () => ro.disconnect();
+    }, [isLoaded]);
 
     // Update style when it changes
     useEffect(() => {
@@ -144,7 +303,18 @@ export const MapView = forwardRef<any, MapViewProps>(
     }, [styleURL]);
 
     return (
-      <div ref={mapContainer} data-testid={testID} style={{ width: '100%', height: '100%', ...style }}>
+      <div
+        ref={mapContainer}
+        data-testid={testID}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          ...style,
+          // Ensure the container is never zero-height on web
+          minHeight: style?.height || style?.minHeight || 100,
+        }}
+      >
         {isLoaded && <MapContext.Provider value={map.current}>{children}</MapContext.Provider>}
       </div>
     );
@@ -169,13 +339,22 @@ interface CameraProps {
 }
 
 // Camera component
-export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLevel, heading, pitch, animationDuration = 1000, followUserLocation, followZoomLevel }, ref) => {
+export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLevel, heading, pitch, animationDuration = 1000, animationMode, followUserLocation, followZoomLevel }, ref) => {
   const map = React.useContext(MapContext);
   const geolocateControl = useRef<any | null>(null);
+  const hasInitialized = useRef(false);
 
   useImperativeHandle(ref, () => ({
     setCamera: (options: { centerCoordinate?: [number, number]; zoomLevel?: number; heading?: number; pitch?: number; animationDuration?: number }) => {
       if (!map) return;
+
+      // Validate coordinates before passing to mapbox
+      if (
+        options.centerCoordinate &&
+        (!isFinite(options.centerCoordinate[0]) || !isFinite(options.centerCoordinate[1]))
+      ) {
+        return;
+      }
 
       map.easeTo(
         {
@@ -190,6 +369,16 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     },
     flyTo: (options: any) => {
       if (!map) return;
+
+      // Validate center if provided
+      if (
+        options.center &&
+        Array.isArray(options.center) &&
+        (!isFinite(options.center[0]) || !isFinite(options.center[1]))
+      ) {
+        return;
+      }
+
       map.flyTo(options, { _programmatic: true });
     },
   }));
@@ -197,19 +386,39 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
   useEffect(() => {
     if (!map) return;
 
-    if (centerCoordinate) {
-      map.easeTo(
-        {
-          center: centerCoordinate,
-          zoom: zoomLevel,
-          bearing: heading,
-          pitch: pitch,
-          duration: animationDuration,
-        },
-        { _programmatic: true }
-      );
+    if (
+      centerCoordinate &&
+      centerCoordinate.length === 2 &&
+      isFinite(centerCoordinate[0]) &&
+      isFinite(centerCoordinate[1])
+    ) {
+      // Skip the first render — the MapView already initialized at the correct
+      // position via initialCenter/initialZoom, so no programmatic move needed.
+      if (!hasInitialized.current) {
+        hasInitialized.current = true;
+        return;
+      }
+
+      // For subsequent coordinate/zoom changes, animate to the new position.
+      const cameraOptions = {
+        center: centerCoordinate as [number, number],
+        zoom: zoomLevel,
+        bearing: heading,
+        pitch: pitch,
+        duration: animationDuration,
+      };
+
+      try {
+        if (animationMode === 'flyTo') {
+          map.flyTo(cameraOptions, { _programmatic: true });
+        } else {
+          map.easeTo(cameraOptions, { _programmatic: true });
+        }
+      } catch {
+        // Suppress projection-matrix errors during resize/transition
+      }
     }
-  }, [map, centerCoordinate, zoomLevel, heading, pitch, animationDuration]);
+  }, [map, centerCoordinate?.[0], centerCoordinate?.[1], zoomLevel, heading, pitch, animationDuration, animationMode]);
 
   useEffect(() => {
     if (!map || !followUserLocation) return;
@@ -238,7 +447,11 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
         clearTimeout(triggerTimeoutId);
       }
       if (geolocateControl.current) {
-        map.removeControl(geolocateControl.current);
+        try {
+          map.removeControl(geolocateControl.current);
+        } catch {
+          // map may already be destroyed during route transitions
+        }
         geolocateControl.current = null;
       }
     };
@@ -321,7 +534,13 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
 
   // Update coordinate when values actually change (by value, not reference)
   useEffect(() => {
-    if (markerRef.current && coordinate) {
+    if (
+      markerRef.current &&
+      coordinate &&
+      coordinate.length === 2 &&
+      isFinite(coordinate[0]) &&
+      isFinite(coordinate[1])
+    ) {
       markerRef.current.setLngLat(coordinate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -382,13 +601,21 @@ export const UserLocation: React.FC<UserLocationProps> = ({ visible = true, show
       map.on('load', onMapLoad);
 
       return () => {
-        map.off('load', onMapLoad);
-        map.removeControl(geolocate);
+        try {
+          map.off('load', onMapLoad);
+          map.removeControl(geolocate);
+        } catch {
+          // map may already be destroyed during route transitions
+        }
       };
     }
 
     return () => {
-      map.removeControl(geolocate);
+      try {
+        map.removeControl(geolocate);
+      } catch {
+        // map may already be destroyed during route transitions
+      }
     };
   }, [map, visible, showsUserHeadingIndicator]);
 

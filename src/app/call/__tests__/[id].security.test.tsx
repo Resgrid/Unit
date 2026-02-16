@@ -9,6 +9,12 @@ jest.mock('react-native', () => ({
   ScrollView: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   StyleSheet: {
     create: (styles: any) => styles,
+    flatten: (styles: any) => {
+      if (Array.isArray(styles)) {
+        return Object.assign({}, ...styles.filter(Boolean));
+      }
+      return styles || {};
+    },
   },
   useWindowDimensions: () => ({ width: 375, height: 812 }),
   View: ({ children, ...props }: any) => <div {...props}>{children}</div>,
@@ -273,10 +279,10 @@ jest.mock('@/lib/navigation', () => ({
   openMapsWithDirections: jest.fn().mockResolvedValue(true),
 }));
 
-// Mock WebView
-jest.mock('react-native-webview', () => ({
+// Mock HtmlRenderer
+jest.mock('@/components/ui/html-renderer', () => ({
   __esModule: true,
-  default: () => <div data-testid="webview">WebView</div>,
+  HtmlRenderer: () => <div data-testid="html-renderer">HtmlRenderer</div>,
 }));
 
 // Mock date-fns
@@ -317,7 +323,7 @@ describe('CallDetail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Setup stores as selector-based stores
     useCallDetailStore.mockImplementation((selector: any) => {
       if (selector) {
@@ -325,37 +331,37 @@ describe('CallDetail', () => {
       }
       return mockCallDetailStore;
     });
-    
+
     useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore);
-    
+
     useCoreStore.mockImplementation((selector: any) => {
       if (selector) {
         return selector(mockCoreStore);
       }
       return mockCoreStore;
     });
-    
+
     useLocationStore.mockImplementation((selector: any) => {
       if (selector) {
         return selector(mockLocationStore);
       }
       return mockLocationStore;
     });
-    
+
     useStatusBottomSheetStore.mockImplementation((selector: any) => {
       if (selector) {
         return selector(mockStatusBottomSheetStore);
       }
       return mockStatusBottomSheetStore;
     });
-    
+
     useToastStore.mockImplementation((selector: any) => {
       if (selector) {
         return selector(mockToastStore);
       }
       return mockToastStore;
     });
-    
+
     // Setup securityStore as a selector-based store
     securityStore.mockImplementation((selector: any) => {
       const state = {

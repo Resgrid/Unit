@@ -197,10 +197,10 @@ jest.mock('date-fns', () => ({
   format: jest.fn(() => '2024-01-01 12:00'),
 }));
 
-// Mock react-native-webview
-jest.mock('react-native-webview', () => ({
+// Mock HtmlRenderer
+jest.mock('@/components/ui/html-renderer', () => ({
   __esModule: true,
-  default: 'WebView',
+  HtmlRenderer: 'HtmlRenderer',
 }));
 
 jest.mock('@/hooks/use-analytics', () => ({

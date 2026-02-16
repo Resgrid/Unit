@@ -85,7 +85,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   const getTabStyles = (index: number) => {
     const isActive = index === currentIndex;
 
-    const baseStyles = 'flex-1 flex items-center justify-center';
+    const baseStyles = 'flex flex-row items-center justify-center';
     const sizeStyles = {
       sm: isLandscape ? 'px-3 py-1.5 text-xs' : 'px-2 py-1 text-2xs',
       md: isLandscape ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs',
@@ -104,7 +104,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
 
   // Container styles based on variant
   const getContainerStyles = () => {
-    const baseStyles = 'flex flex-row flex-1';
+    const baseStyles = 'flex flex-row';
 
     const variantStyles = {
       default: colorScheme === 'dark' ? 'border-b border-gray-700' : 'border-b border-gray-200',
@@ -124,7 +124,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     const styles = StyleSheet.create({
       container: {
         flexDirection: 'row',
-        flex: 1,
+        flexGrow: 1,
         ...(variant === 'default' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
         ...(variant === 'pills' && { gap: 8, padding: 4 }),
         ...(variant === 'underlined' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
@@ -135,10 +135,10 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   };
 
   return (
-    <Box className={`flex-1 ${className}`}>
+    <Box className={className}>
       {/* Tab Headers */}
       {scrollable ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={getContainerStyle()}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={getContainerStyle()}>
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
               {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}

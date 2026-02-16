@@ -5,7 +5,6 @@ import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
-import WebView from 'react-native-webview';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
@@ -16,6 +15,7 @@ import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
+import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
@@ -145,17 +145,26 @@ export default function CallDetail() {
 
   useEffect(() => {
     if (call) {
+      // Try Latitude/Longitude first, but validate they are real coordinates
       if (call.Latitude && call.Longitude) {
-        setCoordinates({
-          latitude: parseFloat(call.Latitude),
-          longitude: parseFloat(call.Longitude),
-        });
-      } else if (call.Geolocation) {
-        const [lat, lng] = call.Geolocation.split(',');
-        setCoordinates({
-          latitude: parseFloat(lat),
-          longitude: parseFloat(lng),
-        });
+        const lat = parseFloat(call.Latitude);
+        const lng = parseFloat(call.Longitude);
+        if (!isNaN(lat) && !isNaN(lng) && (lat !== 0 || lng !== 0)) {
+          setCoordinates({ latitude: lat, longitude: lng });
+          return;
+        }
+      }
+
+      // Fall through to Geolocation if Latitude/Longitude are missing or invalid
+      if (call.Geolocation) {
+        const parts = call.Geolocation.split(',');
+        if (parts.length === 2) {
+          const lat = parseFloat(parts[0].trim());
+          const lng = parseFloat(parts[1].trim());
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setCoordinates({ latitude: lat, longitude: lng });
+          }
+        }
       }
     }
   }, [call]);
@@ -300,37 +309,7 @@ export default function CallDetail() {
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
-                  <WebView
-                    style={[styles.container, { height: 200 }]}
-                    originWhitelist={['*']}
-                    scrollEnabled={false}
-                    showsVerticalScrollIndicator={false}
-                    source={{
-                      html: `
-                                <!DOCTYPE html>
-                                <html>
-                                  <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                                    <style>
-                                      body {
-                                        color: ${textColor};
-                                        font-family: system-ui, -apple-system, sans-serif;
-                                        margin: 0;
-                                        padding: 0;
-                                        font-size: 16px;
-                                        line-height: 1.5;
-                                      }
-                                      * {
-                                        max-width: 100%;
-                                      }
-                                    </style>
-                                  </head>
-                                  <body>${call.Note}</body>
-                                </html>
-                              `,
-                    }}
-                    androidLayerType="software"
-                  />
+                  <HtmlRenderer html={call.Note} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                 </Box>
               </Box>
             </VStack>
@@ -377,37 +356,7 @@ export default function CallDetail() {
                     <Text className="font-semibold">{protocol.Name}</Text>
                     <Text className="text-sm text-gray-600">{protocol.Description}</Text>
                     <Box>
-                      <WebView
-                        style={[styles.container, { height: 200 }]}
-                        originWhitelist={['*']}
-                        scrollEnabled={false}
-                        showsVerticalScrollIndicator={false}
-                        source={{
-                          html: `
-                                <!DOCTYPE html>
-                                <html>
-                                  <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                                    <style>
-                                      body {
-                                        color: ${textColor};
-                                        font-family: system-ui, -apple-system, sans-serif;
-                                        margin: 0;
-                                        padding: 0;
-                                        font-size: 16px;
-                                        line-height: 1.5;
-                                      }
-                                      * {
-                                        max-width: 100%;
-                                      }
-                                    </style>
-                                  </head>
-                                  <body>${protocol.ProtocolText}</body>
-                                </html>
-                              `,
-                        }}
-                        androidLayerType="software"
-                      />
+                      <HtmlRenderer html={protocol.ProtocolText} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                     </Box>
                   </Box>
                 ))}
@@ -506,45 +455,17 @@ export default function CallDetail() {
           </HStack>
           <VStack className="space-y-1">
             <Box style={{ height: 80 }}>
-              <WebView
-                style={[styles.container, { height: 80 }]}
-                originWhitelist={['*']}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-                source={{
-                  html: `
-                                <!DOCTYPE html>
-                                <html>
-                                  <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-                                    <style>
-                                      body {
-                                        color: ${textColor};
-                                        font-family: system-ui, -apple-system, sans-serif;
-                                        margin: 0;
-                                        padding: 0;
-                                        font-size: 16px;
-                                        line-height: 1.5;
-                                      }
-                                      * {
-                                        max-width: 100%;
-                                      }
-                                    </style>
-                                  </head>
-                                  <body>${call.Nature}</body>
-                                </html>
-                              `,
-                }}
-                androidLayerType="software"
-              />
+              <HtmlRenderer html={call.Nature} style={StyleSheet.flatten([styles.container, { height: 80 }])} />
             </Box>
           </VStack>
         </Box>
 
-        {/* Map */}
-        <Box className="w-full">
-          {coordinates.latitude && coordinates.longitude ? <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} /> : null}
-        </Box>
+        {/* Map - only show when valid coordinates exist */}
+        {coordinates.latitude && coordinates.longitude ? (
+          <Box className="w-full">
+            <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} />
+          </Box>
+        ) : null}
 
         {/* Action Buttons */}
         <HStack className={`justify-around p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
