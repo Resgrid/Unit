@@ -195,7 +195,7 @@ export default function CallDetail() {
    * Opens the device's native maps application with directions to the call location
    */
   const handleRoute = async () => {
-    if (!coordinates.latitude || !coordinates.longitude) {
+    if (coordinates.latitude === null || coordinates.longitude === null) {
       showToast('error', t('call_detail.no_location_for_routing'));
       return;
     }
@@ -309,7 +309,7 @@ export default function CallDetail() {
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
-                  <HtmlRenderer html={call.Note} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
+                  <HtmlRenderer html={call.Note ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                 </Box>
               </Box>
             </VStack>
@@ -356,7 +356,7 @@ export default function CallDetail() {
                     <Text className="font-semibold">{protocol.Name}</Text>
                     <Text className="text-sm text-gray-600">{protocol.Description}</Text>
                     <Box>
-                      <HtmlRenderer html={protocol.ProtocolText} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
+                      <HtmlRenderer html={protocol.ProtocolText ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                     </Box>
                   </Box>
                 ))}
@@ -455,13 +455,13 @@ export default function CallDetail() {
           </HStack>
           <VStack className="space-y-1">
             <Box style={{ height: 80 }}>
-              <HtmlRenderer html={call.Nature} style={StyleSheet.flatten([styles.container, { height: 80 }])} />
+              <HtmlRenderer html={call.Nature ?? ''} style={StyleSheet.flatten([styles.container, { height: 80 }])} />
             </Box>
           </VStack>
         </Box>
 
         {/* Map - only show when valid coordinates exist */}
-        {coordinates.latitude && coordinates.longitude ? (
+        {coordinates.latitude !== null && coordinates.longitude !== null ? (
           <Box className="w-full">
             <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} />
           </Box>

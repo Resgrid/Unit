@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { Linking, ScrollView, StyleSheet } from 'react-native';
 
 import { HtmlRenderer } from '@/components/ui/html-renderer';
-
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type ContactNoteResultData } from '@/models/v4/contacts/contactNoteResultData';
 import { useContactsStore } from '@/stores/contacts/store';

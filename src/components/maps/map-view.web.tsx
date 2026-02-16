@@ -130,10 +130,8 @@ export const MapView = forwardRef<any, MapViewProps>(
       try {
         // Use initialCenter/initialZoom if provided so the map starts at the
         // correct position without needing a programmatic camera move later.
-        const startCenter = (initialCenter && isFinite(initialCenter[0]) && isFinite(initialCenter[1]))
-          ? initialCenter
-          : [-98.5795, 39.8283] as [number, number]; // Default US center
-        const startZoom = (initialZoom != null && isFinite(initialZoom)) ? initialZoom : 4;
+        const startCenter = initialCenter && isFinite(initialCenter[0]) && isFinite(initialCenter[1]) ? initialCenter : ([-98.5795, 39.8283] as [number, number]); // Default US center
+        const startZoom = initialZoom != null && isFinite(initialZoom) ? initialZoom : 4;
 
         const newMap = new mapboxgl.Map({
           container: mapContainer.current,
@@ -228,6 +226,7 @@ export const MapView = forwardRef<any, MapViewProps>(
         if (typeof origRender === 'function') {
           newMap._render = function (...args: unknown[]) {
             try {
+              // eslint-disable-next-line react/no-this-in-sfc
               const canvas = this.getCanvas?.();
               if (canvas && (canvas.width === 0 || canvas.height === 0)) {
                 return this; // skip frame when canvas is zero-sized
@@ -244,7 +243,7 @@ export const MapView = forwardRef<any, MapViewProps>(
         // that occur when mouse events fire while the map canvas is resizing.
         newMap.on('error', (e: { error?: Error }) => {
           const msg = e.error?.message ?? '';
-          if (msg.includes('Invalid LngLat') || msg.includes('r[3]')) {
+          if (msg.includes('Invalid LngLat')) {
             return;
           }
           console.warn('[MapView.web] mapbox-gl error:', e.error);
@@ -349,10 +348,7 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
       if (!map) return;
 
       // Validate coordinates before passing to mapbox
-      if (
-        options.centerCoordinate &&
-        (!isFinite(options.centerCoordinate[0]) || !isFinite(options.centerCoordinate[1]))
-      ) {
+      if (options.centerCoordinate && (!isFinite(options.centerCoordinate[0]) || !isFinite(options.centerCoordinate[1]))) {
         return;
       }
 
@@ -371,11 +367,7 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
       if (!map) return;
 
       // Validate center if provided
-      if (
-        options.center &&
-        Array.isArray(options.center) &&
-        (!isFinite(options.center[0]) || !isFinite(options.center[1]))
-      ) {
+      if (options.center && Array.isArray(options.center) && (!isFinite(options.center[0]) || !isFinite(options.center[1]))) {
         return;
       }
 
@@ -386,12 +378,7 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
   useEffect(() => {
     if (!map) return;
 
-    if (
-      centerCoordinate &&
-      centerCoordinate.length === 2 &&
-      isFinite(centerCoordinate[0]) &&
-      isFinite(centerCoordinate[1])
-    ) {
+    if (centerCoordinate && centerCoordinate.length === 2 && isFinite(centerCoordinate[0]) && isFinite(centerCoordinate[1])) {
       // Skip the first render — the MapView already initialized at the correct
       // position via initialCenter/initialZoom, so no programmatic move needed.
       if (!hasInitialized.current) {
@@ -418,7 +405,7 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
         // Suppress projection-matrix errors during resize/transition
       }
     }
-  }, [map, centerCoordinate?.[0], centerCoordinate?.[1], zoomLevel, heading, pitch, animationDuration, animationMode]);
+  }, [map, centerCoordinate, zoomLevel, heading, pitch, animationDuration, animationMode]);
 
   useEffect(() => {
     if (!map || !followUserLocation) return;
@@ -534,13 +521,7 @@ export const PointAnnotation: React.FC<PointAnnotationProps> = ({ id, coordinate
 
   // Update coordinate when values actually change (by value, not reference)
   useEffect(() => {
-    if (
-      markerRef.current &&
-      coordinate &&
-      coordinate.length === 2 &&
-      isFinite(coordinate[0]) &&
-      isFinite(coordinate[1])
-    ) {
+    if (markerRef.current && coordinate && coordinate.length === 2 && isFinite(coordinate[0]) && isFinite(coordinate[1])) {
       markerRef.current.setLngLat(coordinate);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

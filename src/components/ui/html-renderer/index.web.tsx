@@ -108,7 +108,8 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
   // Listen for link-click messages from the iframe
   const handleMessage = useCallback(
     (event: MessageEvent) => {
-      if (event.data?.type === 'html-renderer-link' && event.data.url) {
+      // Validate message origin/source - only accept messages from our trusted iframe
+      if (event.data?.type === 'html-renderer-link' && event.data.url && event.source === iframeRef.current?.contentWindow) {
         if (onLinkPress) {
           onLinkPress(event.data.url);
         } else {
@@ -130,23 +131,25 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
   // When onLinkPress is provided we need allow-scripts so the click-interceptor runs
   const sandboxValue = onLinkPress ? 'allow-same-origin allow-scripts' : 'allow-same-origin';
 
+  const iframeStyle: React.CSSProperties = {
+    border: 'none',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+    colorScheme: 'normal',
+  };
+
   return (
     <View style={flatStyle} key={rendererKey}>
-      {/* eslint-disable-next-line react-native/no-inline-styles -- iframe not a RN element */}
       <iframe
         ref={iframeRef}
         srcDoc={fullHtml}
         sandbox={sandboxValue}
         title="html-content"
         // @ts-expect-error -- allowTransparency is a valid HTML attribute but not in React's iframe types
+        // eslint-disable-next-line react/no-unknown-property
         allowTransparency="true"
-        style={{
-          border: 'none',
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'transparent',
-          colorScheme: 'normal',
-        }}
+        style={iframeStyle}
       />
     </View>
   );

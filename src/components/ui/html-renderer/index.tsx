@@ -102,19 +102,19 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({
       domStorageEnabled={domStorageEnabled}
       {...(onLinkPress
         ? {
-          onShouldStartLoadWithRequest: (request: { url: string }) => {
-            if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
-              return true;
-            }
-            handleLinkPress(request.url);
-            return false;
-          },
-          onNavigationStateChange: (navState: { url: string }) => {
-            if (navState.url && !navState.url.startsWith('about:') && !navState.url.startsWith('data:')) {
-              handleLinkPress(navState.url);
-            }
-          },
-        }
+            onShouldStartLoadWithRequest: (request: { url: string }) => {
+              if (request.url.startsWith('about:') || request.url.startsWith('data:')) {
+                return true;
+              }
+              handleLinkPress(request.url);
+              return false;
+            },
+            onNavigationStateChange: (navState: { url: string }) => {
+              if (navState.url && !navState.url.startsWith('about:') && !navState.url.startsWith('data:')) {
+                handleLinkPress(navState.url);
+              }
+            },
+          }
         : {})}
     />
   );

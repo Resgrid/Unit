@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { HtmlRenderer } from '@/components/ui/html-renderer';
-
 import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString, stripHtmlTags } from '@/lib/utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
@@ -49,7 +48,6 @@ export const ProtocolDetailsSheet: React.FC = () => {
     );
   }
 
-
   return (
     <Actionsheet isOpen={isDetailsOpen} onClose={closeDetails} snapPoints={[67]}>
       <ActionsheetBackdrop />
@@ -85,15 +83,11 @@ export const ProtocolDetailsSheet: React.FC = () => {
             )}
 
             {/* Protocol content */}
-            <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
-              <HtmlRenderer
-                html={selectedProtocol.ProtocolText}
-                style={styles.container}
-                scrollEnabled={true}
-                showsVerticalScrollIndicator={true}
-                rendererKey={selectedProtocolId}
-              />
-            </Box>
+            {selectedProtocol.ProtocolText && (
+              <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
+                <HtmlRenderer html={selectedProtocol.ProtocolText} style={styles.container} scrollEnabled={true} showsVerticalScrollIndicator={true} rendererKey={selectedProtocolId ?? undefined} />
+              </Box>
+            )}
 
             <Divider />
 

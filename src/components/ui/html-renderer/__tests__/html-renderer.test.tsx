@@ -62,7 +62,7 @@ describe('HtmlRenderer (native)', () => {
       render(<HtmlRenderer html="<p>Light BG</p>" />);
 
       const htmlContent = screen.getByTestId('webview-html');
-      expect(htmlContent.props.children).toContain('background-color: #F9FAFB');
+      expect(htmlContent.props.children).toContain('background-color: transparent');
     });
   });
 
@@ -82,7 +82,7 @@ describe('HtmlRenderer (native)', () => {
       render(<HtmlRenderer html="<p>Dark BG</p>" />);
 
       const htmlContent = screen.getByTestId('webview-html');
-      expect(htmlContent.props.children).toContain('background-color: #374151');
+      expect(htmlContent.props.children).toContain('background-color: transparent');
     });
 
     it('should allow overriding colors in dark mode', () => {

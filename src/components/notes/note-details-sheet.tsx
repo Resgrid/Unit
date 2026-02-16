@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import { HtmlRenderer } from '@/components/ui/html-renderer';
-
 import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/store';
@@ -65,10 +64,7 @@ export const NoteDetailsSheet: React.FC = () => {
           <VStack space="md" className="flex-1">
             {/* Note content */}
             <Box className="w-full flex-1 rounded-lg bg-gray-50 p-1 dark:bg-gray-700">
-              <HtmlRenderer
-                html={selectedNote.Body}
-                style={StyleSheet.flatten([styles.container, { height: 120 }])}
-              />
+              <HtmlRenderer html={selectedNote?.Body ?? ''} style={StyleSheet.flatten([styles.container, { height: 120 }])} />
             </Box>
 
             <Divider />

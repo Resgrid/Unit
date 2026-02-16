@@ -2,10 +2,9 @@ import { AlertTriangle, MapPin, Phone } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
 
-import { HtmlRenderer } from '@/components/ui/html-renderer';
-
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
+import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
@@ -102,11 +101,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
       {/* Nature of Call */}
       {call.Nature && (
         <Box className="mt-4 rounded-lg bg-white/50 p-3">
-          <HtmlRenderer
-            html={call.Nature}
-            style={StyleSheet.flatten([styles.container, { height: 80 }])}
-            textColor={textColor}
-          />
+          <HtmlRenderer html={call.Nature} style={StyleSheet.flatten([styles.container, { height: 80 }])} textColor={textColor} />
         </Box>
       )}
     </Box>
