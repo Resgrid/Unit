@@ -37,7 +37,17 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
 
   return (
     <Box style={StyleSheet.flatten([styles.container, { height }])}>
-      <Mapbox.MapView style={StyleSheet.flatten([styles.map, { height }])} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true}>
+      <Mapbox.MapView
+        style={StyleSheet.flatten([styles.map, { height }])}
+        styleURL={mapStyle}
+        logoEnabled={false}
+        attributionEnabled={false}
+        compassEnabled={true}
+        zoomEnabled={true}
+        rotateEnabled={true}
+        initialCenter={[longitude, latitude]}
+        initialZoom={zoom}
+      >
         <Mapbox.Camera zoomLevel={zoom} centerCoordinate={[longitude, latitude]} animationMode="flyTo" animationDuration={1000} />
         {/* Marker pin for the location */}
         <Mapbox.PointAnnotation id="destinationPoint" coordinate={[longitude, latitude]} title={address || 'Location'}>
