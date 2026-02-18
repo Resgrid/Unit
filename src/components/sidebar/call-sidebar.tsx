@@ -4,7 +4,7 @@ import { Check, CircleX, Eye, MapPin } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView } from 'react-native';
 
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/text';
@@ -40,6 +40,14 @@ export const SidebarCallCard = () => {
   });
 
   const handleDeselect = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`${t('calls.confirm_deselect_title')}\n${t('calls.confirm_deselect_message')}`);
+      if (confirmed) {
+        setActiveCall(null);
+      }
+      return;
+    }
+
     Alert.alert(
       t('calls.confirm_deselect_title'),
       t('calls.confirm_deselect_message'),
@@ -66,6 +74,14 @@ export const SidebarCallCard = () => {
     return hasCoordinates || hasAddress;
   };
 
+  const showLocationAlert = () => {
+    if (Platform.OS === 'web') {
+      window.alert(`${t('calls.no_location_title')}\n${t('calls.no_location_message')}`);
+    } else {
+      Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+    }
+  };
+
   const handleDirections = async () => {
     if (!activeCall) return;
 
@@ -77,19 +93,19 @@ export const SidebarCallCard = () => {
     if (latitude && longitude) {
       try {
         await openMapsWithDirections(latitude, longitude, address);
-      } catch (error) {
-        Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+      } catch {
+        showLocationAlert();
       }
     } else if (address && address.trim() !== '') {
       // Fall back to address if no coordinates
       try {
         await openMapsWithAddress(address);
-      } catch (error) {
-        Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+      } catch {
+        showLocationAlert();
       }
     } else {
       // No location data available
-      Alert.alert(t('calls.no_location_title'), t('calls.no_location_message'), [{ text: t('common.ok') }]);
+      showLocationAlert();
     }
   };
 
@@ -153,9 +169,8 @@ export const SidebarCallCard = () => {
                       console.error('Failed to handle call selection:', error);
                     });
                   }}
-                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                    activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                  }`}
+                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                    }`}
                   testID={`call-item-${call.CallId}`}
                 >
                   <HStack space="md" className="items-center justify-between">
