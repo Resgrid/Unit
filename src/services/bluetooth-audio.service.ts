@@ -51,6 +51,7 @@ class BluetoothAudioService {
   private monitoringStartedAt: number | null = null;
   private monitoringWatchdogInterval: ReturnType<typeof setInterval> | null = null;
   private readPollingInterval: ReturnType<typeof setInterval> | null = null;
+  private isReadPollingInFlight: boolean = false;
   private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null }[] = [];
   private mediaButtonEventListener: { remove: () => void } | null = null;
   private mediaButtonListeningActive: boolean = false;
@@ -1466,7 +1467,14 @@ class BluetoothAudioService {
         return;
       }
 
-      void this.pollReadCharacteristics(deviceId);
+      if (this.isReadPollingInFlight) {
+        return;
+      }
+
+      this.isReadPollingInFlight = true;
+      void this.pollReadCharacteristics(deviceId).finally(() => {
+        this.isReadPollingInFlight = false;
+      });
     }, 700);
   }
 
@@ -1507,6 +1515,8 @@ class BluetoothAudioService {
       clearInterval(this.readPollingInterval);
       this.readPollingInterval = null;
     }
+
+    this.isReadPollingInFlight = false;
   }
 
   private hasReadCapability(properties: unknown): boolean {

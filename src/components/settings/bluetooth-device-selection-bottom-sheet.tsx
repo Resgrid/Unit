@@ -37,7 +37,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const connectionError = useBluetoothAudioStore((s) => s.connectionError);
   const [hasScanned, setHasScanned] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
-  const preferredDeviceDisplayName = preferredDevice?.id === 'system-audio' ? t('bluetooth.system_audio') : preferredDevice?.name;
+  const preferredDeviceDisplayName = preferredDevice?.id === 'system-audio' ? t('bluetooth.system_audio') : preferredDevice?.name || t('bluetooth.unknown_device');
 
   const startScan = React.useCallback(async () => {
     try {
