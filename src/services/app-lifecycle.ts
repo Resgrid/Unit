@@ -1,6 +1,6 @@
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { useLogger } from '@/lib/logging';
+import { logger } from '@/lib/logging';
 import { useAppLifecycleStore } from '@/stores/app/app-lifecycle';
 
 class AppLifecycleService {
@@ -25,7 +25,7 @@ class AppLifecycleService {
   private handleAppStateChange = (nextAppState: AppStateStatus): void => {
     const currentState = useAppLifecycleStore.getState().appState;
 
-    useLogger().info({
+    logger.info({
       message: 'App state changed',
       context: {
         from: currentState,

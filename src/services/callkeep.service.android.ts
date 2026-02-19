@@ -323,7 +323,6 @@ export class CallKeepService {
     }
 
     if (now < this.muteEventStormEndTime) {
-      this.muteEventStormEndTime = now + 800;
       logger.debug({
         message: 'Ignored CallKeep mute state change (storm cooldown, Android)',
         context: { muted, callUUID, stormEndsAt: this.muteEventStormEndTime },

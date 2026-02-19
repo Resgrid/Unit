@@ -244,4 +244,42 @@ describe('BluetoothAudioService Refactoring', () => {
       expect(legacyStore.setMicrophoneEnabled).toHaveBeenCalledWith(true);
     });
   });
+
+  describe('Capability parsing strictness', () => {
+    it('should reject explicit falsy read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasReadCapability({ Read: false })).toBe(false);
+      expect(service.hasReadCapability({ read: 0 })).toBe(false);
+      expect(service.hasReadCapability({ read: 'false' })).toBe(false);
+    });
+
+    it('should accept explicit truthy read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasReadCapability({ Read: true })).toBe(true);
+      expect(service.hasReadCapability({ read: 1 })).toBe(true);
+      expect(service.hasReadCapability({ read: 'true' })).toBe(true);
+      expect(service.hasReadCapability({ read: '1' })).toBe(true);
+      expect(service.hasReadCapability({ read: 'read' })).toBe(true);
+    });
+
+    it('should reject explicit falsy notify/read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasNotificationOrReadCapability({ Notify: false })).toBe(false);
+      expect(service.hasNotificationOrReadCapability({ indicate: 0 })).toBe(false);
+      expect(service.hasNotificationOrReadCapability({ read: 'false' })).toBe(false);
+    });
+
+    it('should accept explicit truthy notify/read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasNotificationOrReadCapability({ notify: true })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ indicate: 1 })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ read: 'true' })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ read: '1' })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ notify: 'notify' })).toBe(true);
+    });
+  });
 });

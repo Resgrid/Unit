@@ -44,7 +44,6 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
       setHasScanned(true);
       await bluetoothAudioService.startScanning(10000); // 10 second scan
     } catch (error) {
-      setHasScanned(false); // Reset scan state on error
       logger.error({
         message: 'Failed to start Bluetooth scan',
         context: { error },

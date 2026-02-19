@@ -187,34 +187,40 @@ class BluetoothAudioService {
     }
   }
 
+  private addEventListener(listener: { remove: () => void }): void {
+    if (!this.eventListeners.includes(listener)) {
+      this.eventListeners.push(listener);
+    }
+  }
+
+  private removeEventListener(listener: { remove: () => void } | null): void {
+    if (!listener) {
+      return;
+    }
+
+    this.eventListeners = this.eventListeners.filter((registeredListener) => registeredListener !== listener);
+  }
+
   private setupEventListeners(): void {
     // Bluetooth state change listener
-    //const stateListener = DeviceEventEmitter.addListener('BleManagerDidUpdateState', this.handleBluetoothStateChange.bind(this));
     const stateListener = BleManager.onDidUpdateState(this.handleBluetoothStateChange.bind(this));
-    this.eventListeners.push(stateListener);
+    this.addEventListener(stateListener);
 
     // Device disconnection listener
-    //const disconnectListener = DeviceEventEmitter.addListener('BleManagerDisconnectPeripheral', this.handleDeviceDisconnected.bind(this));
     const disconnectListener = BleManager.onDisconnectPeripheral(this.handleDeviceDisconnected.bind(this));
-    this.eventListeners.push(disconnectListener);
+    this.addEventListener(disconnectListener);
 
     // Device discovered listener
-    //const discoverListener = DeviceEventEmitter.addListener('BleManagerDiscoverPeripheral', this.handleDeviceDiscovered.bind(this));
     const discoverListener = BleManager.onDiscoverPeripheral(this.handleDeviceDiscovered.bind(this));
-    this.eventListeners.push(discoverListener);
+    this.addEventListener(discoverListener);
 
     // Characteristic value update listener
-    //const valueUpdateListener = DeviceEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.handleCharacteristicValueUpdate.bind(this));
     const valueUpdateListener = BleManager.onDidUpdateValueForCharacteristic(this.handleCharacteristicValueUpdate.bind(this));
-    this.eventListeners.push(valueUpdateListener);
-
-    const legacyValueUpdateListener = DeviceEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.handleCharacteristicValueUpdate.bind(this));
-    this.eventListeners.push(legacyValueUpdateListener);
+    this.addEventListener(valueUpdateListener);
 
     // Stop scan listener
-    //const stopScanListener = DeviceEventEmitter.addListener('BleManagerStopScan', this.handleScanStopped.bind(this));
     const stopScanListener = BleManager.onStopScan(this.handleScanStopped.bind(this));
-    this.eventListeners.push(stopScanListener);
+    this.addEventListener(stopScanListener);
   }
 
   private handleBluetoothStateChange(args: { state: BleState }): void {
@@ -1126,11 +1132,12 @@ class BluetoothAudioService {
     }
 
     this.mediaButtonEventListener = DeviceEventEmitter.addListener('onMediaButtonEvent', this.handleMediaButtonFallbackEvent.bind(this));
-    this.eventListeners.push(this.mediaButtonEventListener);
+    this.addEventListener(this.mediaButtonEventListener);
   }
 
   private stopMediaButtonFallbackMonitoring(): void {
     if (this.mediaButtonEventListener) {
+      this.removeEventListener(this.mediaButtonEventListener);
       this.mediaButtonEventListener.remove();
       this.mediaButtonEventListener = null;
     }
@@ -1522,7 +1529,7 @@ class BluetoothAudioService {
           return false;
         }
 
-        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1' || normalizedValue.length > 0;
+        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1';
       });
     }
 
@@ -1558,7 +1565,7 @@ class BluetoothAudioService {
           return false;
         }
 
-        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1' || normalizedValue.length > 0;
+        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1';
       });
     }
 

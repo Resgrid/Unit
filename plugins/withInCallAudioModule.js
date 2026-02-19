@@ -115,9 +115,18 @@ class InCallAudioModule(reactContext: ReactApplicationContext) : ReactContextBas
           when (normalizedRoute) {
             "bluetooth" -> {
               audioManager.isSpeakerphoneOn = false
+              if (!audioManager.isBluetoothScoAvailableOffCall) {
+                audioManager.isBluetoothScoOn = false
+                promise.reject("BLUETOOTH_SCO_UNAVAILABLE", "Bluetooth SCO is not available off call")
+                return
+              }
+
+              audioManager.startBluetoothSco()
               audioManager.isBluetoothScoOn = true
-              if (audioManager.isBluetoothScoAvailableOffCall) {
-                audioManager.startBluetoothSco()
+
+              if (!audioManager.isBluetoothScoOn) {
+                promise.reject("BLUETOOTH_SCO_START_FAILED", "Failed to start Bluetooth SCO")
+                return
               }
             }
 
