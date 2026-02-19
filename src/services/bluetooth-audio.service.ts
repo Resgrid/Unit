@@ -58,6 +58,7 @@ class BluetoothAudioService {
   private pttPressActive: boolean = false;
   private pttReleaseFallbackTimeout: ReturnType<typeof setTimeout> | null = null;
   private micApplyRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private retryMicEnabled: boolean | null = null;
   private pendingMicEnabled: boolean | null = null;
   private isApplyingMicState: boolean = false;
 
@@ -1218,6 +1219,8 @@ class BluetoothAudioService {
   private startMonitoringWatchdog(deviceId: string): void {
     this.stopMonitoringWatchdog();
 
+    const watchdogRecoveryThresholdMs = 12000;
+
     this.monitoringWatchdogInterval = setInterval(() => {
       if (!this.connectedDevice || this.connectedDevice.id !== deviceId) {
         this.stopMonitoringWatchdog();
@@ -1233,6 +1236,14 @@ class BluetoothAudioService {
       if (!this.monitoringStartedAt) {
         return;
       }
+
+      const monitoringDurationMs = Date.now() - this.monitoringStartedAt;
+      if (monitoringDurationMs < watchdogRecoveryThresholdMs) {
+        return;
+      }
+
+      this.monitoringStartedAt = Date.now();
+      this.ensurePttInputMonitoring('watchdog');
     }, 4000);
   }
 
@@ -2116,7 +2127,7 @@ class BluetoothAudioService {
   }
 
   private scheduleMicApplyRetry(enabled: boolean): void {
-    this.pendingMicEnabled = enabled;
+    this.retryMicEnabled = enabled;
 
     if (this.micApplyRetryTimeout) {
       return;
@@ -2125,11 +2136,13 @@ class BluetoothAudioService {
     this.micApplyRetryTimeout = setTimeout(() => {
       this.micApplyRetryTimeout = null;
 
-      const pendingEnabled = this.pendingMicEnabled;
+      const pendingEnabled = this.retryMicEnabled;
+      this.retryMicEnabled = null;
       if (pendingEnabled === null) {
         return;
       }
 
+      this.pendingMicEnabled = pendingEnabled;
       this.requestMicrophoneState(pendingEnabled);
     }, 160);
   }
@@ -2139,6 +2152,8 @@ class BluetoothAudioService {
       clearTimeout(this.micApplyRetryTimeout);
       this.micApplyRetryTimeout = null;
     }
+
+    this.retryMicEnabled = null;
   }
 
   private requestMicrophoneState(enabled: boolean): void {
@@ -2301,6 +2316,7 @@ class BluetoothAudioService {
       this.pttPressActive = false;
       this.clearPttReleaseFallback();
       this.clearMicApplyRetry();
+      this.retryMicEnabled = null;
       this.pendingMicEnabled = null;
       this.stopMonitoringWatchdog();
       this.stopReadPollingFallback();
@@ -2319,6 +2335,7 @@ class BluetoothAudioService {
     this.pttPressActive = false;
     this.clearPttReleaseFallback();
     this.clearMicApplyRetry();
+    this.retryMicEnabled = null;
     this.pendingMicEnabled = null;
     this.stopMonitoringWatchdog();
     this.stopReadPollingFallback();
@@ -2401,6 +2418,7 @@ class BluetoothAudioService {
     useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
     this.clearPttReleaseFallback();
     this.clearMicApplyRetry();
+    this.retryMicEnabled = null;
     this.pendingMicEnabled = null;
     this.stopMonitoringWatchdog();
     this.stopReadPollingFallback();
@@ -2453,6 +2471,7 @@ class BluetoothAudioService {
       store.setIsHeadsetButtonMonitoring(false);
       this.clearPttReleaseFallback();
       this.clearMicApplyRetry();
+      this.retryMicEnabled = null;
       this.pendingMicEnabled = null;
       this.stopMonitoringWatchdog();
       this.stopReadPollingFallback();
