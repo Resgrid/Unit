@@ -6,6 +6,14 @@ import { useAnalytics } from '@/hooks/use-analytics';
 
 // Mock dependencies
 jest.mock('@/hooks/use-analytics');
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,

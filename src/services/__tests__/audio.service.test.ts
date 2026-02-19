@@ -138,6 +138,12 @@ describe('AudioService', () => {
 
     it('should load all audio files', () => {
       expect(mockSoundCreateAsync).toHaveBeenCalledTimes(5);
+
+      expect(mockSoundCreateAsync).toHaveBeenNthCalledWith(1, 'mocked-start-transmitting-sound');
+      expect(mockSoundCreateAsync).toHaveBeenNthCalledWith(2, 'mocked-stop-transmitting-sound');
+      expect(mockSoundCreateAsync).toHaveBeenNthCalledWith(3, 'mocked-connected-device-sound');
+      expect(mockSoundCreateAsync).toHaveBeenNthCalledWith(4, 'mocked-connect-to-audio-room-sound');
+      expect(mockSoundCreateAsync).toHaveBeenNthCalledWith(5, 'mocked-disconnected-from-audio-room-sound');
     });
   });
 

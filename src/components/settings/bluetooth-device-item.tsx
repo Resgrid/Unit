@@ -1,4 +1,4 @@
-import { BluetoothIcon, ChevronRightIcon } from 'lucide-react-native';
+import { ChevronRightIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -20,6 +20,9 @@ export const BluetoothDeviceItem = () => {
 
   const deviceDisplayName = React.useMemo(() => {
     if (preferredDevice) {
+      if (preferredDevice.id === 'system-audio') {
+        return t('bluetooth.system_audio');
+      }
       return preferredDevice.name;
     }
     return t('bluetooth.no_device_selected');

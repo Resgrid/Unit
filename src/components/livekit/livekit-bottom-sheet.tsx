@@ -6,7 +6,6 @@ import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type DepartmentVoiceChannelResultData } from '@/models/v4/voice/departmentVoiceResultData';
-import { audioService } from '@/services/audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 
 import { Card } from '../../components/ui/card';
@@ -35,6 +34,9 @@ export const LiveKitBottomSheet = () => {
   const isConnected = useLiveKitStore((s) => s.isConnected);
   const isConnecting = useLiveKitStore((s) => s.isConnecting);
   const isTalking = useLiveKitStore((s) => s.isTalking);
+  const isMicrophoneEnabled = useLiveKitStore((s) => s.isMicrophoneEnabled);
+  const setMicrophoneEnabled = useLiveKitStore((s) => s.setMicrophoneEnabled);
+  const lastLocalMuteChangeTimestamp = useLiveKitStore((s) => s.lastLocalMuteChangeTimestamp);
 
   const selectedAudioDevices = useBluetoothAudioStore((s) => s.selectedAudioDevices);
   const { colorScheme } = useColorScheme();
@@ -77,11 +79,8 @@ export const LiveKitBottomSheet = () => {
 
   // Sync mute state with LiveKit room
   useEffect(() => {
-    if (currentRoom?.localParticipant) {
-      const micEnabled = currentRoom.localParticipant.isMicrophoneEnabled;
-      setIsMuted(!micEnabled);
-    }
-  }, [currentRoom?.localParticipant, currentRoom?.localParticipant?.isMicrophoneEnabled]);
+    setIsMuted(!isMicrophoneEnabled);
+  }, [isMicrophoneEnabled, lastLocalMuteChangeTimestamp]);
 
   useEffect(() => {
     // If we're showing the sheet, make sure we have the latest rooms
@@ -135,25 +134,11 @@ export const LiveKitBottomSheet = () => {
   );
 
   const handleMuteToggle = useCallback(async () => {
-    if (currentRoom?.localParticipant) {
-      const newMicEnabled = isMuted; // If currently muted, enable mic
-      try {
-        await currentRoom.localParticipant.setMicrophoneEnabled(newMicEnabled);
-        setIsMuted(!newMicEnabled);
-
-        // Play appropriate sound based on mute state
-        if (newMicEnabled) {
-          // Mic is being unmuted
-          await audioService.playStartTransmittingSound();
-        } else {
-          // Mic is being muted
-          await audioService.playStopTransmittingSound();
-        }
-      } catch (error) {
-        console.error('Failed to toggle microphone:', error);
-      }
+    if (isConnected) {
+      const newMicEnabled = isMuted;
+      await setMicrophoneEnabled(newMicEnabled);
     }
-  }, [currentRoom, isMuted]);
+  }, [isConnected, isMuted, setMicrophoneEnabled]);
 
   const handleDisconnect = useCallback(() => {
     disconnectFromRoom();

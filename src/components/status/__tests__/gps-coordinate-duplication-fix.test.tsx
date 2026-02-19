@@ -28,6 +28,15 @@ jest.mock('@/stores/app/location-store', () => ({
   useLocationStore: jest.fn(),
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 // Get the mocked functions
 const { saveUnitStatus: mockSaveUnitStatus } = jest.requireMock('@/api/units/unitStatuses');
 const mockUseLocationStore = useLocationStore as jest.MockedFunction<any>;

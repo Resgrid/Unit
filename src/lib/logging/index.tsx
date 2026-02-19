@@ -8,6 +8,7 @@ import type { LogEntry, Logger, LogLevel } from './types';
 // Setting async: false on web prevents this. Severity stays 'debug' in dev
 // on all platforms so console output is visible for debugging.
 const isWeb = Platform.OS === 'web';
+const isJest = typeof process !== 'undefined' && typeof process.env?.JEST_WORKER_ID !== 'undefined';
 
 const config = {
   levels: {
@@ -26,12 +27,12 @@ const config = {
       error: 'redBright',
     },
   },
-  async: !isWeb,
+  async: !isWeb && !isJest,
   dateFormat: 'time',
   printLevel: true,
   printDate: true,
   fixedExtLvlLength: false,
-  enabled: true,
+  enabled: !isJest,
 };
 
 class LogService {

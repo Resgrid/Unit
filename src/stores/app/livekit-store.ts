@@ -11,6 +11,7 @@ import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../a
 import { logger } from '../../lib/logging';
 import { type DepartmentVoiceChannelResultData } from '../../models/v4/voice/departmentVoiceResultData';
 import { audioService } from '../../services/audio.service';
+import { bluetoothAudioService } from '../../services/bluetooth-audio.service';
 import { callKeepService } from '../../services/callkeep.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
@@ -20,11 +21,31 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
   if (Platform.OS === 'web') return;
 
   try {
+    const normalizedDeviceType: 'bluetooth' | 'speaker' | 'earpiece' = deviceType === 'default' ? 'earpiece' : deviceType;
+
     if (Platform.OS === 'android') {
       logger.info({
         message: 'Applying Android audio routing',
-        context: { deviceType },
+        context: { deviceType: normalizedDeviceType },
       });
+
+      const { NativeModules } = require('react-native');
+      const inCallAudioModule = NativeModules?.InCallAudioModule;
+
+      if (inCallAudioModule?.setAudioRoute) {
+        try {
+          await inCallAudioModule.setAudioRoute(normalizedDeviceType);
+          logger.debug({
+            message: 'Applied Android route via InCallAudioModule',
+            context: { deviceType: normalizedDeviceType },
+          });
+        } catch (routeError) {
+          logger.warn({
+            message: 'Failed to apply Android route via InCallAudioModule, falling back to Audio.setAudioModeAsync',
+            context: { deviceType: normalizedDeviceType, error: routeError },
+          });
+        }
+      }
 
       // On Android, we use RTCAudioSession for precise control
       // First, ensure the audio session is configured correctly
@@ -34,7 +55,7 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
         playsInSilentModeIOS: true,
         shouldDuckAndroid: false,
         // For speaker, we want false (speaker). For others, simple routing.
-        playThroughEarpieceAndroid: deviceType !== 'speaker',
+        playThroughEarpieceAndroid: normalizedDeviceType !== 'speaker',
         interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
       });
 
@@ -52,6 +73,7 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
       */
       logger.info({
         message: 'Android audio routing applied via Audio.setAudioModeAsync',
+        context: { deviceType: normalizedDeviceType },
       });
     } else {
       // iOS handling (Expo AV is usually sufficient, but CallKeep handles the session)
@@ -133,6 +155,7 @@ interface LiveKitState {
   currentRoom: Room | null;
   currentRoomInfo: DepartmentVoiceChannelResultData | null;
   isTalking: boolean;
+  isMicrophoneEnabled: boolean;
   isVoiceEnabled: boolean;
   voipServerWebsocketSslAddress: string;
   callerIdName: string;
@@ -170,6 +193,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   currentRoom: null,
   currentRoomInfo: null,
   isTalking: false,
+  isMicrophoneEnabled: false,
   availableRooms: [],
   isBottomSheetVisible: false,
   isVoiceEnabled: false,
@@ -199,13 +223,21 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     try {
       const currentMicEnabled = currentRoom.localParticipant.isMicrophoneEnabled;
       // Skip if already in the desired state
-      if (enabled && currentMicEnabled) return;
-      if (!enabled && !currentMicEnabled) return;
-
-      // Update timestamp BEFORE changing state to ensure debounce logic catches it
-      set({ lastLocalMuteChangeTimestamp: Date.now() });
+      if (enabled && currentMicEnabled) {
+        set({ isMicrophoneEnabled: true });
+        return;
+      }
+      if (!enabled && !currentMicEnabled) {
+        set({ isMicrophoneEnabled: false });
+        return;
+      }
 
       await currentRoom.localParticipant.setMicrophoneEnabled(enabled);
+
+      set({
+        isMicrophoneEnabled: enabled,
+        lastLocalMuteChangeTimestamp: Date.now(),
+      });
 
       logger.info({
         message: 'Microphone state set via store',
@@ -338,6 +370,8 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
   connectToRoom: async (roomInfo, token) => {
     try {
+      bluetoothAudioService.ensurePttInputMonitoring('livekit-store connectToRoom start');
+
       // Request permissions before connecting (critical for Android foreground service)
       // On Android 14+, the foreground service with microphone type requires RECORD_AUDIO
       // permission to be granted BEFORE the service starts
@@ -397,6 +431,15 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       await room.localParticipant.setMicrophoneEnabled(false);
       await room.localParticipant.setCameraEnabled(false);
 
+      set({
+        currentRoom: room,
+        currentRoomInfo: roomInfo,
+        isConnected: true,
+        isConnecting: false,
+        isMicrophoneEnabled: false,
+        lastLocalMuteChangeTimestamp: Date.now(),
+      });
+
       // Setup CallKeep mute sync
       callKeepService.setMuteStateCallback(async (muted) => {
         logger.info({
@@ -414,7 +457,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           // if isMicrophoneEnabled (false) and muted (false) -> mismatch, we must unmute.
 
           // Actually effectively: setMicrophoneEnabled(!muted)
-          await room.localParticipant.setMicrophoneEnabled(!muted);
+          const nextMicEnabled = !muted;
+          await room.localParticipant.setMicrophoneEnabled(nextMicEnabled);
+
+          set({
+            isMicrophoneEnabled: nextMicEnabled,
+            lastLocalMuteChangeTimestamp: Date.now(),
+          });
 
           // Play sound
           if (!muted) {
@@ -523,17 +572,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // Don't fail the connection if CallKeep fails
       }
 
-      set({
-        currentRoom: room,
-        currentRoomInfo: roomInfo,
-        isConnected: true,
-        isConnecting: false,
-      });
+      bluetoothAudioService.ensurePttInputMonitoring('livekit-store connectToRoom connected');
     } catch (error) {
       logger.error({
         message: 'Failed to connect to room',
         context: { error },
       });
+
       set({ isConnecting: false });
     }
   },
@@ -577,6 +622,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         currentRoom: null,
         currentRoomInfo: null,
         isConnected: false,
+        isMicrophoneEnabled: false,
         isTalking: false,
       });
     }

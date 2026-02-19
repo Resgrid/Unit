@@ -36,6 +36,7 @@ jest.mock('react-native-ble-manager', () => ({
     getDiscoveredPeripherals: jest.fn(),
     removeAllListeners: jest.fn(),
     removePeripheral: jest.fn(),
+    read: jest.fn(),
   },
 }));
 
@@ -45,9 +46,33 @@ jest.mock('@/lib/storage', () => ({
   removeItem: jest.fn(),
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 jest.mock('@/services/audio.service', () => ({
   audioService: {
     playConnectedDeviceSound: jest.fn(),
+    playStartTransmittingSound: jest.fn(),
+    playStopTransmittingSound: jest.fn(),
+  },
+}));
+
+jest.mock('@/features/livekit-call/store/useLiveKitCallStore', () => ({
+  useLiveKitCallStore: {
+    getState: jest.fn(() => ({
+      isConnected: false,
+      roomInstance: null,
+      localParticipant: null,
+      actions: {
+        setMicrophoneEnabled: jest.fn(),
+      },
+    })),
   },
 }));
 
@@ -68,6 +93,10 @@ import { bluetoothAudioService } from '../bluetooth-audio.service';
 describe('BluetoothAudioService Refactoring', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    bluetoothAudioService.destroy();
   });
 
   it('should be defined and accessible', () => {
@@ -193,6 +222,96 @@ describe('BluetoothAudioService Refactoring', () => {
 
       await service.setMicrophoneEnabled(false);
       expect(storeMock.setMicrophoneEnabled).toHaveBeenCalledWith(false);
+    });
+
+    it('should fall back to legacy livekitStore when feature store is connected but has no local participant', async () => {
+      const service = bluetoothAudioService as any;
+      const featureStore = require('@/features/livekit-call/store/useLiveKitCallStore').useLiveKitCallStore;
+      const mockFeatureSetMicrophoneEnabled = jest.fn();
+
+      featureStore.getState.mockReturnValue({
+        isConnected: true,
+        roomInstance: null,
+        localParticipant: null,
+        actions: {
+          setMicrophoneEnabled: mockFeatureSetMicrophoneEnabled,
+        },
+      });
+
+      await service.setMicrophoneEnabled(true);
+
+      const legacyStore = require('@/stores/app/livekit-store').useLiveKitStore.getState();
+      expect(mockFeatureSetMicrophoneEnabled).not.toHaveBeenCalled();
+      expect(legacyStore.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('Capability parsing strictness', () => {
+    it('should reject explicit falsy read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasReadCapability({ Read: false })).toBe(false);
+      expect(service.hasReadCapability({ read: 0 })).toBe(false);
+      expect(service.hasReadCapability({ read: 'false' })).toBe(false);
+    });
+
+    it('should accept explicit truthy read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasReadCapability({ Read: true })).toBe(true);
+      expect(service.hasReadCapability({ read: 1 })).toBe(true);
+      expect(service.hasReadCapability({ read: 'true' })).toBe(true);
+      expect(service.hasReadCapability({ read: '1' })).toBe(true);
+      expect(service.hasReadCapability({ read: 'read' })).toBe(true);
+    });
+
+    it('should reject explicit falsy notify/read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasNotificationOrReadCapability({ Notify: false })).toBe(false);
+      expect(service.hasNotificationOrReadCapability({ indicate: 0 })).toBe(false);
+      expect(service.hasNotificationOrReadCapability({ read: 'false' })).toBe(false);
+    });
+
+    it('should accept explicit truthy notify/read capability values', () => {
+      const service = bluetoothAudioService as any;
+
+      expect(service.hasNotificationOrReadCapability({ notify: true })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ indicate: 1 })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ read: 'true' })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ read: '1' })).toBe(true);
+      expect(service.hasNotificationOrReadCapability({ notify: 'notify' })).toBe(true);
+    });
+  });
+
+  describe('Read polling baseline handling', () => {
+    it('should prime first read and only dispatch after value changes', async () => {
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+      const mockHandleButtonEvent = jest.fn();
+
+      service.handleButtonEventFromCharacteristic = mockHandleButtonEvent;
+      service.monitoredReadCharacteristics = [
+        {
+          serviceUuid: 'service-1',
+          characteristicUuid: 'characteristic-1',
+          lastHexValue: null,
+        },
+      ];
+
+      bleManagerMock.read = jest.fn().mockResolvedValueOnce([0x00]).mockResolvedValueOnce([0x01]).mockResolvedValueOnce([0x01]);
+
+      await service.pollReadCharacteristics('device-1');
+      expect(service.monitoredReadCharacteristics[0].lastHexValue).toBe('00');
+      expect(mockHandleButtonEvent).not.toHaveBeenCalled();
+
+      await service.pollReadCharacteristics('device-1');
+      expect(service.monitoredReadCharacteristics[0].lastHexValue).toBe('01');
+      expect(mockHandleButtonEvent).toHaveBeenCalledTimes(1);
+      expect(mockHandleButtonEvent).toHaveBeenCalledWith('device-1', 'service-1', 'characteristic-1', 'AQ==');
+
+      await service.pollReadCharacteristics('device-1');
+      expect(mockHandleButtonEvent).toHaveBeenCalledTimes(1);
     });
   });
 });

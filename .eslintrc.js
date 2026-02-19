@@ -44,6 +44,7 @@ module.exports = {
       files: ['src/translations/*.json'],
       extends: ['plugin:i18n-json/recommended'],
       rules: {
+        '@typescript-eslint/consistent-type-imports': 'off',
         'i18n-json/valid-message-syntax': [
           2,
           {

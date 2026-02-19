@@ -1,8 +1,9 @@
 import { Buffer } from 'buffer';
 // @ts-ignore - callkeep service might not be resolvable in all contexts without barrel file updates
-import { Alert, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
+import { Alert, DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, type BleState, type Peripheral, type PeripheralInfo } from 'react-native-ble-manager';
 
+import { useLiveKitCallStore } from '@/features/livekit-call/store/useLiveKitCallStore';
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { callKeepService } from '@/services/callkeep.service';
@@ -47,6 +48,19 @@ class BluetoothAudioService {
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
   private readonly isWeb = Platform.OS === 'web';
+  private monitoringStartedAt: number | null = null;
+  private monitoringWatchdogInterval: ReturnType<typeof setInterval> | null = null;
+  private readPollingInterval: ReturnType<typeof setInterval> | null = null;
+  private isReadPollingInFlight: boolean = false;
+  private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null }[] = [];
+  private mediaButtonEventListener: { remove: () => void } | null = null;
+  private mediaButtonListeningActive: boolean = false;
+  private pttPressActive: boolean = false;
+  private pttReleaseFallbackTimeout: ReturnType<typeof setTimeout> | null = null;
+  private micApplyRetryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private retryMicEnabled: boolean | null = null;
+  private pendingMicEnabled: boolean | null = null;
+  private isApplyingMicState: boolean = false;
 
   static getInstance(): BluetoothAudioService {
     if (!BluetoothAudioService.instance) {
@@ -73,10 +87,6 @@ class BluetoothAudioService {
     }
 
     try {
-      logger.info({
-        message: 'Initializing Bluetooth Audio Service',
-      });
-
       // Initialize BLE Manager
       await BleManager.start({ showAlert: false });
       this.setupEventListeners();
@@ -179,31 +189,40 @@ class BluetoothAudioService {
     }
   }
 
+  private addEventListener(listener: { remove: () => void }): void {
+    if (!this.eventListeners.includes(listener)) {
+      this.eventListeners.push(listener);
+    }
+  }
+
+  private removeEventListener(listener: { remove: () => void } | null): void {
+    if (!listener) {
+      return;
+    }
+
+    this.eventListeners = this.eventListeners.filter((registeredListener) => registeredListener !== listener);
+  }
+
   private setupEventListeners(): void {
     // Bluetooth state change listener
-    //const stateListener = DeviceEventEmitter.addListener('BleManagerDidUpdateState', this.handleBluetoothStateChange.bind(this));
     const stateListener = BleManager.onDidUpdateState(this.handleBluetoothStateChange.bind(this));
-    this.eventListeners.push(stateListener);
+    this.addEventListener(stateListener);
 
     // Device disconnection listener
-    //const disconnectListener = DeviceEventEmitter.addListener('BleManagerDisconnectPeripheral', this.handleDeviceDisconnected.bind(this));
     const disconnectListener = BleManager.onDisconnectPeripheral(this.handleDeviceDisconnected.bind(this));
-    this.eventListeners.push(disconnectListener);
+    this.addEventListener(disconnectListener);
 
     // Device discovered listener
-    //const discoverListener = DeviceEventEmitter.addListener('BleManagerDiscoverPeripheral', this.handleDeviceDiscovered.bind(this));
     const discoverListener = BleManager.onDiscoverPeripheral(this.handleDeviceDiscovered.bind(this));
-    this.eventListeners.push(discoverListener);
+    this.addEventListener(discoverListener);
 
     // Characteristic value update listener
-    //const valueUpdateListener = DeviceEventEmitter.addListener('BleManagerDidUpdateValueForCharacteristic', this.handleCharacteristicValueUpdate.bind(this));
     const valueUpdateListener = BleManager.onDidUpdateValueForCharacteristic(this.handleCharacteristicValueUpdate.bind(this));
-    this.eventListeners.push(valueUpdateListener);
+    this.addEventListener(valueUpdateListener);
 
     // Stop scan listener
-    //const stopScanListener = DeviceEventEmitter.addListener('BleManagerStopScan', this.handleScanStopped.bind(this));
     const stopScanListener = BleManager.onStopScan(this.handleScanStopped.bind(this));
-    this.eventListeners.push(stopScanListener);
+    this.addEventListener(stopScanListener);
   }
 
   private handleBluetoothStateChange(args: { state: BleState }): void {
@@ -277,19 +296,12 @@ class BluetoothAudioService {
     // Convert the value array to a base64 string to match the old API
     const value = Buffer.from(data.value).toString('base64');
 
-    logger.debug({
-      message: '[DEBUG_VALUE_UPDATE] Characteristic value updated',
-      context: {
-        peripheral: data.peripheral,
-        service: data.service,
-        characteristic: data.characteristic,
-        valueHex: Buffer.from(data.value).toString('hex'),
-        valueBase64: value,
-      },
-    });
+    if (this.connectedDevice && data.peripheral !== this.connectedDevice.id) {
+      return;
+    }
 
     // Handle button events based on service and characteristic UUIDs
-    this.handleButtonEventFromCharacteristic(data.service, data.characteristic, value);
+    this.handleButtonEventFromCharacteristic(data.peripheral, data.service, data.characteristic, value);
   }
 
   private handleScanStopped(): void {
@@ -299,7 +311,7 @@ class BluetoothAudioService {
     });
   }
 
-  private handleButtonEventFromCharacteristic(serviceUuid: string, characteristicUuid: string, value: string): void {
+  private handleButtonEventFromCharacteristic(peripheralId: string, serviceUuid: string, characteristicUuid: string, value: string): void {
     // Route to appropriate handler based on service/characteristic
     if (this.areUuidsEqual(serviceUuid, AINA_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, AINA_HEADSET_SVC_PROP)) {
       this.handleAinaButtonEvent(value);
@@ -309,6 +321,17 @@ class BluetoothAudioService {
       this.handleHYSButtonEvent(value);
     } else if (BUTTON_CONTROL_UUIDS.some((uuid) => this.areUuidsEqual(characteristicUuid, uuid))) {
       this.handleGenericButtonEvent(value);
+    } else if (this.connectedDevice && this.connectedDevice.id === peripheralId && this.getDeviceType(this.connectedDevice) === 'specialized' && this.isLikelyButtonCharacteristic(serviceUuid, characteristicUuid)) {
+      this.handleGenericButtonEvent(value);
+    } else if (this.connectedDevice && this.connectedDevice.id === peripheralId && this.getDeviceType(this.connectedDevice) === 'specialized') {
+      logger.debug({
+        message: 'Ignoring characteristic update for specialized device (not identified as button control)',
+        context: {
+          peripheralId,
+          serviceUuid,
+          characteristicUuid,
+        },
+      });
     }
   }
 
@@ -965,6 +988,9 @@ class BluetoothAudioService {
       // Set up button event monitoring with peripheral info
       await this.setupButtonEventMonitoring(device, peripheralInfo);
 
+      // Start media-button fallback monitoring for Android headsets/earbuds/PTT devices
+      this.startMediaButtonFallbackMonitoring();
+
       // Integrate with LiveKit audio routing
       await this.setupLiveKitAudioRouting(device);
 
@@ -1069,22 +1095,171 @@ class BluetoothAudioService {
 
   private async setupButtonEventMonitoring(device: Device, peripheralInfo: PeripheralInfo): Promise<void> {
     try {
-      logger.info({
-        message: 'Setting up button event monitoring',
-        context: {
-          deviceId: device.id,
-          deviceName: device.name,
-          availableServices: peripheralInfo?.services?.map((s: any) => s.uuid) || [],
-        },
-      });
+      useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+      this.monitoringStartedAt = Date.now();
 
       // Start notifications for known button control characteristics
       await this.startNotificationsForButtonControls(device.id, peripheralInfo);
+
+      this.startMonitoringWatchdog(device.id);
     } catch (error) {
       logger.warn({
         message: 'Could not set up button event monitoring',
         context: { deviceId: device.id, error },
       });
+      useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+      this.stopMonitoringWatchdog();
+    }
+  }
+
+  private startMediaButtonFallbackMonitoring(): void {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    this.stopMediaButtonFallbackMonitoring();
+
+    const module = (NativeModules as { MediaButtonModule?: { startListening?: () => void } }).MediaButtonModule;
+
+    if (module?.startListening) {
+      try {
+        module.startListening();
+        this.mediaButtonListeningActive = true;
+      } catch (error) {
+        logger.debug({
+          message: 'Failed to start Android media-button fallback monitoring',
+          context: { error },
+        });
+      }
+    }
+
+    this.mediaButtonEventListener = DeviceEventEmitter.addListener('onMediaButtonEvent', this.handleMediaButtonFallbackEvent.bind(this));
+    this.addEventListener(this.mediaButtonEventListener);
+  }
+
+  private stopMediaButtonFallbackMonitoring(): void {
+    if (this.mediaButtonEventListener) {
+      this.removeEventListener(this.mediaButtonEventListener);
+      this.mediaButtonEventListener.remove();
+      this.mediaButtonEventListener = null;
+    }
+
+    if (Platform.OS !== 'android') {
+      this.mediaButtonListeningActive = false;
+      return;
+    }
+
+    if (!this.mediaButtonListeningActive) {
+      return;
+    }
+
+    const module = (NativeModules as { MediaButtonModule?: { stopListening?: () => void } }).MediaButtonModule;
+    if (module?.stopListening) {
+      try {
+        module.stopListening();
+      } catch (error) {
+        logger.debug({
+          message: 'Failed to stop Android media-button fallback monitoring',
+          context: { error },
+        });
+      }
+    }
+
+    this.mediaButtonListeningActive = false;
+  }
+
+  private handleMediaButtonFallbackEvent(event: { keyCode?: number; action?: string; timestamp?: number }): void {
+    const { mediaButtonPTTSettings } = useBluetoothAudioStore.getState();
+    if (!mediaButtonPTTSettings.enabled || !mediaButtonPTTSettings.usePlayPauseForPTT) {
+      return;
+    }
+
+    const keyCode = event?.keyCode;
+    const action = (event?.action || '').toUpperCase();
+
+    // KEYCODE_HEADSETHOOK=79, KEYCODE_MEDIA_PLAY_PAUSE=85, KEYCODE_MEDIA_PLAY=126, KEYCODE_MEDIA_PAUSE=127
+    const isPttCapableKey = keyCode === 79 || keyCode === 85 || keyCode === 126 || keyCode === 127;
+    if (!isPttCapableKey) {
+      return;
+    }
+
+    if (mediaButtonPTTSettings.pttMode === 'push_to_talk') {
+      if (action === 'ACTION_DOWN') {
+        this.processButtonEvent(
+          {
+            type: 'press',
+            button: 'ptt_start',
+            timestamp: Date.now(),
+          },
+          'media'
+        );
+      } else if (action === 'ACTION_UP') {
+        this.processButtonEvent(
+          {
+            type: 'press',
+            button: 'ptt_stop',
+            timestamp: Date.now(),
+          },
+          'media'
+        );
+      }
+
+      return;
+    }
+
+    if (action === 'ACTION_DOWN') {
+      this.processButtonEvent({
+        type: 'press',
+        button: 'mute',
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  private startMonitoringWatchdog(deviceId: string): void {
+    this.stopMonitoringWatchdog();
+
+    const watchdogRecoveryThresholdMs = 12000;
+
+    this.monitoringWatchdogInterval = setInterval(() => {
+      if (!this.connectedDevice || this.connectedDevice.id !== deviceId) {
+        this.stopMonitoringWatchdog();
+        return;
+      }
+
+      const monitoring = useBluetoothAudioStore.getState().isHeadsetButtonMonitoring;
+      if (!monitoring) {
+        this.stopMonitoringWatchdog();
+        return;
+      }
+
+      if (!this.monitoringStartedAt) {
+        return;
+      }
+
+      const monitoringDurationMs = Date.now() - this.monitoringStartedAt;
+      if (monitoringDurationMs < watchdogRecoveryThresholdMs) {
+        return;
+      }
+
+      this.monitoringStartedAt = Date.now();
+      this.ensurePttInputMonitoring('watchdog');
+    }, 4000);
+  }
+
+  public ensurePttInputMonitoring(_reason: string): void {
+    if (!this.connectedDevice) {
+      return;
+    }
+
+    this.startMediaButtonFallbackMonitoring();
+    this.startMonitoringWatchdog(this.connectedDevice.id);
+  }
+
+  private stopMonitoringWatchdog(): void {
+    if (this.monitoringWatchdogInterval) {
+      clearInterval(this.monitoringWatchdogInterval);
+      this.monitoringWatchdogInterval = null;
     }
   }
 
@@ -1146,13 +1321,15 @@ class BluetoothAudioService {
   }
 
   private async startNotificationsForButtonControls(deviceId: string, peripheralInfo: PeripheralInfo): Promise<void> {
+    const successfullySubscribed = new Set<string>();
+    this.monitoredReadCharacteristics = [];
+    const isSpecializedDevice = Boolean(this.connectedDevice && this.connectedDevice.id === deviceId && this.getDeviceType(this.connectedDevice) === 'specialized');
+
     // Try to start notifications for known button control service/characteristic combinations
     const buttonControlConfigs = [
       { service: AINA_HEADSET_SERVICE, characteristic: AINA_HEADSET_SVC_PROP },
       { service: B01INRICO_HEADSET_SERVICE, characteristic: B01INRICO_HEADSET_SERVICE_CHAR },
       { service: HYS_HEADSET_SERVICE, characteristic: HYS_HEADSET_SERVICE_CHAR },
-      // Add generic button control UUIDs
-      ...BUTTON_CONTROL_UUIDS.map((uuid) => ({ service: '00001800-0000-1000-8000-00805F9B34FB', characteristic: uuid })), // Generic service
     ];
 
     logger.debug({
@@ -1176,6 +1353,8 @@ class BluetoothAudioService {
         }
 
         await BleManager.startNotification(deviceId, config.service, config.characteristic);
+        successfullySubscribed.add(`${config.service.toUpperCase()}::${config.characteristic.toUpperCase()}`);
+        this.registerReadPollingCharacteristic(config.service, config.characteristic);
         logger.info({
           message: 'Started notifications for button control',
           context: {
@@ -1197,6 +1376,246 @@ class BluetoothAudioService {
         });
       }
     }
+
+    if (peripheralInfo?.characteristics?.length) {
+      for (const characteristic of peripheralInfo.characteristics) {
+        const serviceUuid = characteristic?.service;
+        const characteristicUuid = characteristic?.characteristic;
+
+        if (!serviceUuid || !characteristicUuid) {
+          continue;
+        }
+
+        const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
+        const shouldSubscribe = isSpecializedDevice ? true : this.isLikelyButtonCharacteristic(serviceUuid, characteristicUuid) || this.hasNotificationOrReadCapability(characteristic?.properties);
+
+        if (!shouldSubscribe || successfullySubscribed.has(pairKey)) {
+          continue;
+        }
+
+        try {
+          await BleManager.startNotification(deviceId, serviceUuid, characteristicUuid);
+          successfullySubscribed.add(pairKey);
+
+          if (isSpecializedDevice || this.hasReadCapability(characteristic?.properties)) {
+            this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
+          }
+
+          logger.info({
+            message: 'Started fallback notification subscription for characteristic',
+            context: {
+              deviceId,
+              serviceUuid,
+              characteristicUuid,
+              properties: characteristic?.properties,
+            },
+          });
+        } catch (error) {
+          logger.debug({
+            message: 'Fallback notification subscription failed for characteristic',
+            context: {
+              deviceId,
+              serviceUuid,
+              characteristicUuid,
+              error,
+            },
+          });
+        }
+      }
+    }
+
+    if (isSpecializedDevice && peripheralInfo?.characteristics?.length) {
+      for (const characteristic of peripheralInfo.characteristics) {
+        const serviceUuid = characteristic?.service;
+        const characteristicUuid = characteristic?.characteristic;
+
+        if (!serviceUuid || !characteristicUuid) {
+          continue;
+        }
+
+        const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
+        if (!successfullySubscribed.has(pairKey)) {
+          continue;
+        }
+
+        this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
+      }
+    }
+
+    if (successfullySubscribed.size > 0) {
+      useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(true);
+      this.startReadPollingFallback(deviceId);
+    } else {
+      useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+    }
+  }
+
+  private registerReadPollingCharacteristic(serviceUuid: string, characteristicUuid: string): void {
+    const exists = this.monitoredReadCharacteristics.some((entry) => this.areUuidsEqual(entry.serviceUuid, serviceUuid) && this.areUuidsEqual(entry.characteristicUuid, characteristicUuid));
+
+    if (exists) {
+      return;
+    }
+
+    this.monitoredReadCharacteristics.push({
+      serviceUuid,
+      characteristicUuid,
+      lastHexValue: null,
+    });
+  }
+
+  private startReadPollingFallback(deviceId: string): void {
+    this.stopReadPollingFallback();
+
+    if (this.monitoredReadCharacteristics.length === 0) {
+      return;
+    }
+
+    this.readPollingInterval = setInterval(() => {
+      if (!this.connectedDevice || this.connectedDevice.id !== deviceId) {
+        this.stopReadPollingFallback();
+        return;
+      }
+
+      const monitoring = useBluetoothAudioStore.getState().isHeadsetButtonMonitoring;
+      if (!monitoring) {
+        this.stopReadPollingFallback();
+        return;
+      }
+
+      if (this.isReadPollingInFlight) {
+        return;
+      }
+
+      this.isReadPollingInFlight = true;
+      void this.pollReadCharacteristics(deviceId).finally(() => {
+        this.isReadPollingInFlight = false;
+      });
+    }, 700);
+  }
+
+  private async pollReadCharacteristics(deviceId: string): Promise<void> {
+    for (const entry of this.monitoredReadCharacteristics) {
+      try {
+        const readValue = await BleManager.read(deviceId, entry.serviceUuid, entry.characteristicUuid);
+        const nextHexValue = Buffer.from(readValue).toString('hex');
+
+        if (!nextHexValue || nextHexValue.length === 0) {
+          continue;
+        }
+
+        if (entry.lastHexValue === null) {
+          entry.lastHexValue = nextHexValue;
+          continue;
+        }
+
+        if (entry.lastHexValue === nextHexValue) {
+          continue;
+        }
+
+        entry.lastHexValue = nextHexValue;
+
+        const valueBase64 = Buffer.from(readValue).toString('base64');
+        this.handleButtonEventFromCharacteristic(deviceId, entry.serviceUuid, entry.characteristicUuid, valueBase64);
+      } catch (error) {
+        logger.debug({
+          message: 'Read polling failed for characteristic',
+          context: {
+            deviceId,
+            serviceUuid: entry.serviceUuid,
+            characteristicUuid: entry.characteristicUuid,
+            error,
+          },
+        });
+      }
+    }
+  }
+
+  private stopReadPollingFallback(): void {
+    if (this.readPollingInterval) {
+      clearInterval(this.readPollingInterval);
+      this.readPollingInterval = null;
+    }
+
+    this.isReadPollingInFlight = false;
+  }
+
+  private hasReadCapability(properties: unknown): boolean {
+    if (!properties) {
+      return false;
+    }
+
+    if (Array.isArray(properties)) {
+      return properties.some((property) => String(property).toLowerCase().includes('read'));
+    }
+
+    if (typeof properties === 'object') {
+      const entries = Object.entries(properties as Record<string, unknown>);
+      return entries.some(([key, value]) => {
+        const normalizedKey = key.toLowerCase();
+        const normalizedValue = String(value).toLowerCase();
+        const indicatesRead = normalizedKey.includes('read') || normalizedValue.includes('read');
+
+        if (!indicatesRead) {
+          return false;
+        }
+
+        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1';
+      });
+    }
+
+    return false;
+  }
+
+  private hasNotificationOrReadCapability(properties: unknown): boolean {
+    if (!properties) {
+      return false;
+    }
+
+    if (Array.isArray(properties)) {
+      return properties.some((property) => {
+        const normalized = String(property).toLowerCase();
+        return normalized.includes('notify') || normalized.includes('indicate') || normalized.includes('read');
+      });
+    }
+
+    if (typeof properties === 'object') {
+      const entries = Object.entries(properties as Record<string, unknown>);
+      return entries.some(([key, value]) => {
+        const normalizedKey = key.toLowerCase();
+        const normalizedValue = String(value).toLowerCase();
+        const hasCapabilityToken =
+          normalizedKey.includes('notify') ||
+          normalizedKey.includes('indicate') ||
+          normalizedKey.includes('read') ||
+          normalizedValue.includes('notify') ||
+          normalizedValue.includes('indicate') ||
+          normalizedValue.includes('read');
+
+        if (!hasCapabilityToken) {
+          return false;
+        }
+
+        return value === true || value === 1 || normalizedValue === normalizedKey || normalizedValue === 'true' || normalizedValue === '1';
+      });
+    }
+
+    return false;
+  }
+
+  private isLikelyButtonCharacteristic(serviceUuid: string, characteristicUuid: string): boolean {
+    const normalizedService = serviceUuid.replace(/-/g, '').toUpperCase();
+    const normalizedCharacteristic = characteristicUuid.replace(/-/g, '').toUpperCase();
+
+    const knownServiceMatch = [AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE].some((uuid) => this.areUuidsEqual(serviceUuid, uuid));
+    const knownCharacteristicMatch = [AINA_HEADSET_SVC_PROP, B01INRICO_HEADSET_SERVICE_CHAR, HYS_HEADSET_SERVICE_CHAR, ...BUTTON_CONTROL_UUIDS].some((uuid) => this.areUuidsEqual(characteristicUuid, uuid));
+
+    if (knownServiceMatch || knownCharacteristicMatch) {
+      return true;
+    }
+
+    const heuristicFragments = ['2A4D', '2A4E', '2A4B', 'FFE0', 'FFE1', 'FFE2', '8888', 'BEEF', 'FE59'];
+    return heuristicFragments.some((fragment) => normalizedService.includes(fragment) || normalizedCharacteristic.includes(fragment));
   }
 
   // Remove all the old button monitoring methods as they're replaced by the event-based approach
@@ -1341,25 +1760,7 @@ class BluetoothAudioService {
   private parseB01InricoButtonData(buffer: Buffer): AudioButtonEvent | null {
     if (buffer.length === 0) return null;
 
-    // Log all raw button data for debugging
     const rawHex = buffer.toString('hex');
-    const allBytes = Array.from(buffer)
-      .map((b) => `0x${b.toString(16).padStart(2, '0')}`)
-      .join(', ');
-
-    logger.info({
-      message: 'B01 Inrico raw button data analysis',
-      context: {
-        bufferLength: buffer.length,
-        rawHex,
-        allBytes,
-        firstByte: `0x${buffer[0].toString(16).padStart(2, '0')}`,
-        secondByte: buffer.length > 1 ? `0x${buffer[1].toString(16).padStart(2, '0')}` : 'N/A',
-      },
-    });
-
-    // FORCE LOG COMPATIBILITY
-    console.log(`[PTT_DEBUG] Raw Buffer: ${rawHex} | Bytes: ${allBytes}`);
 
     // B01 Inrico-specific parsing logic
     const byte = buffer[0];
@@ -1593,7 +1994,7 @@ class BluetoothAudioService {
     };
   }
 
-  private processButtonEvent(buttonEvent: AudioButtonEvent): void {
+  private processButtonEvent(buttonEvent: AudioButtonEvent, source: 'ble' | 'media' = 'ble'): void {
     logger.info({
       message: 'Button event processed',
       context: { buttonEvent },
@@ -1608,17 +2009,38 @@ class BluetoothAudioService {
     }
 
     if (buttonEvent.button === 'ptt_start') {
+      if (this.pttPressActive) {
+        if (source === 'media') {
+          this.schedulePttReleaseFallback();
+        }
+        return;
+      }
+
+      this.pttPressActive = true;
+      if (source === 'media') {
+        this.schedulePttReleaseFallback();
+      } else {
+        this.clearPttReleaseFallback();
+      }
+
       // Proactively lock CallKeep events to prevent HFP interactions/spam
       // when we are explicitly handling PTT via SPP/GATT
       callKeepService.ignoreMuteEvents(1000);
-      this.setMicrophoneEnabled(true);
+      this.requestMicrophoneState(true);
       return;
     }
 
     if (buttonEvent.button === 'ptt_stop') {
+      if (!this.pttPressActive) {
+        return;
+      }
+
+      this.pttPressActive = false;
+      this.clearPttReleaseFallback();
+
       // Keep locked for a bit after release to handle trailing events
       callKeepService.ignoreMuteEvents(1000);
-      this.setMicrophoneEnabled(false);
+      this.requestMicrophoneState(false);
       return;
     }
 
@@ -1650,6 +2072,30 @@ class BluetoothAudioService {
 
   private async handleMuteToggle(): Promise<void> {
     try {
+      const featureLiveKitState = useLiveKitCallStore.getState();
+      const featureRoom = featureLiveKitState.roomInstance;
+      const featureLocalParticipant = featureRoom?.localParticipant ?? featureLiveKitState.localParticipant;
+
+      if (featureLiveKitState.isConnected && featureRoom && featureLocalParticipant) {
+        const nextMicEnabled = !featureLocalParticipant.isMicrophoneEnabled;
+        await featureLiveKitState.actions.setMicrophoneEnabled(nextMicEnabled);
+
+        const updatedState = useLiveKitCallStore.getState();
+        const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
+
+        if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === nextMicEnabled) {
+          return;
+        }
+
+        logger.warn({
+          message: 'Feature store microphone toggle did not apply, falling back to legacy store',
+          context: {
+            nextMicEnabled,
+            hasUpdatedParticipant: Boolean(updatedParticipant),
+          },
+        });
+      }
+
       await useLiveKitStore.getState().toggleMicrophone();
     } catch (error) {
       logger.error({
@@ -1659,8 +2105,127 @@ class BluetoothAudioService {
     }
   }
 
+  private schedulePttReleaseFallback(): void {
+    this.clearPttReleaseFallback();
+
+    this.pttReleaseFallbackTimeout = setTimeout(() => {
+      if (!this.pttPressActive) {
+        return;
+      }
+
+      this.pttPressActive = false;
+      callKeepService.ignoreMuteEvents(1000);
+      this.requestMicrophoneState(false);
+    }, 1400);
+  }
+
+  private clearPttReleaseFallback(): void {
+    if (this.pttReleaseFallbackTimeout) {
+      clearTimeout(this.pttReleaseFallbackTimeout);
+      this.pttReleaseFallbackTimeout = null;
+    }
+  }
+
+  private scheduleMicApplyRetry(enabled: boolean): void {
+    this.retryMicEnabled = enabled;
+
+    if (this.micApplyRetryTimeout) {
+      return;
+    }
+
+    this.micApplyRetryTimeout = setTimeout(() => {
+      this.micApplyRetryTimeout = null;
+
+      const pendingEnabled = this.retryMicEnabled;
+      this.retryMicEnabled = null;
+      if (pendingEnabled === null) {
+        return;
+      }
+
+      this.pendingMicEnabled = pendingEnabled;
+      this.requestMicrophoneState(pendingEnabled);
+    }, 160);
+  }
+
+  private clearMicApplyRetry(): void {
+    if (this.micApplyRetryTimeout) {
+      clearTimeout(this.micApplyRetryTimeout);
+      this.micApplyRetryTimeout = null;
+    }
+
+    this.retryMicEnabled = null;
+  }
+
+  private requestMicrophoneState(enabled: boolean): void {
+    this.pendingMicEnabled = enabled;
+
+    if (this.isApplyingMicState) {
+      return;
+    }
+
+    this.isApplyingMicState = true;
+
+    void (async () => {
+      try {
+        while (this.pendingMicEnabled !== null) {
+          const targetEnabled = this.pendingMicEnabled;
+          this.pendingMicEnabled = null;
+          await this.applyMicrophoneEnabled(targetEnabled);
+        }
+      } finally {
+        this.isApplyingMicState = false;
+
+        if (this.pendingMicEnabled !== null) {
+          this.requestMicrophoneState(this.pendingMicEnabled);
+        }
+      }
+    })();
+  }
+
   private async setMicrophoneEnabled(enabled: boolean): Promise<void> {
+    await this.applyMicrophoneEnabled(enabled);
+  }
+
+  private async applyMicrophoneEnabled(enabled: boolean): Promise<void> {
     try {
+      const featureLiveKitState = useLiveKitCallStore.getState();
+      const featureRoom = featureLiveKitState.roomInstance;
+      const legacyLiveKitState = useLiveKitStore.getState();
+      const hasFeatureRoom = Boolean(featureLiveKitState.isConnected && featureRoom?.localParticipant);
+      const hasLegacyRoom = Boolean(legacyLiveKitState.currentRoom?.localParticipant);
+      const stillConnecting = featureLiveKitState.isConnecting || legacyLiveKitState.isConnecting;
+
+      if (!hasFeatureRoom && !hasLegacyRoom && stillConnecting) {
+        this.scheduleMicApplyRetry(enabled);
+        return;
+      }
+
+      this.clearMicApplyRetry();
+
+      if (featureLiveKitState.isConnected && featureRoom?.localParticipant) {
+        const currentFeatureMicEnabled = featureRoom.localParticipant.isMicrophoneEnabled;
+        if (currentFeatureMicEnabled === enabled) {
+          return;
+        }
+
+        await featureLiveKitState.actions.setMicrophoneEnabled(enabled);
+
+        const updatedState = useLiveKitCallStore.getState();
+        const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
+
+        if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === enabled) {
+          return;
+        }
+
+        logger.warn({
+          message: 'Feature store setMicrophoneEnabled did not apply, falling back to legacy store',
+          context: {
+            enabled,
+            hasUpdatedParticipant: Boolean(updatedParticipant),
+          },
+        });
+      }
+
       await useLiveKitStore.getState().setMicrophoneEnabled(enabled);
     } catch (error) {
       logger.error({
@@ -1734,8 +2299,9 @@ class BluetoothAudioService {
       bluetoothStore.setAvailableAudioDevices(nonBluetoothDevices);
 
       // Revert to default audio devices
-      const defaultMic = nonBluetoothDevices.find((d) => d.type === 'default' && d.id.includes('mic'));
-      const defaultSpeaker = nonBluetoothDevices.find((d) => d.type === 'default' && d.id.includes('speaker'));
+      const defaultMic = nonBluetoothDevices.find((d) => d.type === 'microphone' || d.id.toLowerCase().includes('mic')) || nonBluetoothDevices.find((d) => d.type === 'default');
+
+      const defaultSpeaker = nonBluetoothDevices.find((d) => d.type === 'speaker' || d.id.toLowerCase().includes('speaker')) || nonBluetoothDevices.find((d) => d.type === 'default');
 
       if (defaultMic) {
         bluetoothStore.setSelectedMicrophone(defaultMic);
@@ -1746,6 +2312,15 @@ class BluetoothAudioService {
 
       // Revert audio routing to default (phone speaker/microphone)
       bluetoothStore.setAudioRoutingActive(false);
+      bluetoothStore.setIsHeadsetButtonMonitoring(false);
+      this.pttPressActive = false;
+      this.clearPttReleaseFallback();
+      this.clearMicApplyRetry();
+      this.retryMicEnabled = null;
+      this.pendingMicEnabled = null;
+      this.stopMonitoringWatchdog();
+      this.stopReadPollingFallback();
+      this.stopMediaButtonFallbackMonitoring();
     } catch (error) {
       logger.error({
         message: 'Failed to revert LiveKit audio routing',
@@ -1756,6 +2331,15 @@ class BluetoothAudioService {
 
   async disconnectDevice(): Promise<void> {
     if (this.isWeb) return;
+    useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+    this.pttPressActive = false;
+    this.clearPttReleaseFallback();
+    this.clearMicApplyRetry();
+    this.retryMicEnabled = null;
+    this.pendingMicEnabled = null;
+    this.stopMonitoringWatchdog();
+    this.stopReadPollingFallback();
+    this.stopMediaButtonFallbackMonitoring();
     if (this.connectedDevice && this.connectedDevice.id) {
       const deviceId = this.connectedDevice.id;
       try {
@@ -1831,6 +2415,14 @@ class BluetoothAudioService {
   destroy(): void {
     this.stopScanning();
     this.disconnectDevice();
+    useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+    this.clearPttReleaseFallback();
+    this.clearMicApplyRetry();
+    this.retryMicEnabled = null;
+    this.pendingMicEnabled = null;
+    this.stopMonitoringWatchdog();
+    this.stopReadPollingFallback();
+    this.stopMediaButtonFallbackMonitoring();
 
     // Remove all event listeners
     this.eventListeners.forEach((listener) => {
@@ -1876,6 +2468,14 @@ class BluetoothAudioService {
       store.clearConnectionError();
       store.setIsConnecting(false);
       store.setIsScanning(false);
+      store.setIsHeadsetButtonMonitoring(false);
+      this.clearPttReleaseFallback();
+      this.clearMicApplyRetry();
+      this.retryMicEnabled = null;
+      this.pendingMicEnabled = null;
+      this.stopMonitoringWatchdog();
+      this.stopReadPollingFallback();
+      this.stopMediaButtonFallbackMonitoring();
     } catch (error) {
       logger.error({
         message: 'Error resetting Bluetooth Audio Service',

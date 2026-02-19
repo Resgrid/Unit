@@ -48,6 +48,25 @@ export const AudioDeviceSelection: React.FC<AudioDeviceSelectionProps> = ({ show
     }
   };
 
+  const getDeviceDisplayName = (device: AudioDeviceInfo) => {
+    const normalizedId = device.id.toLowerCase();
+    const normalizedName = device.name.toLowerCase();
+
+    if (normalizedId === 'system-audio' || normalizedName === 'system audio' || normalizedName === 'system-audio' || normalizedName === 'system_audio') {
+      return t('settings.audio_device_selection.system_audio');
+    }
+
+    if (normalizedId === 'default-mic' || normalizedName === 'default microphone') {
+      return t('settings.audio_device_selection.default_microphone');
+    }
+
+    if (normalizedId === 'default-speaker' || normalizedName === 'default speaker') {
+      return t('settings.audio_device_selection.default_speaker');
+    }
+
+    return device.name;
+  };
+
   const renderDeviceItem = (device: AudioDeviceInfo, isSelected: boolean, onSelect: () => void, deviceType: 'microphone' | 'speaker') => {
     const deviceTypeLabel = getDeviceTypeLabel(device.type);
     const unavailableText = !device.isAvailable ? ` (${t('settings.audio_device_selection.unavailable')})` : '';
@@ -59,7 +78,7 @@ export const AudioDeviceSelection: React.FC<AudioDeviceSelectionProps> = ({ show
             <HStack className="flex-1 items-center" space="md">
               {renderDeviceIcon(device)}
               <VStack className="flex-1">
-                <Text className={`font-medium ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100'}`}>{device.name}</Text>
+                <Text className={`font-medium ${isSelected ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-gray-100'}`}>{getDeviceDisplayName(device)}</Text>
                 <Text className={`text-sm ${isSelected ? 'text-blue-700 dark:text-blue-300' : 'text-gray-500 dark:text-gray-400'}`}>
                   {deviceTypeLabel}
                   {unavailableText}
@@ -95,12 +114,14 @@ export const AudioDeviceSelection: React.FC<AudioDeviceSelectionProps> = ({ show
 
             <HStack className="items-center justify-between">
               <Text className="text-blue-800 dark:text-blue-200">{t('settings.audio_device_selection.microphone')}:</Text>
-              <Text className="font-medium text-blue-900 dark:text-blue-100">{selectedAudioDevices.microphone?.name || t('settings.audio_device_selection.none_selected')}</Text>
+              <Text className="font-medium text-blue-900 dark:text-blue-100">
+                {selectedAudioDevices.microphone ? getDeviceDisplayName(selectedAudioDevices.microphone) : t('settings.audio_device_selection.none_selected')}
+              </Text>
             </HStack>
 
             <HStack className="items-center justify-between">
               <Text className="text-blue-800 dark:text-blue-200">{t('settings.audio_device_selection.speaker')}:</Text>
-              <Text className="font-medium text-blue-900 dark:text-blue-100">{selectedAudioDevices.speaker?.name || t('settings.audio_device_selection.none_selected')}</Text>
+              <Text className="font-medium text-blue-900 dark:text-blue-100">{selectedAudioDevices.speaker ? getDeviceDisplayName(selectedAudioDevices.speaker) : t('settings.audio_device_selection.none_selected')}</Text>
             </HStack>
           </VStack>
         </Card>

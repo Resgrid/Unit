@@ -338,7 +338,7 @@ describe('BluetoothDeviceSelectionBottomSheet', () => {
 
     render(<BluetoothDeviceSelectionBottomSheet {...mockProps} />);
 
-    expect(screen.getByText('bluetooth.bluetooth_disabled')).toBeTruthy();
+    expect(screen.getByText('bluetooth.poweredOff')).toBeTruthy();
   });
 
   it('displays connection errors', () => {
