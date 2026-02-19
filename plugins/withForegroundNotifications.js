@@ -1,4 +1,4 @@
-const { withAppDelegate, withEntitlementsPlist } = require('@expo/config-plugins');
+const { withAppDelegate, withEntitlementsPlist } = require('expo/config-plugins');
 
 /**
  * Adds UNUserNotificationCenterDelegate to AppDelegate to handle foreground notifications

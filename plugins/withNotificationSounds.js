@@ -1,4 +1,4 @@
-const { withDangerousMod, withXcodeProject, IOSConfig } = require('@expo/config-plugins');
+const { withDangerousMod, withXcodeProject, IOSConfig } = require('expo/config-plugins');
 const { copyFileSync, existsSync, mkdirSync } = require('fs');
 const { basename, resolve } = require('path');
 
