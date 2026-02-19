@@ -36,6 +36,7 @@ jest.mock('react-native-ble-manager', () => ({
     getDiscoveredPeripherals: jest.fn(),
     removeAllListeners: jest.fn(),
     removePeripheral: jest.fn(),
+    read: jest.fn(),
   },
 }));
 
@@ -280,6 +281,37 @@ describe('BluetoothAudioService Refactoring', () => {
       expect(service.hasNotificationOrReadCapability({ read: 'true' })).toBe(true);
       expect(service.hasNotificationOrReadCapability({ read: '1' })).toBe(true);
       expect(service.hasNotificationOrReadCapability({ notify: 'notify' })).toBe(true);
+    });
+  });
+
+  describe('Read polling baseline handling', () => {
+    it('should prime first read and only dispatch after value changes', async () => {
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+      const mockHandleButtonEvent = jest.fn();
+
+      service.handleButtonEventFromCharacteristic = mockHandleButtonEvent;
+      service.monitoredReadCharacteristics = [
+        {
+          serviceUuid: 'service-1',
+          characteristicUuid: 'characteristic-1',
+          lastHexValue: null,
+        },
+      ];
+
+      bleManagerMock.read = jest.fn().mockResolvedValueOnce([0x00]).mockResolvedValueOnce([0x01]).mockResolvedValueOnce([0x01]);
+
+      await service.pollReadCharacteristics('device-1');
+      expect(service.monitoredReadCharacteristics[0].lastHexValue).toBe('00');
+      expect(mockHandleButtonEvent).not.toHaveBeenCalled();
+
+      await service.pollReadCharacteristics('device-1');
+      expect(service.monitoredReadCharacteristics[0].lastHexValue).toBe('01');
+      expect(mockHandleButtonEvent).toHaveBeenCalledTimes(1);
+      expect(mockHandleButtonEvent).toHaveBeenCalledWith('device-1', 'service-1', 'characteristic-1', 'AQ==');
+
+      await service.pollReadCharacteristics('device-1');
+      expect(mockHandleButtonEvent).toHaveBeenCalledTimes(1);
     });
   });
 });

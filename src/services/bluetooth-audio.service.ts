@@ -1310,7 +1310,7 @@ class BluetoothAudioService {
   }
 
   private async startNotificationsForButtonControls(deviceId: string, peripheralInfo: PeripheralInfo): Promise<void> {
-    const subscribedPairs = new Set<string>();
+    const successfullySubscribed = new Set<string>();
     this.monitoredReadCharacteristics = [];
     const isSpecializedDevice = Boolean(this.connectedDevice && this.connectedDevice.id === deviceId && this.getDeviceType(this.connectedDevice) === 'specialized');
 
@@ -1342,7 +1342,7 @@ class BluetoothAudioService {
         }
 
         await BleManager.startNotification(deviceId, config.service, config.characteristic);
-        subscribedPairs.add(`${config.service.toUpperCase()}::${config.characteristic.toUpperCase()}`);
+        successfullySubscribed.add(`${config.service.toUpperCase()}::${config.characteristic.toUpperCase()}`);
         this.registerReadPollingCharacteristic(config.service, config.characteristic);
         logger.info({
           message: 'Started notifications for button control',
@@ -1378,13 +1378,13 @@ class BluetoothAudioService {
         const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
         const shouldSubscribe = isSpecializedDevice ? true : this.isLikelyButtonCharacteristic(serviceUuid, characteristicUuid) || this.hasNotificationOrReadCapability(characteristic?.properties);
 
-        if (!shouldSubscribe || subscribedPairs.has(pairKey)) {
+        if (!shouldSubscribe || successfullySubscribed.has(pairKey)) {
           continue;
         }
 
         try {
           await BleManager.startNotification(deviceId, serviceUuid, characteristicUuid);
-          subscribedPairs.add(pairKey);
+          successfullySubscribed.add(pairKey);
 
           if (isSpecializedDevice || this.hasReadCapability(characteristic?.properties)) {
             this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
@@ -1422,11 +1422,16 @@ class BluetoothAudioService {
           continue;
         }
 
+        const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
+        if (!successfullySubscribed.has(pairKey)) {
+          continue;
+        }
+
         this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
       }
     }
 
-    if (subscribedPairs.size > 0) {
+    if (successfullySubscribed.size > 0) {
       useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(true);
       this.startReadPollingFallback(deviceId);
     } else {
@@ -1485,6 +1490,11 @@ class BluetoothAudioService {
         const nextHexValue = Buffer.from(readValue).toString('hex');
 
         if (!nextHexValue || nextHexValue.length === 0) {
+          continue;
+        }
+
+        if (entry.lastHexValue === null) {
+          entry.lastHexValue = nextHexValue;
           continue;
         }
 
@@ -2106,13 +2116,21 @@ class BluetoothAudioService {
   }
 
   private scheduleMicApplyRetry(enabled: boolean): void {
+    this.pendingMicEnabled = enabled;
+
     if (this.micApplyRetryTimeout) {
       return;
     }
 
     this.micApplyRetryTimeout = setTimeout(() => {
       this.micApplyRetryTimeout = null;
-      this.requestMicrophoneState(enabled);
+
+      const pendingEnabled = this.pendingMicEnabled;
+      if (pendingEnabled === null) {
+        return;
+      }
+
+      this.requestMicrophoneState(pendingEnabled);
     }, 160);
   }
 
