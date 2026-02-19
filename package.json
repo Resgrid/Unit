@@ -57,7 +57,6 @@
     "@config-plugins/react-native-callkeep": "^11.0.0",
     "@config-plugins/react-native-webrtc": "~12.0.0",
     "@dev-plugins/react-query": "~0.2.0",
-    "@expo/config-plugins": "~10.1.1",
     "@expo/html-elements": "~0.10.1",
     "@expo/metro-runtime": "~5.0.5",
     "@gluestack-ui/accordion": "~1.0.6",
@@ -113,19 +112,19 @@
     "buffer": "^6.0.3",
     "countly-sdk-react-native-bridge": "25.4.1",
     "date-fns": "^4.1.0",
-    "expo": "~53.0.23",
+    "expo": "~53.0.27",
     "expo-application": "~6.1.5",
     "expo-asset": "~11.1.7",
     "expo-audio": "~0.4.9",
     "expo-av": "~15.1.7",
     "expo-build-properties": "~0.14.8",
-    "expo-constants": "~17.1.7",
+    "expo-constants": "~17.1.8",
     "expo-dev-client": "~5.2.4",
     "expo-device": "~7.1.4",
     "expo-document-picker": "~13.1.6",
     "expo-file-system": "~18.1.11",
     "expo-font": "~13.3.2",
-    "expo-image": "~2.4.0",
+    "expo-image": "~2.4.1",
     "expo-image-manipulator": "~13.1.7",
     "expo-image-picker": "~16.1.4",
     "expo-keep-awake": "~14.1.4",
@@ -133,7 +132,7 @@
     "expo-localization": "~16.1.6",
     "expo-location": "~18.1.6",
     "expo-navigation-bar": "~4.2.8",
-    "expo-router": "~5.1.7",
+    "expo-router": "~5.1.11",
     "expo-screen-orientation": "~8.1.7",
     "expo-sharing": "~13.1.5",
     "expo-splash-screen": "~0.30.10",
@@ -215,7 +214,7 @@
     "eslint-plugin-unused-imports": "~2.0.0",
     "jest": "~29.7.0",
     "jest-environment-jsdom": "~29.7.0",
-    "jest-expo": "~53.0.10",
+    "jest-expo": "~53.0.14",
     "jest-junit": "~16.0.0",
     "lint-staged": "~15.2.9",
     "np": "~10.0.7",
@@ -240,7 +239,9 @@
         "listUnknownPackages": false,
         "exclude": [
           "react-native-restart",
-          "lucide-react-native"
+          "lucide-react-native",
+          "react-native-callkeep",
+          "expo-av"
         ]
       }
     },
@@ -260,6 +261,7 @@
     "initVersion": "7.0.4"
   },
   "resolutions": {
+    "@expo/metro-config": "~0.20.18",
     "form-data": "4.0.4",
     "promise": "8.3.0"
   }
