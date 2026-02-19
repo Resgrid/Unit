@@ -86,13 +86,14 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
             line-height: 1.5;
             background-color: ${resolvedBgColor};
           }
-          ${!showsVerticalScrollIndicator
-        ? `
+          ${
+            !showsVerticalScrollIndicator
+              ? `
           ::-webkit-scrollbar { display: none; }
           body { -ms-overflow-style: none; scrollbar-width: none; }
           `
-        : ''
-      }
+              : ''
+          }
           * {
             max-width: 100%;
           }

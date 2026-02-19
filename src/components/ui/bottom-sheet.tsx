@@ -1,5 +1,5 @@
 import { useColorScheme } from 'nativewind';
-import React from 'react';
+import type { ReactNode } from 'react';
 
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from './actionsheet';
 import { Center } from './center';
@@ -8,7 +8,7 @@ import { Text } from './text';
 import { VStack } from './vstack';
 
 interface CustomBottomSheetProps {
-  children: React.ReactNode;
+  children: ReactNode;
   isOpen: boolean;
   onClose: () => void;
   isLoading?: boolean;
@@ -29,7 +29,7 @@ export function CustomBottomSheet({ children, isOpen, onClose, isLoading = false
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 
-        <VStack className={`w-full ${minHeight}`} space="md">
+        <VStack className={`w-full flex-1 ${minHeight}`} space="md">
           {isLoading ? (
             <Center className="h-32">
               <VStack space="sm" className="items-center">

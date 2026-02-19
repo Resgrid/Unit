@@ -58,11 +58,11 @@ class AudioService {
         if (InCallAudioModule) {
           // Load sounds into native SoundPool
           // Map functional names to resource names (without extension)
-          InCallAudioModule.loadSound('startTransmitting', 'software_interface_start');
-          InCallAudioModule.loadSound('stopTransmitting', 'software_interface_back');
+          InCallAudioModule.loadSound('startTransmitting', 'space_notification1');
+          InCallAudioModule.loadSound('stopTransmitting', 'space_notification2');
           InCallAudioModule.loadSound('connectedDevice', 'positive_interface_beep');
-          InCallAudioModule.loadSound('connectToAudioRoom', 'space_notification1');
-          InCallAudioModule.loadSound('disconnectedFromAudioRoom', 'space_notification2');
+          InCallAudioModule.loadSound('connectToAudioRoom', 'software_interface_start');
+          InCallAudioModule.loadSound('disconnectedFromAudioRoom', 'software_interface_back');
         }
       }
 

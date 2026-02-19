@@ -21,6 +21,9 @@ export class CallKeepService {
   private isCallActive = false;
   private muteStateCallback: ((muted: boolean) => void) | null = null;
   private endCallCallback: (() => void) | null = null;
+  private lastMuteEventTime: number = 0;
+  private muteEventStormEndTime: number = 0;
+  private ignoreEventsUntil: number = 0;
 
   private constructor() {}
 
@@ -215,24 +218,37 @@ export class CallKeepService {
   }
 
   /**
-   * Externally lock/ignore mute events (No-op on Android for now)
+   * Externally lock/ignore mute events for a duration.
+   * Useful when Bluetooth PTT is handled directly and CallKeep/HFP events should be ignored.
    */
   ignoreMuteEvents(durationMs: number): void {
-    // No-op on Android
+    const now = Date.now();
+    this.ignoreEventsUntil = Math.max(this.ignoreEventsUntil, now + durationMs);
+    logger.debug({
+      message: 'CallKeep mute events ignored via external lock (Android)',
+      context: { durationMs, until: this.ignoreEventsUntil },
+    });
   }
 
   /**
-   * Remove the mute listener (interface compatibility)
+   * Remove the mute listener to prevent conflicts with specialized PTT devices
    */
   removeMuteListener(): void {
-    // No-op on Android for now
+    RNCallKeep.removeEventListener('didPerformSetMutedCallAction');
+    logger.debug({
+      message: 'CallKeep mute listener removed (Android)',
+    });
   }
 
   /**
-   * Restore the mute listener (interface compatibility)
+   * Restore the mute listener
    */
   restoreMuteListener(): void {
-    // No-op on Android for now
+    RNCallKeep.removeEventListener('didPerformSetMutedCallAction');
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', this.handleMutedCallAction);
+    logger.debug({
+      message: 'CallKeep mute listener restored (Android)',
+    });
   }
 
   /**
@@ -280,25 +296,57 @@ export class CallKeepService {
     });
 
     // Mute/unmute events
-    RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
-      logger.debug({
-        message: 'CallKeep mute state changed',
-        context: { muted, callUUID },
-      });
-
-      // Call the registered callback if available
-      if (this.muteStateCallback) {
-        try {
-          this.muteStateCallback(muted);
-        } catch (error) {
-          logger.warn({
-            message: 'Failed to execute mute state callback',
-            context: { error, muted, callUUID },
-          });
-        }
-      }
-    });
+    RNCallKeep.addEventListener('didPerformSetMutedCallAction', this.handleMutedCallAction);
   }
+
+  private handleMutedCallAction = ({ muted, callUUID }: { muted: boolean; callUUID: string }) => {
+    const now = Date.now();
+
+    if (now < this.ignoreEventsUntil) {
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (external lock, Android)',
+        context: { muted, callUUID, lockedUntil: this.ignoreEventsUntil },
+      });
+      return;
+    }
+
+    const timeSinceLastEvent = now - this.lastMuteEventTime;
+    this.lastMuteEventTime = now;
+
+    if (timeSinceLastEvent < 500) {
+      this.muteEventStormEndTime = now + 800;
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (storm detected, Android)',
+        context: { muted, callUUID, timeSinceLastEvent },
+      });
+      return;
+    }
+
+    if (now < this.muteEventStormEndTime) {
+      this.muteEventStormEndTime = now + 800;
+      logger.debug({
+        message: 'Ignored CallKeep mute state change (storm cooldown, Android)',
+        context: { muted, callUUID, stormEndsAt: this.muteEventStormEndTime },
+      });
+      return;
+    }
+
+    logger.debug({
+      message: 'CallKeep mute state changed',
+      context: { muted, callUUID },
+    });
+
+    if (this.muteStateCallback) {
+      try {
+        this.muteStateCallback(muted);
+      } catch (error) {
+        logger.warn({
+          message: 'Failed to execute mute state callback',
+          context: { error, muted, callUUID },
+        });
+      }
+    }
+  };
 
   /**
    * Generate a UUID for CallKeep calls

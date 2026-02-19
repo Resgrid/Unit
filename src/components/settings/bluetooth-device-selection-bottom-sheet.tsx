@@ -37,14 +37,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   const connectionError = useBluetoothAudioStore((s) => s.connectionError);
   const [hasScanned, setHasScanned] = useState(false);
   const [connectingDeviceId, setConnectingDeviceId] = useState<string | null>(null);
-
-  // Start scanning when sheet opens
-  useEffect(() => {
-    if (isOpen && !hasScanned) {
-      startScan();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, hasScanned]);
+  const preferredDeviceDisplayName = preferredDevice?.id === 'system-audio' ? t('bluetooth.system_audio') : preferredDevice?.name;
 
   const startScan = React.useCallback(async () => {
     try {
@@ -60,6 +53,13 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
       Alert.alert(t('bluetooth.scan_error_title'), error instanceof Error ? error.message : t('bluetooth.scan_error_message'), [{ text: t('common.ok') }]);
     }
   }, [t]);
+
+  // Start scanning when sheet opens
+  useEffect(() => {
+    if (isOpen && !hasScanned) {
+      startScan();
+    }
+  }, [isOpen, hasScanned, startScan]);
 
   const handleDeviceSelect = React.useCallback(
     async (device: BluetoothAudioDevice) => {
@@ -222,7 +222,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
   }, [isScanning, hasScanned, startScan, t]);
 
   return (
-    <CustomBottomSheet isOpen={isOpen} onClose={onClose}>
+    <CustomBottomSheet isOpen={isOpen} onClose={onClose} snapPoints={[85]} minHeight="min-h-0">
       <VStack className="flex-1 p-4">
         <Heading className="mb-4 text-lg">{t('bluetooth.select_device')}</Heading>
 
@@ -232,7 +232,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
             <HStack className="items-center justify-between">
               <VStack>
                 <Text className="text-sm font-medium text-neutral-900 dark:text-neutral-100">{t('bluetooth.current_selection')}</Text>
-                <Text className="text-sm text-neutral-600 dark:text-neutral-400">{preferredDevice.name}</Text>
+                <Text className="text-sm text-neutral-600 dark:text-neutral-400">{preferredDeviceDisplayName}</Text>
               </VStack>
               <Button onPress={handleClearSelection} size={isLandscape ? 'sm' : 'xs'} variant="outline">
                 <ButtonText className={isLandscape ? '' : 'text-2xs'}>{t('bluetooth.clear')}</ButtonText>
@@ -255,7 +255,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
 
                 // Update preferred device manually here to ensure UI reflects it immediately
                 // preventing race conditions with store updates
-                await setPreferredDevice({ id: 'system-audio', name: 'System Audio' });
+                await setPreferredDevice({ id: 'system-audio', name: t('bluetooth.system_audio') });
 
                 onClose();
               } catch (error) {
@@ -277,8 +277,8 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
               <HStack className="items-center">
                 <BluetoothIcon size={16} className="mr-2 text-primary-600" />
                 <VStack>
-                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>{t('bluetooth.systemAudio')}</Text>
-                  <Text className="text-xs text-neutral-500">{t('bluetooth.systemAudioDescription')}</Text>
+                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>{t('bluetooth.system_audio')}</Text>
+                  <Text className="text-xs text-neutral-500">{t('bluetooth.system_audio_description')}</Text>
                 </VStack>
               </HStack>
               {preferredDevice?.id === 'system-audio' && (
@@ -316,11 +316,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         {bluetoothState !== State.PoweredOn && (
           <Box className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900">
             <Text className="text-sm text-yellow-800 dark:text-yellow-200">
-              {bluetoothState === State.PoweredOff
-                ? t('bluetooth.bluetooth_disabled')
-                : bluetoothState === State.Unauthorized
-                  ? t('bluetooth.bluetooth_unauthorized')
-                  : t('bluetooth.bluetooth_not_ready', { state: bluetoothState })}
+              {bluetoothState === State.PoweredOff ? t('bluetooth.poweredOff') : bluetoothState === State.Unauthorized ? t('bluetooth.unauthorized') : t('bluetooth.bluetooth_not_ready', { state: bluetoothState })}
             </Text>
           </Box>
         )}

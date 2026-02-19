@@ -113,7 +113,7 @@ describe('useCallDetailStore - Notes', () => {
     });
 
     it('should handle loading state correctly', async () => {
-      mockGetCallNotes.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      mockGetCallNotes.mockImplementation(() => new Promise(() => {}));
 
       const { result } = renderHook(() => useCallDetailStore());
 
@@ -217,7 +217,7 @@ describe('useCallDetailStore - Notes', () => {
     });
 
     it('should handle loading state during add note', async () => {
-      mockSaveCallNote.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 100)));
+      mockSaveCallNote.mockImplementation(() => new Promise(() => {}));
       mockGetCallNotes.mockResolvedValue({ Data: [] } as any);
 
       const { result } = renderHook(() => useCallDetailStore());
@@ -489,9 +489,9 @@ describe('useCallDetailStore - Notes', () => {
 
       const { result } = renderHook(() => useCallDetailStore());
 
-      await expect(
-        act(async () => {
-          await result.current.updateCall({
+      await act(async () => {
+        await expect(
+          result.current.updateCall({
             callId: 'call123',
             name: 'Test Call',
             nature: 'Test Nature',
@@ -503,9 +503,9 @@ describe('useCallDetailStore - Notes', () => {
             type: 'Medical',
             latitude: 40.7128,
             longitude: -74.006,
-          });
-        })
-      ).rejects.toThrow(errorMessage);
+          })
+        ).rejects.toThrow(errorMessage);
+      });
 
       expect(mockUpdateCall).toHaveBeenCalled();
     });
@@ -567,11 +567,9 @@ describe('useCallDetailStore - Notes', () => {
 
       const { result } = renderHook(() => useCallDetailStore());
 
-      await expect(
-        act(async () => {
-          await result.current.closeCall(closeData);
-        })
-      ).rejects.toThrow(errorMessage);
+      await act(async () => {
+        await expect(result.current.closeCall(closeData)).rejects.toThrow(errorMessage);
+      });
 
       expect(mockCloseCall).toHaveBeenCalledWith(closeData);
     });
@@ -698,11 +696,9 @@ describe('useCallDetailStore - Notes', () => {
       const { result } = renderHook(() => useCallDetailStore());
 
       // Update should fail
-      await expect(
-        act(async () => {
-          await result.current.updateCall(updateData);
-        })
-      ).rejects.toThrow('Update failed');
+      await act(async () => {
+        await expect(result.current.updateCall(updateData)).rejects.toThrow('Update failed');
+      });
 
       // Close should still work
       await act(async () => {

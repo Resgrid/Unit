@@ -65,6 +65,15 @@ jest.mock('@/components/ui/', () => ({
   },
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 describe('Call Detail Menu Integration Test', () => {
   const mockOnEditCall = jest.fn();
   const mockOnCloseCall = jest.fn();

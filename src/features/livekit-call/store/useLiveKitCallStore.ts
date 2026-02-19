@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { logger } from '../../../lib/logging';
+import { bluetoothAudioService } from '../../../services/bluetooth-audio.service';
 import { callKeepService } from '../../../services/callkeep.service';
 
 export interface RoomInfo {
@@ -59,6 +60,8 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
     _clearError: () => set({ error: null }),
 
     connectToRoom: async (roomId, participantIdentity) => {
+      bluetoothAudioService.ensurePttInputMonitoring('useLiveKitCallStore connectToRoom start');
+
       if (get().isConnecting || get().isConnected) {
         logger.warn({
           message: 'Connection attempt while already connecting or connected',
@@ -104,6 +107,8 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
               get().actions._updateParticipants(); // Initial participant list
               newRoom.localParticipant.setMicrophoneEnabled(true);
               newRoom.localParticipant.setCameraEnabled(false); // No video
+
+              bluetoothAudioService.ensurePttInputMonitoring('useLiveKitCallStore connected');
 
               // Start CallKeep call for iOS background audio support
               if (Platform.OS === 'ios') {

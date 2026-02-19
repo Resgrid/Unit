@@ -29,6 +29,15 @@ jest.mock('@/stores/app/location-store', () => ({
   useLocationStore: jest.fn(),
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 const mockOfflineEventManager = offlineEventManager as jest.Mocked<typeof offlineEventManager>;
 const mockUseLocationStore = useLocationStore as jest.MockedFunction<any>;
 const mockUseCoreStore = require('@/stores/app/core-store').useCoreStore as jest.MockedFunction<any>;

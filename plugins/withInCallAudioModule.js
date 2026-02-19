@@ -12,7 +12,6 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.SoundPool
-import android.os.Build
 import android.util.Log
 import com.facebook.react.bridge.*
 
@@ -100,6 +99,53 @@ class InCallAudioModule(reactContext: ReactApplicationContext) : ReactContextBas
             Log.w(TAG, "Sound not found in map: $name")
         }
     }
+
+      @ReactMethod
+      fun setAudioRoute(route: String, promise: Promise) {
+        try {
+          val audioManager = reactApplicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+          if (audioManager == null) {
+            promise.reject("AUDIO_MANAGER_UNAVAILABLE", "AudioManager is not available")
+            return
+          }
+
+          val normalizedRoute = route.lowercase()
+          audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+
+          when (normalizedRoute) {
+            "bluetooth" -> {
+              audioManager.isSpeakerphoneOn = false
+              audioManager.isBluetoothScoOn = true
+              if (audioManager.isBluetoothScoAvailableOffCall) {
+                audioManager.startBluetoothSco()
+              }
+            }
+
+            "speaker" -> {
+              audioManager.stopBluetoothSco()
+              audioManager.isBluetoothScoOn = false
+              audioManager.isSpeakerphoneOn = true
+            }
+
+            "earpiece", "default" -> {
+              audioManager.stopBluetoothSco()
+              audioManager.isBluetoothScoOn = false
+              audioManager.isSpeakerphoneOn = false
+            }
+
+            else -> {
+              promise.reject("INVALID_AUDIO_ROUTE", "Unsupported audio route: $route")
+              return
+            }
+          }
+
+          Log.d(TAG, "Audio route set to: $normalizedRoute")
+          promise.resolve(true)
+        } catch (error: Exception) {
+          Log.e(TAG, "Failed to set audio route: $route", error)
+          promise.reject("SET_AUDIO_ROUTE_FAILED", error.message, error)
+        }
+      }
 
     @ReactMethod
     fun cleanup() {

@@ -33,6 +33,12 @@ jest.mock('../../../../lib/logging', () => ({
   },
 }));
 
+jest.mock('../../../../services/bluetooth-audio.service', () => ({
+  bluetoothAudioService: {
+    ensurePttInputMonitoring: jest.fn(),
+  },
+}));
+
 // Mock livekit-client
 const mockRoom = {
   on: jest.fn(),
