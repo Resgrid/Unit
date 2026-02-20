@@ -1491,9 +1491,7 @@ class BluetoothAudioService {
       void this.pollReadCharacteristics(deviceId).finally(() => {
         this.isReadPollingInFlight = false;
       });
-      // 1500ms interval: reduced from 700ms to lower BLE log spam and CPU overhead
-      // while still providing sub-2-second PTT button responsiveness
-    }, 1500);
+    }, 700);
   }
 
   private async pollReadCharacteristics(deviceId: string): Promise<void> {
