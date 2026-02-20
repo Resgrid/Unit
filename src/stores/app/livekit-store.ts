@@ -1,3 +1,4 @@
+import { AudioSession } from '@livekit/react-native';
 import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
@@ -381,10 +382,33 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           message: 'Cannot connect to room - permissions not granted',
           context: { roomName: roomInfo.Name },
         });
+        Alert.alert('Voice Connection Error', 'Microphone permission is required to join a voice channel. Please grant the permission in your device settings.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]);
         return;
       }
 
       const { currentRoom, voipServerWebsocketSslAddress } = get();
+
+      // Validate connection parameters before attempting to connect
+      if (!voipServerWebsocketSslAddress) {
+        logger.error({
+          message: 'Cannot connect to room - no VoIP server address available',
+          context: { roomName: roomInfo.Name },
+        });
+        Alert.alert('Voice Connection Error', 'Voice server address is not available. Please try again later.');
+        return;
+      }
+
+      if (!token) {
+        logger.error({
+          message: 'Cannot connect to room - no token provided',
+          context: { roomName: roomInfo.Name },
+        });
+        Alert.alert('Voice Connection Error', 'Voice channel token is missing. Please try refreshing the voice channels.');
+        return;
+      }
 
       // Disconnect from current room if connected
       if (currentRoom) {
@@ -392,6 +416,23 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       }
 
       set({ isConnecting: true });
+
+      // Start the native audio session before connecting (required for production builds)
+      // In dev builds, the audio session may persist across hot reloads, but in production
+      // cold starts it must be explicitly started for WebRTC to function correctly
+      if (Platform.OS !== 'web') {
+        try {
+          await AudioSession.startAudioSession();
+          logger.info({
+            message: 'Audio session started successfully',
+          });
+        } catch (audioSessionError) {
+          logger.warn({
+            message: 'Failed to start audio session - continuing with connection attempt',
+            context: { error: audioSessionError },
+          });
+        }
+      }
 
       // Create a new room
       const room = new Room();
@@ -576,10 +617,30 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     } catch (error) {
       logger.error({
         message: 'Failed to connect to room',
-        context: { error },
+        context: { error, roomName: roomInfo?.Name },
       });
 
+      // Stop audio session on failure since we started it above
+      if (Platform.OS !== 'web') {
+        try {
+          await AudioSession.stopAudioSession();
+        } catch (stopError) {
+          logger.warn({
+            message: 'Failed to stop audio session after connection error',
+            context: { error: stopError },
+          });
+        }
+      }
+
       set({ isConnecting: false });
+
+      // Show user-visible error so the failure is not silent in production builds
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      Alert.alert(
+        'Voice Connection Failed',
+        `Unable to connect to voice channel "${roomInfo?.Name || 'Unknown'}". ${errorMessage}`,
+        [{ text: 'OK' }]
+      );
     }
   },
 
@@ -588,6 +649,21 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     if (currentRoom) {
       await currentRoom.disconnect();
       await audioService.playDisconnectedFromAudioRoomSound();
+
+      // Stop the native audio session that was started during connectToRoom
+      if (Platform.OS !== 'web') {
+        try {
+          await AudioSession.stopAudioSession();
+          logger.debug({
+            message: 'Audio session stopped',
+          });
+        } catch (audioSessionError) {
+          logger.warn({
+            message: 'Failed to stop audio session',
+            context: { error: audioSessionError },
+          });
+        }
+      }
 
       // End CallKeep call (works on all platforms - web has no-op implementation)
       try {
