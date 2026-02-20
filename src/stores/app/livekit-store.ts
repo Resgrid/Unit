@@ -410,9 +410,9 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         return;
       }
 
-      // Disconnect from current room if connected
+      // Disconnect from current room if connected (use full cleanup flow)
       if (currentRoom) {
-        currentRoom.disconnect();
+        await get().disconnectFromRoom();
       }
 
       set({ isConnecting: true });
