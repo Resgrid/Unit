@@ -1,3 +1,4 @@
+import notifee from '@notifee/react-native';
 import { Platform } from 'react-native';
 
 import { logger } from '../lib/logging';
@@ -72,6 +73,13 @@ class AppInitializationService {
       message: 'Starting app initialization',
     });
 
+    // Register the Notifee foreground service handler for Android.
+    // Per Notifee documentation this MUST be called at the JS root level before
+    // any component rendering — calling it lazily inside a store action causes
+    // the Android foreground service to start without a registered JS handler,
+    // which silently prevents the PTT/voice call from working in production.
+    this._registerAndroidForegroundService();
+
     // Initialize CallKeep for iOS background audio support
     await this._initializeCallKeep();
 
@@ -83,6 +91,39 @@ class AppInitializationService {
 
     // Add other global initialization tasks here as needed
     // e.g., analytics, crash reporting, background services, etc.
+  }
+
+  /**
+   * Register the Notifee foreground service task handler for Android.
+   * This keeps the voice channel alive when the app is in the background.
+   * Must be called synchronously before any React component renders.
+   */
+  private _registerAndroidForegroundService(): void {
+    if (Platform.OS !== 'android') {
+      return;
+    }
+
+    try {
+      notifee.registerForegroundService((_notification) => {
+        // Return a never-resolving Promise to keep the foreground service alive.
+        // The service is stopped explicitly by calling notifee.stopForegroundService()
+        // when the voice call is disconnected.
+        return new Promise<void>(() => {
+          logger.debug({
+            message: 'Android LiveKit foreground service handler running',
+          });
+        });
+      });
+
+      logger.info({
+        message: 'Android foreground service handler registered at startup',
+      });
+    } catch (error) {
+      logger.error({
+        message: 'Failed to register Android foreground service handler',
+        context: { error },
+      });
+    }
   }
 
   /**

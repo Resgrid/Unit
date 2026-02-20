@@ -370,24 +370,20 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   },
 
   connectToRoom: async (roomInfo, token) => {
+    // Prevent concurrent connection attempts — give instant visual feedback by
+    // setting isConnecting immediately before any async work begins.
+    if (get().isConnecting || get().isConnected) {
+      logger.warn({
+        message: 'Connection already in progress or active, ignoring duplicate request',
+        context: { roomName: roomInfo.Name },
+      });
+      return;
+    }
+
+    set({ isConnecting: true });
+
     try {
       bluetoothAudioService.ensurePttInputMonitoring('livekit-store connectToRoom start');
-
-      // Request permissions before connecting (critical for Android foreground service)
-      // On Android 14+, the foreground service with microphone type requires RECORD_AUDIO
-      // permission to be granted BEFORE the service starts
-      const permissionsGranted = await get().requestPermissions();
-      if (!permissionsGranted) {
-        logger.error({
-          message: 'Cannot connect to room - permissions not granted',
-          context: { roomName: roomInfo.Name },
-        });
-        Alert.alert('Voice Connection Error', 'Microphone permission is required to join a voice channel. Please grant the permission in your device settings.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => Linking.openSettings() },
-        ]);
-        return;
-      }
 
       const { currentRoom, voipServerWebsocketSslAddress } = get();
 
@@ -397,6 +393,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           message: 'Cannot connect to room - no VoIP server address available',
           context: { roomName: roomInfo.Name },
         });
+        set({ isConnecting: false });
         Alert.alert('Voice Connection Error', 'Voice server address is not available. Please try again later.');
         return;
       }
@@ -406,16 +403,32 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           message: 'Cannot connect to room - no token provided',
           context: { roomName: roomInfo.Name },
         });
+        set({ isConnecting: false });
         Alert.alert('Voice Connection Error', 'Voice channel token is missing. Please try refreshing the voice channels.');
         return;
       }
 
-      // Disconnect from current room if connected (use full cleanup flow)
-      if (currentRoom) {
-        await get().disconnectFromRoom();
+      // Request permissions before connecting (critical for Android foreground service).
+      // On Android 14+, the foreground service with microphone type requires RECORD_AUDIO
+      // permission to be granted BEFORE the service starts.
+      const permissionsGranted = await get().requestPermissions();
+      if (!permissionsGranted) {
+        logger.error({
+          message: 'Cannot connect to room - permissions not granted',
+          context: { roomName: roomInfo.Name },
+        });
+        set({ isConnecting: false });
+        Alert.alert('Voice Connection Error', 'Microphone permission is required to join a voice channel. Please grant the permission in your device settings.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]);
+        return;
       }
 
-      set({ isConnecting: true });
+      // Disconnect from current room if connected
+      if (currentRoom) {
+        await currentRoom.disconnect();
+      }
 
       // Start the native audio session before connecting (required for production builds)
       // In dev builds, the audio session may persist across hot reloads, but in production
@@ -466,12 +479,24 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       });
 
       // Connect to the room
+      logger.info({
+        message: 'Connecting to LiveKit room',
+        context: {
+          roomName: roomInfo.Name,
+          hasServerUrl: !!voipServerWebsocketSslAddress,
+          serverUrlPrefix: voipServerWebsocketSslAddress.substring(0, 10),
+          hasToken: !!token,
+        },
+      });
       await room.connect(voipServerWebsocketSslAddress, token);
+      logger.info({
+        message: 'LiveKit room connected successfully',
+        context: { roomName: roomInfo.Name },
+      });
 
-      // Set microphone to muted by default, camera to disabled (audio-only call)
-      await room.localParticipant.setMicrophoneEnabled(false);
-      await room.localParticipant.setCameraEnabled(false);
-
+      // Commit room state to the store immediately after a successful connect so
+      // subsequent steps (setMicrophoneEnabled, setCameraEnabled, etc.) can't orphan
+      // a live room if they throw.
       set({
         currentRoom: room,
         currentRoomInfo: roomInfo,
@@ -480,6 +505,17 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         isMicrophoneEnabled: false,
         lastLocalMuteChangeTimestamp: Date.now(),
       });
+
+      // Set microphone to muted by default, camera to disabled (audio-only call)
+      try {
+        await room.localParticipant.setMicrophoneEnabled(false);
+        await room.localParticipant.setCameraEnabled(false);
+      } catch (trackError) {
+        logger.warn({
+          message: 'Failed to set initial microphone/camera state - room is still connected',
+          context: { error: trackError },
+        });
+      }
 
       // Setup CallKeep mute sync
       callKeepService.setMuteStateCallback(async (muted) => {
@@ -542,41 +578,33 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       await audioService.playConnectToAudioRoomSound();
 
-      // Android foreground service for background audio
-      // Only needed on Android - iOS uses CallKeep, web browsers handle audio natively
+      // Android foreground service for background audio.
+      // Only needed on Android - iOS uses CallKeep, web browsers handle audio natively.
+      // NOTE: notifee.registerForegroundService() is called once at app startup
+      // (app-initialization.service.ts). Here we only display the notification
+      // that triggers the already-registered handler.
       if (Platform.OS === 'android') {
         try {
-          const startForegroundService = async () => {
-            notifee.registerForegroundService(async () => {
-              // Minimal function with no interval or tasks to reduce strain on the main thread
-              return new Promise(() => {
-                logger.debug({
-                  message: 'Foreground service registered',
-                });
-              });
-            });
-
-            // Display the notification as a foreground service
-            await notifee.displayNotification({
-              title: 'Active PTT Call',
-              body: 'There is an active PTT call in progress.',
-              android: {
-                channelId: 'notif',
-                asForegroundService: true,
-                foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
-                smallIcon: 'ic_launcher', // Ensure this icon exists in res/drawable
-              },
-            });
-          };
-
-          await startForegroundService();
+          await notifee.displayNotification({
+            title: 'Active PTT Call',
+            body: 'There is an active PTT call in progress.',
+            android: {
+              channelId: 'notif',
+              asForegroundService: true,
+              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
+              smallIcon: 'ic_launcher',
+            },
+          });
+          logger.info({
+            message: 'Android foreground service notification displayed',
+          });
         } catch (error) {
           logger.error({
-            message: 'Failed to register foreground service',
+            message: 'Failed to display foreground service notification',
             context: { error },
           });
-          // Don't fail the connection if foreground service fails on Android
-          // The call will still work but may be killed in background
+          // Don't fail the connection if the foreground service display fails.
+          // The call will still work but may be killed when backgrounded.
         }
       }
 
@@ -636,11 +664,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       // Show user-visible error so the failure is not silent in production builds
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      Alert.alert(
-        'Voice Connection Failed',
-        `Unable to connect to voice channel "${roomInfo?.Name || 'Unknown'}". ${errorMessage}`,
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Voice Connection Failed', `Unable to connect to voice channel "${roomInfo?.Name || 'Unknown'}". ${errorMessage}`, [{ text: 'OK' }]);
     }
   },
 
