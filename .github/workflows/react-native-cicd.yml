@@ -78,6 +78,7 @@ env:
   NODE_OPTIONS: --openssl-legacy-provider
   CHANGERAWR_API_KEY: ${{ secrets.CHANGERAWR_API_KEY }}
   CHANGERAWR_API_URL: ${{ secrets.CHANGERAWR_API_URL }}
+  YARN_PRODUCTION: 'false'
 
 jobs:
   check-skip:
