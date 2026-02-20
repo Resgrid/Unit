@@ -427,7 +427,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       // Disconnect from current room if connected
       if (currentRoom) {
-        currentRoom.disconnect();
+        await currentRoom.disconnect();
       }
 
       // Start the native audio session before connecting (required for production builds)
