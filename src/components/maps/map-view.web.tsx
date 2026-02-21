@@ -385,7 +385,7 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
         // MapView initializes at a default center; Camera is responsible for
         // snapping to the correct location on first render on web.
         try {
-          map.jumpTo({ center: centerCoordinate as [number, number], zoom: zoomLevel });
+          map.jumpTo({ center: centerCoordinate as [number, number], zoom: zoomLevel, bearing: heading, pitch: pitch }, { _programmatic: true });
         } catch {
           // ignore projection errors during initialization
         }
