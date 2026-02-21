@@ -1,6 +1,6 @@
 import { Asset } from 'expo-asset';
 import { Audio, InterruptionModeIOS } from 'expo-av';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 import { logger } from '@/lib/logging';
 
@@ -54,7 +54,7 @@ class AudioService {
 
       // Initialize Native In-Call Audio Module on Android
       if (Platform.OS === 'android') {
-        const { InCallAudioModule } = require('react-native').NativeModules;
+        const InCallAudioModule = NativeModules.InCallAudioModule;
         if (InCallAudioModule) {
           // Load sounds into native SoundPool
           // Map functional names to resource names (without extension)
@@ -150,7 +150,7 @@ class AudioService {
 
   private async playSound(sound: Audio.Sound | null, name: string): Promise<void> {
     if (Platform.OS === 'android') {
-      const { InCallAudioModule } = require('react-native').NativeModules;
+      const InCallAudioModule = NativeModules.InCallAudioModule;
       if (InCallAudioModule) {
         InCallAudioModule.playSound(name);
         logger.debug({ message: 'Played sound via Native Module', context: { soundName: name } });

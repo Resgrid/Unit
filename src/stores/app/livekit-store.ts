@@ -5,7 +5,7 @@ import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from '
 import { Audio, InterruptionModeIOS } from 'expo-av';
 import * as Device from 'expo-device';
 import { Room, RoomEvent } from 'livekit-client';
-import { Alert, Linking, PermissionsAndroid, Platform } from 'react-native';
+import { Alert, Linking, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { getCanConnectToVoiceSession, getDepartmentVoiceSettings } from '../../api/voice';
@@ -30,7 +30,6 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
         context: { deviceType: normalizedDeviceType },
       });
 
-      const { NativeModules } = require('react-native');
       const inCallAudioModule = NativeModules?.InCallAudioModule;
 
       if (inCallAudioModule?.setAudioRoute) {
@@ -145,6 +144,81 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
     logger.error({
       message: 'Failed to setup audio routing',
       context: { error },
+    });
+  }
+};
+
+// Track whether we've already attempted phone-state permissions this session
+// so we don't re-fire on every bottom-sheet open / foreground cycle.
+let phonePermsAttempted = false;
+
+/**
+ * Pre-request Android phone-state permissions (READ_PHONE_STATE / READ_PHONE_NUMBERS)
+ * needed by CallKeep.
+ *
+ * Called once when the LiveKit bottom sheet first opens.  Results are cached for
+ * the lifetime of the app process so subsequent opens are instant no-ops.
+ *
+ * These permissions are non-critical: CallKeep already gracefully skips when
+ * they are missing, so we only log warnings — no user-facing alerts.
+ */
+export const requestAndroidPhonePermissions = async (): Promise<void> => {
+  if (Platform.OS !== 'android') return;
+  if (phonePermsAttempted) return;
+  phonePermsAttempted = true;
+
+  // Wrap in a 5-second timeout so it can never silently block the Join flow
+  // even if a system dialog gets stuck behind a modal.
+  const timeoutPromise = new Promise<void>((_, reject) => setTimeout(() => reject(new Error('requestAndroidPhonePermissions timed out after 5 s')), 5000));
+
+  const work = async (): Promise<void> => {
+    logger.debug({ message: '[phonePerms] checking existing grants' });
+    const alreadyHasPhoneState = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+    const alreadyHasPhoneNumbers = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
+    logger.debug({ message: '[phonePerms] existing grants', context: { alreadyHasPhoneState, alreadyHasPhoneNumbers } });
+
+    if (alreadyHasPhoneState && alreadyHasPhoneNumbers) {
+      logger.debug({ message: '[phonePerms] all permissions already granted' });
+      return;
+    }
+
+    logger.debug({ message: '[phonePerms] checking telephony capability' });
+    const hasTelephony = await Device.hasPlatformFeatureAsync('android.hardware.telephony');
+    logger.debug({ message: '[phonePerms] hasTelephony', context: { hasTelephony } });
+
+    if (!hasTelephony) {
+      logger.info({
+        message: 'Device does not have telephony capability - skipping phone state permission request',
+      });
+      return;
+    }
+
+    const permissionsToRequest: string[] = [];
+    if (!alreadyHasPhoneState) permissionsToRequest.push(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
+    if (!alreadyHasPhoneNumbers) permissionsToRequest.push(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
+
+    if (permissionsToRequest.length > 0) {
+      logger.debug({ message: '[phonePerms] requesting missing permissions', context: { permissionsToRequest } });
+      const phoneResults = await PermissionsAndroid.requestMultiple(permissionsToRequest as Parameters<typeof PermissionsAndroid.requestMultiple>[0]);
+      logger.debug({ message: '[phonePerms] requestMultiple returned', context: { phoneResults } });
+
+      const phoneStateResult = alreadyHasPhoneState ? PermissionsAndroid.RESULTS.GRANTED : (phoneResults[PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE] ?? PermissionsAndroid.RESULTS.DENIED);
+
+      if (phoneStateResult !== PermissionsAndroid.RESULTS.GRANTED) {
+        logger.warn({
+          message: 'Phone state permission not granted - CallKeep will be skipped but voice calls still work',
+          context: { phoneStateResult },
+        });
+      }
+    }
+  };
+
+  try {
+    await Promise.race([work(), timeoutPromise]);
+  } catch (err) {
+    logger.warn({
+      message: 'Android phone permissions request failed or timed out - CallKeep will be skipped',
+      context: { error: err },
     });
   }
 };
@@ -277,9 +351,10 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   },
 
   requestPermissions: async (): Promise<boolean> => {
+    // Microphone only — phone-state permissions are handled separately by
+    // `requestAndroidPhonePermissions`, called at the top of `connectToRoom`.
     try {
       if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        // Use expo-audio for both Android and iOS microphone permissions
         const micPermission = await getRecordingPermissionsAsync();
 
         if (!micPermission.granted) {
@@ -297,66 +372,6 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           message: 'Microphone permission granted successfully',
           context: { platform: Platform.OS },
         });
-
-        // Note: Foreground service permissions are typically handled at the manifest level
-        // and don't require runtime permission requests. They are automatically granted
-        // when the app is installed if declared in AndroidManifest.xml
-        if (Platform.OS === 'android') {
-          // Request phone state and phone numbers permissions separately
-          try {
-            // Check if device has telephony capability (phones vs tablets without SIM)
-            // On non-telephony devices, READ_PHONE_STATE always returns never_ask_again
-            const hasTelephony = await Device.hasPlatformFeatureAsync('android.hardware.telephony');
-
-            if (!hasTelephony) {
-              logger.info({
-                message: 'Device does not have telephony capability - skipping phone state permission request',
-              });
-            } else {
-              // Request READ_PHONE_STATE first
-              const phoneStateResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
-              // Request READ_PHONE_NUMBERS
-              const phoneNumbersResult = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
-
-              logger.debug({
-                message: 'Android Phone permissions requested',
-                context: {
-                  phoneStateResult,
-                  phoneNumbersResult,
-                  grantedValue: PermissionsAndroid.RESULTS.GRANTED,
-                },
-              });
-
-              // Only check READ_PHONE_STATE - this is the critical permission for CallKeep
-              if (phoneStateResult !== PermissionsAndroid.RESULTS.GRANTED) {
-                logger.warn({
-                  message: 'Phone state permission not granted - voice functionality may be limited',
-                  context: { phoneStateResult },
-                });
-
-                // On devices without telephony, never_ask_again is expected - don't alert
-                if (phoneStateResult === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-                  Alert.alert(
-                    'Voice Permissions Required',
-                    'Phone state permission was permanently denied. Voice functionality may not work correctly. Please open Settings and grant the Phone permission for this app.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Open Settings', onPress: () => Linking.openSettings() },
-                    ]
-                  );
-                } else {
-                  Alert.alert('Voice Permissions Warning', 'Phone state permission was not granted. Voice functionality may not work correctly. You can grant this permission in your device settings.', [{ text: 'OK' }]);
-                }
-              }
-            }
-          } catch (err) {
-            logger.error({
-              message: 'Failed to request Android phone permissions - voice functionality may not work',
-              context: { error: err },
-            });
-            Alert.alert('Voice Permissions Error', 'Failed to request phone permissions. Voice functionality may not work correctly.', [{ text: 'OK' }]);
-          }
-        }
         return true;
       }
       return true; // Web/other platforms don't need runtime permissions
@@ -370,8 +385,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   },
 
   connectToRoom: async (roomInfo, token) => {
-    // Prevent concurrent connection attempts — give instant visual feedback by
-    // setting isConnecting immediately before any async work begins.
+    logger.info({
+      message: 'connectToRoom called',
+      context: { roomName: roomInfo.Name, isConnecting: get().isConnecting, isConnected: get().isConnected },
+    });
+    // Prevent concurrent connection attempts.
     if (get().isConnecting || get().isConnected) {
       logger.warn({
         message: 'Connection already in progress or active, ignoring duplicate request',
@@ -380,14 +398,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       return;
     }
 
+    // Set isConnecting immediately so the UI shows a spinner without waiting
+    // for permission checks or any other async work below.
     set({ isConnecting: true });
 
     try {
-      bluetoothAudioService.ensurePttInputMonitoring('livekit-store connectToRoom start');
-
       const { currentRoom, voipServerWebsocketSslAddress } = get();
 
-      // Validate connection parameters before attempting to connect
       if (!voipServerWebsocketSslAddress) {
         logger.error({
           message: 'Cannot connect to room - no VoIP server address available',
@@ -408,9 +425,9 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         return;
       }
 
-      // Request permissions before connecting (critical for Android foreground service).
-      // On Android 14+, the foreground service with microphone type requires RECORD_AUDIO
-      // permission to be granted BEFORE the service starts.
+      // ─── Request microphone permission ───────────────────────────────────────
+      // requestAndroidPhonePermissions is already fired void when the sheet opens;
+      // do NOT await it here — requestMultiple can open a system dialog that hangs.
       const permissionsGranted = await get().requestPermissions();
       if (!permissionsGranted) {
         logger.error({
@@ -424,6 +441,8 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         ]);
         return;
       }
+
+      bluetoothAudioService.ensurePttInputMonitoring('livekit-store connectToRoom start');
 
       // Disconnect from current room if connected
       if (currentRoom) {

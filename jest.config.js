@@ -30,6 +30,7 @@ module.exports = {
   ],
   coverageDirectory: '<rootDir>/coverage/',
   moduleNameMapper: {
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
+    'mapbox-gl': '<rootDir>/__mocks__/mapbox-gl.js',
   },
 };

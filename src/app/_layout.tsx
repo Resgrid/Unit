@@ -4,6 +4,7 @@ import '../lib/i18n';
 
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import { registerGlobals } from '@livekit/react-native';
 import notifee from '@notifee/react-native';
 import { createNavigationContainerRef, DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
@@ -68,7 +69,6 @@ Sentry.init({
 // Only register LiveKit globals on native platforms
 // Web/Electron uses livekit-client which handles WebRTC natively
 if (Platform.OS !== 'web') {
-  const { registerGlobals } = require('@livekit/react-native');
   registerGlobals();
 }
 

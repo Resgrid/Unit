@@ -2,18 +2,18 @@ import { t } from 'i18next';
 import { Headphones, Mic, MicOff, PhoneOff, Settings } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { type DepartmentVoiceChannelResultData } from '@/models/v4/voice/departmentVoiceResultData';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
+import { applyAudioRouting, requestAndroidPhonePermissions, useLiveKitStore } from '@/stores/app/livekit-store';
 
-import { Card } from '../../components/ui/card';
-import { Text } from '../../components/ui/text';
-import { applyAudioRouting, useLiveKitStore } from '../../stores/app/livekit-store';
 import { AudioDeviceSelection } from '../settings/audio-device-selection';
 import { Actionsheet, ActionsheetBackdrop, ActionsheetContent, ActionsheetDragIndicator, ActionsheetDragIndicatorWrapper } from '../ui/actionsheet';
+import { Card } from '../ui/card';
 import { HStack } from '../ui/hstack';
+import { Text } from '../ui/text';
 import { VStack } from '../ui/vstack';
 
 export enum BottomSheetView {
@@ -86,6 +86,11 @@ export const LiveKitBottomSheet = () => {
     // If we're showing the sheet, make sure we have the latest rooms
     if (isBottomSheetVisible && currentView === BottomSheetView.ROOM_SELECT) {
       fetchVoiceSettings();
+      // Pre-warm Android phone-state permissions (READ_PHONE_STATE / READ_PHONE_NUMBERS)
+      // while the user is browsing the room list.  The system dialog, if any, appears
+      // here in a clean window instead of blocking the Join flow later.  On subsequent
+      // opens this is an instant no-op (permissions already granted).
+      void requestAndroidPhonePermissions();
     }
   }, [isBottomSheetVisible, currentView, fetchVoiceSettings]);
 
@@ -162,7 +167,12 @@ export const LiveKitBottomSheet = () => {
 
   const renderRoomSelect = () => (
     <View style={styles.content}>
-      {availableRooms.length === 0 ? (
+      {isConnecting ? (
+        <View className="flex-1 items-center justify-center" testID="connecting-indicator">
+          <ActivityIndicator size="large" />
+          <Text className="mt-3 text-center text-base font-medium text-gray-500">{t('livekit.connecting')}</Text>
+        </View>
+      ) : availableRooms.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <Text className="text-center text-lg font-medium text-gray-500">{t('livekit.no_rooms_available')}</Text>
         </View>
