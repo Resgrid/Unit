@@ -123,10 +123,26 @@ jest.mock('../../../lib/logging', () => ({
   },
 }));
 
-// Mock Platform
+// Mock Platform and PermissionsAndroid
+const mockPermissionsAndroidCheck = jest.fn();
+const mockPermissionsAndroidRequest = jest.fn();
 jest.mock('react-native', () => ({
   Platform: {
     OS: 'android',
+  },
+  PermissionsAndroid: {
+    check: (...args: any[]) => mockPermissionsAndroidCheck(...args),
+    request: (...args: any[]) => mockPermissionsAndroidRequest(...args),
+    PERMISSIONS: {
+      RECORD_AUDIO: 'android.permission.RECORD_AUDIO',
+      READ_PHONE_STATE: 'android.permission.READ_PHONE_STATE',
+      READ_PHONE_NUMBERS: 'android.permission.READ_PHONE_NUMBERS',
+    },
+    RESULTS: {
+      GRANTED: 'granted',
+      DENIED: 'denied',
+      NEVER_ASK_AGAIN: 'never_ask_again',
+    },
   },
 }));
 
@@ -138,6 +154,8 @@ describe('LiveKit Store - Permission Management', () => {
   beforeEach(() => {
     // Clear all mocks before each test
     jest.clearAllMocks();
+    mockPermissionsAndroidCheck.mockReset();
+    mockPermissionsAndroidRequest.mockReset();
     
     // Reset store state
     useLiveKitStore.setState({
@@ -155,27 +173,16 @@ describe('LiveKit Store - Permission Management', () => {
     });
 
     it('should successfully request permissions when not granted initially', async () => {
-      // Mock initial permission check - not granted
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'undetermined',
-      } as any);
-
-      // Mock permission request - granted
-      mockRequestRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: true,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'granted',
-      } as any);
+      // Mock check - not granted
+      mockPermissionsAndroidCheck.mockResolvedValueOnce(false);
+      // Mock request - granted
+      mockPermissionsAndroidRequest.mockResolvedValueOnce('granted');
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
+      expect(mockPermissionsAndroidRequest).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: 'Microphone permission granted successfully',
         context: { platform: 'android' },
@@ -183,62 +190,46 @@ describe('LiveKit Store - Permission Management', () => {
     });
 
     it('should skip request when permissions already granted', async () => {
-      // Mock initial permission check - already granted
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: true,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'granted',
-      } as any);
+      // Mock check - already granted
+      mockPermissionsAndroidCheck.mockResolvedValueOnce(true);
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled();
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
+      expect(mockPermissionsAndroidRequest).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith({
-        message: 'Microphone permission granted successfully',
+        message: 'Microphone permission already granted',
         context: { platform: 'android' },
       });
     });
 
     it('should handle permission denial', async () => {
-      // Mock initial permission check - not granted
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'undetermined',
-      } as any);
-
-      // Mock permission request - denied
-      mockRequestRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'denied',
-      } as any);
+      // Mock check - not granted
+      mockPermissionsAndroidCheck.mockResolvedValueOnce(false);
+      // Mock request - denied
+      mockPermissionsAndroidRequest.mockResolvedValueOnce('denied');
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
+      expect(mockPermissionsAndroidRequest).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
       expect(mockLogger.error).toHaveBeenCalledWith({
         message: 'Microphone permission not granted',
-        context: { platform: 'android' },
+        context: { platform: 'android', result: 'denied' },
       });
     });
 
     it('should handle permission errors gracefully', async () => {
-      // Mock initial permission check - throws error
-      mockGetRecordingPermissionsAsync.mockRejectedValueOnce(new Error('Permission API error'));
+      // Mock check - throws error
+      mockPermissionsAndroidCheck.mockRejectedValueOnce(new Error('Permission API error'));
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled();
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
+      expect(mockPermissionsAndroidRequest).not.toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith({
         message: 'Failed to request permissions',
         context: { platform: 'android', error: expect.any(Error) },
@@ -246,22 +237,16 @@ describe('LiveKit Store - Permission Management', () => {
     });
 
     it('should handle request API errors', async () => {
-      // Mock initial permission check - not granted
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'undetermined',
-      } as any);
-
-      // Mock permission request - throws error
-      mockRequestRecordingPermissionsAsync.mockRejectedValueOnce(new Error('Request API error'));
+      // Mock check - not granted
+      mockPermissionsAndroidCheck.mockResolvedValueOnce(false);
+      // Mock request - throws error
+      mockPermissionsAndroidRequest.mockRejectedValueOnce(new Error('Request API error'));
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
+      expect(mockPermissionsAndroidRequest).toHaveBeenCalledWith('android.permission.RECORD_AUDIO');
       expect(mockLogger.error).toHaveBeenCalledWith({
         message: 'Failed to request permissions',
         context: { platform: 'android', error: expect.any(Error) },
@@ -354,32 +339,34 @@ describe('LiveKit Store - Permission Management', () => {
     });
 
     it('should handle undefined permission response', async () => {
-      // Mock initial permission check - returns undefined
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce(undefined as any);
+      // Mock check - throws (simulating undefined response access)
+      mockPermissionsAndroidCheck.mockRejectedValueOnce(new TypeError("Cannot read properties of undefined"));
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledTimes(1);
       expect(mockLogger.error).toHaveBeenCalledWith({
         message: 'Failed to request permissions',
         context: { platform: 'android', error: expect.any(Error) },
       });
     });
 
-    it('should handle malformed permission response', async () => {
-      // Mock initial permission check - missing granted property
-      mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        canAskAgain: true,
-        expires: 'never',
-        status: 'undetermined',
-      } as any);
+    it('should handle never_ask_again permission response', async () => {
+      // Mock check - not granted
+      mockPermissionsAndroidCheck.mockResolvedValueOnce(false);
+      // Mock request - never_ask_again
+      mockPermissionsAndroidRequest.mockResolvedValueOnce('never_ask_again');
 
       const { requestPermissions } = useLiveKitStore.getState();
       await requestPermissions();
 
-      expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidCheck).toHaveBeenCalledTimes(1);
+      expect(mockPermissionsAndroidRequest).toHaveBeenCalledTimes(1);
+      expect(mockLogger.error).toHaveBeenCalledWith({
+        message: 'Microphone permission not granted',
+        context: { platform: 'android', result: 'never_ask_again' },
+      });
     });
   });
 

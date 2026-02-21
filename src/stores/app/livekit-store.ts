@@ -16,6 +16,19 @@ import { bluetoothAudioService } from '../../services/bluetooth-audio.service';
 import { callKeepService } from '../../services/callkeep.service';
 import { useBluetoothAudioStore } from './bluetooth-audio-store';
 
+/** Wrap a promise with a timeout – rejects with a descriptive error if it doesn't settle in time. */
+const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+};
+
+// Overall connection timeout – if the entire connectToRoom flow hasn't finished
+// within this window, isConnecting is forcibly reset so the UI never gets stuck.
+const CONNECT_OVERALL_TIMEOUT_MS = 30_000;
+
 // Helper function to apply audio routing
 export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'earpiece' | 'default') => {
   // Audio routing is native-only
@@ -153,16 +166,17 @@ const setupAudioRouting = async (room: Room): Promise<void> => {
 let phonePermsAttempted = false;
 
 /**
- * Pre-request Android phone-state permissions (READ_PHONE_STATE / READ_PHONE_NUMBERS)
+ * Request Android phone-state permissions (READ_PHONE_STATE / READ_PHONE_NUMBERS)
  * needed by CallKeep.
  *
- * Called once when the LiveKit bottom sheet first opens.  Results are cached for
- * the lifetime of the app process so subsequent opens are instant no-ops.
+ * Called once post-connect, right before CallKeep is started.  Results are
+ * cached for the lifetime of the app process so subsequent calls are instant
+ * no-ops.
  *
  * These permissions are non-critical: CallKeep already gracefully skips when
  * they are missing, so we only log warnings — no user-facing alerts.
  */
-export const requestAndroidPhonePermissions = async (): Promise<void> => {
+const requestAndroidPhonePermissions = async (): Promise<void> => {
   if (Platform.OS !== 'android') return;
   if (phonePermsAttempted) return;
   phonePermsAttempted = true;
@@ -260,6 +274,7 @@ interface LiveKitState {
   fetchVoiceSettings: () => Promise<void>;
   fetchCanConnectToVoice: () => Promise<void>;
   requestPermissions: () => Promise<boolean>;
+  ensureMicrophonePermission: () => Promise<boolean>;
 }
 
 export const useLiveKitStore = create<LiveKitState>((set, get) => ({
@@ -352,9 +367,36 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
   requestPermissions: async (): Promise<boolean> => {
     // Microphone only — phone-state permissions are handled separately by
-    // `requestAndroidPhonePermissions`, called at the top of `connectToRoom`.
+    // `requestAndroidPhonePermissions`, called post-connect before CallKeep.
     try {
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
+      if (Platform.OS === 'android') {
+        // Use PermissionsAndroid directly — expo-audio's
+        // requestRecordingPermissionsAsync uses a Fragment-based approach
+        // that can silently fail to show the system dialog.
+        const already = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (already) {
+          logger.info({
+            message: 'Microphone permission already granted',
+            context: { platform: Platform.OS },
+          });
+          return true;
+        }
+
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          logger.error({
+            message: 'Microphone permission not granted',
+            context: { platform: Platform.OS, result },
+          });
+          return false;
+        }
+
+        logger.info({
+          message: 'Microphone permission granted successfully',
+          context: { platform: Platform.OS },
+        });
+        return true;
+      } else if (Platform.OS === 'ios') {
         const micPermission = await getRecordingPermissionsAsync();
 
         if (!micPermission.granted) {
@@ -402,6 +444,24 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
     // for permission checks or any other async work below.
     set({ isConnecting: true });
 
+    // Safety net: if the entire connection flow hasn't finished within the
+    // overall timeout, forcibly reset isConnecting so the UI is never
+    // permanently stuck on "Connecting…".
+    const overallTimeout = setTimeout(() => {
+      if (get().isConnecting) {
+        logger.error({
+          message: 'connectToRoom overall timeout reached – resetting isConnecting',
+          context: { roomName: roomInfo.Name, timeoutMs: CONNECT_OVERALL_TIMEOUT_MS },
+        });
+        set({ isConnecting: false });
+        Alert.alert(
+          'Voice Connection Timeout',
+          `The connection to "${roomInfo.Name}" took too long. Please try again.`,
+          [{ text: 'OK' }]
+        );
+      }
+    }, CONNECT_OVERALL_TIMEOUT_MS);
+
     try {
       const { currentRoom, voipServerWebsocketSslAddress } = get();
 
@@ -425,10 +485,24 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         return;
       }
 
-      // ─── Request microphone permission ───────────────────────────────────────
-      // requestAndroidPhonePermissions is already fired void when the sheet opens;
-      // do NOT await it here — requestMultiple can open a system dialog that hangs.
-      const permissionsGranted = await get().requestPermissions();
+      // ─── Verify microphone permission ──────────────────────────────────────
+      // Permission should already be granted via ensureMicrophonePermission()
+      // called before the bottom sheet opens.  We only verify here.
+      logger.debug({
+        message: 'connectToRoom: verifying microphone permission',
+        context: { roomName: roomInfo.Name },
+      });
+
+      const permissionsGranted = await withTimeout(
+        get().requestPermissions(),
+        10_000,
+        'requestPermissions'
+      );
+
+      logger.debug({
+        message: 'connectToRoom: microphone permission result',
+        context: { roomName: roomInfo.Name, permissionsGranted },
+      });
       if (!permissionsGranted) {
         logger.error({
           message: 'Cannot connect to room - permissions not granted',
@@ -446,6 +520,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       // Disconnect from current room if connected
       if (currentRoom) {
+        logger.debug({ message: 'connectToRoom: disconnecting existing room' });
         await currentRoom.disconnect();
       }
 
@@ -454,7 +529,12 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // cold starts it must be explicitly started for WebRTC to function correctly
       if (Platform.OS !== 'web') {
         try {
-          await AudioSession.startAudioSession();
+          logger.debug({ message: 'connectToRoom: starting audio session' });
+          await withTimeout(
+            AudioSession.startAudioSession(),
+            10_000,
+            'AudioSession.startAudioSession'
+          );
           logger.info({
             message: 'Audio session started successfully',
           });
@@ -507,7 +587,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           hasToken: !!token,
         },
       });
-      await room.connect(voipServerWebsocketSslAddress, token);
+      await withTimeout(
+        room.connect(voipServerWebsocketSslAddress, token),
+        15_000,
+        'room.connect'
+      );
       logger.info({
         message: 'LiveKit room connected successfully',
         context: { roomName: roomInfo.Name },
@@ -631,9 +715,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // On web, callKeepService provides no-op implementation but still tracks call state
       try {
         // On Android, CallKeep's VoiceConnectionService requires READ_PHONE_NUMBERS
-        // permission. If not granted, skip CallKeep to avoid a SecurityException crash.
+        // permission. Request them here (post-connect) so they never race with
+        // the microphone permission dialog.  If not granted, skip CallKeep.
         let shouldStartCallKeep = true;
         if (Platform.OS === 'android') {
+          await requestAndroidPhonePermissions();
           const hasPhoneNumbers = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_NUMBERS);
           const hasPhoneState = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
           if (!hasPhoneNumbers || !hasPhoneState) {
@@ -684,6 +770,8 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Show user-visible error so the failure is not silent in production builds
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
       Alert.alert('Voice Connection Failed', `Unable to connect to voice channel "${roomInfo?.Name || 'Unknown'}". ${errorMessage}`, [{ text: 'OK' }]);
+    } finally {
+      clearTimeout(overallTimeout);
     }
   },
 
@@ -798,6 +886,59 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         message: 'Failed to fetch can connect to voice',
         context: { error },
       });
+    }
+  },
+
+  ensureMicrophonePermission: async (): Promise<boolean> => {
+    // Request microphone permission BEFORE the Actionsheet (Modal) opens.
+    // On Android the system permission dialog is a Dialog attached to the
+    // Activity window.  Gluestack's Actionsheet uses a React Native Modal
+    // that creates a separate window above the Activity, hiding the
+    // permission dialog.  By requesting here (no Modal on screen), the
+    // dialog is always visible to the user.
+    try {
+      if (Platform.OS === 'android') {
+        const already = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (already) return true;
+
+        logger.info({
+          message: 'Requesting microphone permission before opening voice UI',
+          context: { platform: Platform.OS },
+        });
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+        if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+          logger.warn({
+            message: 'Microphone permission denied - voice UI will still open but joining will fail',
+            context: { platform: Platform.OS, result },
+          });
+          return false;
+        }
+        return true;
+      } else if (Platform.OS === 'ios') {
+        const mic = await getRecordingPermissionsAsync();
+        if (mic.granted) return true;
+
+        logger.info({
+          message: 'Requesting microphone permission before opening voice UI',
+          context: { platform: Platform.OS },
+        });
+        const result = await requestRecordingPermissionsAsync();
+        if (!result.granted) {
+          logger.warn({
+            message: 'Microphone permission denied - voice UI will still open but joining will fail',
+            context: { platform: Platform.OS },
+          });
+          return false;
+        }
+        return true;
+      }
+      return true;
+    } catch (error) {
+      logger.error({
+        message: 'Failed to request microphone permission',
+        context: { error, platform: Platform.OS },
+      });
+      return false;
     }
   },
 }));

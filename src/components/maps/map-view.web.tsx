@@ -379,10 +379,16 @@ export const Camera = forwardRef<any, CameraProps>(({ centerCoordinate, zoomLeve
     if (!map) return;
 
     if (centerCoordinate && centerCoordinate.length === 2 && isFinite(centerCoordinate[0]) && isFinite(centerCoordinate[1])) {
-      // Skip the first render — the MapView already initialized at the correct
-      // position via initialCenter/initialZoom, so no programmatic move needed.
       if (!hasInitialized.current) {
         hasInitialized.current = true;
+        // Use jumpTo (instant, no animation) for the initial camera position.
+        // MapView initializes at a default center; Camera is responsible for
+        // snapping to the correct location on first render on web.
+        try {
+          map.jumpTo({ center: centerCoordinate as [number, number], zoom: zoomLevel, bearing: heading, pitch: pitch }, { _programmatic: true });
+        } catch {
+          // ignore projection errors during initialization
+        }
         return;
       }
 

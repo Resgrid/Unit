@@ -63,11 +63,13 @@ jest.mock('@/stores/app/location-store', () => ({
 jest.mock('@/stores/app/livekit-store', () => ({
   useLiveKitStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
+    ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,
   }) : {
     setIsBottomSheetVisible: jest.fn(),
+    ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,

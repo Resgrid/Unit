@@ -60,11 +60,13 @@ describe('SidebarUnitCard', () => {
     mockUseLocationStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ isMapLocked: false, setMapLocked: jest.fn() }) : { isMapLocked: false, setMapLocked: jest.fn() });
     mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
       setIsBottomSheetVisible: jest.fn(),
+      ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     }) : {
       setIsBottomSheetVisible: jest.fn(),
+      ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
@@ -150,15 +152,18 @@ describe('SidebarUnitCard', () => {
     expect(mockSetAudioStreamBottomSheetVisible).toHaveBeenCalledWith(true);
   });
 
-  it('handles call button press', () => {
+  it('handles call button press', async () => {
     const mockSetIsBottomSheetVisible = jest.fn();
+    const mockEnsureMicrophonePermission = jest.fn().mockResolvedValue(true);
     mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      ensureMicrophonePermission: mockEnsureMicrophonePermission,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     }) : {
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      ensureMicrophonePermission: mockEnsureMicrophonePermission,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
@@ -167,8 +172,9 @@ describe('SidebarUnitCard', () => {
     render(<SidebarUnitCard {...defaultProps} />);
 
     const callButton = screen.getByTestId('call-button');
-    fireEvent.press(callButton);
+    await fireEvent.press(callButton);
 
+    expect(mockEnsureMicrophonePermission).toHaveBeenCalled();
     expect(mockSetIsBottomSheetVisible).toHaveBeenCalledWith(true);
   });
 
@@ -176,11 +182,13 @@ describe('SidebarUnitCard', () => {
     const mockRoomInfo = { Name: 'Emergency Call Room' };
     mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
       setIsBottomSheetVisible: jest.fn(),
+      ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
       currentRoomInfo: mockRoomInfo as any,
       isConnected: true,
       isTalking: false,
     }) : {
       setIsBottomSheetVisible: jest.fn(),
+      ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
       currentRoomInfo: mockRoomInfo as any,
       isConnected: true,
       isTalking: false,
