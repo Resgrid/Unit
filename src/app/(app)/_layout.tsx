@@ -409,7 +409,7 @@ export default function TabLayout() {
               <DrawerBackdrop onPress={handleCloseDrawer} />
               <DrawerContent className="w-4/5 bg-white p-1 dark:bg-gray-900">
                 <DrawerBody>
-                  <Sidebar />
+                  <Sidebar onClose={handleCloseDrawer} />
                 </DrawerBody>
               </DrawerContent>
             </Drawer>

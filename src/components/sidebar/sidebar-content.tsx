@@ -18,7 +18,11 @@ import { SidebarRolesCard } from './roles-sidebar';
 import { SidebarStatusCard } from './status-sidebar';
 import { SidebarUnitCard } from './unit-sidebar';
 
-const Sidebar = () => {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+const Sidebar = ({ onClose }: SidebarProps) => {
   const activeStatuses = useCoreStore((state) => state.activeStatuses);
   const setIsOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
   const { t } = useTranslation();
@@ -27,6 +31,7 @@ const Sidebar = () => {
   const isActiveStatusesEmpty = !activeStatuses?.Statuses || activeStatuses.Statuses.length === 0;
 
   const handleNavigateToSettings = () => {
+    onClose?.();
     router.push('/settings');
   };
 

@@ -3,12 +3,23 @@ import { Buffer } from 'buffer';
 import { Alert, DeviceEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleScanCallbackType, BleScanMatchMode, BleScanMode, type BleState, type Peripheral, type PeripheralInfo } from 'react-native-ble-manager';
 
-import { useLiveKitCallStore } from '@/features/livekit-call/store/useLiveKitCallStore';
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { callKeepService } from '@/services/callkeep.service';
 import { type AudioButtonEvent, type BluetoothAudioDevice, type Device, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import { useLiveKitStore } from '@/stores/app/livekit-store';
+// Lazy getters to avoid circular dependencies with livekit-store and useLiveKitCallStore
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getLiveKitCallStore = (): any => {
+  // Using import() for lazy loading to avoid circular dependencies
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('@/features/livekit-call/store/useLiveKitCallStore').useLiveKitCallStore;
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const getLiveKitStore = (): any => {
+  // Using import() for lazy loading to avoid circular dependencies
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return require('@/stores/app/livekit-store').useLiveKitStore;
+};
 
 // Standard Bluetooth UUIDs for audio services
 const AUDIO_SERVICE_UUID = '0000110A-0000-1000-8000-00805F9B34FB'; // Advanced Audio Distribution Profile
@@ -2072,7 +2083,7 @@ class BluetoothAudioService {
 
   private async handleMuteToggle(): Promise<void> {
     try {
-      const featureLiveKitState = useLiveKitCallStore.getState();
+      const featureLiveKitState = getLiveKitCallStore().getState();
       const featureRoom = featureLiveKitState.roomInstance;
       const featureLocalParticipant = featureRoom?.localParticipant ?? featureLiveKitState.localParticipant;
 
@@ -2080,7 +2091,7 @@ class BluetoothAudioService {
         const nextMicEnabled = !featureLocalParticipant.isMicrophoneEnabled;
         await featureLiveKitState.actions.setMicrophoneEnabled(nextMicEnabled);
 
-        const updatedState = useLiveKitCallStore.getState();
+        const updatedState = getLiveKitCallStore().getState();
         const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
 
         if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === nextMicEnabled) {
@@ -2096,7 +2107,7 @@ class BluetoothAudioService {
         });
       }
 
-      await useLiveKitStore.getState().toggleMicrophone();
+      await getLiveKitStore().getState().toggleMicrophone();
     } catch (error) {
       logger.error({
         message: 'Failed to toggle microphone via Bluetooth button',
@@ -2188,9 +2199,9 @@ class BluetoothAudioService {
 
   private async applyMicrophoneEnabled(enabled: boolean): Promise<void> {
     try {
-      const featureLiveKitState = useLiveKitCallStore.getState();
+      const featureLiveKitState = getLiveKitCallStore().getState();
       const featureRoom = featureLiveKitState.roomInstance;
-      const legacyLiveKitState = useLiveKitStore.getState();
+      const legacyLiveKitState = getLiveKitStore().getState();
       const hasFeatureRoom = Boolean(featureLiveKitState.isConnected && featureRoom?.localParticipant);
       const hasLegacyRoom = Boolean(legacyLiveKitState.currentRoom?.localParticipant);
       const stillConnecting = featureLiveKitState.isConnecting || legacyLiveKitState.isConnecting;
@@ -2210,7 +2221,7 @@ class BluetoothAudioService {
 
         await featureLiveKitState.actions.setMicrophoneEnabled(enabled);
 
-        const updatedState = useLiveKitCallStore.getState();
+        const updatedState = getLiveKitCallStore().getState();
         const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
 
         if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === enabled) {
@@ -2226,7 +2237,7 @@ class BluetoothAudioService {
         });
       }
 
-      await useLiveKitStore.getState().setMicrophoneEnabled(enabled);
+      await getLiveKitStore().getState().setMicrophoneEnabled(enabled);
     } catch (error) {
       logger.error({
         message: 'Failed to set microphone via Bluetooth PTT button',

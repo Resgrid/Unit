@@ -28,11 +28,11 @@ export const StyleURL = {
 };
 
 // UserTrackingMode enum matching native SDK
-export const UserTrackingMode = {
-  Follow: 'follow',
-  FollowWithHeading: 'followWithHeading',
-  FollowWithCourse: 'followWithCourse',
-};
+export enum UserTrackingMode {
+  Follow = 'normal',
+  FollowWithHeading = 'compass',
+  FollowWithCourse = 'course',
+}
 
 // Access token setter for compatibility
 export const setAccessToken = (token: string) => {

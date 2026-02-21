@@ -5,8 +5,6 @@ import { useCoreStore } from '@/stores/app/core-store';
 
 import { Card } from '../ui/card';
 
-type ItemProps = {};
-
 export const SidebarStatusCard = () => {
   const activeUnitStatus = useCoreStore((state) => state.activeUnitStatus);
 
