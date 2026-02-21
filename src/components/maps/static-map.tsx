@@ -45,7 +45,6 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
         compassEnabled={true}
         zoomEnabled={true}
         rotateEnabled={true}
-        {...(Platform.OS === 'web' ? { initialCenter: [longitude, latitude] as [number, number], initialZoom: zoom } : {})}
       >
         <Mapbox.Camera zoomLevel={zoom} centerCoordinate={[longitude, latitude]} animationMode="flyTo" animationDuration={1000} />
         {/* Marker pin for the location */}

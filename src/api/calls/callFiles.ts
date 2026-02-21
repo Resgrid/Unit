@@ -78,20 +78,24 @@ export const getCallAttachmentFile = async (url: string, options: DownloadOption
   }
 };
 
-// Utility function to save a blob as a file (web only)
-export const saveBlobAsFile = (blob: Blob, fileName: string): void => {
-  if (Platform.OS === 'web') {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-
-    // Clean up
-    window.URL.revokeObjectURL(url);
-  } else {
+// Utility function to save a blob as a file (web only).
+// Returns true on web after the download is triggered, false on native platforms.
+// Callers should check the return value and fall back to expo-file-system / expo-sharing on native.
+export const saveBlobAsFile = (blob: Blob, fileName: string): boolean => {
+  if (Platform.OS !== 'web') {
     console.warn('saveBlobAsFile is not supported on native platforms. Use expo-file-system and expo-sharing instead.');
+    return false;
   }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+
+  // Clean up
+  window.URL.revokeObjectURL(url);
+  return true;
 };
 
 export const getFiles = async (callId: string, includeData: boolean, type: number) => {
