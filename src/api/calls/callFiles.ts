@@ -1,4 +1,5 @@
 import axios, { type AxiosProgressEvent, type AxiosRequestConfig, type AxiosResponse } from 'axios';
+import { Platform } from 'react-native';
 
 import { createApiEndpoint } from '@/api/common/client';
 import { type CallFilesResult } from '@/models/v4/callFiles/callFilesResult';
@@ -77,16 +78,20 @@ export const getCallAttachmentFile = async (url: string, options: DownloadOption
   }
 };
 
-// Utility function to save a blob as a file
+// Utility function to save a blob as a file (web only)
 export const saveBlobAsFile = (blob: Blob, fileName: string): void => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.click();
+  if (Platform.OS === 'web') {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
 
-  // Clean up
-  window.URL.revokeObjectURL(url);
+    // Clean up
+    window.URL.revokeObjectURL(url);
+  } else {
+    console.warn('saveBlobAsFile is not supported on native platforms. Use expo-file-system and expo-sharing instead.');
+  }
 };
 
 export const getFiles = async (callId: string, includeData: boolean, type: number) => {

@@ -19,11 +19,13 @@ jest.mock('@/stores/app/location-store', () => ({
 jest.mock('@/stores/app/livekit-store', () => ({
   useLiveKitStore: jest.fn((selector: any) => typeof selector === 'function' ? selector({
     setIsBottomSheetVisible: jest.fn(),
+    ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,
   }) : {
     setIsBottomSheetVisible: jest.fn(),
+    ensureMicrophonePermission: jest.fn().mockResolvedValue(true),
     currentRoomInfo: null,
     isConnected: false,
     isTalking: false,
@@ -62,6 +64,7 @@ const mockUseAudioStreamStore = useAudioStreamStore as jest.MockedFunction<typeo
 describe('SidebarUnitCard', () => {
   const mockSetMapLocked = jest.fn();
   const mockSetIsBottomSheetVisible = jest.fn();
+  const mockEnsureMicrophonePermission = jest.fn().mockResolvedValue(true);
   const mockSetAudioStreamBottomSheetVisible = jest.fn();
 
   const defaultProps = {
@@ -90,11 +93,13 @@ describe('SidebarUnitCard', () => {
 
     mockUseLiveKitStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      ensureMicrophonePermission: mockEnsureMicrophonePermission,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
     }) : {
       setIsBottomSheetVisible: mockSetIsBottomSheetVisible,
+      ensureMicrophonePermission: mockEnsureMicrophonePermission,
       currentRoomInfo: null,
       isConnected: false,
       isTalking: false,
@@ -166,12 +171,13 @@ describe('SidebarUnitCard', () => {
       });
     });
 
-    it('opens LiveKit when call button is pressed', () => {
+    it('opens LiveKit when call button is pressed', async () => {
       render(<SidebarUnitCard {...defaultProps} />);
 
       const callButton = screen.getByTestId('call-button');
-      fireEvent.press(callButton);
+      await fireEvent.press(callButton);
 
+      expect(mockEnsureMicrophonePermission).toHaveBeenCalled();
       expect(mockSetIsBottomSheetVisible).toHaveBeenCalledWith(true);
     });
   });

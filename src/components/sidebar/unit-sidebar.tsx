@@ -21,6 +21,7 @@ type ItemProps = {
 export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUnitType, unitGroup: defaultUnitGroup, bgColor }: ItemProps) => {
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const setIsBottomSheetVisible = useLiveKitStore((state) => state.setIsBottomSheetVisible);
+  const ensureMicrophonePermission = useLiveKitStore((state) => state.ensureMicrophonePermission);
   const currentRoomInfo = useLiveKitStore((state) => state.currentRoomInfo);
   const isConnected = useLiveKitStore((state) => state.isConnected);
   const isTalking = useLiveKitStore((state) => state.isTalking);
@@ -35,7 +36,11 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
   const displayType = activeUnit?.Type ?? defaultUnitType;
   const displayGroup = activeUnit?.GroupName ?? defaultUnitGroup;
 
-  const handleOpenLiveKit = () => {
+  const handleOpenLiveKit = async () => {
+    // Request microphone permission before the Actionsheet (Modal) opens.
+    // On Android, system permission dialogs are hidden behind React Native
+    // Modals, so we must request while no Modal is on screen.
+    await ensureMicrophonePermission();
     setIsBottomSheetVisible(true);
   };
 
