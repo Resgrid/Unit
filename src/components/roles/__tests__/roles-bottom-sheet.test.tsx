@@ -68,6 +68,7 @@ describe('RolesBottomSheet', () => {
   const mockOnClose = jest.fn();
   const mockFetchRolesForUnit = jest.fn();
   const mockFetchUsers = jest.fn();
+  const mockFetchAllForUnit = jest.fn();
   const mockAssignRoles = jest.fn();
   const mockShowToast = jest.fn();
   const mockTrackEvent = jest.fn();
@@ -159,6 +160,7 @@ describe('RolesBottomSheet', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: mockRoles,
@@ -168,6 +170,7 @@ describe('RolesBottomSheet', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 
@@ -181,6 +184,7 @@ describe('RolesBottomSheet', () => {
     useRolesStore.getState = jest.fn().mockReturnValue({
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     });
 
@@ -207,8 +211,7 @@ describe('RolesBottomSheet', () => {
   it('fetches roles and users when opened', () => {
     render(<RolesBottomSheet isOpen={true} onClose={mockOnClose} />);
 
-    expect(mockFetchRolesForUnit).toHaveBeenCalledWith('unit1');
-    expect(mockFetchUsers).toHaveBeenCalled();
+    expect(mockFetchAllForUnit).toHaveBeenCalledWith('unit1');
   });
 
   it('renders role assignment items', () => {
@@ -228,6 +231,7 @@ describe('RolesBottomSheet', () => {
       error: errorMessage,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: [],
@@ -237,6 +241,7 @@ describe('RolesBottomSheet', () => {
       error: errorMessage,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 
@@ -272,6 +277,7 @@ describe('RolesBottomSheet', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: rolesWithDifferentUnits,
@@ -281,6 +287,7 @@ describe('RolesBottomSheet', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 
@@ -323,6 +330,7 @@ describe('RolesBottomSheet', () => {
         error: null,
         fetchRolesForUnit: mockFetchRolesForUnit,
         fetchUsers: mockFetchUsers,
+        fetchAllForUnit: mockFetchAllForUnit,
         assignRoles: mockAssignRoles,
       } as any) : {
         roles: rolesWithSameName,
@@ -332,6 +340,7 @@ describe('RolesBottomSheet', () => {
         error: null,
         fetchRolesForUnit: mockFetchRolesForUnit,
         fetchUsers: mockFetchUsers,
+        fetchAllForUnit: mockFetchAllForUnit,
         assignRoles: mockAssignRoles,
       } as any);
 
@@ -371,6 +380,7 @@ describe('RolesBottomSheet', () => {
         error: null,
         fetchRolesForUnit: mockFetchRolesForUnit,
         fetchUsers: mockFetchUsers,
+        fetchAllForUnit: mockFetchAllForUnit,
         assignRoles: mockAssignRoles,
       } as any) : {
         roles: mockRoles,
@@ -380,6 +390,7 @@ describe('RolesBottomSheet', () => {
         error: null,
         fetchRolesForUnit: mockFetchRolesForUnit,
         fetchUsers: mockFetchUsers,
+        fetchAllForUnit: mockFetchAllForUnit,
         assignRoles: mockAssignRoles,
       } as any);
 
@@ -448,6 +459,7 @@ describe('RolesBottomSheet', () => {
             error: null,
             fetchRolesForUnit: mockFetchRolesForUnit,
             fetchUsers: mockFetchUsers,
+            fetchAllForUnit: mockFetchAllForUnit,
             assignRoles: mockAssignRoles,
           } as any) : {
             roles: rolesWithMixedAssignments,
@@ -457,6 +469,7 @@ describe('RolesBottomSheet', () => {
             error: null,
             fetchRolesForUnit: mockFetchRolesForUnit,
             fetchUsers: mockFetchUsers,
+            fetchAllForUnit: mockFetchAllForUnit,
             assignRoles: mockAssignRoles,
           } as any);
         }, []);

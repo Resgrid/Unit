@@ -39,8 +39,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
 
   React.useEffect(() => {
     if (isOpen && activeUnit) {
-      useRolesStore.getState().fetchRolesForUnit(activeUnit.UnitId);
-      useRolesStore.getState().fetchUsers();
+      useRolesStore.getState().fetchAllForUnit(activeUnit.UnitId);
       // Reset pending assignments when bottom sheet opens
       setPendingAssignments([]);
     }
@@ -59,18 +58,35 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
     }
   }, [isOpen, trackEvent, activeUnit, roles.length, users.length, error]);
 
-  // Handle user assignment changes
-  const handleAssignUser = React.useCallback((roleId: string, userId?: string) => {
-    setPendingAssignments((current) => {
-      const filtered = current.filter((a) => a.roleId !== roleId);
-      // Only add to pending assignments if a user is actually selected
-      if (userId && userId.trim() !== '') {
-        return [...filtered, { roleId, userId }];
-      }
-      // If no user selected (unassigned), just return filtered array
-      return filtered;
-    });
-  }, []);
+  // Handle user assignment changes - auto-unassign from previous role when swapping
+  const handleAssignUser = React.useCallback(
+    (roleId: string, userId?: string) => {
+      setPendingAssignments((current) => {
+        let updated = current.filter((a) => a.roleId !== roleId);
+        // If assigning a user, check if they're currently in another role and unassign them
+        if (userId && userId.trim() !== '') {
+          // Check effective assignments (server + pending) for this user in another role
+          const serverAssignment = unitRoleAssignments.find((a) => a.UserId === userId && a.UnitRoleId !== roleId && a.UserId.trim() !== '');
+          const pendingForUser = updated.find((a) => a.userId === userId && a.roleId !== roleId);
+          // If user is assigned elsewhere on server and not already pending-unassigned, add unassignment
+          if (serverAssignment && !updated.some((a) => a.roleId === serverAssignment.UnitRoleId)) {
+            updated = [...updated, { roleId: serverAssignment.UnitRoleId, userId: undefined }];
+          }
+          // If user is pending-assigned to another role, remove that pending assignment
+          if (pendingForUser) {
+            updated = updated.filter((a) => !(a.roleId === pendingForUser.roleId && a.userId === userId));
+            // Add unassignment for that role if it had a server assignment
+            const hadServerAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === pendingForUser.roleId && a.UserId && a.UserId.trim() !== '');
+            if (hadServerAssignment) {
+              updated = [...updated.filter((a) => a.roleId !== pendingForUser.roleId), { roleId: pendingForUser.roleId, userId: undefined }];
+            }
+          }
+        }
+        return [...updated, { roleId, userId }];
+      });
+    },
+    [unitRoleAssignments]
+  );
 
   const filteredRoles = React.useMemo(() => {
     return roles.filter((role) => role.UnitId === activeUnit?.UnitId);
@@ -82,12 +98,13 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
 
     setIsSaving(true);
     try {
-      // Get all roles for this unit and filter out ones without valid assignments
+      // Get all roles for this unit, allowing empty UserId for unassignments
       const allUnitRoles = filteredRoles
         .map((role) => {
           const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
           const currentAssignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
-          const assignedUserId = pendingAssignment?.userId || currentAssignment?.UserId || '';
+          // If there's a pending assignment for this role, use it (even if empty for unassignment)
+          const assignedUserId = pendingAssignment ? pendingAssignment.userId || '' : currentAssignment?.UserId || '';
 
           return {
             RoleId: role.UnitRoleId,
@@ -96,8 +113,8 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
           };
         })
         .filter((role) => {
-          // Only include roles that have valid RoleId and assigned UserId
-          return role.RoleId && role.RoleId.trim() !== '' && role.UserId && role.UserId.trim() !== '';
+          // Only filter out entries lacking a RoleId - allow empty UserId for unassignments
+          return role.RoleId && role.RoleId.trim() !== '';
         });
 
       // Save only valid role assignments
@@ -128,6 +145,36 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
     onClose();
   }, [onClose]);
 
+  // Build effective assignments: pending overrides server, ensuring a person can only be in one role
+  const effectiveAssignments = React.useMemo(() => {
+    const merged: { roleId: string; userId: string; roleName?: string }[] = [];
+
+    // Start with server assignments that have valid userIds
+    for (const a of unitRoleAssignments) {
+      if (a.UserId && a.UserId.trim() !== '') {
+        merged.push({ roleId: a.UnitRoleId, userId: a.UserId, roleName: a.Name });
+      }
+    }
+
+    // Override with pending assignments
+    for (const p of pendingAssignments) {
+      const idx = merged.findIndex((m) => m.roleId === p.roleId);
+      const roleDef = filteredRoles.find((r) => r.UnitRoleId === p.roleId);
+      if (idx >= 0) {
+        if (p.userId && p.userId.trim() !== '') {
+          merged[idx] = { roleId: p.roleId, userId: p.userId, roleName: roleDef?.Name };
+        } else {
+          // Unassignment: remove from merged
+          merged.splice(idx, 1);
+        }
+      } else if (p.userId && p.userId.trim() !== '') {
+        merged.push({ roleId: p.roleId, userId: p.userId, roleName: roleDef?.Name });
+      }
+    }
+
+    return merged;
+  }, [unitRoleAssignments, pendingAssignments, filteredRoles]);
+
   const hasChanges = pendingAssignments.length > 0;
 
   return (
@@ -148,7 +195,9 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
               {filteredRoles.map((role) => {
                 const pendingAssignment = pendingAssignments.find((a) => a.roleId === role.UnitRoleId);
                 const assignment = unitRoleAssignments.find((a) => a.UnitRoleId === role.UnitRoleId);
-                const assignedUser = users.find((u) => u.UserId === (pendingAssignment?.userId ?? assignment?.UserId));
+                // If there's a pending assignment for this role, use it (even if userId is empty for unassignment)
+                const effectiveUserId = pendingAssignment !== undefined ? pendingAssignment.userId : assignment?.UserId;
+                const assignedUser = effectiveUserId ? users.find((u) => u.UserId === effectiveUserId) : undefined;
 
                 return (
                   <RoleAssignmentItem
@@ -157,20 +206,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
                     assignedUser={assignedUser}
                     availableUsers={users}
                     onAssignUser={(userId) => handleAssignUser(role.UnitRoleId, userId)}
-                    currentAssignments={[
-                      ...unitRoleAssignments
-                        .filter((a) => a.UserId && a.UserId.trim() !== '')
-                        .map((a) => ({
-                          roleId: a.UnitRoleId,
-                          userId: a.UserId,
-                        })),
-                      ...pendingAssignments
-                        .filter((a) => a.userId && a.userId.trim() !== '')
-                        .map((a) => ({
-                          roleId: a.roleId,
-                          userId: a.userId!,
-                        })),
-                    ]}
+                    currentAssignments={effectiveAssignments}
                   />
                 );
               })}
