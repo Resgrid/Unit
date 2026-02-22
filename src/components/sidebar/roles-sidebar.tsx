@@ -14,6 +14,7 @@ export const SidebarRolesCard = () => {
   const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
+  const roles = useRolesStore((state) => state.roles);
 
   const handlePress = React.useCallback(() => {
     setIsBottomSheetOpen(true);
@@ -29,9 +30,9 @@ export const SidebarRolesCard = () => {
   }, [unitRoleAssignments, activeUnit]);
 
   const totalCount = React.useMemo(() => {
-    if (!activeUnit || unitRoleAssignments.length === 0) return 0;
-    return unitRoleAssignments.filter((assignment) => assignment.UnitId === activeUnit.UnitId).length;
-  }, [unitRoleAssignments, activeUnit]);
+    if (!activeUnit) return 0;
+    return roles.filter((role) => role.UnitId === activeUnit.UnitId).length;
+  }, [roles, activeUnit]);
 
   const displayStatus = t('roles.status', {
     active: activeCount,

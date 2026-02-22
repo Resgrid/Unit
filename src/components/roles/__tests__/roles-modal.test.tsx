@@ -63,6 +63,7 @@ describe('RolesModal', () => {
   const mockOnClose = jest.fn();
   const mockFetchRolesForUnit = jest.fn();
   const mockFetchUsers = jest.fn();
+  const mockFetchAllForUnit = jest.fn();
   const mockAssignRoles = jest.fn();
   const mockShowToast = jest.fn();
 
@@ -148,6 +149,7 @@ describe('RolesModal', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: mockRoles,
@@ -157,6 +159,7 @@ describe('RolesModal', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 
@@ -170,6 +173,7 @@ describe('RolesModal', () => {
     useRolesStore.getState = jest.fn().mockReturnValue({
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     });
 
@@ -195,8 +199,7 @@ describe('RolesModal', () => {
   it('fetches roles and users when opened', () => {
     render(<RolesModal isOpen={true} onClose={mockOnClose} />);
 
-    expect(mockFetchRolesForUnit).toHaveBeenCalledWith('unit1');
-    expect(mockFetchUsers).toHaveBeenCalled();
+    expect(mockFetchAllForUnit).toHaveBeenCalledWith('unit1');
   });
 
   it('renders role assignment items', () => {
@@ -216,6 +219,7 @@ describe('RolesModal', () => {
       error: errorMessage,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: [],
@@ -225,6 +229,7 @@ describe('RolesModal', () => {
       error: errorMessage,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 
@@ -259,6 +264,7 @@ describe('RolesModal', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any) : {
       roles: rolesWithDifferentUnits,
@@ -268,6 +274,7 @@ describe('RolesModal', () => {
       error: null,
       fetchRolesForUnit: mockFetchRolesForUnit,
       fetchUsers: mockFetchUsers,
+      fetchAllForUnit: mockFetchAllForUnit,
       assignRoles: mockAssignRoles,
     } as any);
 

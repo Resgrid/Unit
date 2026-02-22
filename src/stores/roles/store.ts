@@ -21,6 +21,7 @@ interface RolesState {
   fetchRolesForUnit: (unitId: string) => Promise<void>;
   fetchUsers: () => Promise<void>;
   assignRoles: (data: SetUnitRolesInput) => Promise<void>;
+  fetchAllForUnit: (unitId: string) => Promise<void>;
 }
 
 export const useRolesStore = create<RolesState>((set) => ({
@@ -38,8 +39,10 @@ export const useRolesStore = create<RolesState>((set) => ({
     }
     set({ isLoading: true, error: null });
     try {
-      const response = await getAllUnitRolesAndAssignmentsForDepartment();
-      const personnelResponse = await getAllPersonnelInfos('');
+      const [response, personnelResponse] = await Promise.all([
+        getAllUnitRolesAndAssignmentsForDepartment(),
+        getAllPersonnelInfos(''),
+      ]);
 
       set({
         roles: response.Data,
@@ -93,6 +96,25 @@ export const useRolesStore = create<RolesState>((set) => ({
       await setRoleAssignmentsForUnit(data);
     } catch (error) {
       set({ error: 'Failed to assign user to role', isLoading: false });
+    }
+  },
+  fetchAllForUnit: async (unitId: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const [rolesResponse, unitRoles, personnelResponse] = await Promise.all([
+        getAllUnitRolesAndAssignmentsForDepartment(),
+        getRoleAssignmentsForUnit(unitId),
+        getAllPersonnelInfos(''),
+      ]);
+
+      set({
+        roles: rolesResponse.Data,
+        unitRoleAssignments: unitRoles.Data,
+        users: personnelResponse.Data,
+        isLoading: false,
+      });
+    } catch (error) {
+      set({ error: 'Failed to fetch roles data', isLoading: false });
     }
   },
 }));
