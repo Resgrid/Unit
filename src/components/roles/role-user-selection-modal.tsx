@@ -58,7 +58,7 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
     (item: PersonnelInfoResultData) => {
       const isSelected = item.UserId === selectedUserId;
       const fullName = `${item.FirstName} ${item.LastName}`.trim();
-      const otherAssignment = currentAssignments.find((a) => a.userId === item.UserId && a.roleId !== currentRoleId);
+      const otherAssignment = currentAssignments.find((a) => a.userId === item.UserId && currentRoleId != null && a.roleId !== currentRoleId);
       const isAssignedElsewhere = !!otherAssignment;
 
       return (
