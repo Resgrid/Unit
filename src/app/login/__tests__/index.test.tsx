@@ -13,6 +13,37 @@ jest.mock('expo-router', () => ({
   }),
 }));
 
+// Mock expo-linking (used for SAML deep-link handling)
+jest.mock('expo-linking', () => ({
+  addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+  parse: jest.fn(() => ({ queryParams: {} })),
+}));
+
+// Mock SSO discovery service
+jest.mock('@/services/sso-discovery', () => ({
+  fetchSsoConfigForUser: jest.fn(() => Promise.resolve({ config: null, userExists: false })),
+}));
+
+// Mock OIDC hook
+jest.mock('@/hooks/use-oidc-login', () => ({
+  useOidcLogin: jest.fn(() => ({
+    request: null,
+    response: null,
+    promptAsync: jest.fn(),
+    exchangeForResgridToken: jest.fn(),
+    discovery: null,
+  })),
+}));
+
+// Mock SAML hook
+jest.mock('@/hooks/use-saml-login', () => ({
+  useSamlLogin: jest.fn(() => ({
+    startSamlLogin: jest.fn(),
+    handleDeepLink: jest.fn(),
+    isSamlCallback: jest.fn(() => false),
+  })),
+}));
+
 // Mock UI components
 jest.mock('@/components/ui', () => {
   const React = require('react');
@@ -131,6 +162,7 @@ describe('Login', () => {
     // Set default mock return values
     mockUseAuth.mockReturnValue({
       login: jest.fn(),
+      ssoLogin: jest.fn(),
       status: 'idle',
       error: null,
       isAuthenticated: false,
@@ -182,6 +214,7 @@ describe('Login', () => {
   it('shows error modal when status is error', () => {
     mockUseAuth.mockReturnValue({
       login: jest.fn(),
+      ssoLogin: jest.fn(),
       status: 'error',
       error: 'Invalid credentials',
       isAuthenticated: false,
@@ -196,6 +229,7 @@ describe('Login', () => {
   it('redirects to app when authenticated', async () => {
     mockUseAuth.mockReturnValue({
       login: jest.fn(),
+      ssoLogin: jest.fn(),
       status: 'signedIn',
       error: null,
       isAuthenticated: true,
@@ -226,6 +260,7 @@ describe('Login', () => {
     const mockLogin = jest.fn();
     mockUseAuth.mockReturnValue({
       login: mockLogin,
+      ssoLogin: jest.fn(),
       status: 'idle',
       error: null,
       isAuthenticated: false,

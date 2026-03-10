@@ -17,6 +17,7 @@ import { LoginForm } from './login-form';
 export default function Login() {
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [showServerUrl, setShowServerUrl] = useState(false);
+
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const router = useRouter();
@@ -32,35 +33,34 @@ export default function Login() {
 
   useEffect(() => {
     if (status === 'signedIn' && isAuthenticated) {
-      logger.info({
-        message: 'Login successful, redirecting to home',
-      });
+      logger.info({ message: 'Login successful, redirecting to home' });
       router.push('/(app)');
     }
   }, [status, isAuthenticated, router]);
 
   useEffect(() => {
     if (status === 'error') {
-      logger.error({
-        message: 'Login failed',
-        context: { error },
-      });
+      logger.error({ message: 'Login failed', context: { error } });
       setIsErrorModalVisible(true);
     }
   }, [status, error]);
 
+  // ── Local login ───────────────────────────────────────────────────────────
   const onSubmit: LoginFormProps['onSubmit'] = async (data) => {
-    logger.info({
-      message: 'Starting Login (button press)',
-      context: { username: data.username },
-    });
+    logger.info({ message: 'Starting Login (button press)', context: { username: data.username } });
     await login({ username: data.username, password: data.password });
   };
 
   return (
     <>
       <FocusAwareStatusBar />
-      <LoginForm onSubmit={onSubmit} isLoading={status === 'loading'} error={error ?? undefined} onServerUrlPress={() => setShowServerUrl(true)} />
+      <LoginForm
+        onSubmit={onSubmit}
+        isLoading={status === 'loading'}
+        error={error ?? undefined}
+        onServerUrlPress={() => setShowServerUrl(true)}
+        onSsoPress={() => router.push('/login/sso')}
+      />
 
       <Modal
         isOpen={isErrorModalVisible}

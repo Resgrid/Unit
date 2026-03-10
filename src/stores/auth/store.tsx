@@ -4,8 +4,8 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { logger } from '@/lib/logging';
 
-import { loginRequest, refreshTokenRequest } from '../../lib/auth/api';
-import type { AuthResponse, AuthState, LoginCredentials } from '../../lib/auth/types';
+import { loginRequest, refreshTokenRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
+import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
 import { setItem, zustandStorage } from '../../lib/storage';
@@ -82,6 +82,52 @@ const useAuthStore = create<AuthState>()(
           set({
             status: 'error',
             error: error instanceof Error ? error.message : 'Login failed',
+          });
+        }
+      },
+
+      ssoLogin: async (credentials: SsoLoginCredentials) => {
+        try {
+          set({ status: 'loading' });
+          const response = await ssoExternalTokenRequest(credentials);
+
+          if (response.successful && response.authResponse) {
+            const payload = sanitizeJson(base64.decode(response.authResponse.id_token!.split('.')[1]));
+
+            setItem<AuthResponse>('authResponse', response.authResponse);
+            const expiresOn = new Date(Date.now() + response.authResponse.expires_in * 1000).getTime().toString();
+
+            const profileData = JSON.parse(payload) as ProfileModel;
+
+            set({
+              accessToken: response.authResponse.access_token,
+              refreshToken: response.authResponse.refresh_token,
+              refreshTokenExpiresOn: expiresOn,
+              status: 'signedIn',
+              error: null,
+              profile: profileData,
+              userId: profileData.sub,
+            });
+
+            const refreshDelayMs = Math.max((response.authResponse.expires_in - 60) * 1000, 60000);
+            logger.info({
+              message: 'SSO login successful, scheduling token refresh',
+              context: { refreshDelayMs, provider: credentials.provider },
+            });
+
+            const existingTimeoutId = get().refreshTimeoutId;
+            if (existingTimeoutId !== null) {
+              clearTimeout(existingTimeoutId);
+            }
+            const timeoutId = setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
+            set({ refreshTimeoutId: timeoutId });
+          } else {
+            set({ status: 'error', error: response.message });
+          }
+        } catch (error) {
+          set({
+            status: 'error',
+            error: error instanceof Error ? error.message : 'SSO login failed',
           });
         }
       },

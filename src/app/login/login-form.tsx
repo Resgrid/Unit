@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, EyeIcon, EyeOffIcon } from 'lucide-react-native';
+import { AlertTriangle, EyeIcon, EyeOffIcon, LogIn, ShieldCheck } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
@@ -28,7 +28,7 @@ const createLoginFormSchema = () =>
       .string({
         required_error: 'Password is required',
       })
-      .min(6, 'Password must be at least 6 characters'),
+      .min(1, 'Password is required'),
   });
 
 const loginFormSchema = createLoginFormSchema();
@@ -40,14 +40,17 @@ export type LoginFormProps = {
   isLoading?: boolean;
   error?: string;
   onServerUrlPress?: () => void;
+  /** Called when the user taps "Sign In with SSO" to navigate to the SSO login page */
+  onSsoPress?: () => void;
 };
 
-export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined, onServerUrlPress }: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress, onSsoPress }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
   const { t } = useTranslation();
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<FormType>({
     resolver: zodResolver(loginFormSchema),
@@ -60,9 +63,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
   const [showPassword, setShowPassword] = useState(false);
 
   const handleState = () => {
-    setShowPassword((showState) => {
-      return !showState;
-    });
+    setShowPassword((showState) => !showState);
   };
   const handleKeyPress = () => {
     Keyboard.dismiss();
@@ -74,12 +75,11 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
       <View className="flex-1 justify-center p-4">
         <View className="items-center justify-center">
           <Image style={{ width: '96%' }} source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
-          <Text className="pb-6 text-center text-4xl font-bold">Sign In</Text>
-
-          <Text className="mb-6 max-w-xl text-center text-gray-500">
-            To login in to the Resgrid Unit app, please enter your username and password. Resgrid Unit is an app designed to interface between a Unit (apparatus, team, etc) and the Resgrid system.
-          </Text>
+          <Text className="pb-6 text-center text-4xl font-bold">{t('login.title')}</Text>
+          <Text className="mb-6 max-w-xl text-center text-gray-500">{t('login.subtitle')}</Text>
         </View>
+
+        {/* Username */}
         <FormControl isInvalid={!!errors?.username || !validated.usernameValid} className="w-full">
           <FormControlLabel>
             <FormControlLabelText>{t('login.username')}</FormControlLabelText>
@@ -91,10 +91,10 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             rules={{
               validate: async (value) => {
                 try {
-                  await loginFormSchema.parseAsync({ username: value });
+                  await loginFormSchema.parseAsync({ username: value, password: 'placeholder' });
                   return true;
-                } catch (error: any) {
-                  return error.message;
+                } catch (err: any) {
+                  return err.message;
                 }
               },
             }}
@@ -106,7 +106,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
                   onChangeText={onChange}
                   onBlur={onBlur}
                   onSubmitEditing={handleKeyPress}
-                  returnKeyType="done"
+                  returnKeyType="next"
                   autoCapitalize="none"
                   autoComplete="off"
                 />
@@ -115,10 +115,11 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
           />
           <FormControlError>
             <FormControlErrorIcon as={AlertTriangle} className="text-red-500" />
-            <FormControlErrorText className="text-red-500">{errors?.username?.message || (!validated.usernameValid && 'Username not found')}</FormControlErrorText>
+            <FormControlErrorText className="text-red-500">{errors?.username?.message}</FormControlErrorText>
           </FormControlError>
         </FormControl>
-        {/* Label Message */}
+
+        {/* Password form */}
         <FormControl isInvalid={!!errors.password || !validated.passwordValid} className="w-full">
           <FormControlLabel>
             <FormControlLabelText>{t('login.password')}</FormControlLabelText>
@@ -130,10 +131,10 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             rules={{
               validate: async (value) => {
                 try {
-                  await loginFormSchema.parseAsync({ password: value });
+                  await loginFormSchema.parseAsync({ username: getValues('username'), password: value });
                   return true;
-                } catch (error: any) {
-                  return error.message;
+                } catch (err: any) {
+                  return err.message;
                 }
               },
             }}
@@ -168,16 +169,27 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             <ButtonText className="ml-2 text-sm font-medium">{t('login.login_button_loading')}</ButtonText>
           </Button>
         ) : (
-          <Button className="mt-8 w-full" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
-            <ButtonText>Log in</ButtonText>
+          <Button className="mt-8 w-full" variant="solid" action="primary" onPress={handleSubmit(onSubmit)} accessibilityLabel={t('login.login_button')}>
+            <ButtonText>{t('login.login_button')}</ButtonText>
           </Button>
         )}
 
-        {onServerUrlPress && (
-          <Button className="mt-14 w-full" variant="outline" action="secondary" onPress={onServerUrlPress}>
-            <ButtonText>{t('settings.server_url')}</ButtonText>
-          </Button>
-        )}
+        {error ? <Text className="mt-4 text-center text-sm text-red-500">{error}</Text> : null}
+
+        {/* Server URL + Sign In with SSO — side by side small buttons */}
+        <View className="mt-6 flex-row gap-x-2">
+          {onServerUrlPress ? (
+            <Button className="flex-1" variant="outline" action="secondary" size="sm" onPress={onServerUrlPress}>
+              <ButtonText className="text-xs">{t('settings.server_url')}</ButtonText>
+            </Button>
+          ) : null}
+          {onSsoPress ? (
+            <Button className="flex-1" variant="outline" action="secondary" size="sm" onPress={onSsoPress}>
+              <ShieldCheck size={14} style={{ marginRight: 4 }} />
+              <ButtonText className="text-xs">{t('login.sso_button')}</ButtonText>
+            </Button>
+          ) : null}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );

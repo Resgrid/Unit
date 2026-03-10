@@ -39,10 +39,7 @@ export const useRolesStore = create<RolesState>((set) => ({
     }
     set({ isLoading: true, error: null });
     try {
-      const [response, personnelResponse] = await Promise.all([
-        getAllUnitRolesAndAssignmentsForDepartment(),
-        getAllPersonnelInfos(''),
-      ]);
+      const [response, personnelResponse] = await Promise.all([getAllUnitRolesAndAssignmentsForDepartment(), getAllPersonnelInfos('')]);
 
       set({
         roles: response.Data,
@@ -101,11 +98,7 @@ export const useRolesStore = create<RolesState>((set) => ({
   fetchAllForUnit: async (unitId: string) => {
     set({ isLoading: true, error: null });
     try {
-      const [rolesResponse, unitRoles, personnelResponse] = await Promise.all([
-        getAllUnitRolesAndAssignmentsForDepartment(),
-        getRoleAssignmentsForUnit(unitId),
-        getAllPersonnelInfos(''),
-      ]);
+      const [rolesResponse, unitRoles, personnelResponse] = await Promise.all([getAllUnitRolesAndAssignmentsForDepartment(), getRoleAssignmentsForUnit(unitId), getAllPersonnelInfos('')]);
 
       set({
         roles: rolesResponse.Data,

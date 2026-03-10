@@ -3,6 +3,13 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export interface SsoLoginCredentials {
+  /** The external token: id_token (OIDC) or base64 SAMLResponse (SAML 2.0) */
+  externalToken: string;
+  provider: 'oidc' | 'saml2';
+  username: string;
+}
+
 export interface LoginCredentials {
   username: string;
   password: string;
@@ -48,6 +55,7 @@ export interface AuthState {
   userId: string | null;
   refreshTimeoutId: ReturnType<typeof setTimeout> | null;
   login: (credentials: LoginCredentials) => Promise<void>;
+  ssoLogin: (credentials: SsoLoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<void>;
   hydrate: () => void;

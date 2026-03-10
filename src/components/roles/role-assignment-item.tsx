@@ -96,7 +96,16 @@ export const RoleAssignmentItem: React.FC<RoleAssignmentItemProps> = ({ role, as
         </HStack>
       </Pressable>
 
-      <RoleUserSelectionModal isOpen={isModalOpen} onClose={handleCloseModal} roleName={role.Name} selectedUserId={assignedUser?.UserId} users={availableUsers} onSelectUser={handleSelectUser} currentAssignments={currentAssignments} currentRoleId={role.UnitRoleId} />
+      <RoleUserSelectionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        roleName={role.Name}
+        selectedUserId={assignedUser?.UserId}
+        users={availableUsers}
+        onSelectUser={handleSelectUser}
+        currentAssignments={currentAssignments}
+        currentRoleId={role.UnitRoleId}
+      />
     </>
   );
 };
