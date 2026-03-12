@@ -10,12 +10,13 @@ export * from './types';
 
 // Utility hooks and selectors
 export const useAuth = () => {
-  const { accessToken, status, error, login, logout, hydrate } = useAuthStore(
+  const { accessToken, status, error, login, ssoLogin, logout, hydrate } = useAuthStore(
     useShallow((state) => ({
       accessToken: state.accessToken,
       status: state.status,
       error: state.error,
       login: state.login,
+      ssoLogin: state.ssoLogin,
       logout: state.logout,
       hydrate: state.hydrate,
     }))
@@ -25,6 +26,7 @@ export const useAuth = () => {
     isLoading: status === 'loading',
     error,
     login,
+    ssoLogin,
     logout,
     status,
     hydrate,

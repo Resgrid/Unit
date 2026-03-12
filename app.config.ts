@@ -50,6 +50,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       ITSAppUsesNonExemptEncryption: false,
       UIViewControllerBasedStatusBarAppearance: false,
       NSBluetoothAlwaysUsageDescription: 'Allow Resgrid Unit to connect to bluetooth devices for PTT.',
+      // Allow the app to open its own custom-scheme deep links (needed for SSO callbacks)
+      LSApplicationQueriesSchemes: ['resgridunit'],
     },
     entitlements: {
       ...((Env.APP_ENV === 'production' || Env.APP_ENV === 'internal') && {
@@ -71,6 +73,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     softwareKeyboardLayoutMode: 'pan',
     package: Env.PACKAGE,
     googleServicesFile: 'google-services.json',
+    // Register the ResgridUnit:// deep-link scheme so OIDC / SAML callbacks are routed back here
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: false,
+        data: [{ scheme: 'resgridunit' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
     permissions: [
       'android.permission.WAKE_LOCK',
       'android.permission.RECORD_AUDIO',
@@ -107,6 +118,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-localization',
     'expo-router',
     ['react-native-edge-to-edge'],
+    'expo-web-browser',
+    'expo-secure-store',
     [
       '@rnmapbox/maps',
       {

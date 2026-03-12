@@ -5,7 +5,7 @@ import queryString from 'query-string';
 import { logger } from '@/lib/logging';
 
 import { getBaseApiUrl } from '../storage/app';
-import type { AuthResponse, LoginCredentials, LoginResponse } from './types';
+import type { AuthResponse, LoginCredentials, LoginResponse, SsoLoginCredentials } from './types';
 
 const authApi = axios.create({
   baseURL: getBaseApiUrl(),
@@ -76,6 +76,49 @@ export const refreshTokenRequest = async (refreshToken: string): Promise<AuthRes
     logger.error({
       message: 'Token refresh failed',
       context: { error },
+    });
+    throw error;
+  }
+};
+
+/**
+ * Exchange an external IdP token (OIDC id_token or SAML SAMLResponse) for
+ * Resgrid access/refresh tokens via POST /api/v4/connect/external-token.
+ */
+export const ssoExternalTokenRequest = async (credentials: SsoLoginCredentials): Promise<LoginResponse> => {
+  try {
+    const data = queryString.stringify({
+      provider: credentials.provider,
+      external_token: credentials.externalToken,
+      username: credentials.username,
+      scope: Env.IS_MOBILE_APP === 'true' ? 'openid email profile offline_access mobile' : 'openid email profile offline_access',
+    });
+
+    const response = await authApi.post<AuthResponse>('/connect/external-token', data);
+
+    if (response.status === 200) {
+      logger.info({
+        message: 'SSO external token exchange successful',
+        context: { provider: credentials.provider, username: credentials.username },
+      });
+
+      return {
+        successful: true,
+        message: 'SSO login successful',
+        authResponse: response.data,
+      };
+    }
+
+    logger.error({
+      message: 'SSO external token exchange failed',
+      context: { status: response.status, username: credentials.username },
+    });
+
+    return { successful: false, message: 'SSO login failed', authResponse: null };
+  } catch (error) {
+    logger.error({
+      message: 'SSO external token exchange error',
+      context: { error, username: credentials.username },
     });
     throw error;
   }

@@ -454,11 +454,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           context: { roomName: roomInfo.Name, timeoutMs: CONNECT_OVERALL_TIMEOUT_MS },
         });
         set({ isConnecting: false });
-        Alert.alert(
-          'Voice Connection Timeout',
-          `The connection to "${roomInfo.Name}" took too long. Please try again.`,
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Voice Connection Timeout', `The connection to "${roomInfo.Name}" took too long. Please try again.`, [{ text: 'OK' }]);
       }
     }, CONNECT_OVERALL_TIMEOUT_MS);
 
@@ -493,11 +489,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         context: { roomName: roomInfo.Name },
       });
 
-      const permissionsGranted = await withTimeout(
-        get().requestPermissions(),
-        10_000,
-        'requestPermissions'
-      );
+      const permissionsGranted = await withTimeout(get().requestPermissions(), 10_000, 'requestPermissions');
 
       logger.debug({
         message: 'connectToRoom: microphone permission result',
@@ -530,11 +522,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       if (Platform.OS !== 'web') {
         try {
           logger.debug({ message: 'connectToRoom: starting audio session' });
-          await withTimeout(
-            AudioSession.startAudioSession(),
-            10_000,
-            'AudioSession.startAudioSession'
-          );
+          await withTimeout(AudioSession.startAudioSession(), 10_000, 'AudioSession.startAudioSession');
           logger.info({
             message: 'Audio session started successfully',
           });
@@ -587,11 +575,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
           hasToken: !!token,
         },
       });
-      await withTimeout(
-        room.connect(voipServerWebsocketSslAddress, token),
-        15_000,
-        'room.connect'
-      );
+      await withTimeout(room.connect(voipServerWebsocketSslAddress, token), 15_000, 'room.connect');
       logger.info({
         message: 'LiveKit room connected successfully',
         context: { roomName: roomInfo.Name },
