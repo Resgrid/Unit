@@ -46,7 +46,7 @@ export default function SsoLogin() {
     clientId: ssoConfig?.clientId ?? '',
   });
 
-  const { startSamlLogin, handleDeepLink, isSamlCallback } = useSamlLogin();
+  const { startSamlLogin, isSamlCallback } = useSamlLogin();
 
   const {
     control,
@@ -73,16 +73,16 @@ export default function SsoLogin() {
 
     setIsSsoLoading(true);
     oidc
-      .exchangeForResgridToken(pendingUsernameRef.current)
-      .then((result) => {
-        if (!result) {
+      .exchangeForResgridToken()
+      .then((idToken) => {
+        if (!idToken) {
           setIsSsoLoading(false);
           setIsErrorModalVisible(true);
           return;
         }
         ssoLogin({
           provider: 'oidc',
-          externalToken: result.access_token,
+          externalToken: idToken,
           username: pendingUsernameRef.current,
         });
       })
@@ -97,16 +97,17 @@ export default function SsoLogin() {
   useEffect(() => {
     const subscription = Linking.addEventListener('url', async ({ url }: { url: string }) => {
       if (!isSamlCallback(url)) return;
-      setIsSsoLoading(true);
-      const result = await handleDeepLink(url, pendingUsernameRef.current);
-      if (!result) {
+      const parsed = Linking.parse(url);
+      const samlResponse = parsed.queryParams?.saml_response as string | undefined;
+      if (!samlResponse) {
         setIsSsoLoading(false);
         setIsErrorModalVisible(true);
         return;
       }
+      setIsSsoLoading(true);
       await ssoLogin({
         provider: 'saml2',
-        externalToken: result.access_token,
+        externalToken: samlResponse,
         username: pendingUsernameRef.current,
       });
     });

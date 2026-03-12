@@ -47,7 +47,7 @@ export default function Login() {
 
   // ── Local login ───────────────────────────────────────────────────────────
   const onSubmit: LoginFormProps['onSubmit'] = async (data) => {
-    logger.info({ message: 'Starting Login (button press)', context: { username: data.username } });
+    logger.info({ message: 'Starting Login (button press)' });
     await login({ username: data.username, password: data.password });
   };
 

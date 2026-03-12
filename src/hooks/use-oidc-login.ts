@@ -1,9 +1,7 @@
-import axios from 'axios';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 import { logger } from '@/lib/logging';
-import { getBaseApiUrl } from '@/lib/storage/app';
 
 // Required for iOS / Android to close the browser after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -13,26 +11,18 @@ export interface UseOidcLoginOptions {
   clientId: string;
 }
 
-export interface OidcExchangeResult {
-  access_token: string;
-  refresh_token: string;
-  id_token?: string;
-  expires_in: number;
-  token_type: string;
-  expiration_date?: string;
-}
-
 /**
  * Hook that drives the OIDC Authorization-Code + PKCE flow.
  *
  * Usage:
  *   const { request, promptAsync, exchangeForResgridToken } = useOidcLogin({ authority, clientId });
  *   // 1. call promptAsync() on button press
- *   // 2. watch response inside a useEffect and call exchangeForResgridToken(username) when type === 'success'
+ *   // 2. watch response inside a useEffect and call exchangeForResgridToken() when type === 'success'
+ *   // 3. pass the returned id_token to ssoLogin({ provider: 'oidc', externalToken: idToken, username })
  */
 export function useOidcLogin({ authority, clientId }: UseOidcLoginOptions) {
   const redirectUri = AuthSession.makeRedirectUri({
-    scheme: 'ResgridUnit',
+    scheme: 'resgridunit',
     path: 'auth/callback',
   });
 
@@ -50,10 +40,11 @@ export function useOidcLogin({ authority, clientId }: UseOidcLoginOptions) {
   );
 
   /**
-   * Exchange the OIDC authorization code for a Resgrid access token.
+   * Exchange the OIDC authorization code for the IdP id_token.
    * Should be called after `response?.type === 'success'`.
+   * Returns the raw id_token string for use as the externalToken in ssoLogin.
    */
-  async function exchangeForResgridToken(username: string): Promise<OidcExchangeResult | null> {
+  async function exchangeForResgridToken(): Promise<string | null> {
     if (response?.type !== 'success' || !request?.codeVerifier || !discovery) {
       logger.warn({
         message: 'OIDC exchange called in invalid state',
@@ -63,7 +54,7 @@ export function useOidcLogin({ authority, clientId }: UseOidcLoginOptions) {
     }
 
     try {
-      // Step 1: exchange auth code for id_token at the IdP
+      // Exchange auth code for id_token at the IdP
       const tokenResponse = await AuthSession.exchangeCodeAsync(
         {
           clientId,
@@ -80,18 +71,8 @@ export function useOidcLogin({ authority, clientId }: UseOidcLoginOptions) {
         return null;
       }
 
-      // Step 2: exchange id_token for Resgrid access/refresh tokens
-      const params = new URLSearchParams({
-        provider: 'oidc',
-        external_token: idToken,
-        username,
-        scope: 'openid email profile offline_access mobile',
-      });
-
-      const resgridResponse = await axios.post<OidcExchangeResult>(`${getBaseApiUrl()}/connect/external-token`, params.toString(), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-
-      logger.info({ message: 'OIDC Resgrid token exchange successful' });
-      return resgridResponse.data;
+      logger.info({ message: 'OIDC code exchange successful, id_token obtained' });
+      return idToken;
     } catch (error) {
       logger.error({
         message: 'OIDC token exchange failed',

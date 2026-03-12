@@ -1,22 +1,15 @@
 import { renderHook } from '@testing-library/react-native';
-import axios from 'axios';
 import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
 
 import { useOidcLogin } from '../use-oidc-login';
 
 jest.mock('expo-auth-session');
 jest.mock('expo-web-browser');
-jest.mock('axios');
-jest.mock('@/lib/storage/app', () => ({
-  getBaseApiUrl: jest.fn(() => 'https://api.resgrid.com/api/v4'),
-}));
 jest.mock('@/lib/logging', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
 const mockedAuthSession = AuthSession as jest.Mocked<typeof AuthSession>;
-const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('useOidcLogin', () => {
   const mockPromptAsync = jest.fn();
@@ -61,7 +54,7 @@ describe('useOidcLogin', () => {
       useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
     );
 
-    const tokenResult = await result.current.exchangeForResgridToken('john.doe');
+    const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();
   });
 
@@ -81,11 +74,11 @@ describe('useOidcLogin', () => {
       useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
     );
 
-    const tokenResult = await result.current.exchangeForResgridToken('john.doe');
+    const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();
   });
 
-  it('exchanges id_token for Resgrid token on success', async () => {
+  it('returns the IdP id_token string on success', async () => {
     (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
       { codeVerifier: 'verifier123' },
       { type: 'success', params: { code: 'auth-code-123' } },
@@ -97,53 +90,29 @@ describe('useOidcLogin', () => {
       accessToken: 'oidc-access',
     });
 
-    mockedAxios.post = jest.fn().mockResolvedValueOnce({
-      data: {
-        access_token: 'rg-access',
-        refresh_token: 'rg-refresh',
-        expires_in: 3600,
-        token_type: 'Bearer',
-      },
-    });
-
     const { result } = renderHook(() =>
       useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
     );
 
-    const tokenResult = await result.current.exchangeForResgridToken('john.doe');
+    const tokenResult = await result.current.exchangeForResgridToken();
 
-    expect(tokenResult).toEqual({
-      access_token: 'rg-access',
-      refresh_token: 'rg-refresh',
-      expires_in: 3600,
-      token_type: 'Bearer',
-    });
-
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      'https://api.resgrid.com/api/v4/connect/external-token',
-      expect.stringContaining('external_token=oidc-id-token'),
-      expect.objectContaining({ headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }),
-    );
+    expect(tokenResult).toBe('oidc-id-token');
   });
 
-  it('returns null when Resgrid API call fails', async () => {
+  it('returns null when IdP code exchange fails', async () => {
     (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
       { codeVerifier: 'verifier123' },
       { type: 'success', params: { code: 'auth-code-123' } },
       mockPromptAsync,
     ]);
 
-    (mockedAuthSession.exchangeCodeAsync as jest.Mock).mockResolvedValueOnce({
-      idToken: 'oidc-id-token',
-    });
-
-    mockedAxios.post = jest.fn().mockRejectedValueOnce(new Error('API Error'));
+    (mockedAuthSession.exchangeCodeAsync as jest.Mock).mockRejectedValueOnce(new Error('IdP Error'));
 
     const { result } = renderHook(() =>
       useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
     );
 
-    const tokenResult = await result.current.exchangeForResgridToken('john.doe');
+    const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();
   });
 });
