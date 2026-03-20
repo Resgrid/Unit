@@ -629,6 +629,9 @@ export const LineLayer: React.FC<any> = () => null;
 export const FillLayer: React.FC<any> = () => null;
 export const Images: React.FC<any> = () => null;
 export const Callout: React.FC<any> = ({ children }) => <>{children}</>;
+export const RasterLayer: React.FC<any> = () => null;
+export const RasterSource: React.FC<any> = ({ children }) => <>{children}</>;
+export const ImageSource: React.FC<any> = ({ children }) => <>{children}</>;
 
 // Default export matching native structure
 export default {
@@ -644,6 +647,9 @@ export default {
   FillLayer,
   Images,
   Callout,
+  RasterLayer,
+  RasterSource,
+  ImageSource,
   StyleURL,
   UserTrackingMode,
   setAccessToken,

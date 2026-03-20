@@ -24,6 +24,13 @@ export const LanguageItem = () => {
     () => [
       { label: translate('settings.english'), value: 'en' },
       { label: translate('settings.spanish'), value: 'es' },
+      { label: translate('settings.swedish'), value: 'sv' },
+      { label: translate('settings.german'), value: 'de' },
+      { label: translate('settings.french'), value: 'fr' },
+      { label: translate('settings.italian'), value: 'it' },
+      { label: translate('settings.polish'), value: 'pl' },
+      { label: translate('settings.ukrainian'), value: 'uk' },
+      { label: translate('settings.arabic'), value: 'ar' },
     ],
     []
   );
@@ -38,7 +45,7 @@ export const LanguageItem = () => {
       <View className="flex-row items-center">
         <Select onValueChange={onSelect} selectedValue={selectedLanguage?.value}>
           <SelectTrigger>
-            <SelectInput placeholder="Select option" />
+            <SelectInput placeholder={t('common.select_option')} />
             <SelectIcon as={ChevronDownIcon} className="mr-3" />
           </SelectTrigger>
           <SelectPortal>

@@ -17,6 +17,9 @@ export const LineLayer = Mapbox.LineLayer;
 export const FillLayer = Mapbox.FillLayer;
 export const Images = Mapbox.Images;
 export const Callout = Mapbox.Callout;
+export const RasterLayer = Mapbox.RasterLayer;
+export const RasterSource = Mapbox.RasterSource;
+export const ImageSource = Mapbox.ImageSource;
 
 // Export style URL constants
 export const StyleURL = Mapbox.StyleURL;
@@ -41,6 +44,9 @@ const MapboxExports = {
   FillLayer: Mapbox.FillLayer,
   Images: Mapbox.Images,
   Callout: Mapbox.Callout,
+  RasterLayer: Mapbox.RasterLayer,
+  RasterSource: Mapbox.RasterSource,
+  ImageSource: Mapbox.ImageSource,
   StyleURL: Mapbox.StyleURL,
   UserTrackingMode: Mapbox.UserTrackingMode,
   setAccessToken: Mapbox.setAccessToken,

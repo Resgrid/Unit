@@ -1,4 +1,4 @@
-import { useIsFocused } from '@react-navigation/native';
+import { NavigationContext, useIsFocused } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
@@ -6,7 +6,9 @@ import { Platform, StatusBar } from 'react-native';
 import { SystemBars } from 'react-native-edge-to-edge';
 
 type Props = { hidden?: boolean };
-export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
+
+// Inner component — only mounted when navigation context is confirmed available
+function FocusAwareStatusBarInner({ hidden = false }: Props) {
   const isFocused = useIsFocused();
   const { colorScheme } = useColorScheme();
 
@@ -65,4 +67,11 @@ export const FocusAwareStatusBar = ({ hidden = false }: Props) => {
 
   // Only render SystemBars when focused and on supported platforms
   return isFocused && (Platform.OS === 'android' || Platform.OS === 'ios') ? <SystemBars style={colorScheme} hidden={{ statusBar: hidden, navigationBar: true }} /> : null;
+}
+
+// Public export — guards against missing navigation context (e.g. during initial tab pre-render)
+export const FocusAwareStatusBar = (props: Props) => {
+  const navContext = React.useContext(NavigationContext);
+  if (!navContext) return null;
+  return <FocusAwareStatusBarInner {...props} />;
 };

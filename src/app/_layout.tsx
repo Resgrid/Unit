@@ -172,6 +172,8 @@ function RootLayout() {
         <Stack.Screen name="(app)" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="login/index" options={{ headerShown: false }} />
+        <Stack.Screen name="routes" options={{ headerShown: false }} />
+        <Stack.Screen name="maps" options={{ headerShown: false }} />
       </Stack>
     </Providers>
   );

@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import { Platform } from 'react-native';
 import { consoleTransport, logger as rnLogger } from 'react-native-logs';
 
@@ -81,6 +82,14 @@ class LogService {
 
   public error(entry: LogEntry): void {
     this.log('error', entry);
+    if (!isJest) {
+      const err = entry.context?.error;
+      if (err instanceof Error) {
+        Sentry.captureException(err, { extra: { message: entry.message, ...entry.context } });
+      } else {
+        Sentry.captureMessage(entry.message, { level: 'error', extra: entry.context });
+      }
+    }
   }
 }
 

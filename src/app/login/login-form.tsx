@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, EyeIcon, EyeOffIcon, LogIn, ShieldCheck } from 'lucide-react-native';
+import { AlertTriangle, EyeIcon, EyeOffIcon, Globe, LogIn, ShieldCheck } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
@@ -13,8 +13,12 @@ import { View } from '@/components/ui';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { Select, SelectBackdrop, SelectContent, SelectDragIndicator, SelectDragIndicatorWrapper, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
+import { translate, useSelectedLanguage } from '@/lib';
+import type { Language } from '@/lib/i18n/resources';
+import { ChevronDownIcon } from 'lucide-react-native';
 
 // Function to create schema - makes it easier to mock for testing
 const createLoginFormSchema = () =>
@@ -46,7 +50,24 @@ export type LoginFormProps = {
 
 export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress, onSsoPress }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
-  const { t } = useTranslation();
+  const { t, i18n: i18nInstance } = useTranslation();
+  const { language, setLanguage } = useSelectedLanguage();
+
+  const langs = React.useMemo(
+    () => [
+      { label: translate('settings.english'), value: 'en' },
+      { label: translate('settings.spanish'), value: 'es' },
+      { label: translate('settings.swedish'), value: 'sv' },
+      { label: translate('settings.german'), value: 'de' },
+      { label: translate('settings.french'), value: 'fr' },
+      { label: translate('settings.italian'), value: 'it' },
+      { label: translate('settings.polish'), value: 'pl' },
+      { label: translate('settings.ukrainian'), value: 'uk' },
+      { label: translate('settings.arabic'), value: 'ar' },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [i18nInstance.language]
+  );
   const {
     control,
     handleSubmit,
@@ -189,6 +210,31 @@ export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = und
               <ButtonText className="text-xs">{t('login.sso_button')}</ButtonText>
             </Button>
           ) : null}
+        </View>
+
+        {/* Language selector */}
+        <View className="mt-4 flex-row items-center justify-center gap-x-2">
+          <Globe size={16} className="text-gray-400" />
+          <Select
+            onValueChange={(val) => setLanguage(val as Language)}
+            selectedValue={language ?? i18nInstance.language}
+          >
+            <SelectTrigger size="sm" variant="outline" className="min-w-[160px]">
+              <SelectInput placeholder={t('settings.language')} />
+              <SelectIcon as={ChevronDownIcon} className="mr-2" />
+            </SelectTrigger>
+            <SelectPortal>
+              <SelectBackdrop />
+              <SelectContent>
+                <SelectDragIndicatorWrapper>
+                  <SelectDragIndicator />
+                </SelectDragIndicatorWrapper>
+                {langs.map((lang) => (
+                  <SelectItem key={lang.value} label={lang.label} value={lang.value} />
+                ))}
+              </SelectContent>
+            </SelectPortal>
+          </Select>
         </View>
       </View>
     </KeyboardAvoidingView>
