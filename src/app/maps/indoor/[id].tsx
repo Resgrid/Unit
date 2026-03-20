@@ -219,7 +219,7 @@ export default function IndoorMapViewer() {
                 <VStack className="flex-1" space="xs">
                   <HStack className="items-center" space="sm">
                     <Icon as={Building2} size="sm" className="text-purple-600 dark:text-purple-400" />
-                    <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedZone.name as string) || (selectedZone.Name as string) || 'Zone'}</Text>
+                    <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedZone.name as string) || (selectedZone.Name as string) || t('maps.zone')}</Text>
                   </HStack>
                   {selectedZone.type || selectedZone.Type ? (
                     <Badge action="info" variant="outline" size="sm" className="self-start">

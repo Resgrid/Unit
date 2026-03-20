@@ -1,7 +1,7 @@
 import { type FeatureCollection } from 'geojson';
 
 import { BaseV4Request } from '../baseV4Request';
-import { type CustomMapResultData } from './customMapResultData';
+import { type CustomMapLayerResultData, type CustomMapResultData } from './customMapResultData';
 import { type IndoorMapFloorResultData, type IndoorMapResultData } from './indoorMapResultData';
 
 export class GetIndoorMapsResult extends BaseV4Request {
@@ -25,7 +25,7 @@ export class GetCustomMapResult extends BaseV4Request {
 }
 
 export class GetCustomMapLayerResult extends BaseV4Request {
-  public Data: CustomMapResultData = {} as CustomMapResultData;
+  public Data: CustomMapLayerResultData = {} as CustomMapLayerResultData;
 }
 
 export class GetGeoJSONResult extends BaseV4Request {

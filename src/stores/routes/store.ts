@@ -65,9 +65,9 @@ interface RoutesState {
   fetchDirections: (instanceId: string) => Promise<void>;
 
   // Actions - Stop Interactions
-  checkIn: (stopId: string, unitId: string, lat: number, lon: number) => Promise<void>;
-  checkOut: (stopId: string, unitId: string) => Promise<void>;
-  skip: (stopId: string, reason: string) => Promise<void>;
+  checkIn: (stopId: string, unitId: string, lat: number, lon: number) => Promise<boolean>;
+  checkOut: (stopId: string, unitId: string) => Promise<boolean>;
+  skip: (stopId: string, reason: string) => Promise<boolean>;
   performGeofenceCheckIn: (unitId: string, lat: number, lon: number) => Promise<void>;
   updateNotes: (stopId: string, notes: string) => Promise<void>;
 
@@ -288,8 +288,10 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       set({
         instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 1, CheckedInOn: new Date().toISOString() } : s)),
       });
+      return true;
     } catch (error) {
       set({ error: 'Failed to check in at stop' });
+      return false;
     }
   },
 
@@ -300,8 +302,10 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       set({
         instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 2, CheckedOutOn: new Date().toISOString() } : s)),
       });
+      return true;
     } catch (error) {
       set({ error: 'Failed to check out from stop' });
+      return false;
     }
   },
 
@@ -312,8 +316,10 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       set({
         instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 3, SkippedOn: new Date().toISOString() } : s)),
       });
+      return true;
     } catch (error) {
       set({ error: 'Failed to skip stop' });
+      return false;
     }
   },
 

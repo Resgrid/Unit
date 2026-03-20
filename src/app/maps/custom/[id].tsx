@@ -183,7 +183,7 @@ export default function CustomMapViewer() {
             <Card className="rounded-xl bg-white p-4 shadow-lg dark:bg-gray-800">
               <HStack className="items-start justify-between">
                 <VStack className="flex-1" space="xs">
-                  <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedFeature.name as string) || (selectedFeature.Name as string) || 'Region'}</Text>
+                  <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedFeature.name as string) || (selectedFeature.Name as string) || t('maps.region')}</Text>
                   {selectedFeature.description || selectedFeature.Description ? (
                     <Text className="text-sm text-gray-600 dark:text-gray-400">{(selectedFeature.description as string) || (selectedFeature.Description as string)}</Text>
                   ) : null}

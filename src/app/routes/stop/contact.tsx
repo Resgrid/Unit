@@ -178,12 +178,12 @@ export default function StopContactScreen() {
 
         {/* Phone numbers */}
         <Box className={`mt-2 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
-          <PhoneRow label="Phone" number={contact.Phone} colorScheme={colorScheme ?? 'light'} />
-          <PhoneRow label="Mobile" number={contact.Mobile} colorScheme={colorScheme ?? 'light'} />
-          <PhoneRow label="Home" number={contact.HomePhoneNumber} colorScheme={colorScheme ?? 'light'} />
-          <PhoneRow label="Cell" number={contact.CellPhoneNumber} colorScheme={colorScheme ?? 'light'} />
-          <PhoneRow label="Office" number={contact.OfficePhoneNumber} colorScheme={colorScheme ?? 'light'} />
-          <PhoneRow label="Fax" number={contact.FaxPhoneNumber} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.phone')} number={contact.Phone} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.mobile')} number={contact.Mobile} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.homePhone')} number={contact.HomePhoneNumber} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.cellPhone')} number={contact.CellPhoneNumber} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.officePhone')} number={contact.OfficePhoneNumber} colorScheme={colorScheme ?? 'light'} />
+          <PhoneRow label={t('contacts.faxPhone')} number={contact.FaxPhoneNumber} colorScheme={colorScheme ?? 'light'} />
         </Box>
 
         {/* Address */}
@@ -234,19 +234,19 @@ export default function StopContactScreen() {
               {locationGps && (
                 <HStack className="items-center gap-1">
                   <View style={[styles.legendDot, { backgroundColor: '#3b82f6' }]} />
-                  <Text className="text-xs text-typography-500">Location</Text>
+                  <Text className="text-xs text-typography-500">{t('routes.location')}</Text>
                 </HStack>
               )}
               {entranceGps && (
                 <HStack className="items-center gap-1">
                   <View style={[styles.legendDot, { backgroundColor: '#22c55e' }]} />
-                  <Text className="text-xs text-typography-500">Entrance</Text>
+                  <Text className="text-xs text-typography-500">{t('routes.entrance')}</Text>
                 </HStack>
               )}
               {exitGps && (
                 <HStack className="items-center gap-1">
                   <View style={[styles.legendDot, { backgroundColor: '#ef4444' }]} />
-                  <Text className="text-xs text-typography-500">Exit</Text>
+                  <Text className="text-xs text-typography-500">{t('routes.exit')}</Text>
                 </HStack>
               )}
             </HStack>

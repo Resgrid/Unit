@@ -60,12 +60,12 @@ const STOP_STATUS_COLORS: Record<number, string> = {
   [RouteStopStatus.Skipped]: '#f59e0b',
 };
 
-const DEVIATION_TYPE_LABELS: Record<number, string> = {
-  [RouteDeviationType.OffRoute]: 'Off Route',
-  [RouteDeviationType.MissedStop]: 'Missed Stop',
-  [RouteDeviationType.UnexpectedStop]: 'Unexpected Stop',
-  [RouteDeviationType.SpeedViolation]: 'Speed Violation',
-  [RouteDeviationType.Other]: 'Other',
+const DEVIATION_TYPE_KEYS: Record<number, string> = {
+  [RouteDeviationType.OffRoute]: 'routes.deviation_type_off_route',
+  [RouteDeviationType.MissedStop]: 'routes.deviation_type_missed_stop',
+  [RouteDeviationType.UnexpectedStop]: 'routes.deviation_type_unexpected_stop',
+  [RouteDeviationType.SpeedViolation]: 'routes.deviation_type_speed_violation',
+  [RouteDeviationType.Other]: 'routes.deviation_type_other',
 };
 
 function formatDuration(seconds: number): string {
@@ -399,6 +399,7 @@ export default function RouteInstanceDetail() {
 // --- Sub-components ---
 
 function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
+  const { t } = useTranslation();
   const statusColor = STOP_STATUS_COLORS[stop.Status] ?? '#9ca3af';
   const StopIcon = getStopIcon(stop.Status);
 
@@ -416,9 +417,9 @@ function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
             </Text>
           ) : null}
           <HStack className="mt-1 space-x-3">
-            {stop.CheckedInOn ? <Text className="text-xs text-gray-500">In: {formatDate(stop.CheckedInOn)}</Text> : null}
-            {stop.CheckedOutOn ? <Text className="text-xs text-gray-500">Out: {formatDate(stop.CheckedOutOn)}</Text> : null}
-            {stop.SkippedOn ? <Text className="text-xs text-gray-500">Skipped: {formatDate(stop.SkippedOn)}</Text> : null}
+            {stop.CheckedInOn ? <Text className="text-xs text-gray-500">{t('routes.check_in')}: {formatDate(stop.CheckedInOn)}</Text> : null}
+            {stop.CheckedOutOn ? <Text className="text-xs text-gray-500">{t('routes.check_out')}: {formatDate(stop.CheckedOutOn)}</Text> : null}
+            {stop.SkippedOn ? <Text className="text-xs text-gray-500">{t('routes.skipped')}: {formatDate(stop.SkippedOn)}</Text> : null}
           </HStack>
         </VStack>
         <Text className="text-xs font-medium" style={{ color: statusColor }}>
@@ -431,7 +432,7 @@ function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
 
 function DeviationCard({ deviation }: { deviation: RouteDeviationResultData }) {
   const { t } = useTranslation();
-  const typeLabel = DEVIATION_TYPE_LABELS[deviation.Type] ?? t('routes.deviation');
+  const typeLabel = DEVIATION_TYPE_KEYS[deviation.Type] ? t(DEVIATION_TYPE_KEYS[deviation.Type]) : t('routes.deviation');
 
   return (
     <Box className="mb-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
