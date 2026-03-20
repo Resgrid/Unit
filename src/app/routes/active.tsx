@@ -48,12 +48,7 @@ const parseRouteGeometry = (geometry: string): GeoJSON.Feature | null => {
 /**
  * Build a GeoJSON circle polygon for a geofence around a coordinate.
  */
-const buildGeofenceCircle = (
-  lng: number,
-  lat: number,
-  radiusMeters: number,
-  steps: number = GEOFENCE_CIRCLE_STEPS
-): GeoJSON.Feature => {
+const buildGeofenceCircle = (lng: number, lat: number, radiusMeters: number, steps: number = GEOFENCE_CIRCLE_STEPS): GeoJSON.Feature => {
   const coords: number[][] = [];
   const distanceLat = radiusMeters / 111_320;
   const distanceLng = radiusMeters / (111_320 * Math.cos((lat * Math.PI) / 180));
@@ -102,18 +97,12 @@ export default function ActiveRouteScreen() {
   // instanceId may be absent when navigating from start.tsx — fall back to store.
   // Guard against the literal string "undefined" that can appear in URL params.
   const resolvedInstanceId = (() => {
-    const id = (instanceId && instanceId !== 'undefined') ? instanceId : activeInstance?.RouteInstanceId;
+    const id = instanceId && instanceId !== 'undefined' ? instanceId : activeInstance?.RouteInstanceId;
     return id || undefined;
   })();
 
   // --- Derived data ---
-  const currentStop = useMemo(
-    () =>
-      instanceStops.find(
-        (s) => s.Status === RouteStopStatus.Pending || s.Status === RouteStopStatus.InProgress
-      ) ?? null,
-    [instanceStops]
-  );
+  const currentStop = useMemo(() => instanceStops.find((s) => s.Status === RouteStopStatus.Pending || s.Status === RouteStopStatus.InProgress) ?? null, [instanceStops]);
 
   const routeColor = activeInstance?.RouteColor || '#3b82f6';
 
@@ -123,22 +112,20 @@ export default function ActiveRouteScreen() {
       const completed = activeInstance?.StopsCompleted ?? 0;
       return total > 0 ? Math.round((completed / total) * 100) : 0;
     }
-    const done = instanceStops.filter(
-      (s) => s.Status === RouteStopStatus.Completed || s.Status === RouteStopStatus.Skipped
-    ).length;
+    const done = instanceStops.filter((s) => s.Status === RouteStopStatus.Completed || s.Status === RouteStopStatus.Skipped).length;
     return Math.round((done / instanceStops.length) * 100);
   }, [instanceStops, activeInstance]);
 
   const routeGeoJSON = useMemo(() => {
     // Prefer directions geometry, fall back to instance actual route geometry
-    if (directions?.RouteGeometry) {
-      return parseRouteGeometry(directions.RouteGeometry);
+    if (directions?.Geometry) {
+      return parseRouteGeometry(directions.Geometry);
     }
     if (activeInstance?.ActualRouteGeometry) {
       return parseRouteGeometry(activeInstance.ActualRouteGeometry);
     }
     return null;
-  }, [directions?.RouteGeometry, activeInstance?.ActualRouteGeometry]);
+  }, [directions?.Geometry, activeInstance?.ActualRouteGeometry]);
 
   const geofenceGeoJSON = useMemo(() => {
     if (!currentStop) return null;
@@ -150,10 +137,11 @@ export default function ActiveRouteScreen() {
   // --- Initial data fetch ---
   useEffect(() => {
     if (!resolvedInstanceId) return;
+    fetchRouteProgress(resolvedInstanceId);
     fetchStopsForInstance(resolvedInstanceId);
     fetchDirections(resolvedInstanceId);
     fetchDeviations();
-  }, [resolvedInstanceId, fetchStopsForInstance, fetchDirections, fetchDeviations]);
+  }, [resolvedInstanceId, fetchRouteProgress, fetchStopsForInstance, fetchDirections, fetchDeviations]);
 
   // --- Polling for progress ---
   useEffect(() => {
@@ -178,9 +166,7 @@ export default function ActiveRouteScreen() {
   useEffect(() => {
     if (!isMapReady || instanceStops.length === 0 || !cameraRef.current) return;
 
-    const validStops = instanceStops.filter(
-      (s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)
-    );
+    const validStops = instanceStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude));
     if (validStops.length === 0) return;
 
     const lngs = validStops.map((s) => s.Longitude);
@@ -228,12 +214,16 @@ export default function ActiveRouteScreen() {
         text: t('routes.end_route'),
         style: 'destructive',
         onPress: async () => {
-          await endRouteInstance(resolvedInstanceId);
-          router.back();
+          try {
+            await endRouteInstance(resolvedInstanceId);
+            router.back();
+          } catch {
+            Alert.alert(t('common.error'), t('common.errorOccurred'));
+          }
         },
       },
     ]);
-  }, [resolvedInstanceId, endRouteInstance, router]);
+  }, [resolvedInstanceId, endRouteInstance, router, t]);
 
   const handleDirections = useCallback(() => {
     if (!resolvedInstanceId) return;
@@ -248,11 +238,7 @@ export default function ActiveRouteScreen() {
     <Box className="flex-1 bg-white dark:bg-gray-900">
       {/* Map area - 60% height */}
       <Box className="h-[60%]">
-        <Mapbox.MapView
-          style={styles.map}
-          styleURL={Mapbox.StyleURL.Street}
-          onDidFinishLoadingMap={() => setIsMapReady(true)}
-        >
+        <Mapbox.MapView style={styles.map} styleURL={Mapbox.StyleURL.Street} onDidFinishLoadingMap={() => setIsMapReady(true)}>
           <Mapbox.Camera ref={cameraRef} />
 
           {/* Route polyline */}
@@ -292,32 +278,22 @@ export default function ActiveRouteScreen() {
           ) : null}
 
           {/* Stop markers */}
-          {instanceStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)).map((stop) => (
-            <Mapbox.PointAnnotation
-              key={stop.RouteInstanceStopId}
-              id={`stop-${stop.RouteInstanceStopId}`}
-              coordinate={[stop.Longitude, stop.Latitude]}
-            >
-              <StopMarker stopOrder={stop.StopOrder} status={stop.Status} />
-            </Mapbox.PointAnnotation>
-          ))}
+          {instanceStops
+            .filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude))
+            .map((stop) => (
+              <Mapbox.PointAnnotation key={stop.RouteInstanceStopId} id={`stop-${stop.RouteInstanceStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>
+                <StopMarker stopOrder={stop.StopOrder} status={stop.Status} />
+              </Mapbox.PointAnnotation>
+            ))}
         </Mapbox.MapView>
 
         {/* Map overlay buttons */}
         <Box className="absolute right-3 top-14">
           <VStack space="sm">
-            <Button
-              size="sm"
-              className="rounded-full bg-white shadow-md dark:bg-gray-800"
-              onPress={handleDirections}
-            >
+            <Button size="sm" className="rounded-full bg-white shadow-md dark:bg-gray-800" onPress={handleDirections}>
               <Icon as={Navigation} size="sm" className="text-blue-600" />
             </Button>
-            <Button
-              size="sm"
-              className="rounded-full bg-white shadow-md dark:bg-gray-800"
-              onPress={handleEndRoute}
-            >
+            <Button size="sm" className="rounded-full bg-white shadow-md dark:bg-gray-800" onPress={handleEndRoute}>
               <Icon as={LogOut} size="sm" className="text-red-500" />
             </Button>
           </VStack>
@@ -335,41 +311,23 @@ export default function ActiveRouteScreen() {
 
       {/* Bottom area */}
       <Box className="flex-1">
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: 24 }}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
           {/* Deviation banner */}
           {deviations.length > 0 ? (
             <Box className="mt-2">
-              <RouteDeviationBanner
-                deviations={deviations}
-                onPress={handleDeviationPress}
-                onDismiss={ackDeviation}
-              />
+              <RouteDeviationBanner deviations={deviations} onPress={handleDeviationPress} onDismiss={ackDeviation} />
             </Box>
           ) : null}
 
           {/* Current stop card */}
           {currentStop ? (
             <Box className="px-4 pt-3">
-              <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {t('routes.current_step')}
-              </Text>
-              <StopCard
-                stop={currentStop}
-                isCurrent
-                onCheckIn={handleCheckIn}
-                onCheckOut={handleCheckOut}
-                onSkip={handleSkip}
-              />
+              <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('routes.current_step')}</Text>
+              <StopCard stop={currentStop} isCurrent onCheckIn={handleCheckIn} onCheckOut={handleCheckOut} onSkip={handleSkip} />
             </Box>
           ) : (
             <Box className="px-4 pt-3">
-              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">
-                {t('routes.stops_completed')}
-              </Text>
+              <Text className="text-center text-sm text-gray-500 dark:text-gray-400">{t('routes.stops_completed')}</Text>
             </Box>
           )}
 
@@ -395,23 +353,15 @@ export default function ActiveRouteScreen() {
 
           {/* Stop list */}
           <Box className="px-4">
-            <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              {t('routes.stops')}
-            </Text>
+            <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('routes.stops')}</Text>
             {instanceStops.map((stop) => (
               <StopCard
                 key={stop.RouteInstanceStopId}
                 stop={stop}
                 isCurrent={stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId}
-                onCheckIn={
-                  stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleCheckIn : undefined
-                }
-                onCheckOut={
-                  stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleCheckOut : undefined
-                }
-                onSkip={
-                  stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleSkip : undefined
-                }
+                onCheckIn={stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleCheckIn : undefined}
+                onCheckOut={stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleCheckOut : undefined}
+                onSkip={stop.RouteInstanceStopId === currentStop?.RouteInstanceStopId ? handleSkip : undefined}
               />
             ))}
           </Box>
@@ -427,43 +377,20 @@ export default function ActiveRouteScreen() {
       </Box>
 
       {/* Skip reason modal */}
-      <Modal
-        visible={skipModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSkipModalVisible(false)}
-      >
+      <Modal visible={skipModalVisible} transparent animationType="fade" onRequestClose={() => setSkipModalVisible(false)}>
         <Box className="flex-1 items-center justify-center bg-black/50 px-6">
           <Box className="w-full rounded-2xl bg-white p-6 dark:bg-gray-800">
             <Text className="mb-1 text-base font-semibold text-gray-900 dark:text-white">
               {t('routes.skip')} — {currentStop?.Name}
             </Text>
-            <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400">
-              {t('routes.skip_reason')}
-            </Text>
-            <TextInput
-              value={skipReason}
-              onChangeText={setSkipReason}
-              placeholder={t('routes.skip_reason_placeholder')}
-              placeholderTextColor="#9ca3af"
-              multiline
-              numberOfLines={3}
-              style={styles.skipInput}
-              autoFocus
-            />
+            <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t('routes.skip_reason')}</Text>
+            <TextInput value={skipReason} onChangeText={setSkipReason} placeholder={t('routes.skip_reason_placeholder')} placeholderTextColor="#9ca3af" multiline numberOfLines={3} style={styles.skipInput} autoFocus />
             <HStack className="mt-4 gap-3">
-              <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => setSkipModalVisible(false)}
-              >
-                <Text className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {t('common.cancel')}
-                </Text>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSkipModalVisible(false)}>
+                <Text className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.skipBtn} onPress={handleSkipConfirm}>
-                <Text className="text-center text-sm font-semibold text-white">
-                  {t('routes.skip')}
-                </Text>
+                <Text className="text-center text-sm font-semibold text-white">{t('routes.skip')}</Text>
               </TouchableOpacity>
             </HStack>
           </Box>

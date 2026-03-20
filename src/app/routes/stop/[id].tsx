@@ -1,29 +1,13 @@
 import { format } from 'date-fns';
-import { Stack, router, useLocalSearchParams } from 'expo-router';
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  LogInIcon,
-  LogOutIcon,
-  MapPinIcon,
-  SkipForwardIcon,
-  UserIcon,
-} from 'lucide-react-native';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { CheckCircleIcon, ClockIcon, LogInIcon, LogOutIcon, MapPinIcon, SkipForwardIcon, UserIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
-import {
-  Camera,
-  FillLayer,
-  LineLayer,
-  MapView,
-  PointAnnotation,
-  ShapeSource,
-  StyleURL,
-} from '@/components/maps/mapbox';
 import { Loading } from '@/components/common/loading';
+import { Camera, FillLayer, LineLayer, MapView, PointAnnotation, ShapeSource, StyleURL } from '@/components/maps/mapbox';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -34,31 +18,32 @@ import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { VStack } from '@/components/ui/vstack';
+import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
+import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useRoutesStore } from '@/stores/routes/store';
-import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 
 const STOP_TYPE_LABELS: Record<number, string> = {
-  0: 'Standard',
-  1: 'Pickup',
-  2: 'Dropoff',
-  3: 'Service',
-  4: 'Inspection',
+  0: 'routes.stop_type_standard',
+  1: 'routes.stop_type_pickup',
+  2: 'routes.stop_type_dropoff',
+  3: 'routes.stop_type_service',
+  4: 'routes.stop_type_inspection',
 };
 
-const PRIORITY_CONFIG: Record<number, { label: string; action: 'error' | 'warning' | 'success' | 'info' | 'muted' }> = {
-  0: { label: 'Normal', action: 'muted' },
-  1: { label: 'Low', action: 'info' },
-  2: { label: 'Medium', action: 'warning' },
-  3: { label: 'High', action: 'error' },
-  4: { label: 'Critical', action: 'error' },
+const PRIORITY_CONFIG: Record<number, { labelKey: string; action: 'error' | 'warning' | 'success' | 'info' | 'muted' }> = {
+  0: { labelKey: 'routes.priority_normal', action: 'muted' },
+  1: { labelKey: 'routes.priority_low', action: 'info' },
+  2: { labelKey: 'routes.priority_medium', action: 'warning' },
+  3: { labelKey: 'routes.priority_high', action: 'error' },
+  4: { labelKey: 'routes.priority_critical', action: 'error' },
 };
 
 const STATUS_LABELS: Record<number, string> = {
-  [RouteStopStatus.Pending]: 'Pending',
-  [RouteStopStatus.InProgress]: 'In Progress',
-  [RouteStopStatus.Completed]: 'Completed',
-  [RouteStopStatus.Skipped]: 'Skipped',
+  [RouteStopStatus.Pending]: 'routes.pending',
+  [RouteStopStatus.InProgress]: 'routes.in_progress',
+  [RouteStopStatus.Completed]: 'routes.completed',
+  [RouteStopStatus.Skipped]: 'routes.skipped',
 };
 
 /**
@@ -71,8 +56,7 @@ const buildGeofenceGeoJson = (lat: number, lon: number, radiusMeters: number) =>
   for (let i = 0; i <= points; i++) {
     const angle = (i * 2 * Math.PI) / points;
     const dLat = (radiusMeters / earthRadius) * Math.cos(angle);
-    const dLon =
-      (radiusMeters / (earthRadius * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
+    const dLon = (radiusMeters / (earthRadius * Math.cos((lat * Math.PI) / 180))) * Math.sin(angle);
     coords.push([lon + (dLon * 180) / Math.PI, lat + (dLat * 180) / Math.PI]);
   }
   return {
@@ -97,16 +81,16 @@ export default function StopDetailScreen() {
   const updateNotes = useRoutesStore((s) => s.updateNotes);
   const isLoadingStops = useRoutesStore((s) => s.isLoadingStops);
 
+  const activeUnitId = useCoreStore((s) => s.activeUnitId);
   const userLat = useLocationStore((s) => s.latitude);
   const userLon = useLocationStore((s) => s.longitude);
 
-  const stop = useMemo(
-    () => instanceStops.find((s) => s.RouteInstanceStopId === id) ?? null,
-    [instanceStops, id]
-  );
+  const stop = useMemo(() => instanceStops.find((s) => s.RouteInstanceStopId === id) ?? null, [instanceStops, id]);
 
   const [notes, setNotes] = useState(stop?.Notes ?? '');
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [skipModalVisible, setSkipModalVisible] = useState(false);
+  const [skipReason, setSkipReason] = useState('');
 
   useEffect(() => {
     if (stop) {
@@ -120,8 +104,8 @@ export default function StopDetailScreen() {
   }, [stop]);
 
   const priorityConfig = PRIORITY_CONFIG[stop?.Priority ?? 0] ?? PRIORITY_CONFIG[0];
-  const stopTypeLabel = STOP_TYPE_LABELS[stop?.StopType ?? 0] ?? 'Unknown';
-  const statusLabel = STATUS_LABELS[stop?.Status ?? 0] ?? 'Unknown';
+  const stopTypeLabel = STOP_TYPE_LABELS[stop?.StopType ?? 0] ?? 'common.unknown';
+  const statusLabel = STATUS_LABELS[stop?.Status ?? 0] ?? 'common.unknown';
 
   const handleSaveNotes = useCallback(async () => {
     if (!stop) return;
@@ -134,36 +118,29 @@ export default function StopDetailScreen() {
   }, [stop, notes, updateNotes]);
 
   const handleCheckIn = useCallback(async () => {
-    if (!stop) return;
+    if (!stop || !activeUnitId) return;
     const lat = userLat ?? 0;
     const lon = userLon ?? 0;
-    // UnitId is required but we pass empty; the store action handles it
-    await checkIn(stop.RouteInstanceStopId, '', lat, lon);
-  }, [stop, userLat, userLon, checkIn]);
+    await checkIn(stop.RouteInstanceStopId, activeUnitId, lat, lon);
+  }, [stop, activeUnitId, userLat, userLon, checkIn]);
 
   const handleCheckOut = useCallback(async () => {
-    if (!stop) return;
-    await checkOut(stop.RouteInstanceStopId, '');
-  }, [stop, checkOut]);
+    if (!stop || !activeUnitId) return;
+    await checkOut(stop.RouteInstanceStopId, activeUnitId);
+  }, [stop, activeUnitId, checkOut]);
 
   const handleSkip = useCallback(() => {
     if (!stop) return;
-    Alert.prompt(
-      t('routes.skip'),
-      t('routes.skip_reason_placeholder'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('routes.skip'),
-          style: 'destructive',
-          onPress: (reason?: string) => {
-            skip(stop.RouteInstanceStopId, reason ?? '');
-          },
-        },
-      ],
-      'plain-text'
-    );
-  }, [stop, skip]);
+    setSkipReason('');
+    setSkipModalVisible(true);
+  }, [stop]);
+
+  const handleSkipConfirm = useCallback(() => {
+    if (!stop) return;
+    setSkipModalVisible(false);
+    skip(stop.RouteInstanceStopId, skipReason.trim() || t('routes.skipped_by_driver'));
+    setSkipReason('');
+  }, [stop, skipReason, skip, t]);
 
   const handleContactPress = useCallback(() => {
     if (!stop?.ContactId) return;
@@ -198,8 +175,7 @@ export default function StopDetailScreen() {
 
   const canCheckIn = stop.Status === RouteStopStatus.Pending;
   const canCheckOut = stop.Status === RouteStopStatus.InProgress;
-  const canSkip =
-    stop.Status === RouteStopStatus.Pending || stop.Status === RouteStopStatus.InProgress;
+  const canSkip = stop.Status === RouteStopStatus.Pending || stop.Status === RouteStopStatus.InProgress;
 
   return (
     <>
@@ -210,75 +186,45 @@ export default function StopDetailScreen() {
           headerBackTitle: '',
         }}
       />
-      <ScrollView
-        className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}
-      >
+      <ScrollView className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
         {/* Header */}
-        <Box
-          className={`p-4 shadow-sm ${
-            colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-          }`}
-        >
+        <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
           <Heading size="lg">{stop.Name}</Heading>
-          {stop.Address ? (
-            <Text className="mt-1 text-sm text-typography-500">{stop.Address}</Text>
-          ) : null}
+          {stop.Address ? <Text className="mt-1 text-sm text-typography-500">{stop.Address}</Text> : null}
 
           {/* Badges */}
           <HStack className="mt-3 gap-2">
             <Badge action={priorityConfig.action} variant="solid" size="sm">
-              <BadgeText>{priorityConfig.label}</BadgeText>
+              <BadgeText>{t(priorityConfig.labelKey)}</BadgeText>
             </Badge>
             <Badge action="info" variant="outline" size="sm">
-              <BadgeText>{stopTypeLabel}</BadgeText>
+              <BadgeText>{t(stopTypeLabel)}</BadgeText>
             </Badge>
-            <Badge
-              action={
-                stop.Status === RouteStopStatus.Completed
-                  ? 'success'
-                  : stop.Status === RouteStopStatus.Skipped
-                    ? 'warning'
-                    : 'muted'
-              }
-              variant="solid"
-              size="sm"
-            >
-              <BadgeText>{statusLabel}</BadgeText>
+            <Badge action={stop.Status === RouteStopStatus.Completed ? 'success' : stop.Status === RouteStopStatus.Skipped ? 'warning' : 'muted'} variant="solid" size="sm">
+              <BadgeText>{t(statusLabel)}</BadgeText>
             </Badge>
           </HStack>
         </Box>
 
         {/* Planned times */}
-        <Box
-          className={`mt-2 p-4 ${
-            colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-          }`}
-        >
+        <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
           <HStack className="items-center gap-2">
             <ClockIcon size={16} color={colorScheme === 'dark' ? '#9ca3af' : '#6b7280'} />
-            <Text className="text-sm font-medium">Schedule</Text>
+            <Text className="text-sm font-medium">{t('routes.schedule')}</Text>
           </HStack>
           <HStack className="mt-2 gap-6">
             <VStack>
               <Text className="text-xs text-typography-500">{t('routes.planned_arrival')}</Text>
-              <Text className="text-sm font-medium">
-                {stop.PlannedArrival
-                  ? format(new Date(stop.PlannedArrival), 'MMM d, h:mm a')
-                  : '--'}
-              </Text>
+              <Text className="text-sm font-medium">{stop.PlannedArrival ? format(new Date(stop.PlannedArrival), 'MMM d, h:mm a') : '--'}</Text>
             </VStack>
             <VStack>
               <Text className="text-xs text-typography-500">{t('routes.planned_departure')}</Text>
-              <Text className="text-sm font-medium">
-                {stop.PlannedDeparture
-                  ? format(new Date(stop.PlannedDeparture), 'MMM d, h:mm a')
-                  : '--'}
-              </Text>
+              <Text className="text-sm font-medium">{stop.PlannedDeparture ? format(new Date(stop.PlannedDeparture), 'MMM d, h:mm a') : '--'}</Text>
             </VStack>
           </HStack>
           {stop.DwellTimeMinutes > 0 && (
             <Text className="mt-1 text-xs text-typography-400">
-              {t('routes.dwell_time')}: {stop.DwellTimeMinutes} min
+              {t('routes.dwell_time')}: {stop.DwellTimeMinutes} {t('routes.min')}
             </Text>
           )}
         </Box>
@@ -286,18 +232,8 @@ export default function StopDetailScreen() {
         {/* Mini Map with geofence */}
         {stop.Latitude && stop.Longitude ? (
           <Box className="mt-2" style={{ height: 200 }}>
-            <MapView
-              style={styles.map}
-              styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street}
-              scrollEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Camera
-                centerCoordinate={[stop.Longitude, stop.Latitude]}
-                zoomLevel={15}
-                animationMode="moveTo"
-              />
+            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+              <Camera centerCoordinate={[stop.Longitude, stop.Latitude]} zoomLevel={15} animationMode="moveTo" />
               <PointAnnotation id="stop-marker" coordinate={[stop.Longitude, stop.Latitude]}>
                 <View style={styles.markerContainer}>
                   <MapPinIcon size={24} color="#ef4444" />
@@ -329,20 +265,14 @@ export default function StopDetailScreen() {
         {/* Contact card */}
         {stop.ContactId ? (
           <Pressable onPress={handleContactPress}>
-            <Box
-              className={`mt-2 p-4 ${
-                colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-              }`}
-            >
+            <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
               <HStack className="items-center gap-3">
                 <Box className="h-10 w-10 items-center justify-center rounded-full bg-primary-100">
                   <UserIcon size={20} color="#3b82f6" />
                 </Box>
                 <VStack className="flex-1">
                   <Text className="text-sm font-semibold">{t('routes.contact')}</Text>
-                  <Text className="text-xs text-typography-500">
-                    {t('routes.contact_details')}
-                  </Text>
+                  <Text className="text-xs text-typography-500">{t('routes.contact_details')}</Text>
                 </VStack>
                 <Text className="text-primary-500">{t('calls.view_details')}</Text>
               </HStack>
@@ -351,26 +281,12 @@ export default function StopDetailScreen() {
         ) : null}
 
         {/* Notes */}
-        <Box
-          className={`mt-2 p-4 ${
-            colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-          }`}
-        >
+        <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
           <Text className="mb-2 text-sm font-medium">{t('routes.notes')}</Text>
           <Textarea size="md" className="mb-3">
-            <TextareaInput
-              value={notes}
-              onChangeText={setNotes}
-              placeholder={t('routes.notes_placeholder')}
-              numberOfLines={4}
-            />
+            <TextareaInput value={notes} onChangeText={setNotes} placeholder={t('routes.notes_placeholder')} numberOfLines={4} />
           </Textarea>
-          <Button
-            size="sm"
-            variant="outline"
-            onPress={handleSaveNotes}
-            disabled={isSavingNotes || notes === (stop.Notes ?? '')}
-          >
+          <Button size="sm" variant="outline" onPress={handleSaveNotes} disabled={isSavingNotes || notes === (stop.Notes ?? '')}>
             <ButtonText>{isSavingNotes ? t('common.loading') : t('common.save')}</ButtonText>
           </Button>
         </Box>
@@ -406,6 +322,27 @@ export default function StopDetailScreen() {
         {/* Bottom spacing */}
         <Box className="h-8" />
       </ScrollView>
+
+      {/* Skip reason modal */}
+      <Modal visible={skipModalVisible} transparent animationType="fade" onRequestClose={() => setSkipModalVisible(false)}>
+        <Box className="flex-1 items-center justify-center bg-black/50 px-6">
+          <Box className="w-full rounded-2xl bg-white p-6 dark:bg-gray-800">
+            <Text className="mb-1 text-base font-semibold text-gray-900 dark:text-white">
+              {t('routes.skip')} — {stop.Name}
+            </Text>
+            <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t('routes.skip_reason')}</Text>
+            <TextInput value={skipReason} onChangeText={setSkipReason} placeholder={t('routes.skip_reason_placeholder')} placeholderTextColor="#9ca3af" multiline numberOfLines={3} style={styles.skipInput} autoFocus />
+            <HStack className="mt-4 gap-3">
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setSkipModalVisible(false)}>
+                <Text className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.skipBtn} onPress={handleSkipConfirm}>
+                <Text className="text-center text-sm font-semibold text-white">{t('routes.skip')}</Text>
+              </TouchableOpacity>
+            </HStack>
+          </Box>
+        </Box>
+      </Modal>
     </>
   );
 }
@@ -417,5 +354,30 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  skipInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    color: '#111827',
+    textAlignVertical: 'top',
+    minHeight: 80,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+  },
+  skipBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#eab308',
+    alignItems: 'center',
   },
 });

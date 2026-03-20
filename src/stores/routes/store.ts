@@ -146,6 +146,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       set({ activeInstance: response.Data, isLoading: false, isTracking: true });
     } catch (error) {
       set({ error: 'Failed to start route', isLoading: false });
+      throw error;
     }
   },
 
@@ -163,6 +164,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       });
     } catch (error) {
       set({ error: 'Failed to end route', isLoading: false });
+      throw error;
     }
   },
 
@@ -204,6 +206,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       });
     } catch (error) {
       set({ error: 'Failed to cancel route', isLoading: false });
+      throw error;
     }
   },
 
@@ -216,12 +219,27 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
         set({
           activeInstance: data.Instance,
           instanceStops: Array.isArray(data.Stops) ? data.Stops : [],
+          directions: null,
+          deviations: [],
+          isTracking: true,
         });
       } else {
-        set({ activeInstance: null });
+        set({
+          activeInstance: null,
+          instanceStops: [],
+          directions: null,
+          deviations: [],
+          isTracking: false,
+        });
       }
     } catch (error) {
-      set({ activeInstance: null });
+      set({
+        activeInstance: null,
+        instanceStops: [],
+        directions: null,
+        deviations: [],
+        isTracking: false,
+      });
     }
   },
 
@@ -268,9 +286,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       });
       const { instanceStops } = get();
       set({
-        instanceStops: instanceStops.map((s) =>
-          s.RouteInstanceStopId === stopId ? { ...s, Status: 1, CheckedInOn: new Date().toISOString() } : s
-        ),
+        instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 1, CheckedInOn: new Date().toISOString() } : s)),
       });
     } catch (error) {
       set({ error: 'Failed to check in at stop' });
@@ -282,9 +298,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       await checkOutFromStop({ RouteInstanceStopId: stopId, UnitId: unitId });
       const { instanceStops } = get();
       set({
-        instanceStops: instanceStops.map((s) =>
-          s.RouteInstanceStopId === stopId ? { ...s, Status: 2, CheckedOutOn: new Date().toISOString() } : s
-        ),
+        instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 2, CheckedOutOn: new Date().toISOString() } : s)),
       });
     } catch (error) {
       set({ error: 'Failed to check out from stop' });
@@ -296,9 +310,7 @@ export const useRoutesStore = create<RoutesState>((set, get) => ({
       await skipStop({ RouteInstanceStopId: stopId, Reason: reason });
       const { instanceStops } = get();
       set({
-        instanceStops: instanceStops.map((s) =>
-          s.RouteInstanceStopId === stopId ? { ...s, Status: 3, SkippedOn: new Date().toISOString() } : s
-        ),
+        instanceStops: instanceStops.map((s) => (s.RouteInstanceStopId === stopId ? { ...s, Status: 3, SkippedOn: new Date().toISOString() } : s)),
       });
     } catch (error) {
       set({ error: 'Failed to skip stop' });

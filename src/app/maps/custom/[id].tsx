@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { getCustomMapLayerImageUrl, getCustomMapTileUrl } from '@/api/mapping/mapping';
-import Mapbox from '@/components/maps/mapbox';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Card } from '@/components/ui/card';
 import { HStack } from '@/components/ui/hstack';
@@ -54,7 +54,7 @@ export default function CustomMapViewer() {
     setLayerVisibility((prev) => ({ ...prev, [layerId]: !prev[layerId] }));
   }, []);
 
-  const handleFeaturePress = useCallback((event: { features?: Array<{ properties?: Record<string, unknown> }> }) => {
+  const handleFeaturePress = useCallback((event: { features?: { properties?: Record<string, unknown> }[] }) => {
     if (event.features && event.features.length > 0) {
       const feature = event.features[0];
       setSelectedFeature(feature.properties ?? null);
@@ -77,12 +77,7 @@ export default function CustomMapViewer() {
     }
 
     return (
-      <Mapbox.ShapeSource
-        key={`shape-${layer.CustomMapLayerId}`}
-        id={`shape-${layer.CustomMapLayerId}`}
-        shape={geoJSON}
-        onPress={handleFeaturePress as any}
-      >
+      <Mapbox.ShapeSource key={`shape-${layer.CustomMapLayerId}`} id={`shape-${layer.CustomMapLayerId}`} shape={geoJSON} onPress={handleFeaturePress as any}>
         <Mapbox.FillLayer
           id={`fill-${layer.CustomMapLayerId}`}
           style={{
@@ -123,16 +118,13 @@ export default function CustomMapViewer() {
         id={`img-${layer.CustomMapLayerId}`}
         url={imageUrl}
         coordinates={[
-          [layer.BoundsNELongitude, layer.BoundsNELatitude],
-          [layer.BoundsSWLongitude, layer.BoundsNELatitude],
-          [layer.BoundsSWLongitude, layer.BoundsSWLatitude],
-          [layer.BoundsNELongitude, layer.BoundsSWLatitude],
+          [layer.BoundsSWLongitude, layer.BoundsNELatitude], // NW (top-left)
+          [layer.BoundsNELongitude, layer.BoundsNELatitude], // NE (top-right)
+          [layer.BoundsNELongitude, layer.BoundsSWLatitude], // SE (bottom-right)
+          [layer.BoundsSWLongitude, layer.BoundsSWLatitude], // SW (bottom-left)
         ]}
       >
-        <Mapbox.RasterLayer
-          id={`raster-img-${layer.CustomMapLayerId}`}
-          style={{ rasterOpacity: layer.Opacity }}
-        />
+        <Mapbox.RasterLayer id={`raster-img-${layer.CustomMapLayerId}`} style={{ rasterOpacity: layer.Opacity }} />
       </Mapbox.ImageSource>
     );
   };
@@ -143,16 +135,8 @@ export default function CustomMapViewer() {
     const tileUrl = getCustomMapTileUrl(layer.CustomMapLayerId);
 
     return (
-      <Mapbox.RasterSource
-        key={`tile-${layer.CustomMapLayerId}`}
-        id={`tile-${layer.CustomMapLayerId}`}
-        tileUrlTemplates={[tileUrl]}
-        tileSize={256}
-      >
-        <Mapbox.RasterLayer
-          id={`raster-tile-${layer.CustomMapLayerId}`}
-          style={{ rasterOpacity: layer.Opacity }}
-        />
+      <Mapbox.RasterSource key={`tile-${layer.CustomMapLayerId}`} id={`tile-${layer.CustomMapLayerId}`} tileUrlTemplates={[tileUrl]} tileSize={256}>
+        <Mapbox.RasterLayer id={`raster-tile-${layer.CustomMapLayerId}`} style={{ rasterOpacity: layer.Opacity }} />
       </Mapbox.RasterSource>
     );
   };
@@ -187,18 +171,8 @@ export default function CustomMapViewer() {
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
       {/* Map */}
       <View className="flex-1">
-        <Mapbox.MapView
-          style={{ flex: 1 }}
-          styleURL={Mapbox.StyleURL.Street}
-          logoEnabled={false}
-          attributionEnabled={false}
-        >
-          <Mapbox.Camera
-            zoomLevel={currentCustomMap.ZoomLevel || 14}
-            centerCoordinate={[currentCustomMap.CenterLongitude, currentCustomMap.CenterLatitude]}
-            animationMode="flyTo"
-            animationDuration={1000}
-          />
+        <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} logoEnabled={false} attributionEnabled={false}>
+          <Mapbox.Camera zoomLevel={currentCustomMap.ZoomLevel || 14} centerCoordinate={[currentCustomMap.CenterLongitude, currentCustomMap.CenterLatitude]} animationMode="flyTo" animationDuration={1000} />
 
           {visibleLayers.map(renderLayer)}
         </Mapbox.MapView>
@@ -209,19 +183,11 @@ export default function CustomMapViewer() {
             <Card className="rounded-xl bg-white p-4 shadow-lg dark:bg-gray-800">
               <HStack className="items-start justify-between">
                 <VStack className="flex-1" space="xs">
-                  <Text className="text-base font-bold text-gray-900 dark:text-white">
-                    {(selectedFeature.name as string) || (selectedFeature.Name as string) || 'Region'}
-                  </Text>
+                  <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedFeature.name as string) || (selectedFeature.Name as string) || 'Region'}</Text>
                   {selectedFeature.description || selectedFeature.Description ? (
-                    <Text className="text-sm text-gray-600 dark:text-gray-400">
-                      {(selectedFeature.description as string) || (selectedFeature.Description as string)}
-                    </Text>
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">{(selectedFeature.description as string) || (selectedFeature.Description as string)}</Text>
                   ) : null}
-                  {selectedFeature.type || selectedFeature.Type ? (
-                    <Text className="text-xs text-gray-500">
-                      Type: {(selectedFeature.type as string) || (selectedFeature.Type as string)}
-                    </Text>
-                  ) : null}
+                  {selectedFeature.type || selectedFeature.Type ? <Text className="text-xs text-gray-500">Type: {(selectedFeature.type as string) || (selectedFeature.Type as string)}</Text> : null}
                 </VStack>
                 <Pressable onPress={() => setSelectedFeature(null)} className="p-1">
                   <Icon as={X} size="sm" className="text-gray-400" />
@@ -232,10 +198,7 @@ export default function CustomMapViewer() {
         ) : null}
 
         {/* Layer toggle button */}
-        <Pressable
-          onPress={() => setShowLayerSheet(!showLayerSheet)}
-          className="absolute right-4 top-4 rounded-full bg-white p-3 shadow-md dark:bg-gray-800"
-        >
+        <Pressable onPress={() => setShowLayerSheet(!showLayerSheet)} className="absolute right-4 top-4 rounded-full bg-white p-3 shadow-md dark:bg-gray-800">
           <Icon as={Layers} size="md" className="text-gray-700 dark:text-gray-300" />
         </Pressable>
       </View>
@@ -252,31 +215,15 @@ export default function CustomMapViewer() {
             </HStack>
             <ScrollView>
               {currentCustomMap.Layers.map((layer) => (
-                <Pressable
-                  key={layer.CustomMapLayerId}
-                  onPress={() => toggleLayerVisibility(layer.CustomMapLayerId)}
-                >
+                <Pressable key={layer.CustomMapLayerId} onPress={() => toggleLayerVisibility(layer.CustomMapLayerId)}>
                   <HStack className="items-center justify-between border-b border-gray-100 py-3 dark:border-gray-700">
                     <HStack className="flex-1 items-center" space="sm">
-                      <Box
-                        className="size-4 rounded"
-                        style={{ backgroundColor: layer.Color || '#3B82F6' }}
-                      />
+                      <Box className="size-4 rounded" style={{ backgroundColor: layer.Color || '#3B82F6' }} />
                       <VStack>
-                        <Text className="text-sm font-medium text-gray-900 dark:text-white">
-                          {layer.Name}
-                        </Text>
+                        <Text className="text-sm font-medium text-gray-900 dark:text-white">{layer.Name}</Text>
                       </VStack>
                     </HStack>
-                    <Icon
-                      as={layerVisibility[layer.CustomMapLayerId] ? Eye : EyeOff}
-                      size="sm"
-                      className={
-                        layerVisibility[layer.CustomMapLayerId]
-                          ? 'text-blue-600 dark:text-blue-400'
-                          : 'text-gray-400'
-                      }
-                    />
+                    <Icon as={layerVisibility[layer.CustomMapLayerId] ? Eye : EyeOff} size="sm" className={layerVisibility[layer.CustomMapLayerId] ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'} />
                   </HStack>
                 </Pressable>
               ))}

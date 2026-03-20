@@ -5,9 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { getFloorImageUrl } from '@/api/mapping/mapping';
-import Mapbox from '@/components/maps/mapbox';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import Mapbox from '@/components/maps/mapbox';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -112,8 +112,7 @@ export default function IndoorMapViewer() {
     );
   }
 
-  const isZoneDispatchable =
-    selectedZone && (selectedZone.IsDispatchable === true || selectedZone.isDispatchable === true);
+  const isZoneDispatchable = selectedZone && (selectedZone.IsDispatchable === true || selectedZone.isDispatchable === true);
 
   return (
     <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -127,19 +126,9 @@ export default function IndoorMapViewer() {
                 <Pressable
                   key={floor.IndoorMapFloorId}
                   onPress={() => handleFloorSelect(floor.IndoorMapFloorId)}
-                  className={`rounded-full px-4 py-2 ${
-                    isActive
-                      ? 'bg-blue-600 dark:bg-blue-500'
-                      : 'bg-gray-100 dark:bg-gray-700'
-                  }`}
+                  className={`rounded-full px-4 py-2 ${isActive ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-100 dark:bg-gray-700'}`}
                 >
-                  <Text
-                    className={`text-sm font-medium ${
-                      isActive ? 'text-white' : 'text-gray-700 dark:text-gray-300'
-                    }`}
-                  >
-                    {floor.Name}
-                  </Text>
+                  <Text className={`text-sm font-medium ${isActive ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{floor.Name}</Text>
                 </Pressable>
               );
             })}
@@ -153,11 +142,7 @@ export default function IndoorMapViewer() {
           <InputSlot className="pl-3">
             <InputIcon as={Search} />
           </InputSlot>
-          <InputField
-            placeholder={t('maps.search_placeholder')}
-            value={zoneSearchQuery}
-            onChangeText={setZoneSearchQuery}
-          />
+          <InputField placeholder={t('maps.search_placeholder')} value={zoneSearchQuery} onChangeText={setZoneSearchQuery} />
           {zoneSearchQuery ? (
             <InputSlot className="pr-3" onPress={() => setZoneSearchQuery('')}>
               <InputIcon as={X} />
@@ -173,18 +158,8 @@ export default function IndoorMapViewer() {
             <Loading text={t('common.loading')} />
           </View>
         ) : (
-          <Mapbox.MapView
-            style={{ flex: 1 }}
-            styleURL={Mapbox.StyleURL.Street}
-            logoEnabled={false}
-            attributionEnabled={false}
-          >
-            <Mapbox.Camera
-              zoomLevel={currentIndoorMap.BoundsNELatitude ? 18 : 16}
-              centerCoordinate={[currentIndoorMap.CenterLongitude, currentIndoorMap.CenterLatitude]}
-              animationMode="flyTo"
-              animationDuration={800}
-            />
+          <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} logoEnabled={false} attributionEnabled={false}>
+            <Mapbox.Camera zoomLevel={currentIndoorMap.BoundsNELatitude ? 18 : 16} centerCoordinate={[currentIndoorMap.CenterLongitude, currentIndoorMap.CenterLatitude]} animationMode="flyTo" animationDuration={800} />
 
             {/* Floor plan image overlay */}
             {floorImageUrl && currentFloor && currentIndoorMap.BoundsNELatitude ? (
@@ -192,26 +167,19 @@ export default function IndoorMapViewer() {
                 id="floor-image"
                 url={floorImageUrl}
                 coordinates={[
-                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsNELatitude],
-                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsNELatitude],
-                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsSWLatitude],
-                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsSWLatitude],
+                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsNELatitude], // NW (top-left)
+                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsNELatitude], // NE (top-right)
+                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsSWLatitude], // SE (bottom-right)
+                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsSWLatitude], // SW (bottom-left)
                 ]}
               >
-                <Mapbox.RasterLayer
-                  id="floor-raster"
-                  style={{ rasterOpacity: currentFloor.Opacity }}
-                />
+                <Mapbox.RasterLayer id="floor-raster" style={{ rasterOpacity: currentFloor.Opacity }} />
               </Mapbox.ImageSource>
             ) : null}
 
             {/* Zone polygons */}
             {filteredZonesGeoJSON ? (
-              <Mapbox.ShapeSource
-                id="zones-source"
-                shape={filteredZonesGeoJSON}
-                onPress={handleZonePress}
-              >
+              <Mapbox.ShapeSource id="zones-source" shape={filteredZonesGeoJSON} onPress={handleZonePress}>
                 <Mapbox.FillLayer
                   id="zones-fill"
                   style={{
@@ -230,7 +198,7 @@ export default function IndoorMapViewer() {
                 <Mapbox.SymbolLayer
                   id="zones-label"
                   style={{
-                    textField: ['get', 'name'],
+                    textField: ['coalesce', ['get', 'name'], ['get', 'Name']],
                     textSize: 11,
                     textColor: '#1F2937',
                     textHaloColor: '#FFFFFF',
@@ -251,29 +219,18 @@ export default function IndoorMapViewer() {
                 <VStack className="flex-1" space="xs">
                   <HStack className="items-center" space="sm">
                     <Icon as={Building2} size="sm" className="text-purple-600 dark:text-purple-400" />
-                    <Text className="text-base font-bold text-gray-900 dark:text-white">
-                      {(selectedZone.name as string) || (selectedZone.Name as string) || 'Zone'}
-                    </Text>
+                    <Text className="text-base font-bold text-gray-900 dark:text-white">{(selectedZone.name as string) || (selectedZone.Name as string) || 'Zone'}</Text>
                   </HStack>
                   {selectedZone.type || selectedZone.Type ? (
                     <Badge action="info" variant="outline" size="sm" className="self-start">
-                      <BadgeText>
-                        {(selectedZone.type as string) || (selectedZone.Type as string)}
-                      </BadgeText>
+                      <BadgeText>{(selectedZone.type as string) || (selectedZone.Type as string)}</BadgeText>
                     </Badge>
                   ) : null}
                   {selectedZone.description || selectedZone.Description ? (
-                    <Text className="text-sm text-gray-600 dark:text-gray-400">
-                      {(selectedZone.description as string) || (selectedZone.Description as string)}
-                    </Text>
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">{(selectedZone.description as string) || (selectedZone.Description as string)}</Text>
                   ) : null}
                   {isZoneDispatchable ? (
-                    <Button
-                      size="sm"
-                      action="primary"
-                      className="mt-2 self-start"
-                      onPress={handleDispatchToZone}
-                    >
+                    <Button size="sm" action="primary" className="mt-2 self-start" onPress={handleDispatchToZone}>
                       <ButtonIcon as={Send} className="mr-1" />
                       <ButtonText>{t('maps.dispatch_to_zone')}</ButtonText>
                     </Button>

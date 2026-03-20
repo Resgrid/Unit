@@ -2,7 +2,7 @@ import { type FeatureCollection } from 'geojson';
 
 import { BaseV4Request } from '../baseV4Request';
 import { type CustomMapResultData } from './customMapResultData';
-import { type IndoorMapResultData, type IndoorMapFloorResultData } from './indoorMapResultData';
+import { type IndoorMapFloorResultData, type IndoorMapResultData } from './indoorMapResultData';
 
 export class GetIndoorMapsResult extends BaseV4Request {
   public Data: IndoorMapResultData[] = [];

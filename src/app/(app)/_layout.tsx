@@ -53,8 +53,7 @@ export default function TabLayout() {
   useEffect(() => {
     if (status === 'signedIn' && userId) {
       try {
-        Countly.userProfile.setUserProperties({ id: userId });
-        Countly.userProfile.save();
+        Countly.setUserData({ custom: { id: userId } });
       } catch {
         // Countly may not be initialized (e.g., no app key configured) — ignore
       }
@@ -68,7 +67,6 @@ export default function TabLayout() {
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     NavigationBar.setVisibilityAsync('hidden');
-    NavigationBar.setBehaviorAsync('overlay-swipe');
     const subscription = NavigationBar.addVisibilityListener(({ visibility }) => {
       if (visibility === 'visible') {
         NavigationBar.setVisibilityAsync('hidden');

@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Clock, MapPin, Navigation, RefreshCcwDotIcon } from 'lucide-react-native';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,10 +14,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import {
-  type RouteInstanceResultData,
-  RouteInstanceStatus,
-} from '@/models/v4/routes/routeInstanceResultData';
+import { type RouteInstanceResultData, RouteInstanceStatus } from '@/models/v4/routes/routeInstanceResultData';
 import { useRoutesStore } from '@/stores/routes/store';
 
 const STATUS_COLORS: Record<number, string> = {
@@ -50,7 +47,7 @@ function formatDistance(meters: number): string {
   return `${Math.round(meters)} m`;
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '--';
   try {
     const date = new Date(dateStr);
@@ -105,46 +102,34 @@ export default function RouteHistory() {
               {/* Date */}
               <HStack className="items-center space-x-2">
                 <Icon as={Clock} size="xs" className="text-gray-500" />
-                <Text className="text-sm text-gray-600 dark:text-gray-400">
-                  {formatDate(completedDate)}
-                </Text>
+                <Text className="text-sm text-gray-600 dark:text-gray-400">{formatDate(completedDate)}</Text>
               </HStack>
 
               {/* Unit Name */}
-              <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                {item.UnitName || t('routes.unit')}
-              </Text>
+              <Text className="text-base font-semibold text-gray-900 dark:text-gray-100">{item.UnitName || t('routes.unit')}</Text>
 
               {/* Stats row */}
               <HStack className="mt-2 items-center space-x-4">
                 <HStack className="items-center space-x-1">
                   <Icon as={Navigation} size="xs" className="text-gray-500" />
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    {formatDistance(item.TotalDistanceMeters)}
-                  </Text>
+                  <Text className="text-sm text-gray-600 dark:text-gray-400">{formatDistance(item.TotalDistanceMeters ?? 0)}</Text>
                 </HStack>
 
                 <HStack className="items-center space-x-1">
                   <Icon as={Clock} size="xs" className="text-gray-500" />
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    {formatDuration(item.TotalDurationSeconds)}
-                  </Text>
+                  <Text className="text-sm text-gray-600 dark:text-gray-400">{formatDuration(item.TotalDurationSeconds ?? 0)}</Text>
                 </HStack>
 
                 <HStack className="items-center space-x-1">
                   <Icon as={MapPin} size="xs" className="text-gray-500" />
-                  <Text className="text-sm text-gray-600 dark:text-gray-400">
-                    {item.CurrentStopIndex ?? 0} stops
-                  </Text>
+                  <Text className="text-sm text-gray-600 dark:text-gray-400">{item.CurrentStopIndex ?? 0} stops</Text>
                 </HStack>
               </HStack>
             </VStack>
 
             {/* Status badge */}
             <Badge style={{ backgroundColor: statusColor }} className="rounded-full">
-              <BadgeText className="text-xs font-semibold text-white">
-                {statusLabel}
-              </BadgeText>
+              <BadgeText className="text-xs font-semibold text-white">{statusLabel}</BadgeText>
             </Badge>
           </HStack>
 
@@ -181,13 +166,7 @@ export default function RouteHistory() {
         renderItem={renderItem}
         keyExtractor={(item: RouteInstanceResultData) => item.RouteInstanceId}
         refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
-        ListEmptyComponent={
-          <ZeroState
-            heading={t('routes.no_history')}
-            description={t('routes.no_history_description')}
-            icon={RefreshCcwDotIcon}
-          />
-        }
+        ListEmptyComponent={<ZeroState heading={t('routes.no_history')} description={t('routes.no_history_description')} icon={RefreshCcwDotIcon} />}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
     );

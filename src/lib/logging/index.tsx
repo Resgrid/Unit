@@ -2,7 +2,33 @@ import * as Sentry from '@sentry/react-native';
 import { Platform } from 'react-native';
 import { consoleTransport, logger as rnLogger } from 'react-native-logs';
 
-import type { LogEntry, Logger, LogLevel } from './types';
+import type { LogContext, LogEntry, Logger, LogLevel } from './types';
+
+const SENSITIVE_KEYS = new Set(['token', 'password', 'passwd', 'secret', 'apikey', 'authorization', 'auth', 'cred', 'credentials', 'email', 'ssn']);
+
+const isSensitiveKey = (key: string): boolean => SENSITIVE_KEYS.has(key.toLowerCase());
+
+const sanitizeValue = (key: string, value: unknown, depth: number): unknown => {
+  if (isSensitiveKey(key)) return '[REDACTED]';
+  if (depth > 0 && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return sanitizeObject(value as Record<string, unknown>, depth - 1);
+  }
+  if (typeof value === 'function' || typeof value === 'symbol') return String(value);
+  return value;
+};
+
+const sanitizeObject = (obj: Record<string, unknown>, depth: number): Record<string, unknown> => {
+  const result: Record<string, unknown> = {};
+  for (const key of Object.keys(obj)) {
+    result[key] = sanitizeValue(key, obj[key], depth);
+  }
+  return result;
+};
+
+export const sanitizeLogContext = (context: LogContext | undefined): LogContext => {
+  if (!context) return {};
+  return sanitizeObject(context as Record<string, unknown>, 2);
+};
 
 // On web, async: true wraps every log call in setTimeout which — combined with
 // Sentry's setTimeout instrumentation — creates unbounded memory growth.
@@ -83,11 +109,12 @@ class LogService {
   public error(entry: LogEntry): void {
     this.log('error', entry);
     if (!isJest) {
-      const err = entry.context?.error;
+      const sanitized = sanitizeLogContext(entry.context);
+      const err = sanitized.error;
       if (err instanceof Error) {
-        Sentry.captureException(err, { extra: { message: entry.message, ...entry.context } });
+        Sentry.captureException(err, { extra: { message: entry.message, ...sanitized } });
       } else {
-        Sentry.captureMessage(entry.message, { level: 'error', extra: entry.context });
+        Sentry.captureMessage(entry.message, { level: 'error', extra: sanitized });
       }
     }
   }

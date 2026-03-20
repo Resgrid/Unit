@@ -1,3 +1,5 @@
+import type { RouteInstanceStopResultData } from './routeInstanceStopResultData';
+
 export interface RouteInstanceResultData {
   RouteInstanceId: string;
   RoutePlanId: string;
@@ -10,6 +12,9 @@ export interface RouteInstanceResultData {
   TotalDurationSeconds?: number | null;
   ActualStartOn?: string | null;
   ActualEndOn?: string | null;
+  StartedOn?: string | null;
+  CompletedOn?: string | null;
+  CancelledOn?: string | null;
   AddedOn?: string;
   Notes?: string | null;
   // Fields that may come from progress/other endpoints
@@ -27,7 +32,7 @@ export interface ActiveRouteForUnitData {
   CompletedStops: number;
   PendingStops: number;
   SkippedStops: number;
-  Stops: import('./routeInstanceStopResultData').RouteInstanceStopResultData[];
+  Stops: RouteInstanceStopResultData[];
 }
 
 export enum RouteInstanceStatus {

@@ -113,27 +113,11 @@ export default function MapSearch() {
       <Pressable onPress={() => handleResultPress(item)}>
         <Card className="mb-2 rounded-xl bg-white p-3 dark:bg-gray-800">
           <HStack className="items-center" space="md">
-            <Box
-              className={`items-center justify-center rounded-lg p-2 ${
-                isIndoor
-                  ? 'bg-purple-100 dark:bg-purple-900'
-                  : 'bg-blue-100 dark:bg-blue-900'
-              }`}
-            >
-              <Icon
-                as={ResultIcon}
-                size="sm"
-                className={
-                  isIndoor
-                    ? 'text-purple-600 dark:text-purple-300'
-                    : 'text-blue-600 dark:text-blue-300'
-                }
-              />
+            <Box className={`items-center justify-center rounded-lg p-2 ${isIndoor ? 'bg-purple-100 dark:bg-purple-900' : 'bg-blue-100 dark:bg-blue-900'}`}>
+              <Icon as={ResultIcon} size="sm" className={isIndoor ? 'text-purple-600 dark:text-purple-300' : 'text-blue-600 dark:text-blue-300'} />
             </Box>
             <VStack className="flex-1">
-              <Text className="text-sm font-semibold text-gray-900 dark:text-white">
-                {item.Name}
-              </Text>
+              <Text className="text-sm font-semibold text-gray-900 dark:text-white">{item.Name}</Text>
               <Text className="text-xs text-gray-500 dark:text-gray-400">
                 {getResultTypeLabel(item.Type)}
                 {item.FloorId ? ` - ${t('maps.floor')}` : ''}
@@ -147,13 +131,7 @@ export default function MapSearch() {
 
   const renderContent = () => {
     if (query.trim().length === 0) {
-      return (
-        <ZeroState
-          heading={t('maps.search_maps')}
-          description={t('maps.search')}
-          icon={Search}
-        />
-      );
+      return <ZeroState heading={t('maps.search_maps')} description={t('maps.search')} icon={Search} />;
     }
 
     if (isLoading) {
@@ -161,23 +139,10 @@ export default function MapSearch() {
     }
 
     if (searchResults.length === 0) {
-      return (
-        <ZeroState
-          heading={t('maps.no_results')}
-          description={t('maps.no_results')}
-          icon={Search}
-        />
-      );
+      return <ZeroState heading={t('maps.no_results')} description={t('maps.no_results')} icon={Search} />;
     }
 
-    return (
-      <FlatList
-        data={searchResults}
-        renderItem={renderResultItem}
-        keyExtractor={(item) => `${item.Type}-${item.Id}`}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
-    );
+    return <FlatList data={searchResults} renderItem={renderResultItem} keyExtractor={(item) => `${item.Type}-${item.Id}`} contentContainerStyle={{ paddingBottom: 20 }} />;
   };
 
   return (
@@ -189,12 +154,7 @@ export default function MapSearch() {
           <InputSlot className="pl-3">
             <InputIcon as={Search} />
           </InputSlot>
-          <InputField
-            placeholder={t('maps.search_placeholder')}
-            value={query}
-            onChangeText={handleQueryChange}
-            autoFocus
-          />
+          <InputField placeholder={t('maps.search_placeholder')} value={query} onChangeText={handleQueryChange} autoFocus />
           {query ? (
             <InputSlot
               className="pr-3"
@@ -213,24 +173,8 @@ export default function MapSearch() {
           {SEGMENTS.map((segment) => {
             const isActive = segment.value === activeFilter;
             return (
-              <Pressable
-                key={segment.value}
-                onPress={() => handleFilterChange(segment.value)}
-                className={`flex-1 items-center rounded-md px-3 py-2 ${
-                  isActive
-                    ? 'bg-white shadow-sm dark:bg-gray-600'
-                    : ''
-                }`}
-              >
-                <Text
-                  className={`text-sm font-medium ${
-                    isActive
-                      ? 'text-gray-900 dark:text-white'
-                      : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                >
-                  {t(segment.labelKey)}
-                </Text>
+              <Pressable key={segment.value} onPress={() => handleFilterChange(segment.value)} className={`flex-1 items-center rounded-md px-3 py-2 ${isActive ? 'bg-white shadow-sm dark:bg-gray-600' : ''}`}>
+                <Text className={`text-sm font-medium ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{t(segment.labelKey)}</Text>
               </Pressable>
             );
           })}

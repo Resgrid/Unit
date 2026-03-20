@@ -1,23 +1,13 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import {
-  BuildingIcon,
-  ExternalLinkIcon,
-  MapPinIcon,
-  PhoneIcon,
-  UserIcon,
-} from 'lucide-react-native';
+import { BuildingIcon, ExternalLinkIcon, MapPinIcon, PhoneIcon, UserIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  Camera,
-  MapView,
-  PointAnnotation,
-  StyleURL,
-} from '@/components/maps/mapbox';
+import { getStopContact } from '@/api/routes/routes';
 import { Loading } from '@/components/common/loading';
+import { Camera, MapView, PointAnnotation, StyleURL } from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -25,7 +15,6 @@ import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { getStopContact } from '@/api/routes/routes';
 import type { ContactResultData } from '@/models/v4/contacts/contactResultData';
 
 /**
@@ -65,11 +54,7 @@ function PhoneRow({ label, number, colorScheme }: PhoneRowProps) {
   if (!number) return null;
   return (
     <Pressable onPress={() => callPhone(number)}>
-      <HStack
-        className={`items-center border-b px-4 py-3 ${
-          colorScheme === 'dark' ? 'border-neutral-700' : 'border-neutral-200'
-        }`}
-      >
+      <HStack className={`items-center border-b px-4 py-3 ${colorScheme === 'dark' ? 'border-neutral-700' : 'border-neutral-200'}`}>
         <Box className="mr-3">
           <PhoneIcon size={18} color="#3b82f6" />
         </Box>
@@ -115,7 +100,7 @@ export default function StopContactScreen() {
     return () => {
       cancelled = true;
     };
-  }, [stopId]);
+  }, [stopId, t]);
 
   const locationGps = useMemo(() => parseGps(contact?.LocationGpsCoordinates), [contact]);
   const entranceGps = useMemo(() => parseGps(contact?.EntranceGpsCoordinates), [contact]);
@@ -135,7 +120,7 @@ export default function StopContactScreen() {
     const parts = [contact.FirstName, contact.MiddleName, contact.LastName].filter(Boolean);
     if (parts.length > 0) return parts.join(' ');
     return contact.Name ?? t('routes.no_contact');
-  }, [contact]);
+  }, [contact, t]);
 
   const fullAddress = useMemo(() => {
     if (!contact) return null;
@@ -144,10 +129,11 @@ export default function StopContactScreen() {
   }, [contact]);
 
   const handleAddressPress = useCallback(() => {
-    if (locationGps) {
-      openInMaps(locationGps.lat, locationGps.lon, displayName);
+    const coords = locationGps ?? entranceGps ?? exitGps;
+    if (coords) {
+      openInMaps(coords.lat, coords.lon, displayName);
     }
-  }, [locationGps, displayName]);
+  }, [locationGps, entranceGps, exitGps, displayName]);
 
   if (isLoading) {
     return (
@@ -166,9 +152,7 @@ export default function StopContactScreen() {
         <Stack.Screen options={{ title: t('routes.contact'), headerShown: true, headerBackTitle: '' }} />
         <Box className="flex-1 items-center justify-center p-4">
           <UserIcon size={48} color="#9ca3af" />
-          <Text className="mt-4 text-center text-typography-500">
-            {error ?? t('routes.no_contact')}
-          </Text>
+          <Text className="mt-4 text-center text-typography-500">{error ?? t('routes.no_contact')}</Text>
         </Box>
       </>
     );
@@ -183,37 +167,17 @@ export default function StopContactScreen() {
           headerBackTitle: '',
         }}
       />
-      <ScrollView
-        className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}
-      >
+      <ScrollView className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
         {/* Header */}
-        <Box
-          className={`items-center p-6 ${
-            colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-          }`}
-        >
-          <Box className="mb-3 h-16 w-16 items-center justify-center rounded-full bg-primary-100">
-            {contact.CompanyName ? (
-              <BuildingIcon size={28} color="#3b82f6" />
-            ) : (
-              <UserIcon size={28} color="#3b82f6" />
-            )}
-          </Box>
+        <Box className={`items-center p-6 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
+          <Box className="mb-3 h-16 w-16 items-center justify-center rounded-full bg-primary-100">{contact.CompanyName ? <BuildingIcon size={28} color="#3b82f6" /> : <UserIcon size={28} color="#3b82f6" />}</Box>
           <Heading size="lg">{displayName}</Heading>
-          {contact.CompanyName && contact.FirstName && (
-            <Text className="mt-1 text-sm text-typography-500">
-              {[contact.FirstName, contact.LastName].filter(Boolean).join(' ')}
-            </Text>
-          )}
-          {contact.Email && (
-            <Text className="mt-1 text-sm text-primary-500">{contact.Email}</Text>
-          )}
+          {contact.CompanyName && contact.FirstName && <Text className="mt-1 text-sm text-typography-500">{[contact.FirstName, contact.LastName].filter(Boolean).join(' ')}</Text>}
+          {contact.Email && <Text className="mt-1 text-sm text-primary-500">{contact.Email}</Text>}
         </Box>
 
         {/* Phone numbers */}
-        <Box
-          className={`mt-2 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}
-        >
+        <Box className={`mt-2 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
           <PhoneRow label="Phone" number={contact.Phone} colorScheme={colorScheme ?? 'light'} />
           <PhoneRow label="Mobile" number={contact.Mobile} colorScheme={colorScheme ?? 'light'} />
           <PhoneRow label="Home" number={contact.HomePhoneNumber} colorScheme={colorScheme ?? 'light'} />
@@ -225,18 +189,14 @@ export default function StopContactScreen() {
         {/* Address */}
         {fullAddress && (
           <Pressable onPress={handleAddressPress}>
-            <Box
-              className={`mt-2 p-4 ${
-                colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-              }`}
-            >
+            <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
               <HStack className="items-center gap-3">
                 <MapPinIcon size={18} color="#3b82f6" />
                 <VStack className="flex-1">
                   <Text className="text-xs text-typography-500">{t('routes.address')}</Text>
                   <Text className="text-sm font-medium">{fullAddress}</Text>
                 </VStack>
-                {locationGps && <ExternalLinkIcon size={14} color="#9ca3af" />}
+                {mapCenter && <ExternalLinkIcon size={14} color="#9ca3af" />}
               </HStack>
             </Box>
           </Pressable>
@@ -245,43 +205,24 @@ export default function StopContactScreen() {
         {/* Mini Map */}
         {mapCenter && (
           <Box className="mt-2" style={{ height: 220 }}>
-            <MapView
-              style={styles.map}
-              styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street}
-              scrollEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Camera
-                centerCoordinate={mapCenter}
-                zoomLevel={15}
-                animationMode="moveTo"
-              />
+            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+              <Camera centerCoordinate={mapCenter} zoomLevel={15} animationMode="moveTo" />
               {locationGps && (
-                <PointAnnotation
-                  id="location-marker"
-                  coordinate={[locationGps.lon, locationGps.lat]}
-                >
+                <PointAnnotation id="location-marker" coordinate={[locationGps.lon, locationGps.lat]}>
                   <View style={styles.markerLocation}>
                     <MapPinIcon size={20} color="#3b82f6" />
                   </View>
                 </PointAnnotation>
               )}
               {entranceGps && (
-                <PointAnnotation
-                  id="entrance-marker"
-                  coordinate={[entranceGps.lon, entranceGps.lat]}
-                >
+                <PointAnnotation id="entrance-marker" coordinate={[entranceGps.lon, entranceGps.lat]}>
                   <View style={styles.markerEntrance}>
                     <MapPinIcon size={20} color="#22c55e" />
                   </View>
                 </PointAnnotation>
               )}
               {exitGps && (
-                <PointAnnotation
-                  id="exit-marker"
-                  coordinate={[exitGps.lon, exitGps.lat]}
-                >
+                <PointAnnotation id="exit-marker" coordinate={[exitGps.lon, exitGps.lat]}>
                   <View style={styles.markerExit}>
                     <MapPinIcon size={20} color="#ef4444" />
                   </View>
@@ -314,22 +255,14 @@ export default function StopContactScreen() {
 
         {/* Description / Notes */}
         {contact.Description && (
-          <Box
-            className={`mt-2 p-4 ${
-              colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-            }`}
-          >
+          <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
             <Text className="mb-1 text-sm font-medium">{t('routes.description')}</Text>
             <Text className="text-sm text-typography-500">{contact.Description}</Text>
           </Box>
         )}
 
         {contact.Notes && (
-          <Box
-            className={`mt-2 p-4 ${
-              colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-            }`}
-          >
+          <Box className={`mt-2 p-4 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
             <Text className="mb-1 text-sm font-medium">{t('routes.notes')}</Text>
             <Text className="text-sm text-typography-500">{contact.Notes}</Text>
           </Box>

@@ -1,5 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Building2, Layers, Map, Search, X } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -102,9 +101,7 @@ export default function MapsHome() {
                 {map.Description}
               </Text>
             ) : null}
-            <Text className="text-xs text-gray-400 dark:text-gray-500">
-              {t('maps.floor_count', { count: map.Floors?.length ?? 0 })}
-            </Text>
+            <Text className="text-xs text-gray-400 dark:text-gray-500">{t('maps.floor_count', { count: map.Floors?.length ?? 0 })}</Text>
           </VStack>
           <Badge action="muted" variant="outline" size="sm">
             <BadgeText>{t('maps.indoor')}</BadgeText>
@@ -161,12 +158,8 @@ export default function MapsHome() {
     return (
       <SectionList
         sections={sections as any}
-        keyExtractor={(item: CustomMapResultData | IndoorMapResultData) =>
-          'CustomMapId' in item ? item.CustomMapId : item.IndoorMapId
-        }
-        renderSectionHeader={({ section }) => (
-          <Text className="mb-2 mt-4 text-lg font-bold text-gray-900 dark:text-white">{section.title}</Text>
-        )}
+        keyExtractor={(item: CustomMapResultData | IndoorMapResultData) => ('CustomMapId' in item ? item.CustomMapId : item.IndoorMapId)}
+        renderSectionHeader={({ section }) => <Text className="mb-2 mt-4 text-lg font-bold text-gray-900 dark:text-white">{section.title}</Text>}
         refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -195,21 +188,13 @@ export default function MapsHome() {
                 <Icon as={Layers} size="sm" className="text-gray-600 dark:text-gray-400" />
                 <Text className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('maps.active_layers')}</Text>
               </HStack>
-              <Text className="text-xs text-gray-500">
-                {t('maps.layers_on', { active: Object.values(layerToggles).filter(Boolean).length, total: activeLayers.length })}
-              </Text>
+              <Text className="text-xs text-gray-500">{t('maps.layers_on', { active: Object.values(layerToggles).filter(Boolean).length, total: activeLayers.length })}</Text>
             </HStack>
           </Pressable>
         ) : null}
 
         {showLayers && activeLayers.length > 0 ? (
-          <Card className="mb-3 rounded-xl bg-white px-4 py-2 dark:bg-gray-800">
-            {isLoadingLayers ? (
-              <Loading text={t('common.loading')} />
-            ) : (
-              activeLayers.map(renderLayerToggle)
-            )}
-          </Card>
+          <Card className="mb-3 rounded-xl bg-white px-4 py-2 dark:bg-gray-800">{isLoadingLayers ? <Loading text={t('common.loading')} /> : activeLayers.map(renderLayerToggle)}</Card>
         ) : null}
 
         {/* Main content */}

@@ -1,5 +1,21 @@
 import '@testing-library/react-native/extend-expect';
 
+// Mock @sentry/react-native — native module (RNSentry) is unavailable in Jest
+jest.mock('@sentry/react-native', () => ({
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  init: jest.fn(),
+  wrap: jest.fn((fn: any) => fn),
+  withScope: jest.fn((cb: any) => cb({ setExtra: jest.fn(), setTag: jest.fn() })),
+  setUser: jest.fn(),
+  setTag: jest.fn(),
+  setExtra: jest.fn(),
+  addBreadcrumb: jest.fn(),
+  configureScope: jest.fn(),
+  ReactNavigationInstrumentation: jest.fn(),
+  ReactNativeTracing: jest.fn(),
+}));
+
 // react-hook form setup for testing
 // @ts-ignore
 global.window = {};

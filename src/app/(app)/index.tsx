@@ -146,10 +146,7 @@ function MapContent() {
     const radiusDeg = nextStop.GeofenceRadiusMeters / 111320;
     for (let i = 0; i <= points; i++) {
       const angle = (i / points) * 2 * Math.PI;
-      coords.push([
-        nextStop.Longitude + radiusDeg * Math.cos(angle),
-        nextStop.Latitude + radiusDeg * Math.sin(angle),
-      ]);
+      coords.push([nextStop.Longitude + radiusDeg * Math.cos(angle), nextStop.Latitude + radiusDeg * Math.sin(angle)]);
     }
     return {
       type: 'Feature',
@@ -549,11 +546,7 @@ function MapContent() {
           {showRouteOverlay
             ? remainingStops.map((stop) =>
                 stop.Latitude && stop.Longitude ? (
-                  <Mapbox.PointAnnotation
-                    key={`route-stop-${stop.RouteInstanceStopId}`}
-                    id={`route-stop-${stop.RouteInstanceStopId}`}
-                    coordinate={[stop.Longitude, stop.Latitude]}
-                  >
+                  <Mapbox.PointAnnotation key={`route-stop-${stop.RouteInstanceStopId}`} id={`route-stop-${stop.RouteInstanceStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>
                     <StopMarker stopOrder={stop.StopOrder} status={stop.Status} />
                   </Mapbox.PointAnnotation>
                 ) : null

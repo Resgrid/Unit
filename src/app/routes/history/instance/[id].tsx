@@ -1,18 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, Stack } from 'expo-router';
-import {
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  MapPin,
-  Navigation,
-  SkipForward,
-  XCircle,
-} from 'lucide-react-native';
-import React, { useCallback, useMemo } from 'react';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { AlertTriangle, CheckCircle, Clock, MapPin, Navigation, SkipForward, XCircle } from 'lucide-react-native';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 
+import { getRoutePlan, getRouteProgress, getStopsForInstance, getUnacknowledgedDeviations } from '@/api/routes/routes';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import Mapbox from '@/components/maps/mapbox';
@@ -23,19 +16,10 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import {
-  type RouteDeviationResultData,
-  RouteDeviationType,
-} from '@/models/v4/routes/routeDeviationResultData';
-import {
-  type RouteInstanceResultData,
-  RouteInstanceStatus,
-} from '@/models/v4/routes/routeInstanceResultData';
-import {
-  type RouteInstanceStopResultData,
-  RouteStopStatus,
-} from '@/models/v4/routes/routeInstanceStopResultData';
-import { useRoutesStore } from '@/stores/routes/store';
+import { type RouteDeviationResultData, RouteDeviationType } from '@/models/v4/routes/routeDeviationResultData';
+import { type RouteInstanceResultData, RouteInstanceStatus } from '@/models/v4/routes/routeInstanceResultData';
+import { type RouteInstanceStopResultData, RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
+import { type RoutePlanResultData } from '@/models/v4/routes/routePlanResultData';
 
 // --- Helpers ---
 
@@ -98,7 +82,7 @@ function formatDistance(meters: number): string {
   return `${Math.round(meters)} m`;
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '--';
   try {
     const date = new Date(dateStr);
@@ -132,47 +116,50 @@ function getStopIcon(status: number) {
 export default function RouteInstanceDetail() {
   const { t } = useTranslation();
   const { id: instanceId } = useLocalSearchParams<{ id: string }>();
-  const activeInstance = useRoutesStore((state) => state.activeInstance);
-  const instanceStops = useRoutesStore((state) => state.instanceStops);
-  const deviations = useRoutesStore((state) => state.deviations);
-  const activePlan = useRoutesStore((state) => state.activePlan);
-  const isLoading = useRoutesStore((state) => state.isLoading);
-  const isLoadingStops = useRoutesStore((state) => state.isLoadingStops);
-  const error = useRoutesStore((state) => state.error);
-  const fetchRouteProgress = useRoutesStore((state) => state.fetchRouteProgress);
-  const fetchStopsForInstance = useRoutesStore((state) => state.fetchStopsForInstance);
-  const fetchDeviations = useRoutesStore((state) => state.fetchDeviations);
-  const fetchRoutePlan = useRoutesStore((state) => state.fetchRoutePlan);
+  // Local history state — never touches the global live-route slices
+  const [activeInstance, setActiveInstance] = useState<RouteInstanceResultData | null>(null);
+  const [instanceStops, setInstanceStops] = useState<RouteInstanceStopResultData[]>([]);
+  const [deviations, setDeviations] = useState<RouteDeviationResultData[]>([]);
+  const [activePlan, setActivePlan] = useState<RoutePlanResultData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingStops, setIsLoadingStops] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      if (instanceId) {
-        fetchRouteProgress(instanceId);
-        fetchStopsForInstance(instanceId);
-        fetchDeviations();
-      }
-    }, [instanceId, fetchRouteProgress, fetchStopsForInstance, fetchDeviations])
+      if (!instanceId) return;
+      setIsLoading(true);
+      setError(null);
+      getRouteProgress(instanceId)
+        .then((r) => setActiveInstance(r.Data))
+        .catch(() => setError('Failed to load instance'))
+        .finally(() => setIsLoading(false));
+      setIsLoadingStops(true);
+      getStopsForInstance(instanceId)
+        .then((r) => setInstanceStops(Array.isArray(r.Data) ? r.Data : []))
+        .catch(() => {})
+        .finally(() => setIsLoadingStops(false));
+      getUnacknowledgedDeviations()
+        .then((r) => setDeviations(Array.isArray(r.Data) ? r.Data : []))
+        .catch(() => {});
+    }, [instanceId])
   );
 
   // Fetch the plan when the instance loads so we can show planned geometry
   useFocusEffect(
     useCallback(() => {
       if (activeInstance?.RoutePlanId) {
-        fetchRoutePlan(activeInstance.RoutePlanId);
+        getRoutePlan(activeInstance.RoutePlanId)
+          .then((r) => setActivePlan(r.Data))
+          .catch(() => {});
       }
-    }, [activeInstance?.RoutePlanId, fetchRoutePlan])
+    }, [activeInstance?.RoutePlanId])
   );
 
   // Parse route geometries
-  const actualRouteGeoJSON = useMemo(
-    () => (activeInstance ? parseRouteGeometry(activeInstance.ActualRouteGeometry) : null),
-    [activeInstance?.ActualRouteGeometry]
-  );
+  const actualRouteGeoJSON = useMemo(() => (activeInstance?.ActualRouteGeometry ? parseRouteGeometry(activeInstance.ActualRouteGeometry) : null), [activeInstance?.ActualRouteGeometry]);
 
-  const plannedRouteGeoJSON = useMemo(
-    () => (activePlan ? parseRouteGeometry(activePlan.MapboxRouteGeometry) : null),
-    [activePlan?.MapboxRouteGeometry]
-  );
+  const plannedRouteGeoJSON = useMemo(() => (activePlan?.MapboxRouteGeometry ? parseRouteGeometry(activePlan.MapboxRouteGeometry) : null), [activePlan?.MapboxRouteGeometry]);
 
   // Build stop markers GeoJSON
   const stopMarkersGeoJSON = useMemo(() => {
@@ -219,13 +206,9 @@ export default function RouteInstanceDetail() {
   }, [instanceStops]);
 
   // Summary stats
-  const completedStops = instanceStops.filter(
-    (s) => s.Status === RouteStopStatus.Completed
-  ).length;
+  const completedStops = instanceStops.filter((s) => s.Status === RouteStopStatus.Completed).length;
   const totalStops = instanceStops.length;
-  const instanceDeviations = deviations.filter(
-    (d) => d.RouteInstanceId === instanceId
-  );
+  const instanceDeviations = deviations.filter((d) => d.RouteInstanceId === instanceId);
 
   if (isLoading && !activeInstance) {
     return (
@@ -267,19 +250,10 @@ export default function RouteInstanceDetail() {
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Map */}
         <Box className="h-72 overflow-hidden">
-          <Mapbox.MapView
-            style={{ flex: 1 }}
-            styleURL={Mapbox.StyleURL.Street}
-            attributionEnabled={false}
-            logoEnabled={false}
-          >
+          <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} attributionEnabled={false} logoEnabled={false}>
             {/* Camera fitted to bounds */}
             {mapBounds ? (
-              <Mapbox.Camera
-                bounds={mapBounds}
-                padding={{ paddingTop: 40, paddingBottom: 40, paddingLeft: 40, paddingRight: 40 }}
-                animationDuration={0}
-              />
+              <Mapbox.Camera bounds={mapBounds} padding={{ paddingTop: 40, paddingBottom: 40, paddingLeft: 40, paddingRight: 40 }} animationDuration={0} />
             ) : (
               <Mapbox.Camera zoomLevel={12} animationDuration={0} />
             )}
@@ -333,30 +307,22 @@ export default function RouteInstanceDetail() {
         {/* Summary Stats */}
         <Box className="mx-4 mt-4 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
           <HStack className="items-center justify-between">
-            <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {activeInstance.RoutePlanName || t('routes.route_summary')}
-            </Text>
+            <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">{activeInstance.RoutePlanName || t('routes.route_summary')}</Text>
             <Badge style={{ backgroundColor: statusColor }} className="rounded-full">
-              <BadgeText className="text-xs font-semibold text-white">
-                {statusLabel}
-              </BadgeText>
+              <BadgeText className="text-xs font-semibold text-white">{statusLabel}</BadgeText>
             </Badge>
           </HStack>
 
           <HStack className="mt-4 justify-around">
             <VStack className="items-center">
               <Icon as={Navigation} size="sm" className="text-gray-500" />
-              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">
-                {formatDistance(activeInstance.TotalDistanceMeters)}
-              </Text>
+              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{formatDistance(activeInstance.TotalDistanceMeters ?? 0)}</Text>
               <Text className="text-xs text-gray-500">{t('routes.distance')}</Text>
             </VStack>
 
             <VStack className="items-center">
               <Icon as={Clock} size="sm" className="text-gray-500" />
-              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">
-                {formatDuration(activeInstance.TotalDurationSeconds)}
-              </Text>
+              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{formatDuration(activeInstance.TotalDurationSeconds ?? 0)}</Text>
               <Text className="text-xs text-gray-500">{t('routes.duration')}</Text>
             </VStack>
 
@@ -370,9 +336,7 @@ export default function RouteInstanceDetail() {
 
             <VStack className="items-center">
               <Icon as={AlertTriangle} size="sm" className="text-gray-500" />
-              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">
-                {instanceDeviations.length}
-              </Text>
+              <Text className="mt-1 text-base font-semibold text-gray-900 dark:text-gray-100">{instanceDeviations.length}</Text>
               <Text className="text-xs text-gray-500">{t('routes.deviations')}</Text>
             </VStack>
           </HStack>
@@ -381,24 +345,18 @@ export default function RouteInstanceDetail() {
           <VStack className="mt-4 space-y-1 border-t border-gray-200 pt-3 dark:border-gray-700">
             <HStack className="justify-between">
               <Text className="text-sm text-gray-500">{t('routes.in_progress')}</Text>
-              <Text className="text-sm text-gray-700 dark:text-gray-300">
-                {formatDate(activeInstance.StartedOn)}
-              </Text>
+              <Text className="text-sm text-gray-700 dark:text-gray-300">{formatDate(activeInstance.StartedOn)}</Text>
             </HStack>
             {activeInstance.CompletedOn ? (
               <HStack className="justify-between">
                 <Text className="text-sm text-gray-500">{t('routes.completed')}</Text>
-                <Text className="text-sm text-gray-700 dark:text-gray-300">
-                  {formatDate(activeInstance.CompletedOn)}
-                </Text>
+                <Text className="text-sm text-gray-700 dark:text-gray-300">{formatDate(activeInstance.CompletedOn)}</Text>
               </HStack>
             ) : null}
             {activeInstance.CancelledOn ? (
               <HStack className="justify-between">
                 <Text className="text-sm text-gray-500">{t('routes.cancel_route')}</Text>
-                <Text className="text-sm text-gray-700 dark:text-gray-300">
-                  {formatDate(activeInstance.CancelledOn)}
-                </Text>
+                <Text className="text-sm text-gray-700 dark:text-gray-300">{formatDate(activeInstance.CancelledOn)}</Text>
               </HStack>
             ) : null}
           </VStack>
@@ -414,7 +372,7 @@ export default function RouteInstanceDetail() {
             <Heading size="sm" className="mb-3 text-gray-900 dark:text-gray-100">
               {t('routes.stops')}
             </Heading>
-            {instanceStops
+            {[...instanceStops]
               .sort((a, b) => a.StopOrder - b.StopOrder)
               .map((stop) => (
                 <StopCard key={stop.RouteInstanceStopId} stop={stop} />
@@ -447,37 +405,20 @@ function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
   return (
     <Box className="mb-2 rounded-lg bg-white p-3 shadow-sm dark:bg-gray-800">
       <HStack className="items-center space-x-3">
-        <Box
-          className="size-8 items-center justify-center rounded-full"
-          style={{ backgroundColor: statusColor + '20' }}
-        >
+        <Box className="size-8 items-center justify-center rounded-full" style={{ backgroundColor: statusColor + '20' }}>
           <Icon as={StopIcon} size="xs" style={{ color: statusColor }} />
         </Box>
         <VStack className="flex-1">
-          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-            {stop.Name || `Stop ${stop.StopOrder}`}
-          </Text>
+          <Text className="text-sm font-semibold text-gray-900 dark:text-gray-100">{stop.Name || `Stop ${stop.StopOrder}`}</Text>
           {stop.Address ? (
             <Text className="text-xs text-gray-500" numberOfLines={1}>
               {stop.Address}
             </Text>
           ) : null}
           <HStack className="mt-1 space-x-3">
-            {stop.CheckedInOn ? (
-              <Text className="text-xs text-gray-500">
-                In: {formatDate(stop.CheckedInOn)}
-              </Text>
-            ) : null}
-            {stop.CheckedOutOn ? (
-              <Text className="text-xs text-gray-500">
-                Out: {formatDate(stop.CheckedOutOn)}
-              </Text>
-            ) : null}
-            {stop.SkippedOn ? (
-              <Text className="text-xs text-gray-500">
-                Skipped: {formatDate(stop.SkippedOn)}
-              </Text>
-            ) : null}
+            {stop.CheckedInOn ? <Text className="text-xs text-gray-500">In: {formatDate(stop.CheckedInOn)}</Text> : null}
+            {stop.CheckedOutOn ? <Text className="text-xs text-gray-500">Out: {formatDate(stop.CheckedOutOn)}</Text> : null}
+            {stop.SkippedOn ? <Text className="text-xs text-gray-500">Skipped: {formatDate(stop.SkippedOn)}</Text> : null}
           </HStack>
         </VStack>
         <Text className="text-xs font-medium" style={{ color: statusColor }}>
@@ -498,25 +439,15 @@ function DeviationCard({ deviation }: { deviation: RouteDeviationResultData }) {
         <Icon as={AlertTriangle} size="sm" className="mt-0.5 text-red-500" />
         <VStack className="flex-1">
           <HStack className="items-center justify-between">
-            <Text className="text-sm font-semibold text-red-800 dark:text-red-200">
-              {typeLabel}
-            </Text>
+            <Text className="text-sm font-semibold text-red-800 dark:text-red-200">{typeLabel}</Text>
             {deviation.IsAcknowledged && (
               <Badge className="rounded-full bg-green-100 dark:bg-green-800">
-                <BadgeText className="text-xs text-green-700 dark:text-green-200">
-                  {t('routes.acknowledge')}
-                </BadgeText>
+                <BadgeText className="text-xs text-green-700 dark:text-green-200">{t('routes.acknowledge')}</BadgeText>
               </Badge>
             )}
           </HStack>
-          {deviation.Description ? (
-            <Text className="mt-1 text-xs text-red-700 dark:text-red-300">
-              {deviation.Description}
-            </Text>
-          ) : null}
-          <Text className="mt-1 text-xs text-red-500">
-            {formatDate(deviation.OccurredOn)}
-          </Text>
+          {deviation.Description ? <Text className="mt-1 text-xs text-red-700 dark:text-red-300">{deviation.Description}</Text> : null}
+          <Text className="mt-1 text-xs text-red-500">{formatDate(deviation.OccurredOn)}</Text>
         </VStack>
       </HStack>
     </Box>

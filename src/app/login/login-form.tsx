@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AlertTriangle, EyeIcon, EyeOffIcon, Globe, LogIn, ShieldCheck } from 'lucide-react-native';
+import { ChevronDownIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
 import type { SubmitHandler } from 'react-hook-form';
@@ -18,7 +19,6 @@ import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
 import { translate, useSelectedLanguage } from '@/lib';
 import type { Language } from '@/lib/i18n/resources';
-import { ChevronDownIcon } from 'lucide-react-native';
 
 // Function to create schema - makes it easier to mock for testing
 const createLoginFormSchema = () =>
@@ -48,7 +48,7 @@ export type LoginFormProps = {
   onSsoPress?: () => void;
 };
 
-export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress, onSsoPress }: LoginFormProps) => {
+export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = undefined, onServerUrlPress, onSsoPress }: LoginFormProps) => {
   const { colorScheme } = useColorScheme();
   const { t, i18n: i18nInstance } = useTranslation();
   const { language, setLanguage } = useSelectedLanguage();
@@ -215,10 +215,7 @@ export const LoginForm = ({ onSubmit = () => { }, isLoading = false, error = und
         {/* Language selector */}
         <View className="mt-4 flex-row items-center justify-center gap-x-2">
           <Globe size={16} className="text-gray-400" />
-          <Select
-            onValueChange={(val) => setLanguage(val as Language)}
-            selectedValue={language ?? i18nInstance.language}
-          >
+          <Select onValueChange={(val) => setLanguage(val as Language)} selectedValue={language ?? i18nInstance.language}>
             <SelectTrigger size="sm" variant="outline" className="min-w-[160px]">
               <SelectInput placeholder={t('settings.language')} />
               <SelectIcon as={ChevronDownIcon} className="mr-2" />

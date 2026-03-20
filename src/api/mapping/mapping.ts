@@ -1,9 +1,11 @@
 import { type FeatureCollection } from 'geojson';
 
+import { getBaseApiUrl } from '@/lib/storage/app';
 import { type GetMapDataAndMarkersResult } from '@/models/v4/mapping/getMapDataAndMarkersResult';
 import { type GetMapLayersResult } from '@/models/v4/mapping/getMapLayersResult';
 import {
   type GetAllActiveLayersResult,
+  type GetCustomMapLayerResult,
   type GetCustomMapResult,
   type GetCustomMapsResult,
   type GetGeoJSONResult,
@@ -132,7 +134,7 @@ export const getCustomMap = async (mapId: string) => {
 };
 
 export const getCustomMapLayer = async (layerId: string) => {
-  const response = await getCustomMapLayerApi.get<GetGeoJSONResult>({
+  const response = await getCustomMapLayerApi.get<GetCustomMapLayerResult>({
     layerId: encodeURIComponent(layerId),
   });
   return response.data;
@@ -180,13 +182,13 @@ export const searchAllMapFeatures = async (term: string, type?: 'all' | 'indoor'
 // --- URL Helpers (no fetch needed, constructs URLs for components) ---
 
 export const getFloorImageUrl = (floorId: string): string => {
-  return `/api/v4/Mapping/GetIndoorMapFloorImage/${encodeURIComponent(floorId)}`;
+  return `${getBaseApiUrl()}/Mapping/GetIndoorMapFloorImage/${encodeURIComponent(floorId)}`;
 };
 
 export const getCustomMapLayerImageUrl = (layerId: string): string => {
-  return `/api/v4/Mapping/GetCustomMapLayerImage/${encodeURIComponent(layerId)}`;
+  return `${getBaseApiUrl()}/Mapping/GetCustomMapLayerImage/${encodeURIComponent(layerId)}`;
 };
 
 export const getCustomMapTileUrl = (layerId: string): string => {
-  return `/api/v4/Mapping/GetCustomMapTile/${encodeURIComponent(layerId)}/{z}/{x}/{y}`;
+  return `${getBaseApiUrl()}/Mapping/GetCustomMapTile/${encodeURIComponent(layerId)}/{z}/{x}/{y}`;
 };

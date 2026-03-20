@@ -1,35 +1,20 @@
 import { useLocalSearchParams } from 'expo-router';
-import {
-  CheckCircleIcon,
-  ClockIcon,
-  ExternalLinkIcon,
-  MapIcon,
-  MapPinIcon,
-  NavigationIcon,
-} from 'lucide-react-native';
+import { CheckCircleIcon, ClockIcon, ExternalLinkIcon, MapIcon, MapPinIcon, NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  Camera,
-  LineLayer,
-  MapView,
-  PointAnnotation,
-  ShapeSource,
-  StyleURL,
-  UserLocation,
-} from '@/components/maps/mapbox';
 import { Loading } from '@/components/common/loading';
+import { Camera, LineLayer, MapView, PointAnnotation, ShapeSource, StyleURL, UserLocation } from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { useRoutesStore } from '@/stores/routes/store';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
+import { useRoutesStore } from '@/stores/routes/store';
 
 const openInMaps = (lat: number, lon: number, label: string) => {
   const url = Platform.select({
@@ -77,7 +62,7 @@ export default function RouteDirectionsScreen() {
   const instanceStops = useRoutesStore((s) => s.instanceStops);
 
   const resolvedInstanceId = (() => {
-    const id = (instanceId && instanceId !== 'undefined') ? instanceId : activeInstance?.RouteInstanceId;
+    const id = instanceId && instanceId !== 'undefined' ? instanceId : activeInstance?.RouteInstanceId;
     return id || undefined;
   })();
 
@@ -97,9 +82,7 @@ export default function RouteDirectionsScreen() {
         // fall through
       }
     }
-    const validStops = instanceStops.filter(
-      (s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)
-    );
+    const validStops = instanceStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude));
     if (validStops.length < 2) return null;
     const sorted = [...validStops].sort((a, b) => a.StopOrder - b.StopOrder);
     return {
@@ -113,10 +96,7 @@ export default function RouteDirectionsScreen() {
   }, [directions, instanceStops]);
 
   // Sorted stops for display
-  const sortedStops = useMemo(
-    () => [...instanceStops].sort((a, b) => a.StopOrder - b.StopOrder),
-    [instanceStops]
-  );
+  const sortedStops = useMemo(() => [...instanceStops].sort((a, b) => a.StopOrder - b.StopOrder), [instanceStops]);
 
   const destination = useMemo(() => {
     const last = sortedStops[sortedStops.length - 1];
@@ -129,9 +109,7 @@ export default function RouteDirectionsScreen() {
   // Fit map to stops once ready
   useEffect(() => {
     if (!isMapReady || sortedStops.length === 0 || !cameraRef.current) return;
-    const valid = sortedStops.filter(
-      (s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)
-    );
+    const valid = sortedStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude));
     if (valid.length === 0) return;
     const lngs = valid.map((s) => s.Longitude);
     const lats = valid.map((s) => s.Latitude);
@@ -158,9 +136,7 @@ export default function RouteDirectionsScreen() {
     return (
       <Box className="flex-1 items-center justify-center p-4">
         <MapIcon size={48} color="#9ca3af" />
-        <Text className="mt-4 text-center text-typography-500">
-          {error ?? t('routes.no_directions')}
-        </Text>
+        <Text className="mt-4 text-center text-typography-500">{error ?? t('routes.no_directions')}</Text>
       </Box>
     );
   }
@@ -169,11 +145,7 @@ export default function RouteDirectionsScreen() {
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street}
-          onDidFinishLoadingMap={() => setIsMapReady(true)}
-        >
+        <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} onDidFinishLoadingMap={() => setIsMapReady(true)}>
           <UserLocation visible={true} />
           <Camera ref={cameraRef} />
 
@@ -194,42 +166,20 @@ export default function RouteDirectionsScreen() {
           {sortedStops
             .filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude))
             .map((stop) => (
-              <PointAnnotation
-                key={stop.RouteInstanceStopId}
-                id={`dir-stop-${stop.RouteInstanceStopId}`}
-                coordinate={[stop.Longitude, stop.Latitude]}
-              >
-                <View
-                  style={[
-                    styles.marker,
-                    { backgroundColor: statusColor[stop.Status] ?? '#9ca3af' },
-                  ]}
-                />
+              <PointAnnotation key={stop.RouteInstanceStopId} id={`dir-stop-${stop.RouteInstanceStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>
+                <View style={[styles.marker, { backgroundColor: statusColor[stop.Status] ?? '#9ca3af' }]} />
               </PointAnnotation>
             ))}
         </MapView>
       </View>
 
       {/* Stop list panel */}
-      <Box
-        className={`absolute bottom-0 left-0 right-0 rounded-t-2xl shadow-lg ${
-          colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'
-        }`}
-        style={{ maxHeight: '50%' }}
-      >
+      <Box className={`absolute bottom-0 left-0 right-0 rounded-t-2xl shadow-lg ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`} style={{ maxHeight: '50%' }}>
         {/* Summary */}
-        {(directions?.EstimatedDistanceMeters || directions?.EstimatedDurationSeconds) ? (
+        {directions?.EstimatedDistanceMeters || directions?.EstimatedDurationSeconds ? (
           <HStack className="items-center justify-between border-b border-outline-100 px-4 py-2">
-            {directions.EstimatedDistanceMeters ? (
-              <Text className="text-xs text-typography-500">
-                {formatDistance(directions.EstimatedDistanceMeters)}
-              </Text>
-            ) : null}
-            {directions.EstimatedDurationSeconds ? (
-              <Text className="text-xs text-typography-500">
-                {formatDuration(directions.EstimatedDurationSeconds)}
-              </Text>
-            ) : null}
+            {directions.EstimatedDistanceMeters ? <Text className="text-xs text-typography-500">{formatDistance(directions.EstimatedDistanceMeters)}</Text> : null}
+            {directions.EstimatedDurationSeconds ? <Text className="text-xs text-typography-500">{formatDuration(directions.EstimatedDurationSeconds)}</Text> : null}
           </HStack>
         ) : null}
 
@@ -239,16 +189,7 @@ export default function RouteDirectionsScreen() {
             const color = statusColor[stop.Status] ?? '#9ca3af';
             const isLast = index === sortedStops.length - 1;
             return (
-              <HStack
-                key={stop.RouteInstanceStopId}
-                className={`items-start px-4 py-3 ${
-                  !isLast
-                    ? colorScheme === 'dark'
-                      ? 'border-b border-neutral-700'
-                      : 'border-b border-neutral-100'
-                    : ''
-                }`}
-              >
+              <HStack key={stop.RouteInstanceStopId} className={`items-start px-4 py-3 ${!isLast ? (colorScheme === 'dark' ? 'border-b border-neutral-700' : 'border-b border-neutral-100') : ''}`}>
                 {/* Order badge */}
                 <View style={[styles.badge, { backgroundColor: color + '25' }]}>
                   <Text style={{ color, fontSize: 11, fontWeight: '700' }}>{stop.StopOrder}</Text>
@@ -264,11 +205,7 @@ export default function RouteDirectionsScreen() {
                     </HStack>
                   ) : null}
                 </VStack>
-                {stop.Status === RouteStopStatus.Completed ? (
-                  <CheckCircleIcon size={16} color="#22c55e" />
-                ) : stop.Status === RouteStopStatus.InProgress ? (
-                  <ClockIcon size={16} color="#3b82f6" />
-                ) : null}
+                {stop.Status === RouteStopStatus.Completed ? <CheckCircleIcon size={16} color="#22c55e" /> : stop.Status === RouteStopStatus.InProgress ? <ClockIcon size={16} color="#3b82f6" /> : null}
               </HStack>
             );
           })}
@@ -276,13 +213,7 @@ export default function RouteDirectionsScreen() {
 
         {/* Actions */}
         <HStack className="gap-3 px-4 pb-6 pt-3">
-          <Button
-            className="flex-1"
-            variant="outline"
-            size="sm"
-            onPress={handleOpenInMaps}
-            disabled={!destination}
-          >
+          <Button className="flex-1" variant="outline" size="sm" onPress={handleOpenInMaps} disabled={!destination}>
             <ButtonIcon as={ExternalLinkIcon} className="mr-1" />
             <ButtonText>{t('routes.open_in_maps')}</ButtonText>
           </Button>

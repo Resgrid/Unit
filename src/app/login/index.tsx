@@ -54,13 +54,7 @@ export default function Login() {
   return (
     <>
       <FocusAwareStatusBar />
-      <LoginForm
-        onSubmit={onSubmit}
-        isLoading={status === 'loading'}
-        error={error ?? undefined}
-        onServerUrlPress={() => setShowServerUrl(true)}
-        onSsoPress={() => router.push('/login/sso')}
-      />
+      <LoginForm onSubmit={onSubmit} isLoading={status === 'loading'} error={error ?? undefined} onServerUrlPress={() => setShowServerUrl(true)} onSsoPress={() => router.push('/login/sso')} />
 
       <Modal
         isOpen={isErrorModalVisible}

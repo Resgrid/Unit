@@ -1,17 +1,7 @@
 import { type FeatureCollection } from 'geojson';
 import { create } from 'zustand';
 
-import {
-  getAllActiveLayers,
-  getCustomMap,
-  getCustomMaps,
-  getIndoorMap,
-  getIndoorMapFloor,
-  getIndoorMapZonesGeoJSON,
-  getIndoorMaps,
-  getMapLayerGeoJSON,
-  searchAllMapFeatures,
-} from '@/api/mapping/mapping';
+import { getAllActiveLayers, getCustomMap, getCustomMaps, getIndoorMap, getIndoorMapFloor, getIndoorMaps, getIndoorMapZonesGeoJSON, getMapLayerGeoJSON, searchAllMapFeatures } from '@/api/mapping/mapping';
 import { type CustomMapResultData } from '@/models/v4/mapping/customMapResultData';
 import { type IndoorMapFloorResultData, type IndoorMapResultData } from '@/models/v4/mapping/indoorMapResultData';
 import { type ActiveLayerSummary, type UnifiedSearchResultItem } from '@/models/v4/mapping/mappingResults';
@@ -65,6 +55,12 @@ interface MapsState {
   // Actions - State management
   clearCurrentMap: () => void;
 }
+
+// Module-level request tokens. Incremented before each fetch and on clearCurrentMap
+// so in-flight responses from a previous navigation can detect they are stale.
+let _indoorMapToken = 0;
+let _floorToken = 0;
+let _customMapToken = 0;
 
 export const useMapsStore = create<MapsState>((set, get) => ({
   // Initial state
@@ -147,9 +143,11 @@ export const useMapsStore = create<MapsState>((set, get) => ({
   },
 
   fetchIndoorMap: async (mapId: string) => {
+    const token = ++_indoorMapToken;
     set({ isLoading: true, error: null });
     try {
       const response = await getIndoorMap(mapId);
+      if (token !== _indoorMapToken) return;
       const map = response.Data;
       set({ currentIndoorMap: map, isLoading: false });
 
@@ -159,20 +157,25 @@ export const useMapsStore = create<MapsState>((set, get) => ({
         await get().setCurrentFloor(sortedFloors[0].IndoorMapFloorId);
       }
     } catch (error) {
+      if (token !== _indoorMapToken) return;
       set({ error: 'Failed to fetch indoor map', isLoading: false });
     }
   },
 
   setCurrentFloor: async (floorId: string) => {
-    set({ currentFloorId: floorId, isLoadingGeoJSON: true });
+    const token = ++_floorToken;
+    set({ isLoadingGeoJSON: true });
     try {
       const [floorResponse, zonesResponse] = await Promise.all([getIndoorMapFloor(floorId), getIndoorMapZonesGeoJSON(floorId)]);
+      if (token !== _floorToken) return;
       set({
+        currentFloorId: floorId,
         currentFloor: floorResponse.Data,
         currentZonesGeoJSON: zonesResponse.Data,
         isLoadingGeoJSON: false,
       });
     } catch (error) {
+      if (token !== _floorToken) return;
       set({ error: 'Failed to load floor data', isLoadingGeoJSON: false });
     }
   },
@@ -192,11 +195,14 @@ export const useMapsStore = create<MapsState>((set, get) => ({
   },
 
   fetchCustomMap: async (mapId: string) => {
+    const token = ++_customMapToken;
     set({ isLoading: true, error: null });
     try {
       const response = await getCustomMap(mapId);
+      if (token !== _customMapToken) return;
       set({ currentCustomMap: response.Data, isLoading: false });
     } catch (error) {
+      if (token !== _customMapToken) return;
       set({ error: 'Failed to fetch custom map', isLoading: false });
     }
   },
@@ -220,12 +226,17 @@ export const useMapsStore = create<MapsState>((set, get) => ({
   clearSearch: () => set({ searchResults: [], searchQuery: '' }),
 
   // --- State Management ---
-  clearCurrentMap: () =>
+  clearCurrentMap: () => {
+    // Invalidate any in-flight fetches so their results are discarded on arrival.
+    ++_indoorMapToken;
+    ++_floorToken;
+    ++_customMapToken;
     set({
       currentIndoorMap: null,
       currentFloorId: null,
       currentFloor: null,
       currentZonesGeoJSON: null,
       currentCustomMap: null,
-    }),
+    });
+  },
 }));
