@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
@@ -45,6 +46,8 @@ const useAuthStore = create<AuthState>()(
               profile: profileData,
               userId: profileData.sub,
             });
+
+            Sentry.setUser({ id: profileData.sub, username: profileData.name });
 
             // Set up automatic token refresh
             //const decodedToken: { exp: number } = jwtDecode(
@@ -109,6 +112,8 @@ const useAuthStore = create<AuthState>()(
               userId: profileData.sub,
             });
 
+            Sentry.setUser({ id: profileData.sub, username: profileData.name });
+
             const refreshDelayMs = Math.max((response.authResponse.expires_in - 60) * 1000, 60000);
             logger.info({
               message: 'SSO login successful, scheduling token refresh',
@@ -147,6 +152,7 @@ const useAuthStore = create<AuthState>()(
           isFirstTime: true,
           refreshTimeoutId: null,
         });
+        Sentry.setUser(null);
       },
 
       refreshAccessToken: async () => {
@@ -231,6 +237,8 @@ const useAuthStore = create<AuthState>()(
                 profile: profileData,
                 userId: profileData.sub,
               });
+
+              Sentry.setUser({ id: profileData.sub, username: profileData.name });
 
               logger.info({
                 message: 'Auth state hydrated from storage, token refresh will be scheduled by onRehydrateStorage',

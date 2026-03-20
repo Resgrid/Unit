@@ -7,9 +7,26 @@ import { resources } from './resources';
 import { getLanguage } from './utils';
 export * from './utils';
 
+const supportedLanguages = Object.keys(resources);
+
+const getInitialLanguage = (): string => {
+  // Honour the user's stored preference first
+  const stored = getLanguage();
+  if (stored && supportedLanguages.includes(stored)) return stored;
+
+  // Fall back to the device/browser locale, picking the first supported match
+  const locales = Localization.getLocales();
+  for (const locale of locales) {
+    const code = locale.languageCode;
+    if (code && supportedLanguages.includes(code)) return code;
+  }
+
+  return 'en';
+};
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: getLanguage() || Localization.getLocales()[0]?.languageCode || 'en', // TODO: if you are not supporting multiple languages or languages with multiple directions you can set the default value to `en`
+  lng: getInitialLanguage(),
   fallbackLng: 'en',
   compatibilityJSON: 'v3', // By default React Native projects does not support Intl
 

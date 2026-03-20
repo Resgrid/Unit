@@ -11,6 +11,7 @@ import { Loading } from '@/components/common/loading';
 import MapPins from '@/components/maps/map-pins';
 import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
+import { StopMarker } from '@/components/routes/stop-marker';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
@@ -21,6 +22,8 @@ import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersD
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import { useMapsStore } from '@/stores/maps/store';
+import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
@@ -55,6 +58,21 @@ function MapContent() {
   const locationHeading = useLocationStore((state) => state.heading);
   const isMapLocked = useLocationStore((state) => state.isMapLocked);
 
+  // Route overlay state
+  const activeUnitId = useCoreStore((state) => state.activeUnitId);
+  const activeInstance = useRoutesStore((state) => state.activeInstance);
+  const instanceStops = useRoutesStore((state) => state.instanceStops);
+  const fetchActiveRoute = useRoutesStore((state) => state.fetchActiveRoute);
+  const fetchStopsForInstance = useRoutesStore((state) => state.fetchStopsForInstance);
+  const [showRouteOverlay, setShowRouteOverlay] = useState(true);
+
+  // Map layers state
+  const activeLayers = useMapsStore((state) => state.activeLayers);
+  const layerToggles = useMapsStore((state) => state.layerToggles);
+  const cachedGeoJSON = useMapsStore((state) => state.cachedGeoJSON);
+  const fetchActiveLayers = useMapsStore((state) => state.fetchActiveLayers);
+  const fetchLayerGeoJSON = useMapsStore((state) => state.fetchLayerGeoJSON);
+
   // Get map style based on current theme
   const getMapStyle = useCallback(() => {
     return colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
@@ -64,6 +82,78 @@ function MapContent() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
+
+  // Fetch active route overlay data
+  useEffect(() => {
+    if (activeUnitId) {
+      fetchActiveRoute(activeUnitId);
+      fetchActiveLayers();
+    }
+  }, [activeUnitId, fetchActiveRoute, fetchActiveLayers]);
+
+  // Fetch stops when active instance changes
+  useEffect(() => {
+    if (activeInstance?.RouteInstanceId) {
+      fetchStopsForInstance(activeInstance.RouteInstanceId);
+    }
+  }, [activeInstance?.RouteInstanceId, fetchStopsForInstance]);
+
+  // Fetch GeoJSON for enabled layers
+  useEffect(() => {
+    activeLayers.forEach((layer) => {
+      if (layerToggles[layer.LayerId] && !cachedGeoJSON[layer.LayerId]) {
+        fetchLayerGeoJSON(layer.LayerId);
+      }
+    });
+  }, [activeLayers, layerToggles, cachedGeoJSON, fetchLayerGeoJSON]);
+
+  // Parse route geometry for overlay
+  const routeOverlayGeoJSON = useMemo(() => {
+    if (!showRouteOverlay || !activeInstance) return null;
+    const geometry = activeInstance.ActualRouteGeometry || '';
+    if (!geometry) return null;
+    try {
+      const parsed = JSON.parse(geometry);
+      if (parsed.type === 'Feature' || parsed.type === 'FeatureCollection') return parsed;
+      if (parsed.type === 'LineString' || parsed.type === 'MultiLineString') {
+        return { type: 'Feature' as const, properties: {}, geometry: parsed };
+      }
+      if (Array.isArray(parsed)) {
+        return { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString', coordinates: parsed } };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, [showRouteOverlay, activeInstance]);
+
+  // Get remaining stops for route overlay
+  const remainingStops = useMemo(() => {
+    if (!showRouteOverlay || !activeInstance) return [];
+    return instanceStops.filter((s) => s.Status === 0 || s.Status === 1);
+  }, [showRouteOverlay, activeInstance, instanceStops]);
+
+  // Next stop for geofence circle
+  const nextStop = useMemo(() => {
+    return remainingStops.find((s) => s.Status === 0 || s.Status === 1) || null;
+  }, [remainingStops]);
+
+  // Geofence circle GeoJSON
+  const geofenceGeoJSON = useMemo((): GeoJSON.Feature<GeoJSON.Polygon> | null => {
+    if (!nextStop || !nextStop.GeofenceRadiusMeters) return null;
+    const points = 64;
+    const coords: number[][] = [];
+    const radiusDeg = nextStop.GeofenceRadiusMeters / 111320;
+    for (let i = 0; i <= points; i++) {
+      const angle = (i / points) * 2 * Math.PI;
+      coords.push([nextStop.Longitude + radiusDeg * Math.cos(angle), nextStop.Latitude + radiusDeg * Math.sin(angle)]);
+    }
+    return {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'Polygon', coordinates: [coords] },
+    };
+  }, [nextStop]);
 
   // Update map style when theme changes
   useEffect(() => {
@@ -415,6 +505,75 @@ function MapContent() {
             </Mapbox.PointAnnotation>
           ) : null}
           <MapPins pins={mapPins} onPinPress={handlePinPress} />
+
+          {/* Active route polyline overlay */}
+          {routeOverlayGeoJSON ? (
+            <Mapbox.ShapeSource id="active-route-line" shape={routeOverlayGeoJSON}>
+              <Mapbox.LineLayer
+                id="active-route-line-layer"
+                style={{
+                  lineColor: activeInstance?.RouteColor || '#3b82f6',
+                  lineWidth: 4,
+                  lineJoin: 'round',
+                  lineCap: 'round',
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ) : null}
+
+          {/* Geofence circle around next stop */}
+          {geofenceGeoJSON ? (
+            <Mapbox.ShapeSource id="geofence-circle" shape={geofenceGeoJSON}>
+              <Mapbox.FillLayer
+                id="geofence-fill"
+                style={{
+                  fillColor: '#3b82f6',
+                  fillOpacity: 0.1,
+                }}
+              />
+              <Mapbox.LineLayer
+                id="geofence-outline"
+                style={{
+                  lineColor: '#3b82f6',
+                  lineWidth: 1.5,
+                  lineDasharray: [2, 2],
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ) : null}
+
+          {/* Route stop markers */}
+          {showRouteOverlay
+            ? remainingStops.map((stop) =>
+                stop.Latitude && stop.Longitude ? (
+                  <Mapbox.PointAnnotation key={`route-stop-${stop.RouteInstanceStopId}`} id={`route-stop-${stop.RouteInstanceStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>
+                    <StopMarker stopOrder={stop.StopOrder} status={stop.Status} />
+                  </Mapbox.PointAnnotation>
+                ) : null
+              )
+            : null}
+
+          {/* Custom map layer overlays */}
+          {activeLayers.map((layer) =>
+            layerToggles[layer.LayerId] && cachedGeoJSON[layer.LayerId] ? (
+              <Mapbox.ShapeSource key={`layer-${layer.LayerId}`} id={`layer-${layer.LayerId}`} shape={cachedGeoJSON[layer.LayerId]}>
+                <Mapbox.FillLayer
+                  id={`fill-${layer.LayerId}`}
+                  style={{
+                    fillColor: layer.Color || '#3b82f6',
+                    fillOpacity: 0.2,
+                  }}
+                />
+                <Mapbox.LineLayer
+                  id={`line-${layer.LayerId}`}
+                  style={{
+                    lineColor: layer.Color || '#3b82f6',
+                    lineWidth: 1,
+                  }}
+                />
+              </Mapbox.ShapeSource>
+            ) : null
+          )}
         </Mapbox.MapView>
 
         {/* Recenter Button - only show when map is not locked and user has moved the map */}

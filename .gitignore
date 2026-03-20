@@ -37,3 +37,4 @@ Gemfile
 
 expo-env.d.ts
 # @end expo-cli
+.dual-graph/

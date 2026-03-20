@@ -1,8 +1,10 @@
 /* eslint-disable react/no-unstable-nested-components */
 
 import { NovuProvider } from '@novu/react-native';
+import Countly from 'countly-sdk-react-native-bridge';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Redirect, SplashScreen, Tabs } from 'expo-router';
-import { Contact, ListTree, Map, Megaphone, Menu, Notebook, Settings } from 'lucide-react-native';
+import { Contact, ListTree, Map, Megaphone, Menu, Navigation, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions } from 'react-native';
@@ -36,6 +38,7 @@ import { useSignalRStore } from '@/stores/signalr/signalr-store';
 export default function TabLayout() {
   const { t } = useTranslation();
   const status = useAuthStore((state) => state.status);
+  const userId = useAuthStore((state) => state.userId);
   const [isFirstTime, _setIsFirstTime] = useIsFirstTime();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
@@ -45,6 +48,32 @@ export default function TabLayout() {
   const isLandscape = width > height;
   const { isActive, appState } = useAppLifecycle();
   const { trackEvent } = useAnalytics();
+
+  // Identify user in Countly when signed in
+  useEffect(() => {
+    if (status === 'signedIn' && userId) {
+      try {
+        Countly.setUserData({ custom: { id: userId } });
+      } catch {
+        // Countly may not be initialized (e.g., no app key configured) — ignore
+      }
+    }
+  }, [status, userId]);
+
+  // Hide the Android system navigation bar so it doesn't cover the tab bar.
+  // The app runs edge-to-edge (react-native-edge-to-edge), so the nav bar overlays
+  // content by default. We hide it on mount and re-hide it via a listener whenever
+  // the map (or any other view) causes Android to show it again.
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setVisibilityAsync('hidden');
+    const subscription = NavigationBar.addVisibilityListener(({ visibility }) => {
+      if (visibility === 'visible') {
+        NavigationBar.setVisibilityAsync('hidden');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Refs to track initialization state
   const hasInitialized = useRef(false);
@@ -301,6 +330,7 @@ export default function TabLayout() {
   const callsIcon = useCallback(({ color }: { color: string }) => <Icon as={Megaphone} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
   const contactsIcon = useCallback(({ color }: { color: string }) => <Icon as={Contact} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
   const notesIcon = useCallback(({ color }: { color: string }) => <Icon as={Notebook} stroke={color} />, []);
+  const routesIcon = useCallback(({ color }: { color: string }) => <Icon as={Navigation} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
   const protocolsIcon = useCallback(({ color }: { color: string }) => <Icon as={ListTree} stroke={color} />, []);
   const settingsIcon = useCallback(({ color }: { color: string }) => <Icon as={Settings} stroke={color} />, []);
 
@@ -343,6 +373,17 @@ export default function TabLayout() {
       headerRight: headerRightNotification,
     }),
     [t, contactsIcon, headerRightNotification]
+  );
+
+  const routesOptions = useMemo(
+    () => ({
+      title: t('tabs.routes'),
+      headerShown: true as const,
+      tabBarIcon: routesIcon,
+      tabBarButtonTestID: 'routes-tab' as const,
+      headerRight: headerRightNotification,
+    }),
+    [t, routesIcon, headerRightNotification]
   );
 
   const notesOptions = useMemo(
@@ -422,6 +463,8 @@ export default function TabLayout() {
             <Tabs.Screen name="index" options={indexOptions} />
 
             <Tabs.Screen name="calls" options={callsOptions} />
+
+            <Tabs.Screen name="routes" options={routesOptions} />
 
             <Tabs.Screen name="contacts" options={contactsOptions} />
 
