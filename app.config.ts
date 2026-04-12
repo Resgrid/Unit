@@ -219,6 +219,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     '@config-plugins/react-native-webrtc',
     '@config-plugins/react-native-callkeep',
     '@react-native-firebase/app',
+    '@sentry/react-native',
     './customGradle.plugin.js',
     './customManifest.plugin.js',
     './plugins/withForegroundNotifications.js',
