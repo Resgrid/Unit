@@ -225,6 +225,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './plugins/withForegroundNotifications.js',
     './plugins/withNotificationSounds.js',
     './plugins/withMediaButtonModule.js',
+    './plugins/withCheckInLiveActivity.js',
     './plugins/withInCallAudioModule.js',
     ['app-icon-badge', appIconBadgeConfig],
   ],

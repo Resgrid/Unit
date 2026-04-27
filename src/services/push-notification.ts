@@ -61,6 +61,15 @@ class PushNotificationService {
         await this.createNotificationChannel('notif', 'Notification', 'Notifications', undefined, false);
         await this.createNotificationChannel('message', 'Message', 'Messages', undefined, false);
 
+        // Check-in timers channel (silent updates)
+        await notifee.createChannel({
+          id: 'check-in-timers',
+          name: 'Check-In Timers',
+          description: 'Timer notifications for call check-ins',
+          importance: AndroidImportance.LOW,
+          vibration: false,
+        });
+
         // Custom call channels (c1-c25)
         for (let i = 1; i <= 25; i++) {
           const channelId = `c${i}`;
@@ -187,6 +196,26 @@ class PushNotificationService {
         message: 'Notifee foreground event',
         context: { type, detail: { id: detail.notification?.id, data: detail.notification?.data } },
       });
+
+      // Handle check-in action press
+      if (type === EventType.ACTION_PRESS && detail.pressAction?.id === 'check-in') {
+        logger.info({ message: 'Check-in action pressed from notification' });
+        // Trigger quick check-in — store will handle it
+        const { useCheckInTimerStore } = require('@/stores/check-in-timers/store');
+        const { useCoreStore } = require('@/stores/app/core-store');
+        const { useLocationStore } = require('@/stores/app/location-store');
+        const activeCall = useCoreStore.getState().activeCall;
+        const activeUnit = useCoreStore.getState().activeUnit;
+        if (activeCall) {
+          await useCheckInTimerStore.getState().performCheckIn({
+            CallId: parseInt(activeCall.CallId, 10),
+            CheckInType: activeUnit ? 1 : 0,
+            UnitId: activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
+            Latitude: useLocationStore.getState().latitude?.toString(),
+            Longitude: useLocationStore.getState().longitude?.toString(),
+          });
+        }
+      }
 
       // Handle notification press
       if (type === EventType.PRESS && detail.notification) {

@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, router } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -25,6 +25,8 @@ import { useLocationStore } from '@/stores/app/location-store';
 import { useMapsStore } from '@/stores/maps/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
+import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
+import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
@@ -57,6 +59,20 @@ function MapContent() {
   const locationLongitude = useLocationStore((state) => state.longitude);
   const locationHeading = useLocationStore((state) => state.heading);
   const isMapLocked = useLocationStore((state) => state.isMapLocked);
+
+  // Weather alert banner state
+  const weatherAlerts = useWeatherAlertsStore((state) => state.alerts);
+  const weatherSettings = useWeatherAlertsStore((state) => state.settings);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const extremeAlerts = useMemo(
+    () => weatherAlerts.filter((a) => a.Severity <= 1 && a.Status === 0),
+    [weatherAlerts]
+  );
+
+  // Reset dismissed state when alert count changes
+  useEffect(() => {
+    setIsBannerDismissed(false);
+  }, [extremeAlerts.length]);
 
   // Route overlay state
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
@@ -575,6 +591,17 @@ function MapContent() {
             ) : null
           )}
         </Mapbox.MapView>
+
+        {/* Weather Alert Banner */}
+        {weatherSettings?.WeatherAlertsEnabled && extremeAlerts.length > 0 && !isBannerDismissed ? (
+          <View style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 10 }}>
+            <WeatherAlertBanner
+              alerts={extremeAlerts}
+              onPress={() => router.push('/(app)/weather-alerts')}
+              onDismiss={() => setIsBannerDismissed(true)}
+            />
+          </View>
+        ) : null}
 
         {/* Recenter Button - only show when map is not locked and user has moved the map */}
         {showRecenterButton ? (

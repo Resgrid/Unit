@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
 import * as z from 'zod';
 
+import { DestinationPoiSelector } from '@/components/calls/destination-poi-selector';
 import { DispatchSelectionModal } from '@/components/calls/dispatch-selection-modal';
 import { Loading } from '@/components/common/loading';
 import FullScreenLocationPicker from '@/components/maps/full-screen-location-picker';
@@ -40,6 +41,7 @@ const formSchema = z.object({
   plusCode: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  destinationPoiId: z.string().optional(),
   priority: z.string().min(1, 'Priority is required'),
   type: z.string().min(1, 'Type is required'),
   contactName: z.string().optional(),
@@ -79,10 +81,11 @@ export default function EditCall() {
   const callId = Array.isArray(id) ? id[0] : id;
   const callPriorities = useCallsStore((state) => state.callPriorities);
   const callTypes = useCallsStore((state) => state.callTypes);
+  const destinationPois = useCallsStore((state) => state.destinationPois);
+  const poiTypes = useCallsStore((state) => state.poiTypes);
   const callDataLoading = useCallsStore((state) => state.isLoading);
   const callDataError = useCallsStore((state) => state.error);
-  const fetchCallPriorities = useCallsStore((state) => state.fetchCallPriorities);
-  const fetchCallTypes = useCallsStore((state) => state.fetchCallTypes);
+  const fetchCallFormData = useCallsStore((state) => state.fetchCallFormData);
   const call = useCallDetailStore((state) => state.call);
   const callDetailLoading = useCallDetailStore((state) => state.isLoading);
   const callDetailError = useCallDetailStore((state) => state.error);
@@ -126,10 +129,11 @@ export default function EditCall() {
       coordinates: '',
       what3words: '',
       plusCode: '',
-      latitude: undefined,
-      longitude: undefined,
-      priority: '',
-      type: '',
+        latitude: undefined,
+        longitude: undefined,
+        destinationPoiId: '',
+        priority: '',
+        type: '',
       contactName: '',
       contactInfo: '',
       dispatchSelection: {
@@ -143,12 +147,11 @@ export default function EditCall() {
   });
 
   useEffect(() => {
-    fetchCallPriorities();
-    fetchCallTypes();
+    fetchCallFormData();
     if (callId) {
       fetchCallDetail(callId);
     }
-  }, [fetchCallPriorities, fetchCallTypes, fetchCallDetail, callId]);
+  }, [fetchCallDetail, fetchCallFormData, callId]);
 
   // Pre-populate form when call data is loaded
   useEffect(() => {
@@ -166,6 +169,7 @@ export default function EditCall() {
         plusCode: '',
         latitude: call.Latitude ? parseFloat(call.Latitude) : undefined,
         longitude: call.Longitude ? parseFloat(call.Longitude) : undefined,
+        destinationPoiId: call.DestinationPoiId != null ? String(call.DestinationPoiId) : '',
         priority: priority?.Name || '',
         type: type?.Name || '',
         contactName: call.ContactName || '',
@@ -228,6 +232,7 @@ export default function EditCall() {
         address: data.address,
         latitude: data.latitude,
         longitude: data.longitude,
+        destinationPoiId: data.destinationPoiId ? Number(data.destinationPoiId) : null,
         what3words: data.what3words,
         plusCode: data.plusCode,
         contactName: data.contactName,
@@ -616,6 +621,20 @@ export default function EditCall() {
                   </Button>
                 )}
               </Box>
+
+              <Controller
+                control={control}
+                name="destinationPoiId"
+                render={({ field: { onChange, value } }) => (
+                  <DestinationPoiSelector
+                    destinationPois={destinationPois}
+                    poiTypes={poiTypes}
+                    selectedPoiId={value ? Number(value) : null}
+                    isLoading={callDataLoading && destinationPois.length === 0}
+                    onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+                  />
+                )}
+              />
             </Card>
 
             <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>

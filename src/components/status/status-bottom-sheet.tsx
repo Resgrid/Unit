@@ -4,10 +4,11 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useShallow } from 'zustand/react/shallow';
 
+import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { invertColor } from '@/lib/utils';
-import { type CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
+import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
+import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEntityTypes';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -25,35 +26,98 @@ import { Text } from '../ui/text';
 import { Textarea, TextareaInput } from '../ui/textarea';
 import { VStack } from '../ui/vstack';
 
+type DestinationTab = 'call' | 'station' | 'poi';
+
+const getDestinationTabs = (detail: number): DestinationTab[] => {
+  const tabs: DestinationTab[] = [];
+
+  if (statusDetailAllowsCalls(detail)) {
+    tabs.push('call');
+  }
+
+  if (statusDetailAllowsStations(detail)) {
+    tabs.push('station');
+  }
+
+  if (statusDetailAllowsPois(detail)) {
+    tabs.push('poi');
+  }
+
+  return tabs;
+};
+
+const getDestinationTabTranslationKey = (tab: DestinationTab): string => {
+  switch (tab) {
+    case 'call':
+      return 'status.calls_tab';
+    case 'station':
+      return 'status.stations_tab';
+    case 'poi':
+      return 'status.pois_tab';
+  }
+};
+
+const getPreferredDestinationTab = ({
+  tabs,
+  selectedDestinationType,
+  hasSelectedCall,
+  hasSelectedStation,
+  hasSelectedPoi,
+}: {
+  tabs: DestinationTab[];
+  selectedDestinationType: 'none' | 'call' | 'station' | 'poi';
+  hasSelectedCall: boolean;
+  hasSelectedStation: boolean;
+  hasSelectedPoi: boolean;
+}): DestinationTab => {
+  if (selectedDestinationType !== 'none' && tabs.includes(selectedDestinationType)) {
+    return selectedDestinationType;
+  }
+
+  if (hasSelectedCall && tabs.includes('call')) {
+    return 'call';
+  }
+
+  if (hasSelectedStation && tabs.includes('station')) {
+    return 'station';
+  }
+
+  if (hasSelectedPoi && tabs.includes('poi')) {
+    return 'poi';
+  }
+
+  return tabs[0] ?? 'call';
+};
+
 export const StatusBottomSheet = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
-  const [selectedTab, setSelectedTab] = React.useState<'calls' | 'stations'>('calls');
+  const [selectedTab, setSelectedTab] = React.useState<DestinationTab>('call');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const hasPreselectedRef = React.useRef(false);
   const showToast = useToastStore((state) => state.showToast);
 
-  // Initialize offline event manager on mount
   React.useEffect(() => {
     offlineEventManager.initialize();
   }, []);
 
-  // Use individual selectors to avoid whole-store subscriptions (React 19 compatibility)
   const isOpen = useStatusBottomSheetStore((state) => state.isOpen);
   const currentStep = useStatusBottomSheetStore((state) => state.currentStep);
   const selectedCall = useStatusBottomSheetStore((state) => state.selectedCall);
   const selectedStation = useStatusBottomSheetStore((state) => state.selectedStation);
+  const selectedPoi = useStatusBottomSheetStore((state) => state.selectedPoi);
   const selectedDestinationType = useStatusBottomSheetStore((state) => state.selectedDestinationType);
   const selectedStatus = useStatusBottomSheetStore((state) => state.selectedStatus);
   const cameFromStatusSelection = useStatusBottomSheetStore((state) => state.cameFromStatusSelection);
   const note = useStatusBottomSheetStore((state) => state.note);
   const availableCalls = useStatusBottomSheetStore((state) => state.availableCalls);
   const availableStations = useStatusBottomSheetStore((state) => state.availableStations);
+  const availablePois = useStatusBottomSheetStore((state) => state.availablePois);
+  const availablePoiTypes = useStatusBottomSheetStore((state) => state.availablePoiTypes);
   const isLoading = useStatusBottomSheetStore((state) => state.isLoading);
-  const setIsOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
   const setCurrentStep = useStatusBottomSheetStore((state) => state.setCurrentStep);
   const setSelectedCall = useStatusBottomSheetStore((state) => state.setSelectedCall);
   const setSelectedStation = useStatusBottomSheetStore((state) => state.setSelectedStation);
+  const setSelectedPoi = useStatusBottomSheetStore((state) => state.setSelectedPoi);
   const setSelectedDestinationType = useStatusBottomSheetStore((state) => state.setSelectedDestinationType);
   const setSelectedStatus = useStatusBottomSheetStore((state) => state.setSelectedStatus);
   const setNote = useStatusBottomSheetStore((state) => state.setNote);
@@ -74,60 +138,211 @@ export const StatusBottomSheet = () => {
   const altitude = useLocationStore((state) => state.altitude);
   const timestamp = useLocationStore((state) => state.timestamp);
 
-  // Set default tab based on DetailType when status changes
-  React.useEffect(() => {
-    if (selectedStatus) {
-      // DetailType 1 = stations only, so default to stations tab
-      // DetailType 2 = calls only, so default to calls tab
-      // DetailType 3 = both, default to calls tab
-      if (selectedStatus.Detail === 1) {
-        setSelectedTab('stations');
-      } else {
-        setSelectedTab('calls');
-      }
-    }
-  }, [selectedStatus]);
+  const poiTypesById = React.useMemo(() => createPoiTypeMap(availablePoiTypes), [availablePoiTypes]);
 
-  // Helper function to safely get status properties
   const getStatusProperty = React.useCallback(
     (prop: 'Detail' | 'Note', defaultValue: number): number => {
-      if (!selectedStatus) return defaultValue;
-      return selectedStatus[prop] ?? defaultValue;
+      if (!selectedStatus) {
+        return defaultValue;
+      }
+
+      const value = Number(selectedStatus[prop]);
+      return Number.isNaN(value) ? defaultValue : value;
     },
     [selectedStatus]
   );
 
   const getStatusId = React.useCallback((): string => {
-    if (!selectedStatus) return '0';
+    if (!selectedStatus) {
+      return '0';
+    }
+
     return selectedStatus.Id.toString();
   }, [selectedStatus]);
+
+  const detailLevel = getStatusProperty('Detail', 0);
+  const shouldShowDestinationStep = detailLevel > 0;
+  const destinationTabs = React.useMemo(() => getDestinationTabs(detailLevel), [detailLevel]);
+  const noteType = getStatusProperty('Note', 0);
+  const isNoteRequired = noteType === 2;
+  const isNoteOptional = noteType === 1;
+  const activeCallCandidate = React.useMemo(() => {
+    if (!activeCallId) {
+      return null;
+    }
+
+    return availableCalls.find((call) => call.CallId === activeCallId) ?? null;
+  }, [activeCallId, availableCalls]);
+
+  React.useEffect(() => {
+    if (isOpen && activeUnit) {
+      fetchDestinationData(activeUnit.UnitId);
+    }
+  }, [activeUnit, fetchDestinationData, isOpen]);
+
+  React.useEffect(() => {
+    if (!selectedStatus) {
+      return;
+    }
+
+    const allowsCalls = statusDetailAllowsCalls(detailLevel);
+    const allowsStations = statusDetailAllowsStations(detailLevel);
+    const allowsPois = statusDetailAllowsPois(detailLevel);
+
+    if (!allowsCalls && selectedCall) {
+      setSelectedCall(null);
+    }
+
+    if (!allowsStations && selectedStation) {
+      setSelectedStation(null);
+    }
+
+    if (!allowsPois && selectedPoi) {
+      setSelectedPoi(null);
+    }
+
+    const selectedTypeAllowed =
+      selectedDestinationType === 'none' ||
+      (selectedDestinationType === 'call' && allowsCalls) ||
+      (selectedDestinationType === 'station' && allowsStations) ||
+      (selectedDestinationType === 'poi' && allowsPois);
+
+    if (!selectedTypeAllowed) {
+      setSelectedDestinationType('none');
+    }
+  }, [
+    detailLevel,
+    selectedCall,
+    selectedDestinationType,
+    selectedPoi,
+    selectedStation,
+    selectedStatus,
+    setSelectedCall,
+    setSelectedDestinationType,
+    setSelectedPoi,
+    setSelectedStation,
+  ]);
+
+  React.useEffect(() => {
+    if (!selectedStatus || selectedDestinationType !== 'none') {
+      return;
+    }
+
+    if (selectedCall && statusDetailAllowsCalls(detailLevel)) {
+      setSelectedDestinationType('call');
+      return;
+    }
+
+    if (selectedStation && statusDetailAllowsStations(detailLevel)) {
+      setSelectedDestinationType('station');
+      return;
+    }
+
+    if (selectedPoi && statusDetailAllowsPois(detailLevel)) {
+      setSelectedDestinationType('poi');
+    }
+  }, [detailLevel, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedDestinationType]);
+
+  React.useEffect(() => {
+    if (!isOpen || !selectedStatus || !statusDetailAllowsCalls(detailLevel) || !activeCallCandidate) {
+      return;
+    }
+
+    if (selectedCall || selectedStation || selectedPoi || selectedDestinationType !== 'none') {
+      return;
+    }
+
+    setSelectedCall(activeCallCandidate);
+    setSelectedDestinationType('call');
+  }, [activeCallCandidate, detailLevel, isOpen, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedCall, setSelectedDestinationType]);
+
+  React.useEffect(() => {
+    if (destinationTabs.length === 0) {
+      return;
+    }
+
+    const preferredTab = getPreferredDestinationTab({
+      tabs: destinationTabs,
+      selectedDestinationType,
+      hasSelectedCall: !!selectedCall,
+      hasSelectedStation: !!selectedStation,
+      hasSelectedPoi: !!selectedPoi,
+    });
+
+    if (preferredTab !== selectedTab) {
+      setSelectedTab(preferredTab);
+    }
+  }, [destinationTabs, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedTab]);
+
+  const getStatusDetailDescription = React.useCallback(
+    (detail: number): string | null => {
+      switch (detail) {
+        case CustomStateDetailTypes.Stations:
+          return t('status.station_destination_enabled');
+        case CustomStateDetailTypes.Calls:
+          return t('status.call_destination_enabled');
+        case CustomStateDetailTypes.CallsAndStations:
+          return t('status.both_destinations_enabled');
+        case CustomStateDetailTypes.Pois:
+          return t('status.poi_destination_enabled');
+        case CustomStateDetailTypes.CallsAndPois:
+          return t('status.calls_and_pois_destinations_enabled');
+        case CustomStateDetailTypes.StationsAndPois:
+          return t('status.stations_and_pois_destinations_enabled');
+        case CustomStateDetailTypes.CallsStationsAndPois:
+          return t('status.calls_stations_pois_destinations_enabled');
+        default:
+          return null;
+      }
+    },
+    [t]
+  );
 
   const handleClose = () => {
     reset();
   };
 
   const handleCallSelect = (callId: string) => {
-    const call = availableCalls.find((c) => c.CallId === callId);
-    if (call) {
-      setSelectedCall(call);
-      setSelectedDestinationType('call');
-      setSelectedStation(null);
+    const call = availableCalls.find((item) => item.CallId === callId);
+    if (!call) {
+      return;
     }
+
+    setSelectedCall(call);
+    setSelectedStation(null);
+    setSelectedPoi(null);
+    setSelectedDestinationType('call');
   };
 
   const handleStationSelect = (stationId: string) => {
-    const station = availableStations.find((s) => s.GroupId === stationId);
-    if (station) {
-      setSelectedStation(station);
-      setSelectedDestinationType('station');
-      setSelectedCall(null);
+    const station = availableStations.find((item) => item.GroupId === stationId);
+    if (!station) {
+      return;
     }
+
+    setSelectedStation(station);
+    setSelectedCall(null);
+    setSelectedPoi(null);
+    setSelectedDestinationType('station');
+  };
+
+  const handlePoiSelect = (poiId: number) => {
+    const poi = availablePois.find((item) => item.PoiId === poiId);
+    if (!poi) {
+      return;
+    }
+
+    setSelectedPoi(poi);
+    setSelectedCall(null);
+    setSelectedStation(null);
+    setSelectedDestinationType('poi');
   };
 
   const handleNoDestinationSelect = () => {
     setSelectedDestinationType('none');
     setSelectedCall(null);
     setSelectedStation(null);
+    setSelectedPoi(null);
   };
 
   const handleNext = () => {
@@ -136,29 +351,24 @@ export const StatusBottomSheet = () => {
     }
 
     if (currentStep === 'select-status') {
-      // Move to destination selection after status is selected
-      const detailLevel = getStatusProperty('Detail', 0);
       if (detailLevel > 0) {
         setCurrentStep('select-destination');
-      } else {
-        // Check if note is required/optional based on selectedStatus
-        const noteType = getStatusProperty('Note', 0);
-        if (noteType === 0) {
-          // No note step, go straight to submission
-          handleSubmit();
-        } else {
-          // Note step required (noteType 1 = optional, noteType 2 = required)
-          setCurrentStep('add-note');
-        }
+        return;
       }
-    } else if (currentStep === 'select-destination') {
-      // Check if note is required/optional based on selectedStatus
-      const noteType = getStatusProperty('Note', 0);
+
       if (noteType === 0) {
-        // No note step, go straight to submission
-        handleSubmit();
+        void handleSubmit();
       } else {
-        // Note step required (noteType 1 = optional, noteType 2 = required)
+        setCurrentStep('add-note');
+      }
+
+      return;
+    }
+
+    if (currentStep === 'select-destination') {
+      if (noteType === 0) {
+        void handleSubmit();
+      } else {
         setCurrentStep('add-note');
       }
     }
@@ -166,57 +376,63 @@ export const StatusBottomSheet = () => {
 
   const handlePrevious = () => {
     if (currentStep === 'add-note') {
-      const detailLevel = getStatusProperty('Detail', 0);
       if (detailLevel > 0) {
         setCurrentStep('select-destination');
       } else {
         setCurrentStep('select-status');
       }
-    } else if (currentStep === 'select-destination') {
+      return;
+    }
+
+    if (currentStep === 'select-destination') {
       setCurrentStep('select-status');
     }
   };
 
   const handleStatusSelect = (statusId: string) => {
-    if (activeStatuses?.Statuses) {
-      const status = activeStatuses.Statuses.find((s) => s.Id.toString() === statusId);
-      if (status) {
-        setSelectedStatus(status);
-      }
+    const status = activeStatuses?.Statuses?.find((item) => item.Id.toString() === statusId);
+    if (!status) {
+      return;
     }
+
+    setSelectedStatus(status);
   };
 
   const handleSubmit = React.useCallback(async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting || !selectedStatus || !activeUnit) {
+      return;
+    }
 
     try {
-      if (!selectedStatus || !activeUnit) return;
-
       setIsSubmitting(true);
 
       const input = new SaveUnitStatusInput();
       input.Id = activeUnit.UnitId;
       input.Type = getStatusId();
       input.Note = note;
+      input.RespondingTo = '0';
+      input.RespondingToType = null;
 
-      // Set RespondingTo based on destination selection
       if (selectedDestinationType === 'call' && selectedCall) {
         input.RespondingTo = selectedCall.CallId;
+        input.RespondingToType = DestinationEntityTypes.Call;
       } else if (selectedDestinationType === 'station' && selectedStation) {
         input.RespondingTo = selectedStation.GroupId;
+        input.RespondingToType = DestinationEntityTypes.Station;
+      } else if (selectedDestinationType === 'poi' && selectedPoi) {
+        input.RespondingTo = selectedPoi.PoiId.toString();
+        input.RespondingToType = DestinationEntityTypes.Poi;
       }
 
-      // Include GPS coordinates if available
       if (latitude !== null && longitude !== null) {
         input.Latitude = latitude.toString();
         input.Longitude = longitude.toString();
         input.Accuracy = accuracy?.toString() || '0';
         input.Altitude = altitude?.toString() || '0';
-        input.AltitudeAccuracy = ''; // Location store doesn't provide altitude accuracy
+        input.AltitudeAccuracy = '';
         input.Speed = speed?.toString() || '0';
         input.Heading = heading?.toString() || '0';
 
-        // Set timestamp from location if available, otherwise use current time
         if (timestamp) {
           const locationDate = new Date(timestamp);
           input.Timestamp = locationDate.toISOString();
@@ -224,7 +440,6 @@ export const StatusBottomSheet = () => {
         }
       }
 
-      // Add role assignments
       input.Roles = unitRoleAssignments.map((assignment) => {
         const roleInput = new SaveUnitStatusRoleInput();
         roleInput.RoleId = assignment.UnitRoleId;
@@ -232,119 +447,63 @@ export const StatusBottomSheet = () => {
         return roleInput;
       });
 
-      // Set active call if a call was selected and it's different from the current active call
       if (selectedDestinationType === 'call' && selectedCall && activeCallId !== selectedCall.CallId) {
         setActiveCall(selectedCall.CallId);
       }
 
       await saveUnitStatus(input);
-
-      // Show success toast
       showToast('success', t('status.status_saved_successfully'));
-
       reset();
     } catch (error) {
       console.error('Failed to save unit status:', error);
-      // Show error toast
       showToast('error', t('status.failed_to_save_status'));
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    isSubmitting,
-    selectedStatus,
+    accuracy,
+    activeCallId,
     activeUnit,
-    note,
-    selectedDestinationType,
-    selectedCall,
-    selectedStation,
-    unitRoleAssignments,
-    saveUnitStatus,
-    reset,
+    altitude,
     getStatusId,
+    heading,
+    isSubmitting,
     latitude,
     longitude,
-    heading,
-    accuracy,
-    speed,
-    altitude,
-    timestamp,
-    activeCallId,
+    note,
+    reset,
+    saveUnitStatus,
+    selectedCall,
+    selectedDestinationType,
+    selectedPoi,
+    selectedStation,
+    selectedStatus,
     setActiveCall,
     showToast,
+    speed,
     t,
+    timestamp,
+    unitRoleAssignments,
   ]);
 
-  // Fetch destination data when status bottom sheet opens
-  React.useEffect(() => {
-    if (isOpen && activeUnit && selectedStatus) {
-      fetchDestinationData(activeUnit.UnitId);
-    }
-  }, [isOpen, activeUnit, selectedStatus, fetchDestinationData]);
-
-  // Pre-select active call when opening with calls enabled
-  React.useLayoutEffect(() => {
-    // Reset the pre-selection flag when bottom sheet closes
-    if (!isOpen) {
-      hasPreselectedRef.current = false;
-      return;
-    }
-
-    // Immediate pre-selection: if we have the conditions met, pre-select right away
-    // This runs on every render to catch the case where availableCalls loads in
-    if (isOpen && selectedStatus && (selectedStatus.Detail === 2 || selectedStatus.Detail === 3) && activeCallId && !selectedCall && selectedDestinationType === 'none' && !hasPreselectedRef.current) {
-      // Check if we have calls available (loaded) or should wait
-      if (!isLoading && availableCalls.length > 0) {
-        const activeCall = availableCalls.find((call) => call.CallId === activeCallId);
-        if (activeCall) {
-          // Update both states immediately in the same render cycle
-          setSelectedDestinationType('call');
-          setSelectedCall(activeCall);
-          hasPreselectedRef.current = true;
-        }
-      } else if (isLoading || availableCalls.length === 0) {
-        // If still loading, immediately set destination type to 'call' to prevent "No Destination" from showing
-        // We'll set the actual call once it loads
-        setSelectedDestinationType('call');
-        hasPreselectedRef.current = true;
-      }
-    }
-
-    // Handle case where destination type is already 'call' but call hasn't been set yet
-    // This covers the scenario from the removed redundant effect
-    if (isOpen && selectedStatus && (selectedStatus.Detail === 2 || selectedStatus.Detail === 3) && activeCallId && !selectedCall && selectedDestinationType === 'call' && !isLoading && availableCalls.length > 0) {
-      const activeCall = availableCalls.find((call) => call.CallId === activeCallId);
-      if (activeCall) {
-        setSelectedCall(activeCall);
-      }
-    }
-  }, [isOpen, isLoading, selectedStatus, activeCallId, availableCalls, selectedCall, selectedDestinationType, setSelectedCall, setSelectedDestinationType]);
-
-  // Smart logic: only show "No Destination" as selected if we truly want no destination
-  // Don't show it as selected if we're about to pre-select an active call or already have one selected
   const shouldShowNoDestinationAsSelected = React.useMemo(() => {
-    // If something else is already selected, don't show no destination as selected
-    if (selectedCall || selectedStation) {
+    if (selectedCall || selectedStation || selectedPoi) {
       return false;
     }
 
-    // If we're in a state where we should pre-select an active call, don't show no destination as selected
-    const shouldPreSelectActiveCall = isOpen && selectedStatus && (selectedStatus.Detail === 2 || selectedStatus.Detail === 3) && activeCallId && !selectedCall;
+    const shouldPreSelectActiveCall =
+      isOpen &&
+      !!selectedStatus &&
+      statusDetailAllowsCalls(detailLevel) &&
+      !!activeCallId &&
+      (isLoading || !!activeCallCandidate);
 
     if (shouldPreSelectActiveCall) {
       return false;
     }
 
-    // Otherwise, show it as selected only if explicitly set to 'none'
     return selectedDestinationType === 'none';
-  }, [selectedDestinationType, selectedCall, selectedStation, isOpen, selectedStatus, activeCallId]);
-
-  // Determine step logic
-  const detailLevel = getStatusProperty('Detail', 0);
-  const shouldShowDestinationStep = detailLevel > 0;
-  const noteType = getStatusProperty('Note', 0);
-  const isNoteRequired = noteType === 2; // NoteType 2 = required
-  const isNoteOptional = noteType === 1; // NoteType 1 = optional
+  }, [activeCallCandidate, activeCallId, detailLevel, isLoading, isOpen, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus]);
 
   const getStepTitle = () => {
     switch (currentStep) {
@@ -364,15 +523,13 @@ export const StatusBottomSheet = () => {
       case 'select-status':
         return 1;
       case 'select-destination':
-        return cameFromStatusSelection ? 2 : 1; // Step 2 if from status selection, step 1 if pre-selected
+        return cameFromStatusSelection ? 2 : 1;
       case 'add-note':
         if (cameFromStatusSelection) {
-          // New flow: step 1 = status, step 2 = destination, step 3 = note
           return shouldShowDestinationStep ? 3 : 2;
-        } else {
-          // Old flow: step 1 = destination, step 2 = note
-          return shouldShowDestinationStep ? 2 : 1;
         }
+
+        return shouldShowDestinationStep ? 2 : 1;
       default:
         return 1;
     }
@@ -380,64 +537,69 @@ export const StatusBottomSheet = () => {
 
   const getTotalSteps = () => {
     if (cameFromStatusSelection) {
-      // New flow calculation
-      let totalSteps = 1; // Always have status selection
+      let totalSteps = 1;
 
       if (selectedStatus) {
-        // We can determine exact steps based on the selected status
         const hasDestinationSelection = getStatusProperty('Detail', 0) > 0;
-        const noteType = getStatusProperty('Note', 0);
-        const hasNoteStep = noteType > 0; // Show note step for noteType 1 (optional) or 2 (required)
+        const currentNoteType = getStatusProperty('Note', 0);
+        const hasNoteStep = currentNoteType > 0;
 
-        if (hasDestinationSelection) totalSteps++;
-        if (hasNoteStep) totalSteps++;
-      } else {
-        // Conservative estimate when no status is selected yet
-        // Look at available statuses to determine potential steps
-        if (activeStatuses?.Statuses && activeStatuses.Statuses.length > 0) {
-          const hasAnyDestination = activeStatuses.Statuses.some((s) => s.Detail > 0);
-          const hasAnyNote = activeStatuses.Statuses.some((s) => s.Note > 0);
-
-          if (hasAnyDestination) totalSteps++;
-          if (hasAnyNote) totalSteps++;
-        } else {
-          // Fallback: assume all steps
-          totalSteps = 3;
+        if (hasDestinationSelection) {
+          totalSteps += 1;
         }
+
+        if (hasNoteStep) {
+          totalSteps += 1;
+        }
+      } else if (activeStatuses?.Statuses && activeStatuses.Statuses.length > 0) {
+        const hasAnyDestination = activeStatuses.Statuses.some((status) => Number(status.Detail) > 0);
+        const hasAnyNote = activeStatuses.Statuses.some((status) => Number(status.Note) > 0);
+
+        if (hasAnyDestination) {
+          totalSteps += 1;
+        }
+
+        if (hasAnyNote) {
+          totalSteps += 1;
+        }
+      } else {
+        totalSteps = 3;
       }
 
       return totalSteps;
-    } else {
-      // Old flow calculation
-      const hasDestinationSelection = shouldShowDestinationStep;
-      const hasNoteStep = isNoteRequired || isNoteOptional;
-
-      let totalSteps = 0;
-      if (hasDestinationSelection) totalSteps++;
-      if (hasNoteStep) totalSteps++;
-
-      return Math.max(totalSteps, 1);
     }
+
+    let totalSteps = 0;
+
+    if (shouldShowDestinationStep) {
+      totalSteps += 1;
+    }
+
+    if (isNoteRequired || isNoteOptional) {
+      totalSteps += 1;
+    }
+
+    return Math.max(totalSteps, 1);
   };
 
   const canProceedFromCurrentStep = () => {
-    if (isSubmitting) return false; // Can't proceed while submitting
+    if (isSubmitting) {
+      return false;
+    }
 
     switch (currentStep) {
       case 'select-status':
-        return !!selectedStatus; // Must have a status selected
+        return !!selectedStatus;
       case 'select-destination':
-        return true; // Can proceed with any selection including none
+        return true;
       case 'add-note':
-        return !isNoteRequired || note.trim().length > 0; // Note required check
+        return !isNoteRequired || note.trim().length > 0;
       default:
         return false;
     }
   };
 
   const getSelectedDestinationDisplay = () => {
-    // First, check if we have a selected call or station regardless of destination type
-    // This handles cases where the destination type might be temporarily incorrect
     if (selectedCall) {
       return `${selectedCall.Number} - ${selectedCall.Name}`;
     }
@@ -446,23 +608,27 @@ export const StatusBottomSheet = () => {
       return selectedStation.Name;
     }
 
-    // Then check destination type for other scenarios
+    if (selectedPoi) {
+      return getPoiSelectionLabel(selectedPoi, poiTypesById);
+    }
+
     if (selectedDestinationType === 'call') {
-      if (activeCallId) {
-        // Fallback: if we're supposed to have a call selected but selectedCall is null,
-        // try to find it in availableCalls
-        const activeCall = availableCalls.find((call) => call.CallId === activeCallId);
-        if (activeCall) {
-          return `${activeCall.Number} - ${activeCall.Name}`;
-        } else {
-          // Still loading or call not found, show loading state
-          return t('calls.loading_calls');
-        }
+      if (activeCallCandidate) {
+        return `${activeCallCandidate.Number} - ${activeCallCandidate.Name}`;
+      }
+
+      if (isLoading || (!!activeCallId && availableCalls.length === 0)) {
+        return t('calls.loading_calls');
       }
     }
 
     return t('status.no_destination');
   };
+
+  const shouldShowDestinationTabs = destinationTabs.length > 1;
+  const showCalls = destinationTabs.includes('call') && (!shouldShowDestinationTabs || selectedTab === 'call');
+  const showStations = destinationTabs.includes('station') && (!shouldShowDestinationTabs || selectedTab === 'station');
+  const showPois = destinationTabs.includes('poi') && (!shouldShowDestinationTabs || selectedTab === 'poi');
 
   return (
     <Actionsheet isOpen={isOpen} onClose={handleClose} snapPoints={[90]}>
@@ -473,7 +639,6 @@ export const StatusBottomSheet = () => {
         </ActionsheetDragIndicatorWrapper>
 
         <VStack space="md" className="w-full p-4">
-          {/* Step indicator */}
           <HStack space="sm" className="mb-2 justify-center">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
               {t('common.step')} {getStepNumber()} {t('common.of')} {getTotalSteps()}
@@ -484,45 +649,45 @@ export const StatusBottomSheet = () => {
             {getStepTitle()}
           </Heading>
 
-          {currentStep === 'select-status' && (
+          {currentStep === 'select-status' ? (
             <VStack space="md" className="w-full">
               <Text className="mb-2 font-medium">{t('status.select_status_type')}</Text>
 
               <ScrollView className="max-h-[400px]">
                 <VStack space="sm">
                   {activeStatuses?.Statuses && activeStatuses.Statuses.length > 0 ? (
-                    activeStatuses.Statuses.map((status) => (
-                      <TouchableOpacity
-                        key={status.Id}
-                        onPress={() => handleStatusSelect(status.Id.toString())}
-                        className={`mb-3 rounded-lg border-2 p-3 ${selectedStatus?.Id.toString() === status.Id.toString() ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
-                        style={{
-                          backgroundColor: status.BColor || (selectedStatus?.Id.toString() === status.Id.toString() ? '#dbeafe' : '#ffffff'),
-                        }}
-                      >
-                        <HStack space="sm" className="items-center">
-                          <Check size={20} color={selectedStatus?.Id.toString() === status.Id.toString() ? '#3b82f6' : 'transparent'} />
-                          <VStack className="flex-1">
-                            <Text className="font-bold" style={{ color: invertColor(status.BColor || '#ffffff', true) }}>
-                              {status.Text}
-                            </Text>
-                            {status.Detail > 0 && (
-                              <Text className="text-sm text-gray-600 dark:text-gray-400">
-                                {status.Detail === 1 && t('status.station_destination_enabled')}
-                                {status.Detail === 2 && t('status.call_destination_enabled')}
-                                {status.Detail === 3 && t('status.both_destinations_enabled')}
+                    activeStatuses.Statuses.map((status) => {
+                      const statusDetailDescription = getStatusDetailDescription(Number(status.Detail));
+                      const isSelected = selectedStatus?.Id.toString() === status.Id.toString();
+
+                      return (
+                        <TouchableOpacity
+                          key={status.Id}
+                          onPress={() => handleStatusSelect(status.Id.toString())}
+                          className={`mb-3 rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
+                          style={{
+                            backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff'),
+                          }}
+                        >
+                          <HStack space="sm" className="items-center">
+                            <Check size={20} color={isSelected ? '#3b82f6' : 'transparent'} />
+                            <VStack className="flex-1">
+                              <Text className="font-bold" style={{ color: invertColor(status.BColor || '#ffffff', true) }}>
+                                {status.Text}
                               </Text>
-                            )}
-                            {status.Note > 0 && (
-                              <Text className="text-xs text-gray-500 dark:text-gray-500">
-                                {status.Note === 1 && t('status.note_optional')}
-                                {status.Note === 2 && t('status.note_required')}
-                              </Text>
-                            )}
-                          </VStack>
-                        </HStack>
-                      </TouchableOpacity>
-                    ))
+                              {Number(status.Detail) > 0 ? (
+                                <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text>
+                              ) : null}
+                              {Number(status.Note) > 0 ? (
+                                <Text className="text-xs text-gray-500 dark:text-gray-500">
+                                  {Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}
+                                </Text>
+                              ) : null}
+                            </VStack>
+                          </HStack>
+                        </TouchableOpacity>
+                      );
+                    })
                   ) : (
                     <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_statuses_available')}</Text>
                   )}
@@ -535,17 +700,16 @@ export const StatusBottomSheet = () => {
                 </Button>
                 <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
                   <ButtonText className="text-sm">{t('common.next')}</ButtonText>
-                  <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
+                  <ArrowRight size={14} color="#fff" />
                 </Button>
               </HStack>
             </VStack>
-          )}
+          ) : null}
 
-          {currentStep === 'select-destination' && shouldShowDestinationStep && (
+          {currentStep === 'select-destination' && shouldShowDestinationStep ? (
             <VStack space="md" className="w-full">
               <Text className="mb-2 font-medium">{t('status.select_destination_type')}</Text>
 
-              {/* No Destination Option */}
               <TouchableOpacity
                 onPress={handleNoDestinationSelect}
                 className={`mb-4 rounded-lg border-2 p-3 ${shouldShowNoDestinationAsSelected ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
@@ -559,93 +723,121 @@ export const StatusBottomSheet = () => {
                 </HStack>
               </TouchableOpacity>
 
-              {/* Show destination options based on DetailType: 1=stations only, 2=calls only, 3=both */}
-              {detailLevel > 0 && (
-                <>
-                  {/* Tab Headers - only show for DetailType 3 (both calls and stations) */}
-                  {detailLevel === 3 && (
-                    <HStack space="xs" className="mb-4">
-                      <TouchableOpacity onPress={() => setSelectedTab('calls')} className={`flex-1 rounded-lg py-3 ${selectedTab === 'calls' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        <Text className={`text-center font-semibold ${selectedTab === 'calls' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{t('status.calls_tab')}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setSelectedTab('stations')} className={`flex-1 rounded-lg py-3 ${selectedTab === 'stations' ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
-                        <Text className={`text-center font-semibold ${selectedTab === 'stations' ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{t('status.stations_tab')}</Text>
-                      </TouchableOpacity>
-                    </HStack>
-                  )}
+              {shouldShowDestinationTabs ? (
+                <HStack space="xs" className="mb-4">
+                  {destinationTabs.map((tab) => (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => setSelectedTab(tab)}
+                      className={`flex-1 rounded-lg py-3 ${selectedTab === tab ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+                    >
+                      <Text className={`text-center font-semibold ${selectedTab === tab ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{t(getDestinationTabTranslationKey(tab))}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </HStack>
+              ) : null}
 
-                  {/* Tab Content */}
-                  <ScrollView className={detailLevel === 3 ? 'max-h-[200px]' : 'max-h-[300px]'}>
-                    {/* Show calls only for DetailType 2 (calls only) or DetailType 3 with calls tab selected */}
-                    {(detailLevel === 2 || (detailLevel === 3 && selectedTab === 'calls')) && (
-                      <VStack space="sm">
-                        {isLoading ? (
-                          <VStack space="md" className="w-full items-center justify-center">
-                            <Spinner size="large" />
-                            <Text className="text-center text-gray-600 dark:text-gray-400">{t('calls.loading_calls')}</Text>
-                          </VStack>
-                        ) : availableCalls && availableCalls.length > 0 ? (
-                          availableCalls.map((call) => (
-                            <TouchableOpacity
-                              key={call.CallId}
-                              onPress={() => handleCallSelect(call.CallId)}
-                              className={`mb-3 rounded-lg border-2 p-3 ${selectedCall?.CallId === call.CallId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
-                            >
-                              <HStack space="sm" className="items-center">
-                                <Check size={20} color={selectedCall?.CallId === call.CallId ? '#3b82f6' : 'transparent'} />
-                                <VStack className="flex-1">
-                                  <Text className="font-bold">
-                                    {call.Number} - {call.Name}
-                                  </Text>
-                                  <Text className="text-sm text-gray-600 dark:text-gray-400">{call.Address}</Text>
-                                </VStack>
-                              </HStack>
-                            </TouchableOpacity>
-                          ))
-                        ) : (
-                          <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('calls.no_calls_available')}</Text>
-                        )}
+              <ScrollView className={shouldShowDestinationTabs ? 'max-h-[200px]' : 'max-h-[300px]'}>
+                {showCalls ? (
+                  <VStack space="sm">
+                    {isLoading ? (
+                      <VStack space="md" className="w-full items-center justify-center">
+                        <Spinner size="large" />
+                        <Text className="text-center text-gray-600 dark:text-gray-400">{t('calls.loading_calls')}</Text>
                       </VStack>
+                    ) : availableCalls.length > 0 ? (
+                      availableCalls.map((call) => (
+                        <TouchableOpacity
+                          key={call.CallId}
+                          onPress={() => handleCallSelect(call.CallId)}
+                          className={`mb-3 rounded-lg border-2 p-3 ${selectedCall?.CallId === call.CallId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
+                        >
+                          <HStack space="sm" className="items-center">
+                            <Check size={20} color={selectedCall?.CallId === call.CallId ? '#3b82f6' : 'transparent'} />
+                            <VStack className="flex-1">
+                              <Text className="font-bold">
+                                {call.Number} - {call.Name}
+                              </Text>
+                              <Text className="text-sm text-gray-600 dark:text-gray-400">{call.Address}</Text>
+                            </VStack>
+                          </HStack>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('calls.no_calls_available')}</Text>
                     )}
+                  </VStack>
+                ) : null}
 
-                    {/* Show stations only for DetailType 1 (stations only) or DetailType 3 with stations tab selected */}
-                    {(detailLevel === 1 || (detailLevel === 3 && selectedTab === 'stations')) && (
-                      <VStack space="sm">
-                        {isLoading ? (
-                          <VStack space="md" className="w-full items-center justify-center">
-                            <Spinner size="large" />
-                            <Text className="text-center text-gray-600 dark:text-gray-400">{t('status.loading_stations')}</Text>
-                          </VStack>
-                        ) : availableStations && availableStations.length > 0 ? (
-                          availableStations.map((station) => (
-                            <TouchableOpacity
-                              key={station.GroupId}
-                              onPress={() => handleStationSelect(station.GroupId)}
-                              className={`mb-3 rounded-lg border-2 p-3 ${selectedStation?.GroupId === station.GroupId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
-                            >
-                              <HStack space="sm" className="items-center">
-                                <Check size={20} color={selectedStation?.GroupId === station.GroupId ? '#3b82f6' : 'transparent'} />
-                                <VStack className="flex-1">
-                                  <Text className="font-bold">{station.Name}</Text>
-                                  {station.Address && <Text className="text-sm text-gray-600 dark:text-gray-400">{station.Address}</Text>}
-                                  {station.GroupType && <Text className="text-xs text-gray-500 dark:text-gray-500">{station.GroupType}</Text>}
-                                </VStack>
-                              </HStack>
-                            </TouchableOpacity>
-                          ))
-                        ) : (
-                          <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_stations_available')}</Text>
-                        )}
+                {showStations ? (
+                  <VStack space="sm">
+                    {isLoading ? (
+                      <VStack space="md" className="w-full items-center justify-center">
+                        <Spinner size="large" />
+                        <Text className="text-center text-gray-600 dark:text-gray-400">{t('status.loading_stations')}</Text>
                       </VStack>
+                    ) : availableStations.length > 0 ? (
+                      availableStations.map((station) => (
+                        <TouchableOpacity
+                          key={station.GroupId}
+                          onPress={() => handleStationSelect(station.GroupId)}
+                          className={`mb-3 rounded-lg border-2 p-3 ${selectedStation?.GroupId === station.GroupId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
+                        >
+                          <HStack space="sm" className="items-center">
+                            <Check size={20} color={selectedStation?.GroupId === station.GroupId ? '#3b82f6' : 'transparent'} />
+                            <VStack className="flex-1">
+                              <Text className="font-bold">{station.Name}</Text>
+                              {station.Address ? <Text className="text-sm text-gray-600 dark:text-gray-400">{station.Address}</Text> : null}
+                              {station.GroupType ? <Text className="text-xs text-gray-500 dark:text-gray-500">{station.GroupType}</Text> : null}
+                            </VStack>
+                          </HStack>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_stations_available')}</Text>
                     )}
-                  </ScrollView>
-                </>
-              )}
+                  </VStack>
+                ) : null}
+
+                {showPois ? (
+                  <VStack space="sm">
+                    {isLoading ? (
+                      <VStack space="md" className="w-full items-center justify-center">
+                        <Spinner size="large" />
+                        <Text className="text-center text-gray-600 dark:text-gray-400">{t('status.loading_pois')}</Text>
+                      </VStack>
+                    ) : availablePois.length > 0 ? (
+                      availablePois.map((poi) => {
+                        const poiTypeName = poiTypesById[poi.PoiTypeId]?.Name || poi.PoiTypeName;
+                        const poiSecondaryText = poi.Address || poi.Note || poiTypeName;
+
+                        return (
+                          <TouchableOpacity
+                            key={poi.PoiId}
+                            onPress={() => handlePoiSelect(poi.PoiId)}
+                            className={`mb-3 rounded-lg border-2 p-3 ${selectedPoi?.PoiId === poi.PoiId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
+                          >
+                            <HStack space="sm" className="items-center">
+                              <Check size={20} color={selectedPoi?.PoiId === poi.PoiId ? '#3b82f6' : 'transparent'} />
+                              <VStack className="flex-1">
+                                <Text className="font-bold">{getPoiSelectionLabel(poi, poiTypesById)}</Text>
+                                {poiSecondaryText ? <Text className="text-sm text-gray-600 dark:text-gray-400">{poiSecondaryText}</Text> : null}
+                              </VStack>
+                            </HStack>
+                          </TouchableOpacity>
+                        );
+                      })
+                    ) : (
+                      <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_pois_available')}</Text>
+                    )}
+                  </VStack>
+                ) : null}
+              </ScrollView>
 
               <HStack space="xs" className="mt-2 justify-between px-4">
                 {cameFromStatusSelection ? (
                   <Button variant="outline" onPress={handlePrevious} className="px-3">
-                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                    <ArrowLeft size={14} color="#737373" />
                     <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
                   </Button>
                 ) : (
@@ -655,14 +847,13 @@ export const StatusBottomSheet = () => {
                 )}
                 <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
                   <ButtonText className="text-sm">{t('common.next')}</ButtonText>
-                  <ArrowRight size={14} color={colorScheme === 'dark' ? '#fff' : '#fff'} />
+                  <ArrowRight size={14} color="#fff" />
                 </Button>
               </HStack>
             </VStack>
-          )}
+          ) : null}
 
-          {currentStep === 'select-destination' && !shouldShowDestinationStep && (
-            // If Detail = 0, skip destination step and show note step directly
+          {currentStep === 'select-destination' && !shouldShowDestinationStep ? (
             <VStack space="md" className="w-full">
               {isNoteRequired || isNoteOptional ? (
                 <>
@@ -683,18 +874,17 @@ export const StatusBottomSheet = () => {
                     <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
                   </Button>
                 )}
-                <Button onPress={handleSubmit} className="bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
-                  {isSubmitting && <Spinner size="small" color="white" />}
+                <Button onPress={() => void handleSubmit()} className="bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
+                  {isSubmitting ? <Spinner size="small" color="white" /> : null}
                   <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
                 </Button>
               </HStack>
             </VStack>
-          )}
+          ) : null}
 
-          {currentStep === 'add-note' && (
+          {currentStep === 'add-note' ? (
             <KeyboardAwareScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
               <VStack space="md" className="w-full">
-                {/* Selected Status */}
                 <VStack space="sm">
                   <Text className="font-medium">{t('status.selected_status')}:</Text>
                   <VStack className="rounded-lg p-2" style={{ backgroundColor: selectedStatus?.BColor || '#f3f4f6' }}>
@@ -704,7 +894,6 @@ export const StatusBottomSheet = () => {
                   </VStack>
                 </VStack>
 
-                {/* Selected Destination */}
                 <VStack space="sm">
                   <Text className="font-medium">{t('status.selected_destination')}:</Text>
                   <Text className="text-sm text-gray-600 dark:text-gray-400">{getSelectedDestinationDisplay()}</Text>
@@ -724,14 +913,14 @@ export const StatusBottomSheet = () => {
                     <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
                     <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
                   </Button>
-                  <Button onPress={handleSubmit} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
-                    {isSubmitting && <Spinner size="small" color="white" />}
+                  <Button onPress={() => void handleSubmit()} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
+                    {isSubmitting ? <Spinner size="small" color="white" /> : null}
                     <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
                   </Button>
                 </HStack>
               </VStack>
             </KeyboardAwareScrollView>
-          )}
+          ) : null}
         </VStack>
       </ActionsheetContent>
     </Actionsheet>

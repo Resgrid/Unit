@@ -7,6 +7,7 @@ import { signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
 import { securityStore, useSecurityStore } from '../security/store';
+import { useWeatherAlertsStore } from '../weather-alerts/store';
 
 interface SignalRState {
   isUpdateHubConnected: boolean;
@@ -53,7 +54,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
 
       // Remove any previously registered handlers to prevent accumulation
       // across reconnections or repeated connectUpdateHub calls
-      const updateEvents = ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'onConnected'];
+      const updateEvents = ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'weatherAlertReceived', 'weatherAlertUpdated', 'weatherAlertExpired', 'onConnected'];
       updateEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Connect to the eventing hub
@@ -61,7 +62,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         name: Env.CHANNEL_HUB_NAME,
         eventingUrl: eventingUrl,
         hubName: Env.CHANNEL_HUB_NAME,
-        methods: ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'onConnected'],
+        methods: ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'weatherAlertReceived', 'weatherAlertUpdated', 'weatherAlertExpired', 'onConnected'],
       });
 
       await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', parseInt(securityStore.getState().rights?.DepartmentId ?? '0'));
@@ -89,6 +90,21 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
 
       signalRService.on('callClosed', (message) => {
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+      });
+
+      signalRService.on('weatherAlertReceived', (message) => {
+        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        useWeatherAlertsStore.getState().handleAlertReceived(message as string);
+      });
+
+      signalRService.on('weatherAlertUpdated', (message) => {
+        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        useWeatherAlertsStore.getState().handleAlertUpdated(message as string);
+      });
+
+      signalRService.on('weatherAlertExpired', (message) => {
+        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        useWeatherAlertsStore.getState().handleAlertExpired(message as string);
       });
 
       signalRService.on('onConnected', () => {

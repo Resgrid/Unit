@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as z from 'zod';
 
 import { createCall } from '@/api/calls/calls';
+import { DestinationPoiSelector } from '@/components/calls/destination-poi-selector';
 import { DispatchSelectionModal } from '@/components/calls/dispatch-selection-modal';
 import { Loading } from '@/components/common/loading';
 import FullScreenLocationPicker from '@/components/maps/full-screen-location-picker';
@@ -44,6 +45,7 @@ const formSchema = z.object({
   plusCode: z.string().optional(),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
+  destinationPoiId: z.string().optional(),
   priority: z.string().min(1, { message: 'Priority is required' }),
   type: z.string().min(1, { message: 'Type is required' }),
   contactName: z.string().optional(),
@@ -107,10 +109,11 @@ export default function NewCall() {
   const insets = useSafeAreaInsets();
   const callPriorities = useCallsStore((state) => state.callPriorities);
   const callTypes = useCallsStore((state) => state.callTypes);
+  const destinationPois = useCallsStore((state) => state.destinationPois);
+  const poiTypes = useCallsStore((state) => state.poiTypes);
   const isLoading = useCallsStore((state) => state.isLoading);
   const error = useCallsStore((state) => state.error);
-  const fetchCallPriorities = useCallsStore((state) => state.fetchCallPriorities);
-  const fetchCallTypes = useCallsStore((state) => state.fetchCallTypes);
+  const fetchCallFormData = useCallsStore((state) => state.fetchCallFormData);
   const config = useCoreStore((state) => state.config);
   const { trackEvent } = useAnalytics();
   const toast = useToast();
@@ -150,10 +153,11 @@ export default function NewCall() {
       coordinates: '',
       what3words: '',
       plusCode: '',
-      latitude: undefined,
-      longitude: undefined,
-      priority: '',
-      type: '',
+        latitude: undefined,
+        longitude: undefined,
+        destinationPoiId: '',
+        priority: '',
+        type: '',
       contactName: '',
       contactInfo: '',
       dispatchSelection: {
@@ -167,9 +171,8 @@ export default function NewCall() {
   });
 
   useEffect(() => {
-    fetchCallPriorities();
-    fetchCallTypes();
-  }, [fetchCallPriorities, fetchCallTypes]);
+    fetchCallFormData();
+  }, [fetchCallFormData]);
 
   // Track when new call view is rendered
   useEffect(() => {
@@ -212,6 +215,7 @@ export default function NewCall() {
         address: data.address,
         latitude: data.latitude,
         longitude: data.longitude,
+        destinationPoiId: data.destinationPoiId ? Number(data.destinationPoiId) : null,
         what3words: data.what3words,
         plusCode: data.plusCode,
         dispatchUsers: data.dispatchSelection?.users,
@@ -823,17 +827,31 @@ export default function NewCall() {
                 />
               </FormControl>
 
-              {/* Map Preview */}
-              <Box className="mb-4">
-                {selectedLocation ? (
-                  <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
-                ) : (
+               {/* Map Preview */}
+               <Box className="mb-4">
+                 {selectedLocation ? (
+                   <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
+                 ) : (
                   <Button onPress={() => setShowLocationPicker(true)} className="w-full">
                     <ButtonText>{t('calls.select_location')}</ButtonText>
-                  </Button>
-                )}
-              </Box>
-            </Card>
+                   </Button>
+                 )}
+               </Box>
+
+               <Controller
+                 control={control}
+                 name="destinationPoiId"
+                 render={({ field: { onChange, value } }) => (
+                   <DestinationPoiSelector
+                     destinationPois={destinationPois}
+                     poiTypes={poiTypes}
+                     selectedPoiId={value ? Number(value) : null}
+                     isLoading={isLoading && destinationPois.length === 0}
+                     onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+                   />
+                 )}
+               />
+             </Card>
 
             <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
               <FormControl>

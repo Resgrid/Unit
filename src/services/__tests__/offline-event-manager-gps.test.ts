@@ -68,6 +68,7 @@ describe('Offline Event Manager GPS Integration', () => {
         'available',
         'GPS enabled status',
         'call-123',
+        2,
         [{ roleId: 'role-1', userId: 'user-1' }],
         gpsData
       );
@@ -80,6 +81,7 @@ describe('Offline Event Manager GPS Integration', () => {
           statusType: 'available',
           note: 'GPS enabled status',
           respondingTo: 'call-123',
+          respondingToType: 2,
           roles: [{ roleId: 'role-1', userId: 'user-1' }],
           latitude: '40.7128',
           longitude: '-74.0060',
@@ -108,6 +110,7 @@ describe('Offline Event Manager GPS Integration', () => {
         'Partial GPS',
         undefined,
         undefined,
+        undefined,
         gpsData
       );
 
@@ -119,6 +122,7 @@ describe('Offline Event Manager GPS Integration', () => {
           statusType: 'en-route',
           note: 'Partial GPS',
           respondingTo: undefined,
+          respondingToType: undefined,
           roles: undefined,
           latitude: '51.5074',
           longitude: '-0.1278',
@@ -147,6 +151,7 @@ describe('Offline Event Manager GPS Integration', () => {
           statusType: 'on-scene',
           note: undefined,
           respondingTo: undefined,
+          respondingToType: undefined,
           roles: undefined,
           latitude: undefined,
           longitude: undefined,
@@ -175,6 +180,7 @@ describe('Offline Event Manager GPS Integration', () => {
         'unit-4',
         'available',
         'Edge case GPS',
+        undefined,
         undefined,
         undefined,
         gpsData
@@ -212,6 +218,7 @@ describe('Offline Event Manager GPS Integration', () => {
           statusType: 'available',
           note: 'Test note',
           respondingTo: 'call-123',
+          respondingToType: 2,
           timestamp: '2023-01-01T00:00:00Z',
           timestampUtc: 'Sun, 01 Jan 2023 00:00:00 GMT',
           roles: [{ roleId: 'role-1', userId: 'user-1' }],
@@ -236,6 +243,7 @@ describe('Offline Event Manager GPS Integration', () => {
           Type: 'available',
           Note: 'Test note',
           RespondingTo: 'call-123',
+          RespondingToType: 2,
           Timestamp: '2023-01-01T00:00:00Z',
           TimestampUtc: 'Sun, 01 Jan 2023 00:00:00 GMT',
           Latitude: '40.7128',
@@ -474,6 +482,7 @@ describe('Offline Event Manager GPS Integration', () => {
         'responding',
         'Tokyo location',
         'emergency-call',
+        2,
         [{ roleId: 'medic', userId: 'user-medic' }],
         gpsData
       );
@@ -485,6 +494,7 @@ describe('Offline Event Manager GPS Integration', () => {
         statusType: 'responding',
         note: 'Tokyo location',
         respondingTo: 'emergency-call',
+        respondingToType: 2,
         roles: [{ roleId: 'medic', userId: 'user-medic' }],
         latitude: '35.6762',
         longitude: '139.6503',
@@ -516,6 +526,7 @@ describe('Offline Event Manager GPS Integration', () => {
           Type: 'responding',
           Note: 'Tokyo location',
           RespondingTo: 'emergency-call',
+          RespondingToType: 2,
           Latitude: '35.6762',
           Longitude: '139.6503',
           Accuracy: '12',

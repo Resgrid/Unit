@@ -19,12 +19,10 @@ jest.mock('react-native-mmkv', () => ({
 
 import { act, renderHook } from '@testing-library/react-native';
 
-import { getCalls } from '@/api/calls/calls';
-import { getAllGroups } from '@/api/groups/groups';
+import { getSetUnitStatusData } from '@/api/dispatch/dispatch';
 import { saveUnitStatus } from '@/api/units/unitStatuses';
-import { ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
 import { CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
-import { GroupsResult } from '@/models/v4/groups/groupsResult';
+import { GetSetUnitStateResult } from '@/models/v4/dispatch/getSetUnitStateResult';
 import { UnitTypeStatusesResult } from '@/models/v4/statuses/unitTypeStatusesResult';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
@@ -33,8 +31,7 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useStatusBottomSheetStore, useStatusesStore } from '../store';
 
 // Mock the API calls
-jest.mock('@/api/calls/calls');
-jest.mock('@/api/groups/groups');
+jest.mock('@/api/dispatch/dispatch');
 jest.mock('@/api/units/unitStatuses');
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/app/location-store', () => ({
@@ -57,12 +54,13 @@ jest.mock('@/stores/roles/store', () => ({
   },
 }));
 jest.mock('@/stores/calls/store', () => ({
-  useCallsStore: {
-    getState: jest.fn(() => ({
-      calls: [],
-    })),
-    setState: jest.fn(),
-  },
+    useCallsStore: {
+      getState: jest.fn(() => ({
+        calls: [],
+        lastFetchedAt: 0,
+      })),
+      setState: jest.fn(),
+    },
 }));
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
@@ -77,8 +75,7 @@ jest.mock('@/lib/logging', () => ({
   },
 }));
 
-const mockGetCalls = getCalls as jest.MockedFunction<typeof getCalls>;
-const mockGetAllGroups = getAllGroups as jest.MockedFunction<typeof getAllGroups>;
+const mockGetSetUnitStatusData = getSetUnitStatusData as jest.MockedFunction<typeof getSetUnitStatusData>;
 const mockSaveUnitStatus = saveUnitStatus as jest.MockedFunction<typeof saveUnitStatus>;
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockOfflineEventManager = offlineEventManager as jest.Mocked<typeof offlineEventManager>;
@@ -95,11 +92,14 @@ describe('StatusBottomSheetStore', () => {
     expect(result.current.currentStep).toBe('select-destination');
     expect(result.current.selectedCall).toBe(null);
     expect(result.current.selectedStation).toBe(null);
+    expect(result.current.selectedPoi).toBe(null);
     expect(result.current.selectedDestinationType).toBe('none');
     expect(result.current.selectedStatus).toBe(null);
     expect(result.current.note).toBe('');
     expect(result.current.availableCalls).toEqual([]);
     expect(result.current.availableStations).toEqual([]);
+    expect(result.current.availablePois).toEqual([]);
+    expect(result.current.availablePoiTypes).toEqual([]);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
   });
@@ -122,8 +122,8 @@ describe('StatusBottomSheetStore', () => {
   });
 
   it('fetches destination data successfully', async () => {
-    const mockCallsResponse = new ActiveCallsResult();
-    mockCallsResponse.Data = [
+    const mockResponse = new GetSetUnitStateResult();
+    mockResponse.Data.Calls = [
       {
         CallId: '1',
         Number: 'CALL001',
@@ -131,18 +131,31 @@ describe('StatusBottomSheetStore', () => {
         Address: '123 Test St',
       } as any,
     ];
-
-    const mockGroupsResponse = new GroupsResult();
-    mockGroupsResponse.Data = [
+    mockResponse.Data.Stations = [
       {
         GroupId: '1',
         Name: 'Station 1',
         Address: '456 Station Ave',
       } as any,
     ];
+    mockResponse.Data.DestinationPois = [
+      {
+        PoiId: 9,
+        PoiTypeId: 1,
+        PoiTypeName: 'Hospital',
+        Name: 'Mercy Hospital',
+        Address: '789 Care Way',
+      } as any,
+    ];
+    mockResponse.Data.PoiTypes = [
+      {
+        PoiTypeId: 1,
+        Name: 'Hospital',
+        IsDestination: true,
+      } as any,
+    ];
 
-    mockGetCalls.mockResolvedValueOnce(mockCallsResponse);
-    mockGetAllGroups.mockResolvedValueOnce(mockGroupsResponse);
+    mockGetSetUnitStatusData.mockResolvedValueOnce(mockResponse);
 
     const { result } = renderHook(() => useStatusBottomSheetStore());
 
@@ -150,10 +163,11 @@ describe('StatusBottomSheetStore', () => {
       await result.current.fetchDestinationData('unit1');
     });
 
-    expect(mockGetCalls).toHaveBeenCalledWith();
-    expect(mockGetAllGroups).toHaveBeenCalledWith();
-    expect(result.current.availableCalls).toEqual(mockCallsResponse.Data);
-    expect(result.current.availableStations).toEqual(mockGroupsResponse.Data);
+    expect(mockGetSetUnitStatusData).toHaveBeenCalledWith('unit1');
+    expect(result.current.availableCalls).toEqual(mockResponse.Data.Calls);
+    expect(result.current.availableStations).toEqual(mockResponse.Data.Stations);
+    expect(result.current.availablePois).toEqual(mockResponse.Data.DestinationPois);
+    expect(result.current.availablePoiTypes).toEqual(mockResponse.Data.PoiTypes);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
   });
@@ -184,6 +198,7 @@ describe('StatusBottomSheetStore', () => {
     expect(result.current.currentStep).toBe('select-destination');
     expect(result.current.selectedCall).toBe(null);
     expect(result.current.selectedStation).toBe(null);
+    expect(result.current.selectedPoi).toBe(null);
     expect(result.current.selectedDestinationType).toBe('none');
     expect(result.current.selectedStatus).toBe(null);
     expect(result.current.note).toBe('');
@@ -272,6 +287,7 @@ describe('StatusesStore', () => {
       '1',
       'Test note',
       'call1',
+      null,
       [{ roleId: 'role1', userId: 'user1' }],
       undefined
     );
@@ -333,6 +349,7 @@ describe('StatusesStore', () => {
       '1',
       '', // Note defaults to empty string
       '', // RespondingTo defaults to empty string  
+      null,
       [], // Roles defaults to empty array which maps to empty array
       undefined
     );

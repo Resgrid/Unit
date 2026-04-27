@@ -35,7 +35,8 @@ export const PinDetailModal: React.FC<PinDetailModalProps> = ({ pin, isOpen, onC
 
   if (!pin) return null;
 
-  const isCallPin = pin.ImagePath?.toLowerCase() === 'call' || pin.Type === 1;
+  const isCallPin = pin.ImagePath?.toLowerCase() === 'call' || pin.Type === 0;
+  const isPoiPin = pin.Type === 4;
 
   const handleRouteToLocation = async () => {
     if (!pin.Latitude || !pin.Longitude) {
@@ -57,6 +58,13 @@ export const PinDetailModal: React.FC<PinDetailModalProps> = ({ pin, isOpen, onC
   const handleViewCallDetails = () => {
     if (isCallPin && pin.Id) {
       router.push(`/call/${pin.Id}`);
+      onClose();
+    }
+  };
+
+  const handleViewPoiDetails = () => {
+    if (isPoiPin && pin.Id) {
+      router.push(`/routes/poi/${pin.Id}` as any);
       onClose();
     }
   };
@@ -92,6 +100,27 @@ export const PinDetailModal: React.FC<PinDetailModalProps> = ({ pin, isOpen, onC
             </Box>
           )}
 
+          {pin.Address ? (
+            <Box>
+              <Text className="text-sm font-medium">{t('map.pin_address')}</Text>
+              <Text className="text-sm text-gray-600">{pin.Address}</Text>
+            </Box>
+          ) : null}
+
+          {pin.Note ? (
+            <Box>
+              <Text className="text-sm font-medium">{t('map.pin_note')}</Text>
+              <Text className="text-sm text-gray-600">{pin.Note}</Text>
+            </Box>
+          ) : null}
+
+          {pin.PoiTypeName ? (
+            <Box>
+              <Text className="text-sm font-medium">{t('map.pin_type')}</Text>
+              <Text className="text-sm text-gray-600">{pin.PoiTypeName}</Text>
+            </Box>
+          ) : null}
+
           {pin.Color && (
             <Box className="flex-row items-center">
               <Box className="mr-2 size-4 rounded-full" style={{ backgroundColor: pin.Color }} />
@@ -123,6 +152,13 @@ export const PinDetailModal: React.FC<PinDetailModalProps> = ({ pin, isOpen, onC
               </Button>
             </>
           )}
+
+          {isPoiPin ? (
+            <Button onPress={handleViewPoiDetails} variant="outline" className="w-full">
+              <ButtonIcon as={MapPinIcon} />
+              <ButtonText>{t('map.view_poi_details')}</ButtonText>
+            </Button>
+          ) : null}
         </VStack>
       </Box>
     </CustomBottomSheet>

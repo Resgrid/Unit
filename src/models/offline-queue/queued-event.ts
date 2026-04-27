@@ -2,7 +2,7 @@ export enum QueuedEventType {
   UNIT_STATUS = 'unit_status',
   LOCATION_UPDATE = 'location_update',
   CALL_IMAGE_UPLOAD = 'call_image_upload',
-  // Add other event types as needed
+  CHECK_IN = 'check_in',
 }
 
 export enum QueuedEventStatus {
@@ -32,6 +32,7 @@ export interface QueuedUnitStatusEvent extends Omit<QueuedEvent, 'data'> {
     statusType: string;
     note?: string;
     respondingTo?: string;
+    respondingToType?: number | string | null;
     timestamp: string;
     timestampUtc: string;
     roles?: {
@@ -71,5 +72,18 @@ export interface QueuedCallImageUploadEvent extends Omit<QueuedEvent, 'data'> {
     latitude?: number;
     longitude?: number;
     filePath: string;
+  };
+}
+
+export interface QueuedCheckInEvent extends Omit<QueuedEvent, 'data'> {
+  type: QueuedEventType.CHECK_IN;
+  data: {
+    callId: number;
+    checkInType: number;
+    unitId?: number;
+    latitude?: string;
+    longitude?: string;
+    note?: string;
+    timestamp: string;
   };
 }
