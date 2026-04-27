@@ -81,6 +81,10 @@ jest.mock('@/components/ui/vstack', () => ({
 const mockUseWindowDimensions = useWindowDimensions as jest.MockedFunction<typeof useWindowDimensions>;
 
 // Mock expo-constants first before any other imports
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(),
+}));
+
 jest.mock('expo-constants', () => ({
   expoConfig: {
     extra: {
@@ -269,6 +273,25 @@ jest.mock('@/components/maps/static-map', () => {
     return null;
   };
 });
+
+jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({
+  CheckInTabContent: () => null,
+}));
+
+jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({
+  VideoFeedTabContent: () => null,
+}));
+
+jest.mock('@/stores/check-in-timers/store', () => ({
+  useCheckInTimerStore: jest.fn((selector: any) =>
+    selector({
+      timerStatuses: [],
+      startPolling: jest.fn(),
+      stopPolling: jest.fn(),
+      reset: jest.fn(),
+    })
+  ),
+}));
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({

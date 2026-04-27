@@ -1,8 +1,11 @@
+import { type PoiLayerData } from './poiResultData';
+
 export class MapDataAndMarkersData {
-  public CenterLat: string = '';
-  public CenterLon: string = '';
-  public ZoomLevel: string = '';
+  public CenterLat: number | string = 0;
+  public CenterLon: number | string = 0;
+  public ZoomLevel: number | string = 0;
   public MapMakerInfos: MapMakerInfoData[] = [];
+  public PoiLayers?: PoiLayerData[] = [];
 }
 
 export class MapMakerInfoData {
@@ -10,9 +13,16 @@ export class MapMakerInfoData {
   public Longitude: number = 0;
   public Latitude: number = 0;
   public Title: string = '';
-  public zIndex: string = '';
+  public zIndex: number | string = 0;
   public ImagePath: string = '';
   public InfoWindowContent: string = '';
   public Color: string = '';
   public Type: number = 0;
+  public Marker?: string = '';
+  public PoiTypeId?: number | null = null;
+  public PoiTypeName?: string = '';
+  public Address?: string = '';
+  public Note?: string = '';
+  public LayerId?: string = '';
+  public LayerName?: string = '';
 }

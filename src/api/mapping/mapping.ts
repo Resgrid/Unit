@@ -16,12 +16,25 @@ import {
   type SearchCustomMapRegionsResult,
   type SearchIndoorLocationsResult,
 } from '@/models/v4/mapping/mappingResults';
+import { type PoiResult, type PoisResult, type PoiTypesResult } from '@/models/v4/mapping/poiResults';
 
 import { createCachedApiEndpoint } from '../common/cached-client';
 import { createApiEndpoint } from '../common/client';
 
 const getMayLayersApi = createApiEndpoint('/Mapping/GetMayLayers');
 const getMapDataAndMarkersApi = createApiEndpoint('/Mapping/GetMapDataAndMarkers');
+const getPoiApi = createCachedApiEndpoint('/Mapping/GetPoi', {
+  ttl: 5 * 60 * 1000,
+  enabled: true,
+});
+const getPoisApi = createCachedApiEndpoint('/Mapping/GetPois', {
+  ttl: 5 * 60 * 1000,
+  enabled: true,
+});
+const getPoiTypesApi = createCachedApiEndpoint('/Mapping/GetPoiTypes', {
+  ttl: 5 * 60 * 1000,
+  enabled: true,
+});
 
 // Indoor map endpoints
 const getIndoorMapsApi = createCachedApiEndpoint('/Mapping/GetIndoorMaps', {
@@ -56,6 +69,31 @@ const searchAllMapFeaturesApi = createApiEndpoint('/Mapping/SearchAllMapFeatures
 
 export const getMapDataAndMarkers = async (signal?: AbortSignal) => {
   const response = await getMapDataAndMarkersApi.get<GetMapDataAndMarkersResult>(undefined, signal);
+  return response.data;
+};
+
+export const getPoiTypes = async () => {
+  const response = await getPoiTypesApi.get<PoiTypesResult>();
+  return response.data;
+};
+
+export const getPois = async (poiTypeId?: number, destinationOnly?: boolean) => {
+  const params: Record<string, unknown> = {};
+  if (poiTypeId !== undefined) {
+    params.poiTypeId = poiTypeId;
+  }
+  if (destinationOnly !== undefined) {
+    params.destinationOnly = destinationOnly;
+  }
+
+  const response = await getPoisApi.get<PoisResult>(params);
+  return response.data;
+};
+
+export const getPoi = async (poiId: number | string) => {
+  const response = await getPoiApi.get<PoiResult>({
+    poiId: encodeURIComponent(String(poiId)),
+  });
   return response.data;
 };
 

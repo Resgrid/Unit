@@ -87,7 +87,6 @@ export default function Protocols() {
               contentContainerStyle={{ paddingBottom: 100 }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
               extraData={handleProtocolPress}
-              estimatedItemSize={120}
             />
           ) : (
             <ZeroState icon={FileText} heading={t('protocols.empty')} description={t('protocols.emptyDescription')} />

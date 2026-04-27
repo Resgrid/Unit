@@ -153,6 +153,7 @@ const mockCall: CallResultData = {
   DispatchedOnUtc: '2023-01-01T10:05:00Z',
   Latitude: '40.7128',
   Longitude: '-74.0060',
+  CheckInTimersEnabled: false,
 };
 
 const mockPriority: CallPriorityResultData = {

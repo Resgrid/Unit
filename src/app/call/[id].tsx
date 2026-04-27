@@ -1,11 +1,13 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, PaperclipIcon, RouteIcon, UserIcon, UsersIcon } from 'lucide-react-native';
+import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-tab-content';
+import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 // Import a static map component instead of react-native-maps
@@ -25,6 +27,7 @@ import { openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { securityStore } from '@/stores/security/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 import { useToastStore } from '@/stores/toast/store';
@@ -70,6 +73,10 @@ export default function CallDetail() {
   const [isCloseCallModalOpen, setIsCloseCallModalOpen] = useState(false);
   const [isSettingActive, setIsSettingActive] = useState(false);
   const showToast = useToastStore((state) => state.showToast);
+  const timerStatuses = useCheckInTimerStore((state) => state.timerStatuses);
+  const startPolling = useCheckInTimerStore((state) => state.startPolling);
+  const stopPolling = useCheckInTimerStore((state) => state.stopPolling);
+  const resetTimers = useCheckInTimerStore((state) => state.reset);
 
   const { colorScheme } = useColorScheme();
   const textColor = colorScheme === 'dark' ? '#FFFFFF' : '#000000';
@@ -191,6 +198,17 @@ export default function CallDetail() {
     }
   }, [trackEvent, call, callExtraData]);
 
+  // Check-in timer polling lifecycle
+  useEffect(() => {
+    if (call?.CheckInTimersEnabled) {
+      startPolling(parseInt(call.CallId, 10), 30000);
+    }
+    return () => {
+      stopPolling();
+      resetTimers();
+    };
+  }, [call?.CheckInTimersEnabled, call?.CallId, startPolling, stopPolling, resetTimers]);
+
   /**
    * Opens the device's native maps application with directions to the call location
    */
@@ -280,6 +298,7 @@ export default function CallDetail() {
   }
 
   const renderTabs = () => {
+    const destinationLabel = call.DestinationName || call.DestinationAddress || '';
     const tabs: TabItem[] = [
       {
         key: 'info',
@@ -306,6 +325,13 @@ export default function CallDetail() {
                 <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
                 <Text className="font-medium">{call.Address}</Text>
               </Box>
+              {destinationLabel ? (
+                <Box className="border-b border-outline-100 pb-2">
+                  <Text className="text-sm text-gray-500">{t('call_detail.destination')}</Text>
+                  <Text className="font-medium">{destinationLabel}</Text>
+                  {call.DestinationTypeName || call.DestinationAddress ? <Text className="text-sm text-gray-500">{[call.DestinationTypeName, call.DestinationAddress].filter(Boolean).join(' - ')}</Text> : null}
+                </Box>
+              ) : null}
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
@@ -424,6 +450,26 @@ export default function CallDetail() {
         ),
       },
     ];
+
+    // Video feeds tab
+    tabs.push({
+      key: 'video',
+      title: t('video_feeds.tab_title'),
+      icon: <VideoIcon size={16} />,
+      content: <VideoFeedTabContent callId={parseInt(call.CallId, 10)} />,
+    });
+
+    // Conditionally add check-in tab
+    if (call?.CheckInTimersEnabled) {
+      const overdueCount = timerStatuses.filter((t) => t.Status === 'Overdue').length;
+      tabs.push({
+        key: 'checkin',
+        title: t('check_in.tab_title'),
+        icon: <TimerIcon size={16} />,
+        badge: overdueCount > 0 ? overdueCount : undefined,
+        content: <CheckInTabContent callId={parseInt(call.CallId, 10)} />,
+      });
+    }
 
     return tabs;
   };

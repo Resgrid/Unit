@@ -28,6 +28,10 @@ jest.mock('@/api/units/unitStatuses', () => ({
   saveUnitStatus: jest.fn(),
 }));
 
+jest.mock('@/api/check-in-timers/check-in-timers', () => ({
+  performCheckIn: jest.fn(),
+}));
+
 // Mock the offline queue store
 jest.mock('@/stores/offline-queue/store', () => ({
   useOfflineQueueStore: {
@@ -139,6 +143,7 @@ describe('OfflineEventManager', () => {
         'available',
         'Test note',
         'call-1',
+        2,
         [{ roleId: 'role-1', userId: 'user-1' }]
       );
 
@@ -150,6 +155,7 @@ describe('OfflineEventManager', () => {
           statusType: 'available',
           note: 'Test note',
           respondingTo: 'call-1',
+          respondingToType: 2,
           roles: [{ roleId: 'role-1', userId: 'user-1' }],
           timestamp: expect.any(String),
           timestampUtc: expect.any(String),
@@ -168,6 +174,7 @@ describe('OfflineEventManager', () => {
           statusType: 'available',
           note: undefined,
           respondingTo: undefined,
+          respondingToType: undefined,
           roles: undefined,
         })
       );
