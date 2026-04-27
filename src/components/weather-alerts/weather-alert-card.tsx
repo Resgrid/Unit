@@ -6,8 +6,8 @@ import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey } from '@/lib/weather-alert-utils';
 import { getTimeAgoUtc } from '@/lib/utils';
+import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
 interface WeatherAlertCardProps {
@@ -20,10 +20,7 @@ const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) =
   const CategoryIcon = getCategoryIcon(alert.Category);
 
   return (
-    <Box
-      style={{ borderLeftWidth: 4, borderLeftColor: severityColor }}
-      className="mb-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800"
-    >
+    <Box style={{ borderLeftWidth: 4, borderLeftColor: severityColor }} className="mb-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800">
       {/* Header */}
       <HStack className="mb-2 items-center justify-between">
         <HStack className="flex-1 items-center" space="sm">

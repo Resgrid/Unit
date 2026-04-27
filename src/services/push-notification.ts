@@ -8,8 +8,15 @@ import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { useCoreStore } from '@/stores/app/core-store';
+import { useLocationStore } from '@/stores/app/location-store';
+import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 import { securityStore } from '@/stores/security/store';
+
+// Numeric values for the CheckInType field expected by the API.
+// 0 = Personnel check-in (no unit), 1 = Unit check-in.
+const CHECK_IN_TYPE_PERSONNEL = 0;
+const CHECK_IN_TYPE_UNIT = 1;
 
 // Define notification response types
 export interface PushNotificationData {
@@ -200,20 +207,26 @@ class PushNotificationService {
       // Handle check-in action press
       if (type === EventType.ACTION_PRESS && detail.pressAction?.id === 'check-in') {
         logger.info({ message: 'Check-in action pressed from notification' });
-        // Trigger quick check-in — store will handle it
-        const { useCheckInTimerStore } = require('@/stores/check-in-timers/store');
-        const { useCoreStore } = require('@/stores/app/core-store');
-        const { useLocationStore } = require('@/stores/app/location-store');
         const activeCall = useCoreStore.getState().activeCall;
         const activeUnit = useCoreStore.getState().activeUnit;
         if (activeCall) {
-          await useCheckInTimerStore.getState().performCheckIn({
-            CallId: parseInt(activeCall.CallId, 10),
-            CheckInType: activeUnit ? 1 : 0,
-            UnitId: activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
-            Latitude: useLocationStore.getState().latitude?.toString(),
-            Longitude: useLocationStore.getState().longitude?.toString(),
-          });
+          const callId = parseInt(activeCall.CallId, 10);
+          if (Number.isNaN(callId)) {
+            logger.error({ message: 'Check-in action aborted: invalid CallId', context: { CallId: activeCall.CallId } });
+          } else {
+            const unitId = activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined;
+            if (activeUnit && Number.isNaN(unitId)) {
+              logger.error({ message: 'Check-in action aborted: invalid UnitId', context: { UnitId: activeUnit.UnitId } });
+            } else {
+              await useCheckInTimerStore.getState().performCheckIn({
+                CallId: callId,
+                CheckInType: activeUnit ? CHECK_IN_TYPE_UNIT : CHECK_IN_TYPE_PERSONNEL,
+                UnitId: unitId,
+                Latitude: useLocationStore.getState().latitude?.toString(),
+                Longitude: useLocationStore.getState().longitude?.toString(),
+              });
+            }
+          }
         }
       }
 

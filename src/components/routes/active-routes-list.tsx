@@ -55,8 +55,7 @@ export const ActiveRoutesList: React.FC = () => {
   const handleRoutePress = (route: RoutePlanResultData) => {
     if (activeInstance && activeInstance.RoutePlanId === route.RoutePlanId) {
       const routeInstanceId = activeInstance.RouteInstanceId;
-      const activeRouteUrl =
-        routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${route.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${route.RoutePlanId}`;
+      const activeRouteUrl = routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${route.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${route.RoutePlanId}`;
       router.push(activeRouteUrl as any);
       return;
     }
@@ -110,9 +109,7 @@ export const ActiveRoutesList: React.FC = () => {
                 onPress={() => {
                   const routeInstanceId = activeInstance.RouteInstanceId;
                   const activeRouteUrl =
-                    routeInstanceId && routeInstanceId !== 'undefined'
-                      ? `/routes/active?planId=${activeInstance.RoutePlanId}&instanceId=${routeInstanceId}`
-                      : `/routes/active?planId=${activeInstance.RoutePlanId}`;
+                    routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${activeInstance.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${activeInstance.RoutePlanId}`;
                   router.push(activeRouteUrl as any);
                 }}
               >

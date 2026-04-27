@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 
-import { groupPoisByType, getPoiSelectionLabel, createPoiTypeMap } from '@/lib/poi-utils';
+import { createPoiTypeMap, getPoiSelectionLabel, groupPoisByType } from '@/lib/poi-utils';
 import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
 
 import { CustomBottomSheet } from '../ui/bottom-sheet';

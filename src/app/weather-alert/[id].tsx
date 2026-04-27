@@ -7,13 +7,13 @@ import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { WeatherAlertDetailMap } from '@/components/weather-alerts/weather-alert-detail-map';
-import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Box } from '@/components/ui/box';
+import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { WeatherAlertDetailMap } from '@/components/weather-alerts/weather-alert-detail-map';
 import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey } from '@/lib/weather-alert-utils';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 

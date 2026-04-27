@@ -1,6 +1,6 @@
 import { createApiEndpoint } from '@/api/common/client';
-import { type NewCallFormResult } from '@/models/v4/dispatch/newCallFormResult';
 import { type GetSetUnitStateResult } from '@/models/v4/dispatch/getSetUnitStateResult';
+import { type NewCallFormResult } from '@/models/v4/dispatch/newCallFormResult';
 
 const getNewCallDataApi = createApiEndpoint('/Dispatch/GetNewCallData');
 const getSetUnitStatusDataApi = createApiEndpoint('/Dispatch/GetSetUnitStatusData');

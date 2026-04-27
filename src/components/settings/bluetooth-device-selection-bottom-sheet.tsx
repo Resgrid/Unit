@@ -300,15 +300,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
 
         {/* Device List */}
         <Box className="flex-1">
-          <FlatList
-            data={availableDevices}
-            renderItem={renderDeviceItem}
-            keyExtractor={(item) => item.id}
-            ListEmptyComponent={renderEmptyState}
-            showsVerticalScrollIndicator={false}
-            estimatedItemSize={60}
-            extraData={connectingDeviceId}
-          />
+          <FlatList data={availableDevices} renderItem={renderDeviceItem} keyExtractor={(item) => item.id} ListEmptyComponent={renderEmptyState} showsVerticalScrollIndicator={false} extraData={connectingDeviceId} />
         </Box>
 
         {/* Bluetooth State Info */}

@@ -114,12 +114,12 @@ describe('useCheckInTimerStore', () => {
 
       const { result } = renderHook(() => useCheckInTimerStore());
 
-      let success: boolean = false;
+      let checkInResult: string = '';
       await act(async () => {
-        success = await result.current.performCheckIn({ CallId: 1, CheckInType: 0 });
+        checkInResult = await result.current.performCheckIn({ CallId: 1, CheckInType: 0 });
       });
 
-      expect(success).toBe(true);
+      expect(checkInResult).toBe('success');
       expect(mockPerformCheckIn).toHaveBeenCalledWith({ CallId: 1, CheckInType: 0 });
       expect(result.current.isCheckingIn).toBe(false);
     });
@@ -129,12 +129,12 @@ describe('useCheckInTimerStore', () => {
 
       const { result } = renderHook(() => useCheckInTimerStore());
 
-      let success: boolean = true;
+      let checkInResult: string = '';
       await act(async () => {
-        success = await result.current.performCheckIn({ CallId: 1, CheckInType: 0 });
+        checkInResult = await result.current.performCheckIn({ CallId: 1, CheckInType: 0 });
       });
 
-      expect(success).toBe(false);
+      expect(checkInResult).toBe('failed');
       expect(result.current.checkInError).toBe('Server error');
     });
   });

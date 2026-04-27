@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { EncodingType, readAsStringAsync } from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,7 +11,7 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { FlatList } from '@/components/ui/flat-list';
+import { type FlashListRef, FlatList } from '@/components/ui/flat-list';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
@@ -51,7 +51,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [isAddingImage, setIsAddingImage] = useState(false);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
-  const flatListRef = useRef<FlatList<CallFileResultData>>(null);
+  const flatListRef = useRef<FlashListRef<CallFileResultData>>(null);
 
   const callImages = useCallDetailStore((state) => state.callImages);
   const isLoadingImages = useCallDetailStore((state) => state.isLoadingImages);
@@ -176,8 +176,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       );
 
       // Read the manipulated image as base64
-      const base64Image = await FileSystem.readAsStringAsync(manipulatedImage.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const base64Image = await readAsStringAsync(manipulatedImage.uri, {
+        encoding: EncodingType.Base64,
       });
 
       // Get current location if available
@@ -432,7 +432,6 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
               itemVisiblePercentThreshold: 50,
               minimumViewTime: 100,
             }}
-            estimatedItemSize={width}
             className="w-full"
             contentContainerStyle={{ paddingHorizontal: 0 }}
             initialScrollIndex={0}

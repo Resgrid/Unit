@@ -153,11 +153,11 @@ export default function NewCall() {
       coordinates: '',
       what3words: '',
       plusCode: '',
-        latitude: undefined,
-        longitude: undefined,
-        destinationPoiId: '',
-        priority: '',
-        type: '',
+      latitude: undefined,
+      longitude: undefined,
+      destinationPoiId: '',
+      priority: '',
+      type: '',
       contactName: '',
       contactInfo: '',
       dispatchSelection: {
@@ -827,31 +827,31 @@ export default function NewCall() {
                 />
               </FormControl>
 
-               {/* Map Preview */}
-               <Box className="mb-4">
-                 {selectedLocation ? (
-                   <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
-                 ) : (
+              {/* Map Preview */}
+              <Box className="mb-4">
+                {selectedLocation ? (
+                  <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
+                ) : (
                   <Button onPress={() => setShowLocationPicker(true)} className="w-full">
                     <ButtonText>{t('calls.select_location')}</ButtonText>
-                   </Button>
-                 )}
-               </Box>
+                  </Button>
+                )}
+              </Box>
 
-               <Controller
-                 control={control}
-                 name="destinationPoiId"
-                 render={({ field: { onChange, value } }) => (
-                   <DestinationPoiSelector
-                     destinationPois={destinationPois}
-                     poiTypes={poiTypes}
-                     selectedPoiId={value ? Number(value) : null}
-                     isLoading={isLoading && destinationPois.length === 0}
-                     onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
-                   />
-                 )}
-               />
-             </Card>
+              <Controller
+                control={control}
+                name="destinationPoiId"
+                render={({ field: { onChange, value } }) => (
+                  <DestinationPoiSelector
+                    destinationPois={destinationPois}
+                    poiTypes={poiTypes}
+                    selectedPoiId={value ? Number(value) : null}
+                    isLoading={isLoading && destinationPois.length === 0}
+                    onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+                  />
+                )}
+              />
+            </Card>
 
             <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
               <FormControl>

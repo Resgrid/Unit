@@ -17,11 +17,12 @@ interface WeatherAlertBannerProps {
 }
 
 export const WeatherAlertBanner: React.FC<WeatherAlertBannerProps> = ({ alerts, onPress, onDismiss }) => {
+  const { t } = useTranslation();
+
   if (alerts.length === 0) {
     return null;
   }
 
-  const { t } = useTranslation();
   const topAlert = alerts[0];
   const bgColor = getSeverityColor(topAlert.Severity);
 
@@ -38,9 +39,7 @@ export const WeatherAlertBanner: React.FC<WeatherAlertBannerProps> = ({ alerts, 
 
           {alerts.length > 1 ? (
             <Box className="mr-2 rounded-full bg-white/30 px-2 py-0.5">
-              <Text className="text-xs font-bold text-white">
-                {t('weather_alerts.banner.more_alerts', { count: alerts.length - 1 })}
-              </Text>
+              <Text className="text-xs font-bold text-white">{t('weather_alerts.banner.more_alerts', { count: alerts.length - 1 })}</Text>
             </Box>
           ) : null}
 

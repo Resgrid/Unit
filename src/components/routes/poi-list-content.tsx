@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl } from 'react-native';
 
-import { filterPois, getPoiDisplayName, getPoiTypeName, isPoiDestinationEnabled, sortPois, type PoiSortOption } from '@/lib/poi-utils';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { PoiCard } from '@/components/routes/poi-card';
@@ -13,6 +12,7 @@ import { FlatList } from '@/components/ui/flat-list';
 import { HStack } from '@/components/ui/hstack';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/components/ui/select';
+import { filterPois, getPoiDisplayName, getPoiTypeName, isPoiDestinationEnabled, type PoiSortOption, sortPois } from '@/lib/poi-utils';
 import { type PoiResultData } from '@/models/v4/mapping/poiResultData';
 import { usePoisStore } from '@/stores/pois/store';
 
@@ -116,15 +116,11 @@ export const PoiListContent: React.FC = () => {
             poiTypeLabel={getPoiTypeName(item, poiTypesById) || t('routes.poi_type_unknown')}
             displayName={getPoiDisplayName(item, poiTypesById)}
             isDestinationEnabled={isPoiDestinationEnabled(item, poiTypesById)}
-            onPress={() => router.push(`/routes/poi/${item.PoiId}` as any)}
+            onPress={() => router.push({ pathname: '/routes/poi/[id]', params: { id: item.PoiId } })}
           />
         )}
         ListEmptyComponent={
-          <ZeroState
-            heading={t('routes.no_pois')}
-            description={searchQuery || selectedPoiTypeId !== 'all' ? t('routes.no_pois_filtered_description') : t('routes.no_pois_description')}
-            icon={RefreshCcwDotIcon}
-          />
+          <ZeroState heading={t('routes.no_pois')} description={searchQuery || selectedPoiTypeId !== 'all' ? t('routes.no_pois_filtered_description') : t('routes.no_pois_description')} icon={RefreshCcwDotIcon} />
         }
         contentContainerStyle={{ paddingBottom: 20 }}
       />

@@ -321,25 +321,21 @@ export default function CallDetail() {
                 <Text className="text-sm text-gray-500">{t('call_detail.type')}</Text>
                 <Text className="font-medium">{call.Type}</Text>
               </Box>
-               <Box className="border-b border-outline-100 pb-2">
-                 <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
-                 <Text className="font-medium">{call.Address}</Text>
-               </Box>
-               {destinationLabel ? (
-                 <Box className="border-b border-outline-100 pb-2">
-                   <Text className="text-sm text-gray-500">{t('call_detail.destination')}</Text>
-                   <Text className="font-medium">{destinationLabel}</Text>
-                   {call.DestinationTypeName || call.DestinationAddress ? (
-                     <Text className="text-sm text-gray-500">
-                       {[call.DestinationTypeName, call.DestinationAddress].filter(Boolean).join(' - ')}
-                     </Text>
-                   ) : null}
-                 </Box>
-               ) : null}
-               <Box className="border-b border-outline-100 pb-2">
-                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
-                 <Box>
-                   <HtmlRenderer html={call.Note ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
+              <Box className="border-b border-outline-100 pb-2">
+                <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
+                <Text className="font-medium">{call.Address}</Text>
+              </Box>
+              {destinationLabel ? (
+                <Box className="border-b border-outline-100 pb-2">
+                  <Text className="text-sm text-gray-500">{t('call_detail.destination')}</Text>
+                  <Text className="font-medium">{destinationLabel}</Text>
+                  {call.DestinationTypeName || call.DestinationAddress ? <Text className="text-sm text-gray-500">{[call.DestinationTypeName, call.DestinationAddress].filter(Boolean).join(' - ')}</Text> : null}
+                </Box>
+              ) : null}
+              <Box className="border-b border-outline-100 pb-2">
+                <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
+                <Box>
+                  <HtmlRenderer html={call.Note ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                 </Box>
               </Box>
             </VStack>

@@ -9,6 +9,22 @@ import { useCoreStore } from '../app/core-store';
 import { securityStore, useSecurityStore } from '../security/store';
 import { useWeatherAlertsStore } from '../weather-alerts/store';
 
+/** Minimal shape of the SignalR weather alert payload. The server sends
+ *  WeatherAlertId as the primary identifier, matching WeatherAlertResultData. */
+interface WeatherAlertSignalRMessage {
+  WeatherAlertId?: string;
+  /** Fallback for servers that use a lower-camel field name. */
+  alertId?: string;
+}
+
+function extractAlertId(message: unknown): string | undefined {
+  if (message !== null && typeof message === 'object') {
+    const m = message as WeatherAlertSignalRMessage;
+    return m.WeatherAlertId ?? m.alertId;
+  }
+  return undefined;
+}
+
 interface SignalRState {
   isUpdateHubConnected: boolean;
   lastUpdateMessage: unknown;
@@ -54,7 +70,18 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
 
       // Remove any previously registered handlers to prevent accumulation
       // across reconnections or repeated connectUpdateHub calls
-      const updateEvents = ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'weatherAlertReceived', 'weatherAlertUpdated', 'weatherAlertExpired', 'onConnected'];
+      const updateEvents = [
+        'personnelStatusUpdated',
+        'personnelStaffingUpdated',
+        'unitStatusUpdated',
+        'callsUpdated',
+        'callAdded',
+        'callClosed',
+        'weatherAlertReceived',
+        'weatherAlertUpdated',
+        'weatherAlertExpired',
+        'onConnected',
+      ];
       updateEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Connect to the eventing hub
@@ -62,7 +89,18 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         name: Env.CHANNEL_HUB_NAME,
         eventingUrl: eventingUrl,
         hubName: Env.CHANNEL_HUB_NAME,
-        methods: ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed', 'weatherAlertReceived', 'weatherAlertUpdated', 'weatherAlertExpired', 'onConnected'],
+        methods: [
+          'personnelStatusUpdated',
+          'personnelStaffingUpdated',
+          'unitStatusUpdated',
+          'callsUpdated',
+          'callAdded',
+          'callClosed',
+          'weatherAlertReceived',
+          'weatherAlertUpdated',
+          'weatherAlertExpired',
+          'onConnected',
+        ],
       });
 
       await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', parseInt(securityStore.getState().rights?.DepartmentId ?? '0'));
@@ -94,17 +132,32 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
 
       signalRService.on('weatherAlertReceived', (message) => {
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
-        useWeatherAlertsStore.getState().handleAlertReceived(message as string);
+        const alertId = extractAlertId(message);
+        if (alertId) {
+          useWeatherAlertsStore.getState().handleAlertReceived(alertId);
+        } else {
+          logger.warn({ message: 'weatherAlertReceived: could not extract alertId from message', context: { message } });
+        }
       });
 
       signalRService.on('weatherAlertUpdated', (message) => {
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
-        useWeatherAlertsStore.getState().handleAlertUpdated(message as string);
+        const alertId = extractAlertId(message);
+        if (alertId) {
+          useWeatherAlertsStore.getState().handleAlertUpdated(alertId);
+        } else {
+          logger.warn({ message: 'weatherAlertUpdated: could not extract alertId from message', context: { message } });
+        }
       });
 
       signalRService.on('weatherAlertExpired', (message) => {
         set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
-        useWeatherAlertsStore.getState().handleAlertExpired(message as string);
+        const alertId = extractAlertId(message);
+        if (alertId) {
+          useWeatherAlertsStore.getState().handleAlertExpired(alertId);
+        } else {
+          logger.warn({ message: 'weatherAlertExpired: could not extract alertId from message', context: { message } });
+        }
       });
 
       signalRService.on('onConnected', () => {

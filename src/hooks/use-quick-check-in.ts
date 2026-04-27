@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { PerformCheckInInput } from '@/api/check-in-timers/check-in-timers';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import type { CheckInResult } from '@/stores/check-in-timers/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -29,15 +30,17 @@ export function useQuickCheckIn(callId: number) {
       Longitude: longitude?.toString(),
     };
 
-    const success = await performCheckInAction(input);
+    const result: CheckInResult = await performCheckInAction(input);
 
-    if (success) {
+    if (result === 'success') {
       showToast('success', t('check_in.check_in_success'));
+    } else if (result === 'queued') {
+      showToast('info', t('check_in.queued_offline'));
     } else {
       showToast('error', t('check_in.check_in_error'));
     }
 
-    return success;
+    return result;
   }, [callId, activeUnit, latitude, longitude, performCheckInAction, showToast, t]);
 
   return { quickCheckIn, isCheckingIn };

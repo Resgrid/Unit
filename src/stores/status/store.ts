@@ -267,15 +267,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           }
         }
 
-        const eventId = offlineEventManager.queueUnitStatusEvent(
-          input.Id,
-          input.Type,
-          input.Note || '',
-          input.RespondingTo || '',
-          input.RespondingToType,
-          roles,
-          gpsData
-        );
+        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData);
 
         logger.info({
           message: 'Unit status queued for offline processing',

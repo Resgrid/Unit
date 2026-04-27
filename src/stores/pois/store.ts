@@ -6,10 +6,13 @@ import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/
 const STORE_TTL_MS = 5 * 60 * 1000;
 
 const mergePoiDetails = (existingPois: Record<number, PoiResultData>, pois: PoiResultData[]): Record<number, PoiResultData> => {
-  return pois.reduce<Record<number, PoiResultData>>((accumulator, poi) => {
-    accumulator[poi.PoiId] = poi;
-    return accumulator;
-  }, { ...existingPois });
+  return pois.reduce<Record<number, PoiResultData>>(
+    (accumulator, poi) => {
+      accumulator[poi.PoiId] = poi;
+      return accumulator;
+    },
+    { ...existingPois }
+  );
 };
 
 interface PoisState {

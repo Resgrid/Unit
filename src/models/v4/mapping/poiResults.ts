@@ -1,6 +1,5 @@
 import { BaseV4Request } from '../baseV4Request';
-
-import { PoiResultData, PoiTypeResultData } from './poiResultData';
+import { PoiResultData, type PoiTypeResultData } from './poiResultData';
 
 export class PoiResult extends BaseV4Request {
   public Data: PoiResultData = new PoiResultData();

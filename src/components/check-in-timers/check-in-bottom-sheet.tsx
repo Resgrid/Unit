@@ -12,6 +12,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import type { CheckInResult } from '@/stores/check-in-timers/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -54,10 +55,14 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
       Note: note || undefined,
     };
 
-    const success = await performCheckInAction(input);
+    const result: CheckInResult = await performCheckInAction(input);
 
-    if (success) {
+    if (result === 'success') {
       showToast('success', t('check_in.check_in_success'));
+      setNote('');
+      onClose();
+    } else if (result === 'queued') {
+      showToast('info', t('check_in.queued_offline'));
       setNote('');
       onClose();
     } else {
@@ -91,7 +96,7 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
         </VStack>
 
         {/* Confirm */}
-        <Button variant="solid" size="lg" onPress={handleConfirm} disabled={isCheckingIn}>
+        <Button variant="solid" size="lg" onPress={handleConfirm} isDisabled={isCheckingIn}>
           <ButtonText>{t('check_in.confirm')}</ButtonText>
         </Button>
       </VStack>

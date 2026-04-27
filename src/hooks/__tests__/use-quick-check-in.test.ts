@@ -68,7 +68,7 @@ describe('useQuickCheckIn', () => {
   });
 
   it('should auto-detect Unit type when active unit exists', async () => {
-    mockPerformCheckIn.mockResolvedValue(true);
+    mockPerformCheckIn.mockResolvedValue('success');
 
     const { result } = renderHook(() => useQuickCheckIn(123));
 
@@ -88,7 +88,7 @@ describe('useQuickCheckIn', () => {
   });
 
   it('should show success toast on successful check-in', async () => {
-    mockPerformCheckIn.mockResolvedValue(true);
+    mockPerformCheckIn.mockResolvedValue('success');
 
     const { result } = renderHook(() => useQuickCheckIn(123));
 
@@ -100,7 +100,7 @@ describe('useQuickCheckIn', () => {
   });
 
   it('should show error toast on failed check-in', async () => {
-    mockPerformCheckIn.mockResolvedValue(false);
+    mockPerformCheckIn.mockResolvedValue('failed');
 
     const { result } = renderHook(() => useQuickCheckIn(123));
 

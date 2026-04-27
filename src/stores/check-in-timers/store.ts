@@ -1,3 +1,4 @@
+import { isAxiosError } from 'axios';
 import { create } from 'zustand';
 
 import { getCheckInHistory, getTimersForCall, getTimerStatuses, performCheckIn, type PerformCheckInInput } from '@/api/check-in-timers/check-in-timers';
@@ -6,6 +7,8 @@ import type { CheckInRecordResultData } from '@/models/v4/checkIn/checkInRecordR
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
 import type { ResolvedCheckInTimerResultData } from '@/models/v4/checkIn/resolvedCheckInTimerResultData';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
+
+export type CheckInResult = 'success' | 'queued' | 'failed';
 
 const STATUS_SEVERITY: Record<string, number> = {
   Overdue: 0,
@@ -27,7 +30,7 @@ interface CheckInTimerState {
   fetchTimerStatuses: (callId: number) => Promise<void>;
   fetchResolvedTimers: (callId: number) => Promise<void>;
   fetchCheckInHistory: (callId: number) => Promise<void>;
-  performCheckIn: (input: PerformCheckInInput) => Promise<boolean>;
+  performCheckIn: (input: PerformCheckInInput) => Promise<CheckInResult>;
   startPolling: (callId: number, intervalMs?: number) => void;
   stopPolling: () => void;
   reset: () => void;
@@ -88,20 +91,19 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
       set({ isCheckingIn: false });
       // Re-fetch statuses after successful check-in
       get().fetchTimerStatuses(input.CallId);
-      return true;
+      return 'success' as CheckInResult;
     } catch (error) {
-      const isNetworkError = error instanceof Error && (error.message.includes('Network') || error.message.includes('timeout'));
-      if (isNetworkError) {
-        // Queue offline
+      const isOffline = isAxiosError(error) && (!error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED');
+      if (isOffline) {
         offlineEventManager.queueCheckInEvent(input.CallId, input.CheckInType, input.UnitId, input.Latitude, input.Longitude, input.Note);
-        logger.info({ message: 'Check-in queued offline', context: { input } });
+        logger.info({ message: 'Check-in queued for offline sync', context: { input } });
         set({ isCheckingIn: false });
-        return true;
+        return 'queued' as CheckInResult;
       }
       const message = error instanceof Error ? error.message : 'Failed to perform check-in';
       logger.error({ message: 'Failed to perform check-in', context: { error, input } });
       set({ checkInError: message, isCheckingIn: false });
-      return false;
+      return 'failed' as CheckInResult;
     }
   },
 

@@ -1,8 +1,8 @@
+import { useLocalSearchParams } from 'expo-router';
 import { MapPin, Navigation } from 'lucide-react-native';
 import React, { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
@@ -15,8 +15,8 @@ import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { createPoiTypeMap, getPoiDisplayName, getPoiSelectionLabel, getPoiTypeName, isPoiDestinationEnabled } from '@/lib/poi-utils';
 import { openMapsWithDirections } from '@/lib/navigation';
+import { createPoiTypeMap, getPoiDisplayName, getPoiSelectionLabel, getPoiTypeName, isPoiDestinationEnabled } from '@/lib/poi-utils';
 import { useLocationStore } from '@/stores/app/location-store';
 import { usePoisStore } from '@/stores/pois/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';

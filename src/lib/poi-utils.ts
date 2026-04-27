@@ -54,13 +54,7 @@ export const filterPois = (pois: PoiResultData[], options: { poiTypesById?: Reco
       return true;
     }
 
-    const searchableValues = [
-      getPoiDisplayName(poi, options.poiTypesById),
-      getPoiSelectionLabel(poi, options.poiTypesById),
-      normalizeText(poi.Address),
-      normalizeText(poi.Note),
-      getPoiTypeName(poi, options.poiTypesById),
-    ]
+    const searchableValues = [getPoiDisplayName(poi, options.poiTypesById), getPoiSelectionLabel(poi, options.poiTypesById), normalizeText(poi.Address), normalizeText(poi.Note), getPoiTypeName(poi, options.poiTypesById)]
       .join(' ')
       .toLowerCase();
 

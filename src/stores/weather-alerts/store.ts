@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 
 import { getActiveAlerts, getWeatherAlert, getWeatherAlertSettings } from '@/api/weather-alerts/weather-alerts';
+import { sortAlertsBySeverity } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 import { type WeatherAlertSettingsData } from '@/models/v4/weatherAlerts/weatherAlertSettingsData';
-import { sortAlertsBySeverity } from '@/lib/weather-alert-utils';
 
 interface WeatherAlertsState {
   alerts: WeatherAlertResultData[];
@@ -97,9 +97,11 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
     try {
       const response = await getWeatherAlert(alertId);
       const newAlert = response.Data;
-      set((state) => ({
-        alerts: sortAlertsBySeverity([newAlert, ...state.alerts]),
-      }));
+      set((state) => {
+        const exists = state.alerts.some((a) => a.WeatherAlertId === newAlert.WeatherAlertId);
+        const updated = exists ? state.alerts.map((a) => (a.WeatherAlertId === newAlert.WeatherAlertId ? newAlert : a)) : [newAlert, ...state.alerts];
+        return { alerts: sortAlertsBySeverity(updated) };
+      });
     } catch (error) {
       // Silently fail for SignalR handler
     }

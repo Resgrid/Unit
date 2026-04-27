@@ -6,17 +6,19 @@ import { logger } from '@/lib/logging';
 const CHANNEL_ID = 'check-in-timers';
 const NOTIFICATION_ID = 'check-in-timer-notification';
 
-const STATUS_LABELS: Record<string, string> = {
-  Ok: 'OK',
-  Warning: 'WARNING',
-  Overdue: 'OVERDUE',
-};
+export interface NotificationLabels {
+  statusLabels: Record<string, string>;
+  channelName: string;
+  channelDescription: string;
+  actionText: string;
+}
 
 class CheckInNotificationService {
   private static instance: CheckInNotificationService;
   private countdownInterval: ReturnType<typeof setInterval> | null = null;
   private currentSeconds: number = 0;
   private currentStatus: string = 'Ok';
+  private currentLabels: NotificationLabels | null = null;
   private channelCreated: boolean = false;
 
   static getInstance(): CheckInNotificationService {
@@ -26,22 +28,23 @@ class CheckInNotificationService {
     return CheckInNotificationService.instance;
   }
 
-  private async ensureChannel(): Promise<void> {
+  private async ensureChannel(channelName: string, channelDescription: string): Promise<void> {
     if (this.channelCreated || Platform.OS !== 'android') return;
 
     await notifee.createChannel({
       id: CHANNEL_ID,
-      name: 'Check-In Timers',
-      description: 'Timer notifications for call check-ins',
+      name: channelName,
+      description: channelDescription,
       importance: AndroidImportance.LOW,
     });
     this.channelCreated = true;
   }
 
-  async startNotification(callName: string, callNumber: string, timerName: string, secondsRemaining: number, status: string): Promise<void> {
+  async startNotification(callName: string, callNumber: string, timerName: string, secondsRemaining: number, status: string, labels: NotificationLabels): Promise<void> {
     if (Platform.OS !== 'android') return;
 
-    await this.ensureChannel();
+    this.currentLabels = labels;
+    await this.ensureChannel(labels.channelName, labels.channelDescription);
     this.currentSeconds = secondsRemaining;
     this.currentStatus = status;
 
@@ -55,9 +58,12 @@ class CheckInNotificationService {
     }, 1000);
   }
 
-  async updateNotification(secondsRemaining: number, status: string): Promise<void> {
+  async updateNotification(secondsRemaining: number, status: string, statusLabels: Record<string, string>): Promise<void> {
     this.currentSeconds = secondsRemaining;
     this.currentStatus = status;
+    if (this.currentLabels) {
+      this.currentLabels = { ...this.currentLabels, statusLabels };
+    }
   }
 
   async stopNotification(): Promise<void> {
@@ -75,7 +81,8 @@ class CheckInNotificationService {
     const minutes = Math.floor(this.currentSeconds / 60);
     const seconds = this.currentSeconds % 60;
     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    const statusLabel = STATUS_LABELS[this.currentStatus] ?? this.currentStatus;
+    const statusLabel = this.currentLabels?.statusLabels[this.currentStatus] ?? this.currentStatus;
+    const actionText = this.currentLabels?.actionText ?? 'Check In';
 
     try {
       await notifee.displayNotification({
@@ -89,7 +96,7 @@ class CheckInNotificationService {
           pressAction: { id: 'default' },
           actions: [
             {
-              title: 'Check In',
+              title: actionText,
               pressAction: { id: 'check-in' },
             },
           ],

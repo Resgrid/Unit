@@ -33,7 +33,7 @@ jest.mock('expo-image-picker', () => ({
   },
 }));
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: jest.fn(),
   EncodingType: {
     Base64: 'base64',
@@ -269,7 +269,7 @@ const mockTrackEvent = jest.fn();
 const mockReadAsStringAsync = jest.fn();
 const mockManipulateAsync = jest.fn();
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: mockReadAsStringAsync,
   EncodingType: {
     Base64: 'base64',

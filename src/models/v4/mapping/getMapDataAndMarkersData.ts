@@ -1,4 +1,4 @@
-import { PoiLayerData } from './poiResultData';
+import { type PoiLayerData } from './poiResultData';
 
 export class MapDataAndMarkersData {
   public CenterLat: number | string = 0;

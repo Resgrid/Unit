@@ -84,10 +84,7 @@ export const WeatherAlertDetailMap: React.FC<WeatherAlertDetailMapProps> = ({ al
         ) : null}
 
         {!polygonGeoJSON && centerLocation ? (
-          <Mapbox.PointAnnotation
-            id="alert-center"
-            coordinate={[centerLocation.longitude, centerLocation.latitude]}
-          >
+          <Mapbox.PointAnnotation id="alert-center" coordinate={[centerLocation.longitude, centerLocation.latitude]}>
             <View style={[styles.marker, { backgroundColor: severityColor }]} />
           </Mapbox.PointAnnotation>
         ) : null}

@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect, router } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
 import { StopMarker } from '@/components/routes/stop-marker';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
+import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
@@ -26,7 +27,6 @@ import { useMapsStore } from '@/stores/maps/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
-import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
@@ -64,10 +64,7 @@ function MapContent() {
   const weatherAlerts = useWeatherAlertsStore((state) => state.alerts);
   const weatherSettings = useWeatherAlertsStore((state) => state.settings);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
-  const extremeAlerts = useMemo(
-    () => weatherAlerts.filter((a) => a.Severity <= 1 && a.Status === 0),
-    [weatherAlerts]
-  );
+  const extremeAlerts = useMemo(() => weatherAlerts.filter((a) => a.Severity <= 1 && a.Status === 0), [weatherAlerts]);
 
   // Reset dismissed state when alert count changes
   useEffect(() => {
@@ -595,11 +592,7 @@ function MapContent() {
         {/* Weather Alert Banner */}
         {weatherSettings?.WeatherAlertsEnabled && extremeAlerts.length > 0 && !isBannerDismissed ? (
           <View style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 10 }}>
-            <WeatherAlertBanner
-              alerts={extremeAlerts}
-              onPress={() => router.push('/(app)/weather-alerts')}
-              onDismiss={() => setIsBannerDismissed(true)}
-            />
+            <WeatherAlertBanner alerts={extremeAlerts} onPress={() => router.push('/(app)/weather-alerts')} onDismiss={() => setIsBannerDismissed(true)} />
           </View>
         ) : null}
 

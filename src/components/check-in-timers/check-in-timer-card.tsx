@@ -53,7 +53,9 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
   }, [timer.Status, pulseAnim]);
 
   const statusColor = STATUS_COLORS[timer.Status] ?? '#808080';
-  const progress = Math.min(localElapsed / timer.DurationMinutes, 1);
+  const duration = timer.DurationMinutes ? Number(timer.DurationMinutes) : 0;
+  const progress = duration > 0 ? Math.min(localElapsed / duration, 1) : 0;
+  const safeStatusLower = typeof timer.Status === 'string' ? timer.Status.toLowerCase() : '';
   const minutesAgo = Math.floor(localElapsed);
 
   return (
@@ -70,7 +72,7 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
         </HStack>
         <Box className="rounded-full px-2 py-1" style={{ backgroundColor: statusColor + '20' }}>
           <Text className="text-xs font-medium" style={{ color: statusColor }}>
-            {t(`check_in.status_${timer.Status.toLowerCase()}`)}
+            {t(`check_in.status_${safeStatusLower}`)}
           </Text>
         </Box>
       </HStack>

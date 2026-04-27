@@ -1,7 +1,7 @@
 import { AlertTriangle, CloudLightning, Flame, Heart, Leaf, type LucideIcon } from 'lucide-react-native';
 
-import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 import { WeatherAlertCategory, WeatherAlertSeverity, WeatherAlertStatus } from '@/models/v4/weatherAlerts/weatherAlertEnums';
+import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
 export const SEVERITY_COLORS: Record<number, string> = {
   [WeatherAlertSeverity.Extreme]: '#7B1FA2',

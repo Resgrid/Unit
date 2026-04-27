@@ -5,8 +5,8 @@ import { Pressable, ScrollView } from 'react-native';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import { getSeverityColor } from '@/lib/weather-alert-utils';
-import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 import { WeatherAlertSeverity } from '@/models/v4/weatherAlerts/weatherAlertEnums';
+import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
 interface SeverityFilterTabsProps {
   selectedFilter: number | null;
@@ -14,7 +14,7 @@ interface SeverityFilterTabsProps {
   alerts: WeatherAlertResultData[];
 }
 
-const FILTERS: Array<{ severity: number | null; labelKey: string }> = [
+const FILTERS: { severity: number | null; labelKey: string }[] = [
   { severity: null, labelKey: 'weather_alerts.filter.all' },
   { severity: WeatherAlertSeverity.Extreme, labelKey: 'weather_alerts.severity.extreme' },
   { severity: WeatherAlertSeverity.Severe, labelKey: 'weather_alerts.severity.severe' },
@@ -39,14 +39,8 @@ export const SeverityFilterTabs: React.FC<SeverityFilterTabsProps> = ({ selected
 
         return (
           <Pressable key={String(filter.severity)} onPress={() => onFilterChange(filter.severity)}>
-            <Box
-              style={isActive ? { backgroundColor: chipColor } : { borderColor: chipColor, borderWidth: 1 }}
-              className="mr-2 rounded-full px-3 py-1.5"
-            >
-              <Text
-                style={isActive ? { color: '#FFFFFF' } : { color: chipColor }}
-                className="text-xs font-medium"
-              >
+            <Box style={isActive ? { backgroundColor: chipColor } : { borderColor: chipColor, borderWidth: 1 }} className="mr-2 rounded-full px-3 py-1.5">
+              <Text style={isActive ? { color: '#FFFFFF' } : { color: chipColor }} className="text-xs font-medium">
                 {t(filter.labelKey)} ({count})
               </Text>
             </Box>

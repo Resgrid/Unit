@@ -3,6 +3,68 @@ const fs = require('fs');
 const path = require('path');
 
 /**
+ * Resolves the iOS app target name so bridge files land in the correct folder.
+ *
+ * Resolution order:
+ *   1. config.modRequest.projectName  (set by Expo during prebuild — preferred)
+ *   2. Parse ios/<project>.xcodeproj/project.pbxproj and find the PBXNativeTarget
+ *      whose productType is "com.apple.product-type.application"
+ *
+ * Throws an explicit error if neither source yields a name, so the developer is
+ * informed immediately instead of files being silently written to the wrong path.
+ *
+ * @param {object} config  - Expo config object inside withDangerousMod callback
+ * @param {string} projectRoot - absolute path to the project root
+ * @returns {string} iOS app target / folder name
+ */
+function resolveIosAppName(config, projectRoot) {
+  // 1. Trust Expo's own projectName first (present during `expo prebuild`)
+  if (config.modRequest.projectName) {
+    return config.modRequest.projectName;
+  }
+
+  // 2. Derive the name by parsing project.pbxproj
+  const iosDir = path.join(projectRoot, 'ios');
+  if (fs.existsSync(iosDir)) {
+    let pbxprojPath = null;
+    try {
+      const entries = fs.readdirSync(iosDir);
+      const xcodeprojDir = entries.find((e) => e.endsWith('.xcodeproj'));
+      if (xcodeprojDir) {
+        pbxprojPath = path.join(iosDir, xcodeprojDir, 'project.pbxproj');
+      }
+    } catch (_) {
+      // iosDir not readable — fall through to throw below
+    }
+
+    if (pbxprojPath && fs.existsSync(pbxprojPath)) {
+      const pbxContent = fs.readFileSync(pbxprojPath, 'utf8');
+      // Within a PBXNativeTarget block the fields appear in this order:
+      //   name = TargetName;
+      //   productName = TargetName;
+      //   productReference = <hash> /* TargetName.app */;
+      //   productType = "com.apple.product-type.application";
+      // The `s` (dotAll) flag lets the pattern span newlines.
+      const match = pbxContent.match(
+        /name\s*=\s*([^\s;]+)\s*;\s*productName\s*=\s*[^;]+;\s*productReference\s*=\s*[^;]+;\s*productType\s*=\s*"com\.apple\.product-type\.application"/s
+      );
+      if (match) {
+        return match[1].trim();
+      }
+    }
+  }
+
+  throw new Error(
+    '[withCheckInLiveActivity] Cannot determine the iOS app target name.\n' +
+      '  • config.modRequest.projectName is not set\n' +
+      '  • No PBXNativeTarget with productType=com.apple.product-type.application\n' +
+      '    was found in ios/*.xcodeproj/project.pbxproj\n' +
+      'Ensure the iOS project has been initialised via `npx expo prebuild` before\n' +
+      'running this plugin, or set the `name` field in your app.config.'
+  );
+}
+
+/**
  * CheckInTimerAttributes.swift — ActivityKit attributes for the check-in timer Live Activity
  */
 const ATTRIBUTES_SWIFT = `import ActivityKit
@@ -201,6 +263,41 @@ RCT_EXTERN_METHOD(endActivity:(RCTPromiseResolveBlock)resolve
 @end
 `;
 
+/**
+ * Info.plist for the CheckInTimerWidget extension target.
+ * Required by Xcode; bundle metadata is resolved at build time via build settings.
+ */
+const WIDGET_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>$(DEVELOPMENT_LANGUAGE)</string>
+  <key>CFBundleDisplayName</key>
+  <string>CheckInTimerWidget</string>
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+  <key>CFBundleIdentifier</key>
+  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>$(PRODUCT_NAME)</string>
+  <key>CFBundlePackageType</key>
+  <string>XPC!</string>
+  <key>CFBundleShortVersionString</key>
+  <string>$(MARKETING_VERSION)</string>
+  <key>CFBundleVersion</key>
+  <string>$(CURRENT_PROJECT_VERSION)</string>
+  <key>NSExtension</key>
+  <dict>
+    <key>NSExtensionPointIdentifier</key>
+    <string>com.apple.widgetkit-extension</string>
+  </dict>
+</dict>
+</plist>
+`;
+
 const withCheckInLiveActivity = (config) => {
   // Step 1: Add NSSupportsLiveActivities to Info.plist
   config = withInfoPlist(config, (config) => {
@@ -229,9 +326,12 @@ const withCheckInLiveActivity = (config) => {
       fs.writeFileSync(path.join(widgetDir, 'CheckInTimerAttributes.swift'), ATTRIBUTES_SWIFT);
       fs.writeFileSync(path.join(widgetDir, 'CheckInTimerLiveActivity.swift'), LIVE_ACTIVITY_SWIFT);
       fs.writeFileSync(path.join(widgetDir, 'CheckInTimerWidgetBundle.swift'), WIDGET_BUNDLE_SWIFT);
+      fs.writeFileSync(path.join(widgetDir, 'Info.plist'), WIDGET_INFO_PLIST);
 
-      // Write native bridge files to the main app directory
-      const appName = config.modRequest.projectName || 'ResgridUnit';
+      // Write native bridge files to the main app directory.
+      // resolveIosAppName throws explicitly if the target cannot be determined,
+      // preventing files from being written to a wrong/hardcoded path.
+      const appName = resolveIosAppName(config, projectRoot);
       const appDir = path.join(projectRoot, 'ios', appName);
       if (!fs.existsSync(appDir)) {
         fs.mkdirSync(appDir, { recursive: true });
@@ -244,15 +344,100 @@ const withCheckInLiveActivity = (config) => {
     },
   ]);
 
-  // Step 4: Add Widget Extension target to Xcode project
+  // Step 4: Add Widget Extension target to Xcode project and wire all required
+  // build phases, source files, and frameworks so Live Activities actually build.
   config = withXcodeProject(config, (config) => {
     const project = config.modResults;
+    const projectRoot = config.modRequest.projectRoot;
+    const appBundleId = config.ios?.bundleIdentifier;
 
-    // Add Widget Extension target with ActivityKit framework
-    // Note: This is a simplified version. Full widget extension target creation
-    // may require additional PBX configuration depending on the Xcode project structure.
-    // The withDangerousMod above creates the files; the Xcode target may need
-    // manual setup or a more complete config plugin for production builds.
+    if (!appBundleId) {
+      throw new Error(
+        '[withCheckInLiveActivity] config.ios.bundleIdentifier is required ' +
+          'to derive the widget extension bundle identifier.'
+      );
+    }
+
+    const WIDGET_NAME = 'CheckInTimerWidget';
+    const widgetBundleId = `${appBundleId}.${WIDGET_NAME}`;
+
+    // Idempotent: skip if the target was already added in a previous prebuild run.
+    // addTarget stores names with surrounding quotes in the comment key, so check both forms.
+    if (project.pbxTargetByName(WIDGET_NAME) || project.pbxTargetByName(`"${WIDGET_NAME}"`)) {
+      return config;
+    }
+
+    // 1. Create the PBXNativeTarget.
+    //    addTarget('app_extension') also:
+    //      - adds an "Embed App Extensions" CopyFiles phase to the main target
+    //      - adds a PBXTargetDependency from main app → widget
+    //      - creates Debug/Release XCBuildConfigurations with basic defaults
+    const widgetTarget = project.addTarget(WIDGET_NAME, 'app_extension', WIDGET_NAME, widgetBundleId);
+
+    // 2. Add the three build phases the widget target needs.
+    //    These must be added before files/frameworks are wired, because the
+    //    addSourceFile / addFramework helpers find phases by scanning the
+    //    target's buildPhases array.
+    project.addBuildPhase([], 'PBXSourcesBuildPhase', 'Sources', widgetTarget.uuid);
+    project.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', widgetTarget.uuid);
+    project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', widgetTarget.uuid);
+
+    // 3. Create a PBX group for the widget folder and attach it to the project's
+    //    main group so the files appear in the Xcode file navigator.
+    const { uuid: widgetGroupUuid } = project.addPbxGroup([], WIDGET_NAME, WIDGET_NAME);
+    const { firstProject } = project.getFirstProject();
+    const mainGroup = project.getPBXGroupByKey(firstProject.mainGroup);
+    if (mainGroup && !mainGroup.children.find((c) => c.comment === WIDGET_NAME)) {
+      mainGroup.children.push({ value: widgetGroupUuid, comment: WIDGET_NAME });
+    }
+
+    // 4. Add Swift source files to the widget group and to the widget's Sources phase.
+    //    Passing the group key as the third argument to addSourceFile ensures the
+    //    file reference lands in the right PBX group; opt.target routes the build
+    //    file to the widget's PBXSourcesBuildPhase rather than the main app's.
+    const SWIFT_SOURCES = [
+      'CheckInTimerAttributes.swift',
+      'CheckInTimerLiveActivity.swift',
+      'CheckInTimerWidgetBundle.swift',
+    ];
+    for (const filename of SWIFT_SOURCES) {
+      project.addSourceFile(
+        `${WIDGET_NAME}/${filename}`,
+        { target: widgetTarget.uuid },
+        widgetGroupUuid
+      );
+    }
+
+    // 5. Link WidgetKit and ActivityKit into the widget's Frameworks phase.
+    //    opt.target directs addToPbxFrameworksBuildPhase to use the widget's
+    //    PBXFrameworksBuildPhase (added above) instead of the main app's.
+    project.addFramework('WidgetKit.framework', { target: widgetTarget.uuid });
+    project.addFramework('ActivityKit.framework', { target: widgetTarget.uuid });
+
+    // 6. Patch build settings on both Debug and Release configurations so the
+    //    widget compiles as a Swift 5 app-extension targeting iOS 16.1+.
+    const targetSection = project.pbxNativeTargetSection();
+    const buildConfigListId = targetSection[widgetTarget.uuid].buildConfigurationList;
+    const buildConfigList = project.pbxXCConfigurationList()[buildConfigListId];
+    if (buildConfigList) {
+      for (const { value: configUuid } of buildConfigList.buildConfigurations) {
+        const buildConfig = project.pbxXCBuildConfigurationSection()[configUuid];
+        if (buildConfig) {
+          Object.assign(buildConfig.buildSettings, {
+            // Override the default addTarget placeholder (TargetName-Info.plist)
+            INFOPLIST_FILE: `"${WIDGET_NAME}/Info.plist"`,
+            SWIFT_VERSION: '"5.0"',
+            TARGETED_DEVICE_FAMILY: '"1,2"',
+            // ActivityKit requires iOS 16.1 or later
+            IPHONEOS_DEPLOYMENT_TARGET: '16.1',
+            SKIP_INSTALL: 'YES',
+            CODE_SIGN_STYLE: 'Automatic',
+            MARKETING_VERSION: '"1.0"',
+            CURRENT_PROJECT_VERSION: '1',
+          });
+        }
+      }
+    }
 
     return config;
   });

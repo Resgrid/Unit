@@ -17,6 +17,7 @@ interface CallsState {
   poiTypes: PoiTypeResultData[];
   isLoading: boolean;
   isInitialized: boolean;
+  isCallFormDataLoaded: boolean;
   error: string | null;
   lastFetchedAt: number;
   fetchCalls: () => Promise<void>;
@@ -34,6 +35,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   poiTypes: [],
   isLoading: false,
   isInitialized: false,
+  isCallFormDataLoaded: false,
   error: null,
   lastFetchedAt: 0,
   init: async () => {
@@ -88,8 +90,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     }
   },
   fetchCallFormData: async () => {
-    const { callPriorities, callTypes, destinationPois, poiTypes } = get();
-    if (callPriorities.length > 0 && callTypes.length > 0 && destinationPois.length > 0 && poiTypes.length > 0) {
+    if (get().isCallFormDataLoaded) {
       return;
     }
 
@@ -102,6 +103,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
         callTypes: Array.isArray(data?.CallTypes) ? data.CallTypes : [],
         destinationPois: Array.isArray(data?.DestinationPois) ? data.DestinationPois : [],
         poiTypes: Array.isArray(data?.PoiTypes) ? data.PoiTypes : [],
+        isCallFormDataLoaded: true,
         isLoading: false,
       });
     } catch (error) {

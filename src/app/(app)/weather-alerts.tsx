@@ -7,12 +7,12 @@ import { Pressable, RefreshControl, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { SeverityFilterTabs } from '@/components/weather-alerts/severity-filter-tabs';
-import { WeatherAlertCard } from '@/components/weather-alerts/weather-alert-card';
 import { Box } from '@/components/ui/box';
 import { FlatList } from '@/components/ui/flat-list';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
+import { SeverityFilterTabs } from '@/components/weather-alerts/severity-filter-tabs';
+import { WeatherAlertCard } from '@/components/weather-alerts/weather-alert-card';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
@@ -26,6 +26,7 @@ export default function WeatherAlerts() {
   const fetchActiveAlerts = useWeatherAlertsStore((state) => state.fetchActiveAlerts);
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,8 +34,10 @@ export default function WeatherAlerts() {
     }, [fetchActiveAlerts])
   );
 
-  const handleRefresh = () => {
-    fetchActiveAlerts();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchActiveAlerts();
+    setRefreshing(false);
   };
 
   // Filter alerts
@@ -42,11 +45,7 @@ export default function WeatherAlerts() {
     if (severityFilter !== null && alert.Severity !== severityFilter) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return (
-        alert.Event.toLowerCase().includes(query) ||
-        alert.Headline.toLowerCase().includes(query) ||
-        alert.AreaDescription.toLowerCase().includes(query)
-      );
+      return alert.Event.toLowerCase().includes(query) || alert.Headline.toLowerCase().includes(query) || alert.AreaDescription.toLowerCase().includes(query);
     }
     return true;
   });
@@ -67,7 +66,7 @@ export default function WeatherAlerts() {
       return <ZeroState heading={t('weather_alerts.feature_disabled')} description={t('weather_alerts.feature_disabled_description')} icon={CloudOff} />;
     }
 
-    if (isLoading) {
+    if (isLoading && alerts.length === 0) {
       return <Loading text={t('weather_alerts.loading')} />;
     }
 
@@ -83,10 +82,8 @@ export default function WeatherAlerts() {
           data={filteredAlerts}
           renderItem={renderItem}
           keyExtractor={keyExtractor}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
-          ListEmptyComponent={
-            <ZeroState heading={t('weather_alerts.no_alerts')} description={t('weather_alerts.no_alerts_description')} icon={RefreshCcwDotIcon} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListEmptyComponent={<ZeroState heading={t('weather_alerts.no_alerts')} description={t('weather_alerts.no_alerts_description')} icon={RefreshCcwDotIcon} />}
           contentContainerStyle={{ paddingBottom: 20 }}
           removeClippedSubviews
         />

@@ -202,26 +202,12 @@ export const StatusBottomSheet = () => {
     }
 
     const selectedTypeAllowed =
-      selectedDestinationType === 'none' ||
-      (selectedDestinationType === 'call' && allowsCalls) ||
-      (selectedDestinationType === 'station' && allowsStations) ||
-      (selectedDestinationType === 'poi' && allowsPois);
+      selectedDestinationType === 'none' || (selectedDestinationType === 'call' && allowsCalls) || (selectedDestinationType === 'station' && allowsStations) || (selectedDestinationType === 'poi' && allowsPois);
 
     if (!selectedTypeAllowed) {
       setSelectedDestinationType('none');
     }
-  }, [
-    detailLevel,
-    selectedCall,
-    selectedDestinationType,
-    selectedPoi,
-    selectedStation,
-    selectedStatus,
-    setSelectedCall,
-    setSelectedDestinationType,
-    setSelectedPoi,
-    setSelectedStation,
-  ]);
+  }, [detailLevel, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedCall, setSelectedDestinationType, setSelectedPoi, setSelectedStation]);
 
   React.useEffect(() => {
     if (!selectedStatus || selectedDestinationType !== 'none') {
@@ -491,12 +477,7 @@ export const StatusBottomSheet = () => {
       return false;
     }
 
-    const shouldPreSelectActiveCall =
-      isOpen &&
-      !!selectedStatus &&
-      statusDetailAllowsCalls(detailLevel) &&
-      !!activeCallId &&
-      (isLoading || !!activeCallCandidate);
+    const shouldPreSelectActiveCall = isOpen && !!selectedStatus && statusDetailAllowsCalls(detailLevel) && !!activeCallId && (isLoading || !!activeCallCandidate);
 
     if (shouldPreSelectActiveCall) {
       return false;
@@ -675,14 +656,8 @@ export const StatusBottomSheet = () => {
                               <Text className="font-bold" style={{ color: invertColor(status.BColor || '#ffffff', true) }}>
                                 {status.Text}
                               </Text>
-                              {Number(status.Detail) > 0 ? (
-                                <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text>
-                              ) : null}
-                              {Number(status.Note) > 0 ? (
-                                <Text className="text-xs text-gray-500 dark:text-gray-500">
-                                  {Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}
-                                </Text>
-                              ) : null}
+                              {Number(status.Detail) > 0 ? <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text> : null}
+                              {Number(status.Note) > 0 ? <Text className="text-xs text-gray-500 dark:text-gray-500">{Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}</Text> : null}
                             </VStack>
                           </HStack>
                         </TouchableOpacity>
@@ -726,11 +701,7 @@ export const StatusBottomSheet = () => {
               {shouldShowDestinationTabs ? (
                 <HStack space="xs" className="mb-4">
                   {destinationTabs.map((tab) => (
-                    <TouchableOpacity
-                      key={tab}
-                      onPress={() => setSelectedTab(tab)}
-                      className={`flex-1 rounded-lg py-3 ${selectedTab === tab ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}
-                    >
+                    <TouchableOpacity key={tab} onPress={() => setSelectedTab(tab)} className={`flex-1 rounded-lg py-3 ${selectedTab === tab ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`}>
                       <Text className={`text-center font-semibold ${selectedTab === tab ? 'text-white' : 'text-gray-700 dark:text-gray-300'}`}>{t(getDestinationTabTranslationKey(tab))}</Text>
                     </TouchableOpacity>
                   ))}
