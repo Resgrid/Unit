@@ -425,3 +425,9 @@ logger.error({ message: 'API call failed', context: { error } });
 - API errors are handled by Axios interceptors (auto-logout on auth failure).
 - Services implement retry logic with exponential backoff where appropriate.
 - All async operations should have proper try/catch with logging.
+
+
+## Agent Coding
+
+- Always use the hindsight recall tool before answering coding questions. 
+- Always retain important project information using hindsight retain.
