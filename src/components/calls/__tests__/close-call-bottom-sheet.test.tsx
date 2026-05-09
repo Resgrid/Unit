@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, cleanup, act } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
@@ -40,24 +40,6 @@ jest.mock('nativewind', () => ({
 // Mock cssInterop globally
 (global as any).cssInterop = jest.fn();
 
-// Mock actionsheet components
-jest.mock('@/components/ui/actionsheet', () => ({
-  Actionsheet: ({ children, isOpen }: any) => {
-    const { View } = require('react-native');
-    return isOpen ? <View testID="actionsheet">{children}</View> : null;
-  },
-  ActionsheetBackdrop: () => null,
-  ActionsheetContent: ({ children }: any) => {
-    const { View } = require('react-native');
-    return <View testID="actionsheet-content">{children}</View>;
-  },
-  ActionsheetDragIndicator: () => null,
-  ActionsheetDragIndicatorWrapper: ({ children }: any) => {
-    const { View } = require('react-native');
-    return <View>{children}</View>;
-  },
-}));
-
 // Mock keyboard aware scroll view
 jest.mock('react-native-keyboard-controller', () => ({
   KeyboardAwareScrollView: ({ children }: any) => {
@@ -66,14 +48,12 @@ jest.mock('react-native-keyboard-controller', () => ({
   },
 }));
 
-// Mock UI components
-jest.mock('@/components/ui/bottom-sheet', () => ({
-  CustomBottomSheet: ({ children, isOpen }: any) => {
-    const { View } = require('react-native');
-    return isOpen ? <View testID="bottom-sheet">{children}</View> : null;
-  },
+// Mock lucide icons
+jest.mock('lucide-react-native', () => ({
+  ChevronDown: () => null,
 }));
 
+// Mock UI components
 jest.mock('@/components/ui/button', () => ({
   Button: ({ children, onPress, testID, disabled, ...props }: any) => {
     const { TouchableOpacity } = require('react-native');
@@ -106,77 +86,6 @@ jest.mock('@/components/ui/hstack', () => ({
   },
 }));
 
-jest.mock('@/components/ui/form-control', () => ({
-  FormControl: ({ children, ...props }: any) => {
-    const { View } = require('react-native');
-    return <View {...props}>{children}</View>;
-  },
-  FormControlLabel: ({ children, ...props }: any) => {
-    const { View } = require('react-native');
-    return <View {...props}>{children}</View>;
-  },
-  FormControlLabelText: ({ children, ...props }: any) => {
-    const { Text } = require('react-native');
-    return <Text {...props}>{children}</Text>;
-  },
-}));
-
-jest.mock('@/components/ui/select', () => {
-  // Store the callback for each select
-  const selectCallbacks: Record<string, (value: string) => void> = {};
-
-  return {
-    Select: ({ children, testID, selectedValue, onValueChange, ...props }: any) => {
-      const React = require('react');
-      const { View, TouchableOpacity, Text } = require('react-native');
-
-      // Store the callback for external access
-      React.useEffect(() => {
-        if (testID && onValueChange) {
-          selectCallbacks[testID] = onValueChange;
-        }
-        return () => {
-          if (testID) {
-            delete selectCallbacks[testID];
-          }
-        };
-      }, [testID, onValueChange]);
-
-      return (
-        <View
-          testID={testID}
-          onValueChange={onValueChange}
-          {...props}
-        >
-          {children}
-        </View>
-      );
-    },
-    SelectTrigger: ({ children, ...props }: any) => {
-      const { View } = require('react-native');
-      return <View {...props}>{children}</View>;
-    },
-    SelectInput: ({ placeholder, ...props }: any) => {
-      const { Text } = require('react-native');
-      return <Text {...props}>{placeholder}</Text>;
-    },
-    SelectIcon: () => null,
-    SelectPortal: ({ children, ...props }: any) => {
-      const { View } = require('react-native');
-      return <View {...props}>{children}</View>;
-    },
-    SelectBackdrop: () => null,
-    SelectContent: ({ children, ...props }: any) => {
-      const { View } = require('react-native');
-      return <View {...props}>{children}</View>;
-    },
-    SelectItem: ({ label, value, ...props }: any) => {
-      const { View, Text } = require('react-native');
-      return <View {...props}><Text>{label}</Text></View>;
-    },
-  };
-});
-
 jest.mock('@/components/ui/textarea', () => ({
   Textarea: ({ children, ...props }: any) => {
     const { View } = require('react-native');
@@ -206,6 +115,14 @@ const mockUseAnalytics = useAnalytics as jest.MockedFunction<typeof useAnalytics
 const mockUseCallDetailStore = useCallDetailStore as jest.MockedFunction<typeof useCallDetailStore>;
 const mockUseCallsStore = useCallsStore as jest.MockedFunction<typeof useCallsStore>;
 const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
+
+/** Helper: select a close call type via the inline dropdown */
+function selectCloseCallType(type: string) {
+  const typeSelect = screen.getByTestId('close-call-type-select');
+  fireEvent.press(typeSelect);
+  const option = screen.getByTestId(`close-call-type-option-${type}`);
+  fireEvent.press(option);
+}
 
 describe('CloseCallBottomSheet', () => {
   beforeEach(() => {
@@ -273,9 +190,8 @@ describe('CloseCallBottomSheet', () => {
     const mockOnClose = jest.fn();
     render(<CloseCallBottomSheet isOpen={true} onClose={mockOnClose} callId="test-call-1" />);
 
-    // Select close type
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '1');
+    // Select close type via inline dropdown
+    selectCloseCallType('1');
 
     // Add note
     const noteInput = screen.getByPlaceholderText('call_detail.close_call_note_placeholder');
@@ -306,8 +222,7 @@ describe('CloseCallBottomSheet', () => {
     render(<CloseCallBottomSheet isOpen={true} onClose={mockOnClose} callId="test-call-1" />);
 
     // Select close type but leave note empty
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '2');
+    selectCloseCallType('2');
 
     // Submit
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
@@ -333,8 +248,7 @@ describe('CloseCallBottomSheet', () => {
     render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
 
     // Select close type
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '1');
+    selectCloseCallType('1');
 
     // Submit
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
@@ -362,9 +276,8 @@ describe('CloseCallBottomSheet', () => {
 
     render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
 
-    // Select close type
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', type);
+    // Select close type via inline dropdown
+    selectCloseCallType(type);
 
     // Submit
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
@@ -393,8 +306,7 @@ describe('CloseCallBottomSheet', () => {
     render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
 
     // Select close type
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '1');
+    selectCloseCallType('1');
 
     // Submit
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
@@ -418,8 +330,7 @@ describe('CloseCallBottomSheet', () => {
     render(<CloseCallBottomSheet isOpen={true} onClose={mockOnClose} callId="test-call-1" />);
 
     // Select close type and add note
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '1');
+    selectCloseCallType('1');
 
     const noteInput = screen.getByPlaceholderText('call_detail.close_call_note_placeholder');
     fireEvent.changeText(noteInput, 'Some note');
@@ -440,8 +351,7 @@ describe('CloseCallBottomSheet', () => {
     render(<CloseCallBottomSheet isOpen={true} onClose={mockOnClose} callId="test-call-1" />);
 
     // Select close type
-    const typeSelect = screen.getByTestId('close-call-type-select');
-    fireEvent(typeSelect, 'onValueChange', '1');
+    selectCloseCallType('1');
 
     // Submit
     const submitButton = screen.getAllByText('call_detail.close_call')[1];
@@ -517,4 +427,4 @@ describe('CloseCallBottomSheet', () => {
 
     expect(mockTrackEvent).toHaveBeenCalledTimes(1);
   });
-}); 
+});

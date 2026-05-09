@@ -85,7 +85,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   const getTabStyles = (index: number) => {
     const isActive = index === currentIndex;
 
-    const baseStyles = 'flex flex-row items-center justify-center';
+    const baseStyles = 'flex flex-row items-center justify-center relative';
     const sizeStyles = {
       sm: isLandscape ? 'px-3 py-1.5 text-xs' : 'px-2 py-1 text-2xs',
       md: isLandscape ? 'px-4 py-2 text-sm' : 'px-3 py-1.5 text-xs',
@@ -113,7 +113,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       segmented: colorScheme === 'dark' ? 'bg-gray-800 p-1 rounded-lg' : 'bg-gray-100 p-1 rounded-lg',
     }[variant];
 
-    return `${baseStyles} ${variantStyles} ${tabsContainerClassName}`;
+    return `${baseStyles} ${variantStyles} overflow-visible ${tabsContainerClassName}`;
   };
 
   // Convert Tailwind classes to style object
@@ -125,31 +125,35 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       container: {
         flexDirection: 'row',
         flexGrow: 1,
+        paddingTop: 8,
+        overflow: 'visible' as any,
         ...(variant === 'default' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
-        ...(variant === 'pills' && { gap: 8, padding: 4 }),
+        ...(variant === 'pills' && { gap: 8, padding: 4, paddingTop: 12 }),
         ...(variant === 'underlined' && { borderBottomWidth: 1, borderBottomColor: borderColor }),
-        ...(variant === 'segmented' && { backgroundColor, padding: 4, borderRadius: 8 }),
+        ...(variant === 'segmented' && { backgroundColor, padding: 4, paddingTop: 12, borderRadius: 8 }),
       },
     });
     return styles.container;
   };
 
   return (
-    <Box className={className}>
+    <Box className={`w-full overflow-visible ${className}`}>
       {/* Tab Headers */}
       {scrollable ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={getContainerStyle()}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ width: '100%' }} contentContainerStyle={getContainerStyle()}>
           {tabs.map((tab, index) => (
-            <Pressable key={tab.key} className={getTabStyles(index)} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? (
-                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{t(tab.title)}</Text>
-              ) : (
-                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{tab.title}</Text>
-              )}
+            <Pressable key={tab.key} className={`${getTabStyles(index)} relative`} style={{ flexGrow: 1 }} onPress={() => handleTabPress(index)}>
+              <Box className="flex-row items-center justify-center">
+                {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
+                {typeof tab.title === 'string' ? (
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{t(tab.title)}</Text>
+                ) : (
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{tab.title}</Text>
+                )}
+              </Box>
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
-                  <Text className="text-xs font-bold text-white">{tab.badge}</Text>
+                <Box className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1" style={{ minHeight: 18, zIndex: 1 }}>
+                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>{tab.badge}</Text>
                 </Box>
               )}
             </Pressable>
@@ -158,16 +162,18 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       ) : (
         <Box className={getContainerStyles()}>
           {tabs.map((tab, index) => (
-            <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)}`} onPress={() => handleTabPress(index)}>
-              {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
-              {typeof tab.title === 'string' ? (
-                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{t(tab.title)}</Text>
-              ) : (
-                <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`}>{tab.title}</Text>
-              )}
+            <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)} relative`} onPress={() => handleTabPress(index)}>
+              <Box className="flex-row items-center justify-center">
+                {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
+                {typeof tab.title === 'string' ? (
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{t(tab.title)}</Text>
+                ) : (
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{tab.title}</Text>
+                )}
+              </Box>
               {tab.badge !== undefined && tab.badge > 0 && (
-                <Box className={`${isLandscape ? 'ml-1.5' : 'ml-1'} min-w-[20px] items-center rounded-full bg-red-500 px-1.5 py-0.5`}>
-                  <Text className="text-xs font-bold text-white">{tab.badge}</Text>
+                <Box className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1" style={{ minHeight: 18, zIndex: 1 }}>
+                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>{tab.badge}</Text>
                 </Box>
               )}
             </Pressable>
@@ -176,7 +182,7 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
       )}
 
       {/* Tab Content */}
-      <Box className={`flex-1 ${contentClassName}`}>{tabs[currentIndex]?.content}</Box>
+      <Box className={`w-full flex-1 pt-2 ${contentClassName}`}>{tabs[currentIndex]?.content}</Box>
     </Box>
   );
 };

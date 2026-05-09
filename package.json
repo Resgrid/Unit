@@ -88,7 +88,7 @@
     "@gluestack-ui/textarea": "~0.1.23",
     "@gluestack-ui/toast": "~1.0.8",
     "@gluestack-ui/tooltip": "~0.1.32",
-    "@gorhom/bottom-sheet": "~5.0.5",
+    "@gorhom/bottom-sheet": "~5.2.13",
     "@hookform/resolvers": "~3.9.0",
     "@legendapp/motion": "~2.4.0",
     "@livekit/react-native": "^2.9.1",
@@ -102,7 +102,7 @@
     "@react-native-firebase/messaging": "^23.5.0",
     "@rnmapbox/maps": "10.2.10",
     "@semantic-release/git": "^10.0.1",
-    "@sentry/react-native": "~7.2.0",
+    "@sentry/react-native": "^8.10.0",
     "@shopify/flash-list": "2.0.2",
     "@tanstack/react-query": "~5.52.1",
     "app-icon-badge": "^0.1.2",
@@ -110,7 +110,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "babel-plugin-transform-import-meta": "^2.3.3",
     "buffer": "^6.0.3",
-    "countly-sdk-react-native-bridge": "25.4.1",
+    "countly-sdk-react-native-bridge": "26.1.0",
     "date-fns": "^4.1.0",
     "expo": "^54.0.33",
     "expo-application": "~7.0.8",
@@ -267,7 +267,7 @@
     "initVersion": "7.0.4"
   },
   "resolutions": {
-    "@expo/metro-config": "~0.20.18",
+    "@expo/metro-config": "~54.0.14",
     "form-data": "4.0.4",
     "promise": "8.3.0"
   }

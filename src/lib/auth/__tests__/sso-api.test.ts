@@ -6,7 +6,13 @@ var mockPost: jest.Mock = jest.fn();
 
 jest.mock('axios', () => ({
   // Wrap in an arrow so that the binding is resolved at call-time, not factory-time.
-  create: jest.fn(() => ({ post: (...args: unknown[]) => mockPost(...args) })),
+  create: jest.fn(() => ({
+    post: (...args: unknown[]) => mockPost(...args),
+    interceptors: {
+      request: { use: jest.fn(), eject: jest.fn(), clear: jest.fn() },
+      response: { use: jest.fn(), eject: jest.fn(), clear: jest.fn() },
+    },
+  })),
   isAxiosError: jest.fn(),
 }));
 

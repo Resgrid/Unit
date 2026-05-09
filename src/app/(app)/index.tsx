@@ -96,6 +96,27 @@ function MapContent() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
 
+  // Stable initial camera settings so the native Camera renders at the
+  // correct position from the very first frame (fixes Android/iOS centering).
+  const initialCameraSettings = useMemo(() => {
+    if (locationLatitude != null && locationLongitude != null) {
+      return {
+        centerCoordinate: [locationLongitude, locationLatitude] as [number, number],
+        zoomLevel: isMapLocked ? 16 : 12,
+        heading: 0,
+        pitch: 0,
+      };
+    }
+
+    // Fallback: default US center when location hasn't arrived yet
+    return {
+      centerCoordinate: [-98.5795, 39.8283] as [number, number],
+      zoomLevel: 4,
+      heading: 0,
+      pitch: 0,
+    };
+  }, [locationLatitude, locationLongitude, isMapLocked]);
+
   // Fetch active route overlay data
   useEffect(() => {
     if (activeUnitId) {
@@ -491,6 +512,7 @@ function MapContent() {
         >
           <Mapbox.Camera
             ref={cameraRef}
+            defaultSettings={initialCameraSettings}
             followZoomLevel={isMapLocked ? 16 : 12}
             followUserLocation={isMapLocked}
             followUserMode={isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}

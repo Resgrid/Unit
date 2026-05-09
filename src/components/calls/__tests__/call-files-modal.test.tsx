@@ -325,9 +325,10 @@ describe('CallFilesModal', () => {
   });
 
   it('renders correctly when closed', () => {
-    const { getByTestId } = render(<CallFilesModal {...defaultProps} />);
+    const { queryByTestId, getByTestId } = render(<CallFilesModal {...defaultProps} />);
 
-    expect(getByTestId('bottom-sheet')).toBeTruthy();
+    // BottomSheet is not mounted when closed (prevents rotation bugs)
+    expect(queryByTestId('bottom-sheet')).toBeNull();
     expect(getByTestId('focus-aware-status-bar')).toBeTruthy();
   });
 

@@ -1,15 +1,13 @@
 import { router } from 'expo-router';
-import { Navigation, PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
+import { MapPin, Navigation, Route, Search, X } from 'lucide-react-native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, RefreshControl } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
-import ZeroState from '@/components/common/zero-state';
 import { RouteCard } from '@/components/routes/route-card';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
-import { Fab, FabIcon } from '@/components/ui/fab';
 import { FlatList } from '@/components/ui/flat-list';
 import { HStack } from '@/components/ui/hstack';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
@@ -52,6 +50,34 @@ export const ActiveRoutesList: React.FC = () => {
     }
   };
 
+  const activeRouteBanner = activeInstance ? (
+    <Pressable
+      onPress={() => {
+        const routeInstanceId = activeInstance.RouteInstanceId;
+        const activeRouteUrl =
+          routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${activeInstance.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${activeInstance.RoutePlanId}`;
+        router.push(activeRouteUrl as any);
+      }}
+    >
+      <Box className="mb-3 rounded-xl border-2 border-green-500 bg-green-50 p-4 dark:bg-green-900/20">
+        <HStack className="items-center justify-between">
+          <HStack className="items-center space-x-2">
+            <Navigation size={20} color="#22c55e" />
+            <Text className="text-base font-bold text-green-800 dark:text-green-200">{activeInstance.RoutePlanName || t('routes.active_route')}</Text>
+          </HStack>
+          <Badge className="bg-green-500">
+            <BadgeText className="text-white">{t('routes.active')}</BadgeText>
+          </Badge>
+        </HStack>
+        <Text className="mt-1 text-sm text-green-700 dark:text-green-300">
+          {t('routes.progress', {
+            percent: activeInstance.StopsTotal ? Math.round(((activeInstance.StopsCompleted ?? 0) / activeInstance.StopsTotal) * 100) : 0,
+          })}
+        </Text>
+      </Box>
+    </Pressable>
+  ) : null;
+
   const handleRoutePress = (route: RoutePlanResultData) => {
     if (activeInstance && activeInstance.RoutePlanId === route.RoutePlanId) {
       const routeInstanceId = activeInstance.RouteInstanceId;
@@ -82,7 +108,15 @@ export const ActiveRoutesList: React.FC = () => {
   }
 
   if (error) {
-    return <ZeroState heading={t('common.errorOccurred')} description={error} isError={true} />;
+    return (
+      <Box className="flex-1 items-center justify-center px-8">
+        <View className="mb-5 items-center justify-center rounded-full bg-red-100 p-5 dark:bg-red-900/30">
+          <MapPin size={40} color="#ef4444" />
+        </View>
+        <Text className="mb-1.5 text-center text-xl font-bold text-gray-900 dark:text-white">{t('common.errorOccurred')}</Text>
+        <Text className="text-center text-base leading-5 text-gray-500 dark:text-gray-400">{error}</Text>
+      </Box>
+    );
   }
 
   return (
@@ -99,58 +133,89 @@ export const ActiveRoutesList: React.FC = () => {
         ) : null}
       </Input>
 
-      <Box className="flex-1">
-        <FlatList<RoutePlanResultData>
-          testID="routes-list"
-          data={filteredRoutes}
-          ListHeaderComponent={
-            activeInstance ? (
-              <Pressable
-                onPress={() => {
-                  const routeInstanceId = activeInstance.RouteInstanceId;
-                  const activeRouteUrl =
-                    routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${activeInstance.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${activeInstance.RoutePlanId}`;
-                  router.push(activeRouteUrl as any);
-                }}
-              >
-                <Box className="mb-3 rounded-xl border-2 border-green-500 bg-green-50 p-4 dark:bg-green-900/20">
-                  <HStack className="items-center justify-between">
-                    <HStack className="items-center space-x-2">
-                      <Navigation size={20} color="#22c55e" />
-                      <Text className="text-base font-bold text-green-800 dark:text-green-200">{activeInstance.RoutePlanName || t('routes.active_route')}</Text>
-                    </HStack>
-                    <Badge className="bg-green-500">
-                      <BadgeText className="text-white">{t('routes.active')}</BadgeText>
-                    </Badge>
-                  </HStack>
-                  <Text className="mt-1 text-sm text-green-700 dark:text-green-300">
-                    {t('routes.progress', {
-                      percent: activeInstance.StopsTotal ? Math.round(((activeInstance.StopsCompleted ?? 0) / activeInstance.StopsTotal) * 100) : 0,
-                    })}
-                  </Text>
+      {filteredRoutes.length > 0 || activeInstance ? (
+        <Box className="flex-1">
+          <FlatList<RoutePlanResultData>
+            testID="routes-list"
+            data={filteredRoutes}
+            ListHeaderComponent={activeRouteBanner}
+            renderItem={({ item }) => {
+              const isMyUnit = item.UnitId != null && String(item.UnitId) === String(activeUnitId);
+              const unitName = item.UnitId != null ? unitMap[item.UnitId] || (isMyUnit ? (activeUnit?.Name ?? '') : '') : '';
+              return (
+                <Pressable onPress={() => handleRoutePress(item)}>
+                  <RouteCard route={item} isActive={!!activeInstance && activeInstance.RoutePlanId === item.RoutePlanId} unitName={unitName || undefined} isMyUnit={isMyUnit} />
+                </Pressable>
+              );
+            }}
+            keyExtractor={(item) => item.RoutePlanId}
+            refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
+            ListEmptyComponent={
+              searchQuery ? (
+                <Box className="flex-1 items-center justify-center px-8 py-12">
+                  <View className="mb-6 items-center justify-center">
+                    <View className="absolute size-32 rounded-full bg-orange-50 dark:bg-orange-900/20" />
+                    <View className="absolute size-20 rounded-full bg-orange-100 dark:bg-orange-900/30" />
+                    <View className="size-14 items-center justify-center rounded-full bg-orange-500 shadow-lg shadow-orange-500/30">
+                      <Search size={28} color="#ffffff" />
+                    </View>
+                  </View>
+                  <Text className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">{t('routes.no_search_results', 'No routes found')}</Text>
+                  <Text className="max-w-[280] text-center text-base leading-5 text-gray-500 dark:text-gray-400">{t('routes.try_different_search', 'Try a different search term')}</Text>
                 </Box>
-              </Pressable>
-            ) : null
-          }
-          renderItem={({ item }) => {
-            const isMyUnit = item.UnitId != null && String(item.UnitId) === String(activeUnitId);
-            const unitName = item.UnitId != null ? unitMap[item.UnitId] || (isMyUnit ? (activeUnit?.Name ?? '') : '') : '';
-            return (
-              <Pressable onPress={() => handleRoutePress(item)}>
-                <RouteCard route={item} isActive={!!activeInstance && activeInstance.RoutePlanId === item.RoutePlanId} unitName={unitName || undefined} isMyUnit={isMyUnit} />
-              </Pressable>
-            );
-          }}
-          keyExtractor={(item) => item.RoutePlanId}
+              ) : (
+                <Box className="flex-1 items-center justify-center px-8 py-12">
+                  <View className="mb-6 items-center justify-center">
+                    <View className="absolute size-32 rounded-full bg-indigo-50 dark:bg-indigo-900/20" />
+                    <View className="absolute size-20 rounded-full bg-indigo-100 dark:bg-indigo-900/30" />
+                    <View className="size-14 items-center justify-center rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/30">
+                      <Route size={28} color="#ffffff" />
+                    </View>
+                  </View>
+                  <Text className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">{t('routes.no_routes')}</Text>
+                  <Text className="mb-6 max-w-[280] text-center text-base leading-5 text-gray-500 dark:text-gray-400">{t('routes.no_routes_description_all')}</Text>
+                  <HStack className="items-center gap-2 rounded-full bg-gray-100 px-4 py-2 dark:bg-gray-800">
+                    <MapPin size={14} color="#6366f1" />
+                    <Text className="text-xs text-gray-500 dark:text-gray-400">{t('routes.pull_to_refresh', 'Pull down to refresh')}</Text>
+                  </HStack>
+                </Box>
+              )
+            }
+            contentContainerStyle={{ paddingBottom: 20 }}
+          />
+        </Box>
+      ) : (
+        <ScrollView
           refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
-          ListEmptyComponent={<ZeroState heading={t('routes.no_routes')} description={t('routes.no_routes_description_all')} icon={RefreshCcwDotIcon} />}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </Box>
+          contentContainerClassName="flex-1"
+          showsVerticalScrollIndicator={false}
+        >
+          <Box className="flex-1 items-center justify-center px-8">
+            {/* Decorative background circle */}
+            <View className="mb-6 items-center justify-center">
+              <View className="absolute size-32 rounded-full bg-indigo-50 dark:bg-indigo-900/20" />
+              <View className="absolute size-20 rounded-full bg-indigo-100 dark:bg-indigo-900/30" />
+              <View className="size-14 items-center justify-center rounded-full bg-indigo-500 shadow-lg shadow-indigo-500/30">
+                <Route size={28} color="#ffffff" />
+              </View>
+            </View>
 
-      <Fab size="lg" onPress={() => router.push('/routes/start' as any)} testID="new-route-fab">
-        <FabIcon as={PlusIcon} size="lg" />
-      </Fab>
+            <Text className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
+              {searchQuery ? t('routes.no_search_results', 'No routes found') : t('routes.no_routes')}
+            </Text>
+            <Text className="mb-6 max-w-[280] text-center text-base leading-5 text-gray-500 dark:text-gray-400">
+              {searchQuery ? t('routes.try_different_search', 'Try a different search term') : t('routes.no_routes_description_all')}
+            </Text>
+
+            {!searchQuery ? (
+              <HStack className="items-center gap-2 rounded-full bg-gray-100 px-4 py-2 dark:bg-gray-800">
+                <MapPin size={14} color="#6366f1" />
+                <Text className="text-xs text-gray-500 dark:text-gray-400">{t('routes.pull_to_refresh', 'Pull down to refresh')}</Text>
+              </HStack>
+            ) : null}
+          </Box>
+        </ScrollView>
+      )}
     </Box>
   );
 };

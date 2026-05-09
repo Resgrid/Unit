@@ -1,7 +1,7 @@
 import { AlertTriangle, MapPin, Phone, Timer } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, ScrollView, StyleSheet } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
@@ -12,6 +12,7 @@ import { VStack } from '@/components/ui/vstack';
 import { getTimeAgoUtc, invertColor } from '@/lib/utils';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import type { CallResultData } from '@/models/v4/calls/callResultData';
+import type { DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
 
 function getColor(call: CallResultData, priority: CallPriorityResultData | undefined) {
   if (!call) {
@@ -30,9 +31,10 @@ interface CallCardProps {
   priority: CallPriorityResultData | undefined;
   showTimerIcon?: boolean;
   isTimerOverdue?: boolean;
+  dispatches?: DispatchedEventResultData[];
 }
 
-export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIcon = false, isTimerOverdue = false }) => {
+export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIcon = false, isTimerOverdue = false, dispatches }) => {
   const { t } = useTranslation();
   const textColor = invertColor(getColor(call, priority), true);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -135,6 +137,59 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIco
           <Icon as={Calendar} className="text-gray-500" size="md" />
           <Text className="text-sm text-gray-600">Dispatched: {format(new Date(call.DispatchedOn), 'PPp')}</Text>
         </HStack>*/}
+
+        {/* Dispatch Ticker */}
+        {dispatches && dispatches.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ alignItems: 'center', gap: 6, paddingHorizontal: 4 }}
+            style={{ maxHeight: 32, marginTop: 2 }}
+          >
+            {dispatches.map((d, index) => {
+              let typeLetter = 'P';
+              let typeBgColor = '#3B82F6'; // blue - Personnel
+              const t = d.Type?.toLowerCase() || '';
+              if (t.includes('unit')) {
+                typeLetter = 'U';
+                typeBgColor = '#10B981'; // green
+              } else if (t.includes('group')) {
+                typeLetter = 'G';
+                typeBgColor = '#8B5CF6'; // purple
+              } else if (t.includes('role')) {
+                typeLetter = 'R';
+                typeBgColor = '#F59E0B'; // amber
+              }
+
+              return (
+                <HStack
+                  key={`${d.Id || index}-${d.Name}`}
+                  style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }}
+                  className="items-center"
+                >
+                  <Box
+                    style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }}
+                    className="items-center justify-center"
+                  >
+                    <Text
+                      style={{ color: '#fff' }}
+                      className="text-xs font-bold"
+                    >
+                      {typeLetter}
+                    </Text>
+                  </Box>
+                  <Text
+                    style={{ color: textColor, paddingHorizontal: 6 }}
+                    className="text-xs font-medium"
+                    numberOfLines={1}
+                  >
+                    {d.Name}
+                  </Text>
+                </HStack>
+              );
+            })}
+          </ScrollView>
+        ) : null}
       </VStack>
 
       {/* Nature of Call */}

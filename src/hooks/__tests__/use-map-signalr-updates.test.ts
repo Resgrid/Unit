@@ -17,10 +17,15 @@ const mockGetMapDataAndMarkers = getMapDataAndMarkers as jest.MockedFunction<typ
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockUseSignalRStore = useSignalRStore as jest.MockedFunction<typeof useSignalRStore>;
 
-// Mock setTimeout to allow synchronous testing
-jest.useFakeTimers();
-
 describe('useMapSignalRUpdates', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   const mockOnMarkersUpdate = jest.fn();
   const mockMapData: GetMapDataAndMarkersResult = {
     PageSize: 0,

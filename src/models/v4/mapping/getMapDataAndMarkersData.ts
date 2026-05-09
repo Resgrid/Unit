@@ -19,6 +19,7 @@ export class MapMakerInfoData {
   public Color: string = '';
   public Type: number = 0;
   public Marker?: string = '';
+  public PoiImage: string = '';
   public PoiTypeId?: number | null = null;
   public PoiTypeName?: string = '';
   public Address?: string = '';

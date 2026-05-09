@@ -6,7 +6,7 @@ import { Download, File, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, useColorScheme } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView } from 'react-native';
 
 import { getCallAttachmentFile } from '@/api/calls/callFiles';
 import { Box } from '@/components/ui/box';
@@ -76,11 +76,13 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   // Handle sheet changes
   const handleSheetChanges = useCallback(
     (index: number) => {
-      if (index === -1) {
+      // Only close when swiped down AND the modal is actually open
+      // Prevents spurious close events during device rotation
+      if (index === -1 && isOpen) {
         onClose();
       }
     },
-    [onClose]
+    [onClose, isOpen]
   );
 
   // Render backdrop
@@ -249,9 +251,10 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   return (
     <>
       <FocusAwareStatusBar hidden={true} />
+      {isOpen && (
       <BottomSheet
         ref={bottomSheetRef}
-        index={isOpen ? 0 : -1}
+        index={0}
         snapPoints={snapPoints}
         onChange={handleSheetChanges}
         backdropComponent={renderBackdrop}
@@ -271,11 +274,12 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
           </VStack>
 
           {/* Scrollable Files List */}
-          <ScrollView style={{ flex: 1 }} className="bg-white dark:bg-gray-800" showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
+          <ScrollView style={{ flex: 1 }} className="bg-white dark:bg-gray-800" showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }} testID="scroll-view">
             {renderFilesContent()}
           </ScrollView>
         </BottomSheetView>
       </BottomSheet>
+      )}
     </>
   );
 };

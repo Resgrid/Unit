@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 
 import { getCallPriorities } from '@/api/calls/callPriorities';
-import { getCalls } from '@/api/calls/calls';
+import { getCallExtraData, getCalls } from '@/api/calls/calls';
 import { getCallTypes } from '@/api/calls/callTypes';
 import { getNewCallData } from '@/api/dispatch/dispatch';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type CallTypeResultData } from '@/models/v4/callTypes/callTypeResultData';
+import { type DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
 import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
 
 interface CallsState {
@@ -15,6 +16,7 @@ interface CallsState {
   callTypes: CallTypeResultData[];
   destinationPois: PoiResultData[];
   poiTypes: PoiTypeResultData[];
+  callDispatches: Record<string, DispatchedEventResultData[]>;
   isLoading: boolean;
   isInitialized: boolean;
   isCallFormDataLoaded: boolean;
@@ -24,6 +26,7 @@ interface CallsState {
   fetchCallPriorities: () => Promise<void>;
   fetchCallTypes: () => Promise<void>;
   fetchCallFormData: () => Promise<void>;
+  fetchCallDispatches: (callIds: string[]) => Promise<void>;
   init: () => Promise<void>;
 }
 
@@ -33,6 +36,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   callTypes: [],
   destinationPois: [],
   poiTypes: [],
+  callDispatches: {},
   isLoading: false,
   isInitialized: false,
   isCallFormDataLoaded: false,
@@ -108,6 +112,34 @@ export const useCallsStore = create<CallsState>((set, get) => ({
       });
     } catch (error) {
       set({ error: 'Failed to fetch call form data', isLoading: false });
+    }
+  },
+  fetchCallDispatches: async (callIds: string[]) => {
+    const existing = get().callDispatches;
+    // Only fetch for call IDs that aren't already cached
+    const uncachedIds = callIds.filter((id) => !(id in existing));
+    if (uncachedIds.length === 0) return;
+
+    try {
+      const results = await Promise.all(
+        uncachedIds.map(async (callId) => {
+          try {
+            const result = await getCallExtraData(callId);
+            const dispatches = result?.Data?.Dispatches ?? [];
+            return { callId, dispatches: dispatches as DispatchedEventResultData[] };
+          } catch {
+            return { callId, dispatches: [] as DispatchedEventResultData[] };
+          }
+        })
+      );
+
+      const newDispatches: Record<string, DispatchedEventResultData[]> = {};
+      for (const { callId, dispatches } of results) {
+        newDispatches[callId] = dispatches;
+      }
+      set({ callDispatches: { ...get().callDispatches, ...newDispatches } });
+    } catch (error) {
+      console.warn('Failed to fetch call dispatches:', error);
     }
   },
 }));

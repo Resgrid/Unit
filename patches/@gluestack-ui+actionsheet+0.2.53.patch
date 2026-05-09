@@ -1,0 +1,66 @@
+diff --git a/node_modules/@gluestack-ui/actionsheet/lib/ActionsheetContent.jsx b/node_modules/@gluestack-ui/actionsheet/lib/ActionsheetContent.jsx
+index 5055fe3..b7b0eca 100644
+--- a/node_modules/@gluestack-ui/actionsheet/lib/ActionsheetContent.jsx
++++ b/node_modules/@gluestack-ui/actionsheet/lib/ActionsheetContent.jsx
+@@ -1,6 +1,6 @@
+ /* eslint-disable react-native/no-inline-styles */
+ import React, { forwardRef } from 'react';
+-import { Animated, Dimensions, AccessibilityInfo, Platform, Keyboard, } from 'react-native';
++import { Animated, Dimensions, AccessibilityInfo, Platform, Keyboard, useWindowDimensions, } from 'react-native';
+ import { ActionsheetContext } from './context';
+ import { ActionsheetContentProvider } from './ActionsheetContentContext';
+ import { OverlayAnimatePresence } from './OverlayAnimatePresence';
+@@ -8,15 +8,11 @@ import { FocusScope } from '@react-native-aria/focus';
+ import { mergeRefs, findNodeHandle } from '@gluestack-ui/utils';
+ import { useDialog } from '@react-native-aria/dialog';
+ import { usePreventScroll } from '@react-native-aria/overlays';
+-//dimentions not giving proper window height on web
+-const windowHeight = Platform.OS === 'web'
+-    ? typeof window !== 'undefined'
+-        ? window.innerHeight
+-        : Dimensions.get('screen').height
+-    : Dimensions.get('screen').height;
++// Patched: use useWindowDimensions for reactive height (fixes landscape)
+ function ActionsheetContent(StyledActionsheetContent, AnimatePresence) {
+     return forwardRef(({ children, _experimentalContent = false, focusScope = true, ...props }, ref) => {
+         const { visible, handleClose, trapFocus, initialFocusRef, handleCloseBackdrop, finalFocusRef, snapPoints, preventScroll, } = React.useContext(ActionsheetContext);
++        const { height: windowHeight } = useWindowDimensions();
+         usePreventScroll({ isDisabled: preventScroll });
+         const pan = React.useRef(new Animated.ValueXY()).current;
+         const contentSheetHeight = React.useRef(0);
+diff --git a/node_modules/@gluestack-ui/actionsheet/src/ActionsheetContent.tsx b/node_modules/@gluestack-ui/actionsheet/src/ActionsheetContent.tsx
+index 425a859..f0ec760 100644
+--- a/node_modules/@gluestack-ui/actionsheet/src/ActionsheetContent.tsx
++++ b/node_modules/@gluestack-ui/actionsheet/src/ActionsheetContent.tsx
+@@ -6,6 +6,7 @@ import {
+   AccessibilityInfo,
+   Platform,
+   Keyboard,
++  useWindowDimensions,
+ } from 'react-native';
+ import { ActionsheetContext } from './context';
+ import { ActionsheetContentProvider } from './ActionsheetContentContext';
+@@ -15,13 +16,7 @@ import { mergeRefs, findNodeHandle } from '@gluestack-ui/utils';
+ import { useDialog } from '@react-native-aria/dialog';
+ import { usePreventScroll } from '@react-native-aria/overlays';
+ 
+-//dimentions not giving proper window height on web
+-const windowHeight =
+-  Platform.OS === 'web'
+-    ? typeof window !== 'undefined'
+-      ? window.innerHeight
+-      : Dimensions.get('screen').height
+-    : Dimensions.get('screen').height;
++// Patched: use useWindowDimensions for reactive height (fixes landscape)
+ 
+ function ActionsheetContent(
+   StyledActionsheetContent: any,
+@@ -48,6 +43,8 @@ function ActionsheetContent(
+         preventScroll,
+       } = React.useContext(ActionsheetContext);
+ 
++      const { height: windowHeight } = useWindowDimensions();
++
+       usePreventScroll({ isDisabled: preventScroll });
+ 
+       const pan = React.useRef(new Animated.ValueXY()).current;

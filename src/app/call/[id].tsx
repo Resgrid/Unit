@@ -2,7 +2,7 @@ import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -102,13 +102,13 @@ export default function CallDetail() {
     setIsFilesModalOpen(true);
   };
 
-  const handleEditCall = () => {
+  const handleEditCall = useCallback(() => {
     router.push(`/call/${callId}/edit`);
-  };
+  }, [router, callId]);
 
-  const handleCloseCall = () => {
+  const handleCloseCall = useCallback(() => {
     setIsCloseCallModalOpen(true);
-  };
+  }, []);
 
   const handleSetActive = async () => {
     if (!call) return;
@@ -241,7 +241,7 @@ export default function CallDetail() {
           options={{
             title: t('call_detail.title'),
             headerShown: true,
-            headerRight: () => <HeaderRightMenu />,
+            headerRight: HeaderRightMenu,
             headerBackTitle: '',
           }}
         />
@@ -260,7 +260,7 @@ export default function CallDetail() {
           options={{
             title: t('call_detail.title'),
             headerShown: true,
-            headerRight: () => <HeaderRightMenu />,
+            headerRight: HeaderRightMenu,
             headerBackTitle: '',
           }}
         />
@@ -480,7 +480,7 @@ export default function CallDetail() {
         options={{
           title: t('call_detail.title'),
           headerShown: true,
-          headerRight: () => <HeaderRightMenu />,
+          headerRight: HeaderRightMenu,
           headerBackTitle: '',
         }}
       />
@@ -500,9 +500,9 @@ export default function CallDetail() {
             )}
           </HStack>
           <VStack className="space-y-1">
-            <Box style={{ height: 80 }}>
-              <HtmlRenderer html={call.Nature ?? ''} style={StyleSheet.flatten([styles.container, { height: 80 }])} />
-            </Box>
+            <ScrollView style={{ height: 180 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
+              <HtmlRenderer html={call.Nature ?? ''} style={StyleSheet.flatten([styles.container, { minHeight: 170 }])} />
+            </ScrollView>
           </VStack>
         </Box>
 
@@ -557,7 +557,7 @@ export default function CallDetail() {
         </HStack>
 
         {/* Tabs */}
-        <Box className={`mt-4 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
+        <Box className={`mt-2 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
           <SharedTabs tabs={renderTabs()} variant="underlined" size={isLandscape ? 'md' : 'sm'} />
         </Box>
       </ScrollView>

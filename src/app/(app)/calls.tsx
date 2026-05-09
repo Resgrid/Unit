@@ -24,6 +24,8 @@ export default function Calls() {
   const error = useCallsStore((state) => state.error);
   const fetchCalls = useCallsStore((state) => state.fetchCalls);
   const fetchCallPriorities = useCallsStore((state) => state.fetchCallPriorities);
+  const fetchCallDispatches = useCallsStore((state) => state.fetchCallDispatches);
+  const callDispatches = useCallsStore((state) => state.callDispatches);
   const canUserCreateCalls = securityStore((state) => state.rights?.CanCreateCalls);
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
@@ -41,6 +43,14 @@ export default function Calls() {
     }, [fetchCalls, fetchCallPriorities])
   );
 
+  // Fetch dispatch data for all active calls after calls load (cached per callId)
+  useEffect(() => {
+    if (calls.length > 0) {
+      const callIds = calls.map((c) => c.CallId);
+      fetchCallDispatches(callIds);
+    }
+  }, [calls, fetchCallDispatches]);
+
   // Track when calls view is rendered
   useEffect(() => {
     trackEvent('calls_view_rendered', {
@@ -52,6 +62,7 @@ export default function Calls() {
   const handleRefresh = () => {
     fetchCalls();
     fetchCallPriorities();
+    // Dispatches will auto-fetch via useEffect when calls update
   };
 
   const handleNewCall = () => {
@@ -77,7 +88,7 @@ export default function Calls() {
         data={filteredCalls}
         renderItem={({ item }: { item: CallResultData }) => (
           <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
-            <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} />
+            <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} dispatches={callDispatches[item.CallId]} />
           </Pressable>
         )}
         keyExtractor={(item: CallResultData) => item.CallId}

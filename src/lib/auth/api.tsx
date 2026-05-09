@@ -14,6 +14,13 @@ const authApi = axios.create({
   },
 });
 
+// Dynamically update baseURL on every request to support
+// custom server URL changes (e.g. self-hosted environments)
+authApi.interceptors.request.use((config) => {
+  config.baseURL = getBaseApiUrl();
+  return config;
+});
+
 export const loginRequest = async (credentials: LoginCredentials): Promise<LoginResponse> => {
   try {
     const data = queryString.stringify({

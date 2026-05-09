@@ -10,6 +10,12 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+// Mock ActionSheetIOS wrapper so tests can run without native module
+jest.mock('@/utils/action-sheet', () => ({
+  isIOS: () => false,
+  showNativeActionSheet: jest.fn(),
+}));
+
 // Mock the UI components
 jest.mock('@/components/ui/actionsheet', () => ({
   Actionsheet: ({ children, isOpen, testID }: { children: React.ReactNode; isOpen: boolean; testID?: string }) => {
@@ -55,6 +61,13 @@ jest.mock('lucide-react-native', () => ({
   MoreVerticalIcon: () => {
     const { View } = require('react-native');
     return <View />;
+  },
+}));
+
+jest.mock('@/components/ui/pressable', () => ({
+  Pressable: ({ children, onPress, testID }: { children: React.ReactNode; onPress?: () => void; testID?: string }) => {
+    const { TouchableOpacity } = require('react-native');
+    return <TouchableOpacity testID={testID} onPress={onPress}>{children}</TouchableOpacity>;
   },
 }));
 

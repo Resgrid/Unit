@@ -20,6 +20,14 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+// Mock ActionSheetIOS wrapper so tests can run without native module
+jest.mock('@/utils/action-sheet', () => ({
+  isIOS: () => true,
+  showNativeActionSheet: jest.fn((options, callback) => {
+    // By default do nothing — tests that need specific button indices can mock this further
+  }),
+}));
+
 // Mock UI components that are used internally
 jest.mock('@/components/ui/', () => ({
   Pressable: ({ children, ...props }: any) => {
@@ -117,7 +125,8 @@ describe('useCallDetailMenu Analytics', () => {
       hasEditAction: true,
       hasCloseAction: true,
     });
-    expect(result.current.isMenuOpen).toBe(true);
+    // On iOS, isMenuOpen stays false — native ActionSheetIOS handles its own UI
+    expect(result.current.isMenuOpen).toBe(false);
   });
 
   it('should not track analytics event when menu is closed', () => {
@@ -200,7 +209,8 @@ describe('useCallDetailMenu Analytics', () => {
     act(() => {
       result.current.openMenu();
     });
-    expect(result.current.isMenuOpen).toBe(true);
+    // On iOS, isMenuOpen stays false — native ActionSheetIOS handles its own UI
+    expect(result.current.isMenuOpen).toBe(false);
 
     // Close menu
     act(() => {
