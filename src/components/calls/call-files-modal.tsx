@@ -252,33 +252,39 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     <>
       <FocusAwareStatusBar hidden={true} />
       {isOpen && (
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        onChange={handleSheetChanges}
-        backdropComponent={renderBackdrop}
-        enablePanDownToClose={true}
-        handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#4B5563' : '#D1D5DB' }}
-        backgroundStyle={{ backgroundColor: colorScheme === 'dark' ? '#1F2937' : 'white' }}
-      >
-        <BottomSheetView style={{ flex: 1 }} testID="call-files-modal">
-          {/* Fixed Header */}
-          <VStack space="md" className="bg-white dark:bg-gray-800">
-            <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
-              <Heading size="lg">{t('calls.files.title')}</Heading>
-              <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
-                <X size={24} />
-              </Button>
-            </Box>
-          </VStack>
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          onChange={handleSheetChanges}
+          backdropComponent={renderBackdrop}
+          enablePanDownToClose={true}
+          handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#4B5563' : '#D1D5DB' }}
+          backgroundStyle={{ backgroundColor: colorScheme === 'dark' ? '#1F2937' : 'white' }}
+        >
+          <BottomSheetView style={{ flex: 1 }} testID="call-files-modal">
+            {/* Fixed Header */}
+            <VStack space="md" className="bg-white dark:bg-gray-800">
+              <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
+                <Heading size="lg">{t('calls.files.title')}</Heading>
+                <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
+                  <X size={24} />
+                </Button>
+              </Box>
+            </VStack>
 
-          {/* Scrollable Files List */}
-          <ScrollView style={{ flex: 1 }} className="bg-white dark:bg-gray-800" showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }} testID="scroll-view">
-            {renderFilesContent()}
-          </ScrollView>
-        </BottomSheetView>
-      </BottomSheet>
+            {/* Scrollable Files List */}
+            <ScrollView
+              style={{ flex: 1 }}
+              className="bg-white dark:bg-gray-800"
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}
+              testID="scroll-view"
+            >
+              {renderFilesContent()}
+            </ScrollView>
+          </BottomSheetView>
+        </BottomSheet>
       )}
     </>
   );

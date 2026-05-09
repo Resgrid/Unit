@@ -4,14 +4,7 @@ import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedReaction,
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
 import { Text } from '@/components/ui/text';
@@ -45,12 +38,7 @@ const SLIDES = [
 const SLIDE_COUNT = SLIDES.length;
 const SPRING_CONFIG = { damping: 25, stiffness: 200 };
 
-const OnboardingSlide: React.FC<OnboardingItemProps & { slideWidth: number }> = ({
-  title,
-  description,
-  icon,
-  slideWidth,
-}) => (
+const OnboardingSlide: React.FC<OnboardingItemProps & { slideWidth: number }> = ({ title, description, icon, slideWidth }) => (
   <View className="items-center justify-center px-8" style={{ width: slideWidth }}>
     <View className="mb-8 items-center justify-center">{icon}</View>
     <Text className="mb-6 text-center text-3xl font-bold text-gray-900 dark:text-white">{title}</Text>
@@ -63,12 +51,7 @@ const OnboardingSlide: React.FC<OnboardingItemProps & { slideWidth: number }> = 
 const Pagination: React.FC<{ currentIndex: number; length: number }> = ({ currentIndex, length }) => (
   <View className="mt-8 flex-row justify-center">
     {Array.from({ length }).map((_, index) => (
-      <View
-        key={index}
-        className={`mx-1 h-2.5 rounded-full ${
-          currentIndex === index ? 'w-6 bg-primary-500' : 'w-2.5 bg-primary-300'
-        }`}
-      />
+      <View key={index} className={`mx-1 h-2.5 rounded-full ${currentIndex === index ? 'w-6 bg-primary-500' : 'w-2.5 bg-primary-300'}`} />
     ))}
   </View>
 );
@@ -179,22 +162,12 @@ export default function Onboarding() {
       <FocusAwareStatusBar hidden={true} />
 
       <View className="w-full items-center justify-center px-10 pt-20">
-        <Image
-          style={{ width: '96%' }}
-          resizeMode="contain"
-          source={
-            colorScheme === 'dark'
-              ? require('@assets/images/Resgrid_JustText_White.png')
-              : require('@assets/images/Resgrid_JustText.png')
-          }
-        />
+        <Image style={{ width: '96%' }} resizeMode="contain" source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} />
       </View>
 
       <View className="flex-1 justify-center" onLayout={handleContainerLayout}>
         <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[carouselStyle, { flexDirection: 'row', width: containerWidthState * SLIDE_COUNT }]}
-          >
+          <Animated.View style={[carouselStyle, { flexDirection: 'row', width: containerWidthState * SLIDE_COUNT }]}>
             {SLIDES.map((slide) => (
               <OnboardingSlide key={slide.title} {...slide} slideWidth={containerWidthState} />
             ))}
@@ -211,20 +184,14 @@ export default function Onboarding() {
               <Text className="text-gray-500">Skip</Text>
             </Pressable>
 
-            <Pressable
-              className="flex-row items-center rounded-lg bg-primary-500 px-6 py-3"
-              onPress={nextSlide}
-            >
+            <Pressable className="flex-row items-center rounded-lg bg-primary-500 px-6 py-3" onPress={nextSlide}>
               <Text className="mr-1 text-base font-semibold text-white dark:text-black">Next</Text>
               <ChevronRight size={20} color={colorScheme === 'dark' ? 'black' : 'white'} />
             </Pressable>
           </View>
         ) : (
           <Animated.View style={buttonAnimatedStyle}>
-            <Pressable
-              className="w-full items-center rounded-lg bg-primary-500 py-3"
-              onPress={finish}
-            >
+            <Pressable className="w-full items-center rounded-lg bg-primary-500 py-3" onPress={finish}>
               <Text className="text-base font-semibold text-white dark:text-black">Let's Get Started</Text>
             </Pressable>
           </Animated.View>

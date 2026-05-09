@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 
 import { getActiveAlerts, getWeatherAlert, getWeatherAlertSettings } from '@/api/weather-alerts/weather-alerts';
+import { logger } from '@/lib/logging';
 import { sortAlertsBySeverity } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
-import { type WeatherAlertSettingsData } from '@/models/v4/weatherAlerts/weatherAlertSettingsData';
+import { WeatherAlertSettingsData } from '@/models/v4/weatherAlerts/weatherAlertSettingsData';
 
 interface WeatherAlertsState {
   alerts: WeatherAlertResultData[];
@@ -46,7 +47,7 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const settingsResponse = await getWeatherAlertSettings();
-      const settings = settingsResponse.Data;
+      const settings = settingsResponse?.Data && typeof settingsResponse.Data === 'object' ? settingsResponse.Data : new WeatherAlertSettingsData();
       set({ settings });
 
       if (settings.WeatherAlertsEnabled) {
@@ -82,7 +83,7 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
   fetchSettings: async () => {
     try {
       const response = await getWeatherAlertSettings();
-      set({ settings: response.Data });
+      set({ settings: response?.Data && typeof response.Data === 'object' ? response.Data : new WeatherAlertSettingsData() });
     } catch (error) {
       // Settings fetch failure is non-critical
     }
@@ -97,6 +98,10 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
     try {
       const response = await getWeatherAlert(alertId);
       const newAlert = response.Data;
+      if (!newAlert) {
+        logger.warn({ message: 'handleAlertReceived: missing alert data', context: { alertId } });
+        return;
+      }
       set((state) => {
         const exists = state.alerts.some((a) => a.WeatherAlertId === newAlert.WeatherAlertId);
         const updated = exists ? state.alerts.map((a) => (a.WeatherAlertId === newAlert.WeatherAlertId ? newAlert : a)) : [newAlert, ...state.alerts];
@@ -110,6 +115,10 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
     try {
       const response = await getWeatherAlert(alertId);
       const updatedAlert = response.Data;
+      if (!updatedAlert) {
+        logger.warn({ message: 'handleAlertUpdated: missing alert data', context: { alertId } });
+        return;
+      }
       set((state) => ({
         alerts: sortAlertsBySeverity(state.alerts.map((a) => (a.WeatherAlertId === alertId ? updatedAlert : a))),
       }));

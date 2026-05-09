@@ -62,10 +62,16 @@ export const parsePolygonGeoJSON = (polygonStr: string): GeoJSON.Feature | null 
       const coords = polygonStr
         .trim()
         .split(/\s+/)
-        .map((pair) => {
-          const [lat, lng] = pair.split(',').map(Number);
-          return [lng, lat];
-        });
+        .reduce<[number, number][]>((acc, pair) => {
+          const parts = pair.split(',');
+          if (parts.length < 2) return acc;
+          const lat = Number(parts[0]);
+          const lng = Number(parts[1]);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            acc.push([lng, lat]);
+          }
+          return acc;
+        }, []);
 
       if (coords.length < 3) return null;
 

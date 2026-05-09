@@ -185,11 +185,7 @@ export const ActiveRoutesList: React.FC = () => {
           />
         </Box>
       ) : (
-        <ScrollView
-          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
-          contentContainerClassName="flex-1"
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />} contentContainerClassName="flex-1" showsVerticalScrollIndicator={false}>
           <Box className="flex-1 items-center justify-center px-8">
             {/* Decorative background circle */}
             <View className="mb-6 items-center justify-center">
@@ -200,9 +196,7 @@ export const ActiveRoutesList: React.FC = () => {
               </View>
             </View>
 
-            <Text className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">
-              {searchQuery ? t('routes.no_search_results', 'No routes found') : t('routes.no_routes')}
-            </Text>
+            <Text className="mb-2 text-center text-xl font-bold text-gray-900 dark:text-white">{searchQuery ? t('routes.no_search_results', 'No routes found') : t('routes.no_routes')}</Text>
             <Text className="mb-6 max-w-[280] text-center text-base leading-5 text-gray-500 dark:text-gray-400">
               {searchQuery ? t('routes.try_different_search', 'Try a different search term') : t('routes.no_routes_description_all')}
             </Text>

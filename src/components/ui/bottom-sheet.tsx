@@ -2,6 +2,7 @@ import { useColorScheme } from 'nativewind';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Modal, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+
 import { Center } from './center';
 import { Spinner } from './spinner';
 import { Text } from './text';
@@ -48,10 +49,7 @@ export function CustomBottomSheet({
 
   // Compute sheet height from first snap point (percentage of screen height).
   // Clamp between 300px and the screen height to remain usable in all orientations.
-  const rawSheetHeight =
-    snapPoints.length > 0
-      ? Math.round(snapPoints[0] * windowHeight * 0.01)
-      : Math.round(0.67 * windowHeight);
+  const rawSheetHeight = snapPoints.length > 0 ? Math.round(snapPoints[0] * windowHeight * 0.01) : Math.round(0.67 * windowHeight);
   const sheetHeight = Math.max(300, Math.min(rawSheetHeight, windowHeight - 20));
 
   useEffect(() => {
@@ -116,20 +114,9 @@ export function CustomBottomSheet({
   if (!modalVisible) return null;
 
   return (
-    <Modal
-      visible={modalVisible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleClose}
-      testID={testID}
-    >
+    <Modal visible={modalVisible} transparent animationType="none" statusBarTranslucent onRequestClose={handleClose} testID={testID}>
       {/* Backdrop */}
-      <Pressable
-        style={{ flex: 1 }}
-        onPress={backdropEnabled ? handleClose : undefined}
-        testID={testID ? `${testID}-backdrop` : undefined}
-      >
+      <Pressable style={{ flex: 1 }} onPress={backdropEnabled ? handleClose : undefined} testID={testID ? `${testID}-backdrop` : undefined}>
         <Animated.View
           style={{
             position: 'absolute',
@@ -165,21 +152,13 @@ export function CustomBottomSheet({
           <Center className="w-16 h-1 bg-gray-400 rounded-full" />
         </VStack>
 
-        <ScrollView
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled={true}
-          contentContainerStyle={{ paddingBottom: 8 }}
-        >
+        <ScrollView bounces={false} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" nestedScrollEnabled={true} contentContainerStyle={{ paddingBottom: 8 }}>
           <VStack className="w-full flex-1" space="md">
             {isLoading ? (
               <Center className="h-32">
                 <VStack space="sm" className="items-center">
                   <Spinner size="large" />
-                  {loadingText && (
-                    <Text className="text-sm text-gray-500">{loadingText}</Text>
-                  )}
+                  {loadingText && <Text className="text-sm text-gray-500">{loadingText}</Text>}
                 </VStack>
               </Center>
             ) : (

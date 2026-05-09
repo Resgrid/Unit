@@ -296,7 +296,9 @@ class WebPushNotificationService {
   }
 
   /**
-   * Convert VAPID key from base64 to Uint8Array
+   * Convert VAPID key from base64url to ArrayBuffer.
+   *
+   * @returns An ArrayBuffer containing the decoded key bytes.
    */
   private urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);

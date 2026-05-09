@@ -68,15 +68,6 @@ class PushNotificationService {
         await this.createNotificationChannel('notif', 'Notification', 'Notifications', undefined, false);
         await this.createNotificationChannel('message', 'Message', 'Messages', undefined, false);
 
-        // Check-in timers channel (silent updates)
-        await notifee.createChannel({
-          id: 'check-in-timers',
-          name: 'Check-In Timers',
-          description: 'Timer notifications for call check-ins',
-          importance: AndroidImportance.LOW,
-          vibration: false,
-        });
-
         // Custom call channels (c1-c25)
         for (let i = 1; i <= 25; i++) {
           const channelId = `c${i}`;

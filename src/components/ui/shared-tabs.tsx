@@ -146,14 +146,20 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
               <Box className="flex-row items-center justify-center">
                 {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
                 {typeof tab.title === 'string' ? (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{t(tab.title)}</Text>
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>
+                    {t(tab.title)}
+                  </Text>
                 ) : (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{tab.title}</Text>
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>
+                    {tab.title}
+                  </Text>
                 )}
               </Box>
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1" style={{ minHeight: 18, zIndex: 1 }}>
-                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>{tab.badge}</Text>
+                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>
+                    {tab.badge}
+                  </Text>
                 </Box>
               )}
             </Pressable>
@@ -166,14 +172,20 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
               <Box className="flex-row items-center justify-center">
                 {tab.icon && <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box>}
                 {typeof tab.title === 'string' ? (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{t(tab.title)}</Text>
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>
+                    {t(tab.title)}
+                  </Text>
                 ) : (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>{tab.title}</Text>
+                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1}>
+                    {tab.title}
+                  </Text>
                 )}
               </Box>
               {tab.badge !== undefined && tab.badge > 0 && (
                 <Box className="absolute -right-1 -top-1 min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1" style={{ minHeight: 18, zIndex: 1 }}>
-                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>{tab.badge}</Text>
+                  <Text className="text-2xs font-bold text-white" numberOfLines={1}>
+                    {tab.badge}
+                  </Text>
                 </Box>
               )}
             </Pressable>

@@ -140,12 +140,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIco
 
         {/* Dispatch Ticker */}
         {dispatches && dispatches.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ alignItems: 'center', gap: 6, paddingHorizontal: 4 }}
-            style={{ maxHeight: 32, marginTop: 2 }}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 6, paddingHorizontal: 4 }} style={{ maxHeight: 32, marginTop: 2 }}>
             {dispatches.map((d, index) => {
               let typeLetter = 'P';
               let typeBgColor = '#3B82F6'; // blue - Personnel
@@ -162,27 +157,13 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIco
               }
 
               return (
-                <HStack
-                  key={`${d.Id || index}-${d.Name}`}
-                  style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }}
-                  className="items-center"
-                >
-                  <Box
-                    style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }}
-                    className="items-center justify-center"
-                  >
-                    <Text
-                      style={{ color: '#fff' }}
-                      className="text-xs font-bold"
-                    >
+                <HStack key={`${d.Id || index}-${d.Name}`} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }} className="items-center">
+                  <Box style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }} className="items-center justify-center">
+                    <Text style={{ color: '#fff' }} className="text-xs font-bold">
                       {typeLetter}
                     </Text>
                   </Box>
-                  <Text
-                    style={{ color: textColor, paddingHorizontal: 6 }}
-                    className="text-xs font-medium"
-                    numberOfLines={1}
-                  >
+                  <Text style={{ color: textColor, paddingHorizontal: 6 }} className="text-xs font-medium" numberOfLines={1}>
                     {d.Name}
                   </Text>
                 </HStack>

@@ -573,10 +573,9 @@ describe('Push Notification Service Integration', () => {
 
       // Verify channels were created
       // Standard channels: calls, 0-3, notif, message = 7
-      // Check-in timers channel = 1
       // Custom channels: c1-c25 = 25
-      // Total: 33 channels
-      expect(mockCreateChannel).toHaveBeenCalledTimes(33);
+      // Total: 32 channels
+      expect(mockCreateChannel).toHaveBeenCalledTimes(32);
     });
   });
 });

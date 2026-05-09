@@ -1,3 +1,4 @@
+import { differenceInMinutes } from 'date-fns';
 import { Timer } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -56,7 +57,7 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
   const duration = timer.DurationMinutes ? Number(timer.DurationMinutes) : 0;
   const progress = duration > 0 ? Math.min(localElapsed / duration, 1) : 0;
   const safeStatusLower = typeof timer.Status === 'string' ? timer.Status.toLowerCase() : '';
-  const minutesAgo = Math.floor(localElapsed);
+  const minutesSinceLastCheckIn = timer.LastCheckIn ? differenceInMinutes(new Date(), timer.LastCheckIn) : 0;
 
   return (
     <Box className="mb-2 rounded-xl border border-outline-100 p-3">
@@ -84,7 +85,7 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
 
       <HStack className="mt-1 items-center justify-between">
         <Text className="text-xs text-gray-500">
-          {t('check_in.last_check_in')}: {minutesAgo} {t('check_in.minutes_ago')}
+          {t('check_in.last_check_in')}: {minutesSinceLastCheckIn} {t('check_in.minutes_ago')}
         </Text>
         <Text className="text-xs text-gray-500">
           {Math.floor(localElapsed)}/{timer.DurationMinutes} {t('check_in.duration')}

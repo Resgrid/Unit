@@ -417,6 +417,33 @@ const withCheckInLiveActivity = (config) => {
     // 6. Patch build settings on both Debug and Release configurations so the
     //    widget compiles as a Swift 5 app-extension targeting iOS 16.1+.
     const targetSection = project.pbxNativeTargetSection();
+
+    // Resolve host app version numbers so the widget extension stays in sync.
+    // Priority: main target build settings → Expo config → hardcoded fallback.
+    const hostTarget = project.getFirstTarget();
+    let hostMarketingVersion = null;
+    let hostCurrentProjectVersion = null;
+    const hostConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
+    const hostConfigList = project.pbxXCConfigurationList()[hostConfigListId];
+    if (hostConfigList) {
+      const firstHostConfigUuid = hostConfigList.buildConfigurations[0]?.value;
+      if (firstHostConfigUuid) {
+        const firstHostConfig = project.pbxXCBuildConfigurationSection()[firstHostConfigUuid];
+        if (firstHostConfig?.buildSettings) {
+          hostMarketingVersion = firstHostConfig.buildSettings.MARKETING_VERSION || null;
+          hostCurrentProjectVersion = firstHostConfig.buildSettings.CURRENT_PROJECT_VERSION || null;
+        }
+      }
+    }
+    // MARKETING_VERSION in pbxproj is already quoted (e.g., '"1.2.3"');
+    // config.version is raw (e.g., '1.2.3'), so wrap it in quotes.
+    const resolvedMarketingVersion =
+      hostMarketingVersion || (config.version ? `"${config.version}"` : '"1.0"');
+    // CURRENT_PROJECT_VERSION in pbxproj is an unquoted number string (e.g., '42');
+    // config.ios?.buildNumber is raw, pass through as-is.
+    const resolvedCurrentProjectVersion =
+      hostCurrentProjectVersion || (config.ios?.buildNumber ?? '1');
+
     const buildConfigListId = targetSection[widgetTarget.uuid].buildConfigurationList;
     const buildConfigList = project.pbxXCConfigurationList()[buildConfigListId];
     if (buildConfigList) {
@@ -432,9 +459,41 @@ const withCheckInLiveActivity = (config) => {
             IPHONEOS_DEPLOYMENT_TARGET: '16.1',
             SKIP_INSTALL: 'YES',
             CODE_SIGN_STYLE: 'Automatic',
-            MARKETING_VERSION: '"1.0"',
-            CURRENT_PROJECT_VERSION: '1',
+            MARKETING_VERSION: resolvedMarketingVersion,
+            CURRENT_PROJECT_VERSION: resolvedCurrentProjectVersion,
           });
+        }
+      }
+    }
+
+    // 7. Ensure the bridge files are compiled as part of the main app target
+    //    so the native module is linked at runtime.
+    const mainGroupKey = project.findPBXGroupKey({ name: appName });
+    const BRIDGE_FILES = [
+      `${appName}/CheckInTimerActivityManager.swift`,
+      `${appName}/CheckInTimerActivityBridge.m`,
+    ];
+    for (const filePath of BRIDGE_FILES) {
+      if (!project.hasFile(filePath)) {
+        project.addSourceFile(filePath, { target: hostTarget.uuid }, mainGroupKey);
+      }
+    }
+
+    // 8. Ensure the main target has a bridging header configured so the ObjC
+    //    bridge module is visible to Swift.
+    const BRIDGING_HEADER_FILE = `${appName}/${appName}-Bridging-Header.h`;
+    const bridgingHeaderPath = path.join(projectRoot, 'ios', BRIDGING_HEADER_FILE);
+    if (!fs.existsSync(bridgingHeaderPath)) {
+      fs.writeFileSync(bridgingHeaderPath, `// Auto-generated bridging header for Live Activity native bridge.\n#import <React/RCTBridgeModule.h>\n`);
+    }
+
+    const mainBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
+    const mainBuildConfigList = project.pbxXCConfigurationList()[mainBuildConfigListId];
+    if (mainBuildConfigList) {
+      for (const { value: mainConfigUuid } of mainBuildConfigList.buildConfigurations) {
+        const mainBuildConfig = project.pbxXCBuildConfigurationSection()[mainConfigUuid];
+        if (mainBuildConfig && !mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER) {
+          mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER = `"${BRIDGING_HEADER_FILE}"`;
         }
       }
     }

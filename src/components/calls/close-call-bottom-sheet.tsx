@@ -1,5 +1,5 @@
-import { ChevronDown } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { ChevronDown } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable as RNPressable, StyleSheet, View } from 'react-native';
@@ -94,45 +94,25 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
     }
   }, [closeCallType, showToast, t, callId, closeCallNote, handleClose, fetchCalls, router, closeCall]);
 
-  const selectedTypeLabel = closeCallType
-    ? t(CLOSE_CALL_TYPES.find((ct) => ct.value === closeCallType)?.translationKey ?? '')
-    : t('call_detail.close_call_type_placeholder');
+  const selectedTypeLabel = closeCallType ? t(CLOSE_CALL_TYPES.find((ct) => ct.value === closeCallType)?.translationKey ?? '') : t('call_detail.close_call_type_placeholder');
 
   const isButtonDisabled = isLoading || isSubmitting;
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={handleClose}
-      testID="close-call-bottom-sheet"
-    >
+    <Modal visible={isOpen} transparent={true} animationType="slide" onRequestClose={handleClose} testID="close-call-bottom-sheet">
       <RNPressable style={styles.backdrop} onPress={handleClose}>
         <RNPressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
           <View style={styles.handle} />
 
-          <KeyboardAwareScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollViewContent}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            bottomOffset={120}
-          >
+          <KeyboardAwareScrollView style={styles.scrollView} contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
             <VStack space="md" className="w-full p-4">
               <Text className="mb-4 text-center text-lg font-semibold">{t('call_detail.close_call')}</Text>
 
               {/* Close Call Type selector */}
               <VStack space="sm">
                 <Text className="font-medium">{t('call_detail.close_call_type')}</Text>
-                <RNPressable
-                  style={styles.typeTrigger}
-                  onPress={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
-                  testID="close-call-type-select"
-                >
-                  <Text style={closeCallType ? styles.typeText : styles.typePlaceholder}>
-                    {selectedTypeLabel}
-                  </Text>
+                <RNPressable style={styles.typeTrigger} onPress={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)} testID="close-call-type-select">
+                  <Text style={closeCallType ? styles.typeText : styles.typePlaceholder}>{selectedTypeLabel}</Text>
                   <ChevronDown size={18} color="#6B7280" />
                 </RNPressable>
 
@@ -141,19 +121,14 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
                     {CLOSE_CALL_TYPES.map((type) => (
                       <RNPressable
                         key={type.value}
-                        style={[
-                          styles.typeOption,
-                          closeCallType === type.value && styles.typeOptionSelected,
-                        ]}
+                        style={[styles.typeOption, closeCallType === type.value && styles.typeOptionSelected]}
                         onPress={() => {
                           setCloseCallType(type.value);
                           setIsTypeDropdownOpen(false);
                         }}
                         testID={`close-call-type-option-${type.value}`}
                       >
-                        <Text style={closeCallType === type.value ? styles.typeOptionTextSelected : styles.typeOptionText}>
-                          {t(type.translationKey)}
-                        </Text>
+                        <Text style={closeCallType === type.value ? styles.typeOptionTextSelected : styles.typeOptionText}>{t(type.translationKey)}</Text>
                       </RNPressable>
                     ))}
                   </View>

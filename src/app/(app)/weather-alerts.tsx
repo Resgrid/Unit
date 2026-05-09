@@ -45,7 +45,7 @@ export default function WeatherAlerts() {
     if (severityFilter !== null && alert.Severity !== severityFilter) return false;
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      return alert.Event.toLowerCase().includes(query) || alert.Headline.toLowerCase().includes(query) || alert.AreaDescription.toLowerCase().includes(query);
+      return (alert.Event ?? '').toLowerCase().includes(query) || (alert.Headline ?? '').toLowerCase().includes(query) || (alert.AreaDescription ?? '').toLowerCase().includes(query);
     }
     return true;
   });

@@ -3,8 +3,8 @@ import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable as RNPressable, StyleSheet, View } from 'react-native';
 
-import { Pressable } from '@/components/ui/pressable';
 import { HStack } from '@/components/ui/hstack';
+import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { isIOS, showNativeActionSheet } from '@/utils/action-sheet';
@@ -46,18 +46,15 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
 
     if (isIOS()) {
       const options = [t('call_detail.edit_call'), t('call_detail.close_call'), t('common.cancel')];
-      showNativeActionSheet(
-        { options, cancelButtonIndex: options.length - 1 },
-        (buttonIndex) => {
-          if (buttonIndex === 0) {
-            trackEvent('call_detail_menu_item_selected', { action: 'edit' });
-            onEditCall();
-          } else if (buttonIndex === 1) {
-            trackEvent('call_detail_menu_item_selected', { action: 'close' });
-            onCloseCall();
-          }
+      showNativeActionSheet({ options, cancelButtonIndex: options.length - 1 }, (buttonIndex) => {
+        if (buttonIndex === 0) {
+          trackEvent('call_detail_menu_item_selected', { action: 'edit' });
+          onEditCall();
+        } else if (buttonIndex === 1) {
+          trackEvent('call_detail_menu_item_selected', { action: 'close' });
+          onCloseCall();
         }
-      );
+      });
     } else {
       setIsKebabMenuOpen(true);
     }
@@ -75,13 +72,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
     }
 
     return (
-      <Modal
-        visible={isKebabMenuOpen}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={closeMenu}
-        testID="call-detail-actionsheet"
-      >
+      <Modal visible={isKebabMenuOpen} transparent={true} animationType="slide" onRequestClose={closeMenu} testID="call-detail-actionsheet">
         <RNPressable style={menuStyles.backdrop} onPress={closeMenu}>
           <RNPressable style={menuStyles.sheet}>
             <View style={menuStyles.handle} />

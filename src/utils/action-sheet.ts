@@ -13,9 +13,6 @@ export function isIOS(): boolean {
  * Extracted so it can be easily mocked in tests without requiring
  * the native ActionSheetManager module.
  */
-export function showNativeActionSheet(
-  options: { options: string[]; cancelButtonIndex?: number },
-  callback: (buttonIndex: number) => void,
-): void {
+export function showNativeActionSheet(options: { options: string[]; cancelButtonIndex?: number }, callback: (buttonIndex: number) => void): void {
   ActionSheetIOS.showActionSheetWithOptions(options, callback);
 }

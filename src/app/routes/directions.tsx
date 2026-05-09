@@ -154,14 +154,7 @@ async function fetchMapboxDirections(waypoints: [number, number][]): Promise<Rou
   const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(';');
 
   const url =
-    `${MAPBOX_DIRECTIONS_API}/${coords}` +
-    `?access_token=${token}` +
-    `&geometries=geojson` +
-    `&overview=full` +
-    `&annotations=congestion,duration,distance` +
-    `&steps=false` +
-    `&continue_straight=true` +
-    `&language=en`;
+    `${MAPBOX_DIRECTIONS_API}/${coords}` + `?access_token=${token}` + `&geometries=geojson` + `&overview=full` + `&annotations=congestion,duration,distance` + `&steps=true` + `&continue_straight=true` + `&language=en`;
 
   try {
     const response = await fetch(url);
@@ -411,10 +404,7 @@ export default function RouteDirectionsScreen() {
   const sortedStops = useMemo(() => [...instanceStops].sort((a, b) => a.StopOrder - b.StopOrder), [instanceStops]);
 
   // Valid stops with coordinates
-  const validStops = useMemo(
-    () => sortedStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)),
-    [sortedStops]
-  );
+  const validStops = useMemo(() => sortedStops.filter((s) => s.Latitude != null && s.Longitude != null && isFinite(s.Latitude) && isFinite(s.Longitude)), [sortedStops]);
 
   // First and last stops for distinct markers
   const startStop = validStops.length > 0 ? validStops[0] : null;
@@ -711,10 +701,7 @@ export default function RouteDirectionsScreen() {
       </View>
 
       {/* Bottom panel */}
-      <Box
-        className={`absolute bottom-0 left-0 right-0 rounded-t-2xl shadow-lg ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}
-        style={{ maxHeight: '55%' }}
-      >
+      <Box className={`absolute bottom-0 left-0 right-0 rounded-t-2xl shadow-lg ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`} style={{ maxHeight: '55%' }}>
         {/* Summary bar: distance, duration, ETA, driving conditions */}
         <Box className={`border-b px-4 py-3 ${colorScheme === 'dark' ? 'border-neutral-700' : 'border-outline-100'}`}>
           <HStack className="items-center justify-between">
@@ -759,7 +746,9 @@ export default function RouteDirectionsScreen() {
                   <Text style={{ fontSize: 12, fontWeight: '600', color: drivingCondition.color }}>{drivingCondition.label}</Text>
                 </HStack>
                 {trafficDelaySeconds != null && trafficDelaySeconds > 0 ? (
-                  <Text className="text-[10px] text-typography-400">+{formatDuration(trafficDelaySeconds)} {t('routes.delay')}</Text>
+                  <Text className="text-[10px] text-typography-400">
+                    +{formatDuration(trafficDelaySeconds)} {t('routes.delay')}
+                  </Text>
                 ) : (
                   <Text className="text-[10px] text-typography-400">{t('routes.driving_conditions')}</Text>
                 )}
@@ -771,9 +760,7 @@ export default function RouteDirectionsScreen() {
           {trafficDelaySeconds != null && trafficDelaySeconds > 60 ? (
             <HStack className="mt-2 items-center justify-center gap-1 rounded-md bg-amber-50 px-2 py-1 dark:bg-amber-900/20">
               <AlertTriangleIcon size={12} color="#f59e0b" />
-              <Text className="text-xs text-amber-700 dark:text-amber-300">
-                {t('routes.traffic_delay', { time: formatDuration(trafficDelaySeconds) })}
-              </Text>
+              <Text className="text-xs text-amber-700 dark:text-amber-300">{t('routes.traffic_delay', { time: formatDuration(trafficDelaySeconds) })}</Text>
             </HStack>
           ) : null}
         </Box>
@@ -800,13 +787,7 @@ export default function RouteDirectionsScreen() {
                     },
                   ]}
                 >
-                  {isFirst ? (
-                    <PlayIcon size={10} color="#22c55e" />
-                  ) : isStopLast ? (
-                    <FlagIcon size={10} color="#ef4444" />
-                  ) : (
-                    <Text style={{ color, fontSize: 11, fontWeight: '700' }}>{stop.StopOrder}</Text>
-                  )}
+                  {isFirst ? <PlayIcon size={10} color="#22c55e" /> : isStopLast ? <FlagIcon size={10} color="#ef4444" /> : <Text style={{ color, fontSize: 11, fontWeight: '700' }}>{stop.StopOrder}</Text>}
                 </View>
 
                 <VStack className="ml-3 flex-1">

@@ -6,8 +6,8 @@ import { Platform, Pressable, RefreshControl, ScrollView } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { PoiCard } from '@/components/routes/poi-card';
 import { useFilterContext } from '@/components/routes/filter-context';
+import { PoiCard } from '@/components/routes/poi-card';
 import { Box } from '@/components/ui/box';
 import { FlatList } from '@/components/ui/flat-list';
 import { HStack } from '@/components/ui/hstack';
@@ -132,11 +132,7 @@ export const PoiListContent: React.FC = () => {
           contentContainerStyle={{ paddingBottom: Platform.OS === 'android' ? 120 : 100 }}
         />
       ) : (
-        <ScrollView
-          refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
-          contentContainerClassName="flex-1"
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />} contentContainerClassName="flex-1" showsVerticalScrollIndicator={false}>
           {isFiltered ? (
             <Box className="flex-1 items-center justify-center px-8 py-12">
               <VStack space="md" className="items-center">

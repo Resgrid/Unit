@@ -263,7 +263,9 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
               </Text>
             )}
           </View>
-          <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>{item.Name || ''}</Text>
+          <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>
+            {item.Name || ''}
+          </Text>
           <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
         </View>
       );
@@ -291,7 +293,9 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
             }}
           />
         </TouchableOpacity>
-        <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>{item.Name || ''}</Text>
+        <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>
+          {item.Name || ''}
+        </Text>
         <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
       </View>
     );
@@ -312,12 +316,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
           </Text>
         </HStack>
 
-        <TouchableOpacity
-          testID="next-button"
-          onPress={handleNext}
-          disabled={activeIndex === validImages.length - 1}
-          style={{ padding: 12, opacity: activeIndex === validImages.length - 1 ? 0.3 : 1 }}
-        >
+        <TouchableOpacity testID="next-button" onPress={handleNext} disabled={activeIndex === validImages.length - 1} style={{ padding: 12, opacity: activeIndex === validImages.length - 1 ? 0.3 : 1 }}>
           <ChevronRightIcon size={28} color={isDark ? '#F3F4F6' : '#1F2937'} />
         </TouchableOpacity>
       </HStack>

@@ -6,8 +6,8 @@ import { getCallTypes } from '@/api/calls/callTypes';
 import { getNewCallData } from '@/api/dispatch/dispatch';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
-import { type CallTypeResultData } from '@/models/v4/callTypes/callTypeResultData';
 import { type DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
+import { type CallTypeResultData } from '@/models/v4/callTypes/callTypeResultData';
 import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
 
 interface CallsState {

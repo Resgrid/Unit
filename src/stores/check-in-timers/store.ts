@@ -55,7 +55,8 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
     set({ isLoadingStatuses: true, statusError: null });
     try {
       const result = await getTimerStatuses(callId);
-      const sorted = [...result.Data].sort((a, b) => (STATUS_SEVERITY[a.Status] ?? 3) - (STATUS_SEVERITY[b.Status] ?? 3));
+      const data = Array.isArray(result.Data) ? result.Data : [];
+      const sorted = [...data].sort((a, b) => (STATUS_SEVERITY[a.Status] ?? 3) - (STATUS_SEVERITY[b.Status] ?? 3));
       set({ timerStatuses: sorted, isLoadingStatuses: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch timer statuses';
@@ -67,7 +68,7 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
   fetchResolvedTimers: async (callId: number) => {
     try {
       const result = await getTimersForCall(callId);
-      set({ resolvedTimers: result.Data });
+      set({ resolvedTimers: Array.isArray(result.Data) ? result.Data : [] });
     } catch (error) {
       logger.error({ message: 'Failed to fetch resolved timers', context: { error, callId } });
     }
@@ -77,7 +78,7 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
     set({ isLoadingHistory: true });
     try {
       const result = await getCheckInHistory(callId);
-      set({ checkInHistory: result.Data, isLoadingHistory: false });
+      set({ checkInHistory: Array.isArray(result.Data) ? result.Data : [], isLoadingHistory: false });
     } catch (error) {
       logger.error({ message: 'Failed to fetch check-in history', context: { error, callId } });
       set({ isLoadingHistory: false });
