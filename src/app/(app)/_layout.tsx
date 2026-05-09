@@ -4,7 +4,7 @@ import { NovuProvider } from '@novu/react-native';
 import Countly from 'countly-sdk-react-native-bridge';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Redirect, SplashScreen, Tabs } from 'expo-router';
-import { Contact, ListTree, Map, Megaphone, Menu, Navigation, Notebook, Settings } from 'lucide-react-native';
+import { CloudAlert, Contact, ListTree, Map, Megaphone, Menu, Navigation, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions } from 'react-native';
@@ -34,6 +34,7 @@ import { useCallsStore } from '@/stores/calls/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
+import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -159,6 +160,7 @@ export default function TabLayout() {
       await useCoreStore.getState().init();
       await useRolesStore.getState().init();
       await useCallsStore.getState().init();
+      await useWeatherAlertsStore.getState().init();
       await securityStore.getState().getRights();
 
       await useSignalRStore.getState().connectUpdateHub();
@@ -197,7 +199,7 @@ export default function TabLayout() {
 
     try {
       // Refresh data
-      await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles()]);
+      await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles(), useWeatherAlertsStore.getState().fetchActiveAlerts()]);
     } catch (error) {
       logger.error({
         message: 'Failed to refresh data on app resume',
@@ -331,6 +333,7 @@ export default function TabLayout() {
   const contactsIcon = useCallback(({ color }: { color: string }) => <Icon as={Contact} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
   const notesIcon = useCallback(({ color }: { color: string }) => <Icon as={Notebook} stroke={color} />, []);
   const routesIcon = useCallback(({ color }: { color: string }) => <Icon as={Navigation} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
+  const weatherAlertsIcon = useCallback(({ color }: { color: string }) => <Icon as={CloudAlert} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
   const protocolsIcon = useCallback(({ color }: { color: string }) => <Icon as={ListTree} stroke={color} />, []);
   const settingsIcon = useCallback(({ color }: { color: string }) => <Icon as={Settings} stroke={color} />, []);
 
@@ -395,6 +398,17 @@ export default function TabLayout() {
       headerRight: headerRightNotification,
     }),
     [t, notesIcon, headerRightNotification]
+  );
+
+  const weatherAlertsOptions = useMemo(
+    () => ({
+      title: t('tabs.weather_alerts'),
+      headerShown: true as const,
+      tabBarIcon: weatherAlertsIcon,
+      tabBarButtonTestID: 'weather-alerts-tab' as const,
+      headerRight: headerRightNotification,
+    }),
+    [t, weatherAlertsIcon, headerRightNotification]
   );
 
   const protocolsOptions = useMemo(
@@ -469,6 +483,8 @@ export default function TabLayout() {
             <Tabs.Screen name="contacts" options={contactsOptions} />
 
             <Tabs.Screen name="notes" options={notesOptions} />
+
+            <Tabs.Screen name="weather-alerts" options={weatherAlertsOptions} />
 
             <Tabs.Screen name="protocols" options={protocolsOptions} />
 

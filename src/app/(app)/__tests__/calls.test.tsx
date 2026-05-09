@@ -52,7 +52,9 @@ const mockCallsStore = {
   error: null as string | null,
   fetchCalls: jest.fn(),
   fetchCallPriorities: jest.fn(),
+  fetchCallDispatches: jest.fn(),
   callPriorities: [] as any[],
+  callDispatches: {} as Record<string, any[]>,
 };
 
 const mockSecurityStore = {

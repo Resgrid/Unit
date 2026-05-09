@@ -5,6 +5,13 @@ export class CallResultData {
   public Nature: string = '';
   public Note: string = '';
   public Address: string = '';
+  public DestinationPoiId?: number | null = null;
+  public DestinationName?: string = '';
+  public DestinationAddress?: string = '';
+  public DestinationTypeName?: string = '';
+  public DestinationPoiTypeId?: number | null = null;
+  public DestinationLatitude?: number | null = null;
+  public DestinationLongitude?: number | null = null;
   public Geolocation: string = '';
   public LoggedOn: string = '';
   public State: string = '';
@@ -26,4 +33,5 @@ export class CallResultData {
   public DispatchedOnUtc: string = '';
   public Latitude: string = '';
   public Longitude: string = '';
+  public CheckInTimersEnabled: boolean = false;
 }

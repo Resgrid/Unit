@@ -1,12 +1,12 @@
 import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetView } from '@gorhom/bottom-sheet';
-import * as FileSystem from 'expo-file-system';
+import { documentDirectory, EncodingType, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Download, File, X } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, useColorScheme } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { ScrollView } from 'react-native';
 
 import { getCallAttachmentFile } from '@/api/calls/callFiles';
 import { Box } from '@/components/ui/box';
@@ -76,11 +76,13 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   // Handle sheet changes
   const handleSheetChanges = useCallback(
     (index: number) => {
-      if (index === -1) {
+      // Only close when swiped down AND the modal is actually open
+      // Prevents spurious close events during device rotation
+      if (index === -1 && isOpen) {
         onClose();
       }
     },
-    [onClose]
+    [onClose, isOpen]
   );
 
   // Render backdrop
@@ -118,7 +120,10 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
 
       // Create a temporary file
       const fileName = file.FileName || file.Name || `file_${file.Id}`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      if (!documentDirectory) {
+        throw new Error('Document directory is unavailable');
+      }
+      const fileUri = `${documentDirectory}${fileName}`;
 
       // Convert blob to base64
       const base64Data = await new Promise<string>((resolve, reject) => {
@@ -134,8 +139,8 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
       });
 
       // Write file to device
-      await FileSystem.writeAsStringAsync(fileUri, base64Data, {
-        encoding: FileSystem.EncodingType.Base64,
+      await writeAsStringAsync(fileUri, base64Data, {
+        encoding: EncodingType.Base64,
       });
 
       // Share/open the file
@@ -246,33 +251,41 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   return (
     <>
       <FocusAwareStatusBar hidden={true} />
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={isOpen ? 0 : -1}
-        snapPoints={snapPoints}
-        onChange={handleSheetChanges}
-        backdropComponent={renderBackdrop}
-        enablePanDownToClose={true}
-        handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#4B5563' : '#D1D5DB' }}
-        backgroundStyle={{ backgroundColor: colorScheme === 'dark' ? '#1F2937' : 'white' }}
-      >
-        <BottomSheetView style={{ flex: 1 }} testID="call-files-modal">
-          {/* Fixed Header */}
-          <VStack space="md" className="bg-white dark:bg-gray-800">
-            <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
-              <Heading size="lg">{t('calls.files.title')}</Heading>
-              <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
-                <X size={24} />
-              </Button>
-            </Box>
-          </VStack>
+      {isOpen && (
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          onChange={handleSheetChanges}
+          backdropComponent={renderBackdrop}
+          enablePanDownToClose={true}
+          handleIndicatorStyle={{ backgroundColor: colorScheme === 'dark' ? '#4B5563' : '#D1D5DB' }}
+          backgroundStyle={{ backgroundColor: colorScheme === 'dark' ? '#1F2937' : 'white' }}
+        >
+          <BottomSheetView style={{ flex: 1 }} testID="call-files-modal">
+            {/* Fixed Header */}
+            <VStack space="md" className="bg-white dark:bg-gray-800">
+              <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
+                <Heading size="lg">{t('calls.files.title')}</Heading>
+                <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
+                  <X size={24} />
+                </Button>
+              </Box>
+            </VStack>
 
-          {/* Scrollable Files List */}
-          <ScrollView style={{ flex: 1 }} className="bg-white dark:bg-gray-800" showsVerticalScrollIndicator={true} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
-            {renderFilesContent()}
-          </ScrollView>
-        </BottomSheetView>
-      </BottomSheet>
+            {/* Scrollable Files List */}
+            <ScrollView
+              style={{ flex: 1 }}
+              className="bg-white dark:bg-gray-800"
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}
+              testID="scroll-view"
+            >
+              {renderFilesContent()}
+            </ScrollView>
+          </BottomSheetView>
+        </BottomSheet>
+      )}
     </>
   );
 };

@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock, Info, MapPin, Navigation, Phone, Play, Truck, User } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
@@ -86,19 +86,23 @@ export default function RouteViewScreen() {
 
   const sortedStops = useMemo(() => [...(activePlan?.Stops || [])].sort((a, b) => a.StopOrder - b.StopOrder), [activePlan]);
 
-  const mapData = useMemo(() => {
-    const valid = sortedStops.filter((s) => s.Latitude && s.Longitude);
-    if (valid.length === 0) return null;
+  const mapStops = useMemo(() => sortedStops.filter((s) => s.Latitude && s.Longitude), [sortedStops]);
 
-    const lats = valid.map((s) => s.Latitude);
-    const lngs = valid.map((s) => s.Longitude);
-    const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-    const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-    const span = Math.max(Math.max(...lats) - Math.min(...lats), Math.max(...lngs) - Math.min(...lngs));
-    const zoom = span === 0 ? 14 : Math.max(6, Math.min(14, Math.round(Math.log2(0.5 / span)) + 10));
+  const cameraRef = useRef<any>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
-    return { center: [centerLng, centerLat] as [number, number], zoom, stops: valid };
-  }, [sortedStops]);
+  // Fit bounds to show all stops once the map is ready
+  useEffect(() => {
+    if (!isMapReady || mapStops.length === 0 || !cameraRef.current) return;
+
+    const lngs = mapStops.map((s) => s.Longitude);
+    const lats = mapStops.map((s) => s.Latitude);
+
+    const ne: [number, number] = [Math.max(...lngs), Math.max(...lats)];
+    const sw: [number, number] = [Math.min(...lngs), Math.min(...lats)];
+
+    cameraRef.current.fitBounds(ne, sw, [60, 60, 60, 60], 800);
+  }, [isMapReady, mapStops]);
 
   const markerColor = activePlan?.RouteColor || '#3b82f6';
 
@@ -211,11 +215,11 @@ export default function RouteViewScreen() {
       <FocusAwareStatusBar />
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Interactive stop map */}
-        {mapData ? (
+        {mapStops.length > 0 ? (
           <View style={styles.mapContainer}>
-            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} logoEnabled={false} attributionEnabled={false}>
-              <Camera centerCoordinate={mapData.center} zoomLevel={mapData.zoom} animationDuration={0} />
-              {mapData.stops.map((stop) => (
+            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} logoEnabled={false} attributionEnabled={false} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+              <Camera ref={cameraRef} />
+              {mapStops.map((stop) => (
                 <PointAnnotation key={stop.RouteStopId} id={`stop-${stop.RouteStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>
                   <StopMarker order={stop.StopOrder} name={stop.Name} color={markerColor} />
                 </PointAnnotation>

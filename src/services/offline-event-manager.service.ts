@@ -1,10 +1,19 @@
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { saveCallImage } from '@/api/calls/callFiles';
+import { performCheckIn } from '@/api/check-in-timers/check-in-timers';
 import { setUnitLocation } from '@/api/units/unitLocation';
 import { saveUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
-import { type QueuedCallImageUploadEvent, type QueuedEvent, QueuedEventStatus, QueuedEventType, type QueuedLocationUpdateEvent, type QueuedUnitStatusEvent } from '@/models/offline-queue/queued-event';
+import {
+  type QueuedCallImageUploadEvent,
+  type QueuedCheckInEvent,
+  type QueuedEvent,
+  QueuedEventStatus,
+  QueuedEventType,
+  type QueuedLocationUpdateEvent,
+  type QueuedUnitStatusEvent,
+} from '@/models/offline-queue/queued-event';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { useOfflineQueueStore } from '@/stores/offline-queue/store';
@@ -87,6 +96,7 @@ class OfflineEventManager {
     statusType: string,
     note?: string,
     respondingTo?: string,
+    respondingToType?: number | string | null,
     roles?: { roleId: string; userId: string }[],
     gpsData?: {
       latitude?: string;
@@ -104,6 +114,7 @@ class OfflineEventManager {
       statusType,
       note,
       respondingTo,
+      respondingToType,
       timestamp: date.toISOString(),
       timestampUtc: date.toUTCString().replace('UTC', 'GMT'),
       roles,
@@ -151,6 +162,37 @@ class OfflineEventManager {
     };
 
     return useOfflineQueueStore.getState().addEvent(QueuedEventType.CALL_IMAGE_UPLOAD, data);
+  }
+
+  /**
+   * Add a check-in event to the queue
+   */
+  public queueCheckInEvent(callId: number, checkInType: number, unitId?: number, latitude?: string, longitude?: string, note?: string): string {
+    const data = {
+      callId,
+      checkInType,
+      unitId,
+      latitude,
+      longitude,
+      note,
+      timestamp: new Date().toISOString(),
+    };
+
+    return useOfflineQueueStore.getState().addEvent(QueuedEventType.CHECK_IN, data);
+  }
+
+  /**
+   * Process check-in event
+   */
+  private async processCheckInEvent(event: QueuedCheckInEvent): Promise<void> {
+    await performCheckIn({
+      CallId: event.data.callId,
+      CheckInType: event.data.checkInType,
+      UnitId: event.data.unitId,
+      Latitude: event.data.latitude,
+      Longitude: event.data.longitude,
+      Note: event.data.note,
+    });
   }
 
   /**
@@ -229,6 +271,9 @@ class OfflineEventManager {
         case QueuedEventType.CALL_IMAGE_UPLOAD:
           await this.processCallImageUploadEvent(event as QueuedCallImageUploadEvent);
           break;
+        case QueuedEventType.CHECK_IN:
+          await this.processCheckInEvent(event as QueuedCheckInEvent);
+          break;
         default:
           throw new Error(`Unknown event type: ${event.type}`);
       }
@@ -266,6 +311,7 @@ class OfflineEventManager {
     input.Type = event.data.statusType;
     input.Note = event.data.note || '';
     input.RespondingTo = event.data.respondingTo || '0';
+    input.RespondingToType = event.data.respondingToType == null || event.data.respondingToType === '' ? null : Number(event.data.respondingToType);
     input.Timestamp = event.data.timestamp;
     input.TimestampUtc = event.data.timestampUtc;
 

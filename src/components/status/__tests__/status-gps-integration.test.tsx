@@ -203,6 +203,7 @@ describe('Status GPS Integration', () => {
         '2',
         'Offline GPS status',
         '',
+        null,
         [],
         {
           latitude: '40.7128',
@@ -234,6 +235,7 @@ describe('Status GPS Integration', () => {
         '3',
         '',
         '',
+        null,
         [],
         undefined
       );
@@ -395,6 +397,7 @@ describe('Status GPS Integration', () => {
         '4',
         'Partial GPS',
         '',
+        null,
         [],
         {
           latitude: '35.6762',
@@ -440,6 +443,7 @@ describe('Status GPS Integration', () => {
         '5',
         'Complex status with GPS',
         'call123',
+        null,
         [{ roleId: 'role1', userId: 'user1' }],
         {
           latitude: '51.5074',

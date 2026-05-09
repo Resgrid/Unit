@@ -1,12 +1,12 @@
 import { create } from 'zustand';
 
-import { getCalls } from '@/api/calls/calls';
-import { getAllGroups } from '@/api/groups/groups';
+import { getSetUnitStatusData } from '@/api/dispatch/dispatch';
 import { saveUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type CustomStatusResultData } from '@/models/v4/customStatuses/customStatusResultData';
 import { type GroupResultData } from '@/models/v4/groups/groupsResultData';
+import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
 import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
 import { type SaveUnitStatusInput, type SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
@@ -14,15 +14,12 @@ import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '../app/core-store';
 import { useLocationStore } from '../app/location-store';
 import { useCallsStore } from '../calls/store';
-import { useRolesStore } from '../roles/store';
 
 type StatusStep = 'select-status' | 'select-destination' | 'add-note';
-type DestinationType = 'none' | 'call' | 'station';
+type DestinationType = 'none' | 'call' | 'station' | 'poi';
 
-// Status type that can accept both custom statuses and regular statuses
 type StatusType = CustomStatusResultData | StatusesResultData;
 
-// Store TTL: 5 minutes in milliseconds
 const STORE_TTL_MS = 5 * 60 * 1000;
 
 interface StatusBottomSheetStore {
@@ -30,18 +27,23 @@ interface StatusBottomSheetStore {
   currentStep: StatusStep;
   selectedCall: CallResultData | null;
   selectedStation: GroupResultData | null;
+  selectedPoi: PoiResultData | null;
   selectedDestinationType: DestinationType;
   selectedStatus: StatusType | null;
-  cameFromStatusSelection: boolean; // Track whether we came from status selection flow
+  cameFromStatusSelection: boolean;
   note: string;
   availableCalls: CallResultData[];
   availableStations: GroupResultData[];
+  availablePois: PoiResultData[];
+  availablePoiTypes: PoiTypeResultData[];
+  lastFetchedAt: number;
   isLoading: boolean;
   error: string | null;
   setIsOpen: (isOpen: boolean, status?: StatusType) => void;
   setCurrentStep: (step: StatusStep) => void;
   setSelectedCall: (call: CallResultData | null) => void;
   setSelectedStation: (station: GroupResultData | null) => void;
+  setSelectedPoi: (poi: PoiResultData | null) => void;
   setSelectedDestinationType: (type: DestinationType) => void;
   setSelectedStatus: (status: StatusType | null) => void;
   setNote: (note: string) => void;
@@ -49,71 +51,85 @@ interface StatusBottomSheetStore {
   reset: () => void;
 }
 
+const hasFreshDestinationData = (lastFetchedAt: number): boolean => {
+  return lastFetchedAt > 0 && Date.now() - lastFetchedAt <= STORE_TTL_MS;
+};
+
 export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, get) => ({
   isOpen: false,
   currentStep: 'select-destination',
   selectedCall: null,
   selectedStation: null,
+  selectedPoi: null,
   selectedDestinationType: 'none',
   selectedStatus: null,
   cameFromStatusSelection: false,
   note: '',
   availableCalls: [],
   availableStations: [],
+  availablePois: [],
+  availablePoiTypes: [],
+  lastFetchedAt: 0,
   isLoading: false,
   error: null,
   setIsOpen: (isOpen, status) => {
-    if (isOpen && !status) {
-      // If no status is provided, start with status selection
-      set({ isOpen, selectedStatus: null, currentStep: 'select-status', cameFromStatusSelection: true });
-    } else {
-      // If status is provided, start with destination selection
-      set({ isOpen, selectedStatus: status || null, currentStep: 'select-destination', cameFromStatusSelection: false });
+    if (!isOpen) {
+      set({ isOpen: false });
+      return;
     }
+
+    if (!status) {
+      set({
+        isOpen,
+        selectedStatus: null,
+        currentStep: 'select-status',
+        cameFromStatusSelection: true,
+      });
+      return;
+    }
+
+    set({
+      isOpen,
+      selectedStatus: status,
+      currentStep: 'select-destination',
+      cameFromStatusSelection: false,
+    });
   },
   setCurrentStep: (step) => set({ currentStep: step }),
   setSelectedCall: (call) => set({ selectedCall: call }),
   setSelectedStation: (station) => set({ selectedStation: station }),
+  setSelectedPoi: (poi) => set({ selectedPoi: poi }),
   setSelectedDestinationType: (type) => set({ selectedDestinationType: type }),
   setSelectedStatus: (status) => set({ selectedStatus: status }),
   setNote: (note) => set({ note }),
   fetchDestinationData: async (unitId: string) => {
+    if (get().isLoading || hasFreshDestinationData(get().lastFetchedAt)) {
+      return;
+    }
+
     set({ isLoading: true, error: null });
+
     try {
-      // Check if we already have calls in the calls store and if they're still fresh
-      const callsStore = useCallsStore.getState();
-      const existingCalls = callsStore.calls;
-      const lastFetchedAt = callsStore.lastFetchedAt || 0;
-      const isStale = !lastFetchedAt || Date.now() - lastFetchedAt > STORE_TTL_MS;
+      const response = await getSetUnitStatusData(unitId);
+      const data = response.Data;
+      const lastFetchedAt = Date.now();
+      const availableCalls = data?.Calls ?? [];
 
-      // Fetch calls if we don't have any or if they're stale
-      // Groups are cached (2 day TTL) so getAllGroups is already fast
-      const needsCallsFetch = existingCalls.length === 0 || isStale;
+      useCallsStore.setState({
+        calls: availableCalls,
+        lastFetchedAt,
+      });
 
-      if (needsCallsFetch) {
-        // Fetch calls and groups in parallel
-        const [callsResponse, groupsResponse] = await Promise.all([getCalls(), getAllGroups()]);
-
-        // Update the calls store with fresh data and timestamp
-        useCallsStore.setState({ calls: callsResponse.Data || [], lastFetchedAt: Date.now() });
-
-        // Set availableCalls from the fresh response
-        set({
-          availableCalls: callsResponse.Data || [],
-          availableStations: groupsResponse.Data || [],
-          isLoading: false,
-        });
-      } else {
-        // Use existing calls, only fetch groups (which is cached)
-        const groupsResponse = await getAllGroups();
-
-        set({
-          availableCalls: existingCalls,
-          availableStations: groupsResponse.Data || [],
-          isLoading: false,
-        });
-      }
-    } catch (error) {
+      set({
+        availableCalls,
+        availableStations: data?.Stations ?? [],
+        availablePois: data?.DestinationPois ?? [],
+        availablePoiTypes: data?.PoiTypes ?? [],
+        lastFetchedAt,
+        isLoading: false,
+        error: null,
+      });
+    } catch {
       set({
         error: 'Failed to fetch destination data',
         isLoading: false,
@@ -126,12 +142,16 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       currentStep: 'select-destination',
       selectedCall: null,
       selectedStation: null,
+      selectedPoi: null,
       selectedDestinationType: 'none',
       selectedStatus: null,
       cameFromStatusSelection: false,
       note: '',
       availableCalls: [],
       availableStations: [],
+      availablePois: [],
+      availablePoiTypes: [],
+      lastFetchedAt: 0,
       isLoading: false,
       error: null,
     }),
@@ -148,12 +168,12 @@ export const useStatusesStore = create<StatusesState>((set) => ({
   error: null,
   saveUnitStatus: async (input: SaveUnitStatusInput) => {
     set({ isLoading: true, error: null });
+
     try {
       const date = new Date();
       input.Timestamp = date.toISOString();
       input.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
 
-      // Populate GPS coordinates from location store if not already set
       if ((!input.Latitude && !input.Longitude) || (input.Latitude === '' && input.Longitude === '')) {
         const locationState = useLocationStore.getState();
 
@@ -162,11 +182,10 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           input.Longitude = locationState.longitude.toString();
           input.Accuracy = locationState.accuracy?.toString() || '';
           input.Altitude = locationState.altitude?.toString() || '';
-          input.AltitudeAccuracy = ''; // Location store doesn't provide altitude accuracy
+          input.AltitudeAccuracy = '';
           input.Speed = locationState.speed?.toString() || '';
           input.Heading = locationState.heading?.toString() || '';
         } else {
-          // Ensure empty strings when no GPS data
           input.Latitude = '';
           input.Longitude = '';
           input.Accuracy = '';
@@ -178,10 +197,8 @@ export const useStatusesStore = create<StatusesState>((set) => ({
       }
 
       try {
-        // Try to save directly first
         await saveUnitStatus(input);
 
-        // Set loading to false immediately after successful save
         set({ isLoading: false });
 
         logger.info({
@@ -189,8 +206,6 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           context: { unitId: input.Id, statusType: input.Type },
         });
 
-        // Refresh the active unit status in the background (don't await)
-        // This allows the UI to be responsive while the data refreshes
         const activeUnit = useCoreStore.getState().activeUnit;
         if (activeUnit) {
           const refreshPromise = useCoreStore.getState().setActiveUnitWithFetch(activeUnit.UnitId);
@@ -204,20 +219,28 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           }
         }
       } catch (error) {
-        // If direct save fails, queue for offline processing
         logger.warn({
           message: 'Direct unit status save failed, queuing for offline processing',
           context: { unitId: input.Id, statusType: input.Type, error },
         });
 
-        // Extract role data for queuing
-        const roles = input.Roles?.map((role) => ({
-          roleId: role.RoleId,
-          userId: role.UserId,
-        }));
+        const roles =
+          input.Roles?.map((role) => ({
+            roleId: role.RoleId,
+            userId: role.UserId,
+          })) ?? [];
 
-        // Extract GPS data for queuing - use location store if input doesn't have GPS data
-        let gpsData = undefined;
+        let gpsData:
+          | {
+              latitude?: string;
+              longitude?: string;
+              accuracy?: string;
+              altitude?: string;
+              altitudeAccuracy?: string;
+              speed?: string;
+              heading?: string;
+            }
+          | undefined;
 
         if (input.Latitude && input.Longitude) {
           gpsData = {
@@ -230,7 +253,6 @@ export const useStatusesStore = create<StatusesState>((set) => ({
             heading: input.Heading,
           };
         } else {
-          // Try to get GPS data from location store
           const locationState = useLocationStore.getState();
           if (locationState.latitude !== null && locationState.longitude !== null) {
             gpsData = {
@@ -238,15 +260,14 @@ export const useStatusesStore = create<StatusesState>((set) => ({
               longitude: locationState.longitude.toString(),
               accuracy: locationState.accuracy?.toString(),
               altitude: locationState.altitude?.toString(),
-              altitudeAccuracy: undefined, // Not available in location store
+              altitudeAccuracy: undefined,
               speed: locationState.speed?.toString(),
               heading: locationState.heading?.toString(),
             };
           }
         }
 
-        // Queue the event
-        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note, input.RespondingTo, roles, gpsData);
+        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData);
 
         logger.info({
           message: 'Unit status queued for offline processing',
@@ -261,7 +282,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         context: { error },
       });
       set({ error: 'Failed to save unit status', isLoading: false });
-      throw error; // Re-throw to allow calling code to handle error
+      throw error;
     }
   },
 }));

@@ -78,7 +78,7 @@ jest.mock('@/hooks/use-analytics', () => ({
 }));
 
 // Mock expo modules
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/mock/documents/',
   writeAsStringAsync: jest.fn(),
   EncodingType: {
@@ -325,9 +325,10 @@ describe('CallFilesModal', () => {
   });
 
   it('renders correctly when closed', () => {
-    const { getByTestId } = render(<CallFilesModal {...defaultProps} />);
+    const { queryByTestId, getByTestId } = render(<CallFilesModal {...defaultProps} />);
 
-    expect(getByTestId('bottom-sheet')).toBeTruthy();
+    // BottomSheet is not mounted when closed (prevents rotation bugs)
+    expect(queryByTestId('bottom-sheet')).toBeNull();
     expect(getByTestId('focus-aware-status-bar')).toBeTruthy();
   });
 
@@ -506,7 +507,7 @@ describe('CallFilesModal', () => {
 
   describe('File Download', () => {
     const mockGetCallAttachmentFile = require('@/api/calls/callFiles').getCallAttachmentFile;
-    const mockWriteAsStringAsync = require('expo-file-system').writeAsStringAsync;
+    const mockWriteAsStringAsync = require('expo-file-system/legacy').writeAsStringAsync;
     const mockShareAsync = require('expo-sharing').shareAsync;
 
     beforeEach(() => {

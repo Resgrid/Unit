@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
 import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -13,6 +13,7 @@ import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
 import { StopMarker } from '@/components/routes/stop-marker';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
+import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
@@ -25,6 +26,7 @@ import { useLocationStore } from '@/stores/app/location-store';
 import { useMapsStore } from '@/stores/maps/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
+import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
@@ -58,6 +60,17 @@ function MapContent() {
   const locationHeading = useLocationStore((state) => state.heading);
   const isMapLocked = useLocationStore((state) => state.isMapLocked);
 
+  // Weather alert banner state
+  const weatherAlerts = useWeatherAlertsStore((state) => state.alerts);
+  const weatherSettings = useWeatherAlertsStore((state) => state.settings);
+  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const extremeAlerts = useMemo(() => weatherAlerts.filter((a) => a.Severity <= 1 && a.Status === 0), [weatherAlerts]);
+
+  // Reset dismissed state when alert count changes
+  useEffect(() => {
+    setIsBannerDismissed(false);
+  }, [extremeAlerts.length]);
+
   // Route overlay state
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const activeInstance = useRoutesStore((state) => state.activeInstance);
@@ -82,6 +95,27 @@ function MapContent() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
+
+  // Stable initial camera settings so the native Camera renders at the
+  // correct position from the very first frame (fixes Android/iOS centering).
+  const initialCameraSettings = useMemo(() => {
+    if (locationLatitude != null && locationLongitude != null) {
+      return {
+        centerCoordinate: [locationLongitude, locationLatitude] as [number, number],
+        zoomLevel: isMapLocked ? 16 : 12,
+        heading: 0,
+        pitch: 0,
+      };
+    }
+
+    // Fallback: default US center when location hasn't arrived yet
+    return {
+      centerCoordinate: [-98.5795, 39.8283] as [number, number],
+      zoomLevel: 4,
+      heading: 0,
+      pitch: 0,
+    };
+  }, [locationLatitude, locationLongitude, isMapLocked]);
 
   // Fetch active route overlay data
   useEffect(() => {
@@ -478,6 +512,7 @@ function MapContent() {
         >
           <Mapbox.Camera
             ref={cameraRef}
+            defaultSettings={initialCameraSettings}
             followZoomLevel={isMapLocked ? 16 : 12}
             followUserLocation={isMapLocked}
             followUserMode={isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
@@ -575,6 +610,13 @@ function MapContent() {
             ) : null
           )}
         </Mapbox.MapView>
+
+        {/* Weather Alert Banner */}
+        {weatherSettings?.WeatherAlertsEnabled && extremeAlerts.length > 0 && !isBannerDismissed ? (
+          <View style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 10 }}>
+            <WeatherAlertBanner alerts={extremeAlerts} onPress={() => router.push('/(app)/weather-alerts')} onDismiss={() => setIsBannerDismissed(true)} />
+          </View>
+        ) : null}
 
         {/* Recenter Button - only show when map is not locked and user has moved the map */}
         {showRecenterButton ? (

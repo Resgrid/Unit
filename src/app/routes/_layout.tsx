@@ -16,6 +16,7 @@ export default function RoutesLayout() {
       <Stack.Screen name="start" options={{ title: t('routes.view_route') }} />
       <Stack.Screen name="active" options={{ title: t('routes.active_route') }} />
       <Stack.Screen name="directions" options={{ title: t('routes.directions') }} />
+      <Stack.Screen name="poi/[id]" options={{ title: t('routes.poi_detail') }} />
       <Stack.Screen name="stop/[id]" options={{ title: t('routes.stop_detail') }} />
       <Stack.Screen name="stop/contact" options={{ title: t('routes.stop_contact') }} />
       <Stack.Screen name="history/[planId]" options={{ title: t('routes.history') }} />

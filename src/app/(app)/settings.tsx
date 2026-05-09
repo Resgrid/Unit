@@ -29,6 +29,7 @@ import { getBaseApiUrl } from '@/lib/storage/app';
 import { openLinkInBrowser } from '@/lib/utils';
 import { clearAllAppData } from '@/services/app-reset.service';
 import { useCoreStore } from '@/stores/app/core-store';
+import { useServerUrlStore } from '@/stores/app/server-url-store';
 import { useUnitsStore } from '@/stores/units/store';
 
 export default function Settings() {
@@ -43,6 +44,7 @@ export default function Settings() {
   const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const units = useUnitsStore((state) => state.units);
+  const serverUrl = useServerUrlStore((s) => s.url);
 
   const activeUnitName = React.useMemo(() => {
     if (!activeUnit) return t('settings.none_selected');
@@ -115,7 +117,7 @@ export default function Settings() {
           <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
             <Heading className="mb2 text-sm">{t('settings.account')}</Heading>
             <VStack space="sm">
-              <Item text={t('settings.server')} value={getBaseApiUrl()} onPress={() => setShowServerUrl(true)} textStyle="text-info-600" />
+              <Item text={t('settings.server')} value={serverUrl || getBaseApiUrl()} onPress={() => setShowServerUrl(true)} textStyle="text-info-600" />
               <Item text={t('settings.login_info')} onPress={() => setShowLoginInfo(true)} textStyle="text-info-600" />
               <Item text={t('settings.active_unit')} value={activeUnitName} onPress={() => setShowUnitSelection(true)} textStyle="text-info-600" />
               <Item text={t('settings.logout')} onPress={() => setShowLogoutConfirm(true)} textStyle="text-error-600" />

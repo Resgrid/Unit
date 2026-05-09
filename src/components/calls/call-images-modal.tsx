@@ -1,17 +1,16 @@
-import * as FileSystem from 'expo-file-system';
+import { EncodingType, readAsStringAsync } from 'expo-file-system/legacy';
 import { Image } from 'expo-image';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { FlatList } from '@/components/ui/flat-list';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
@@ -33,8 +32,6 @@ interface CallImagesModalProps {
   callId: string;
 }
 
-const { width } = Dimensions.get('window');
-
 const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, callId }) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
@@ -51,7 +48,6 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const [isAddingImage, setIsAddingImage] = useState(false);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [fullScreenImage, setFullScreenImage] = useState<{ source: any; name?: string } | null>(null);
-  const flatListRef = useRef<FlatList<CallFileResultData>>(null);
 
   const callImages = useCallDetailStore((state) => state.callImages);
   const isLoadingImages = useCallDetailStore((state) => state.isLoadingImages);
@@ -176,8 +172,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       );
 
       // Read the manipulated image as base64
-      const base64Image = await FileSystem.readAsStringAsync(manipulatedImage.uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const base64Image = await readAsStringAsync(manipulatedImage.uri, {
+        encoding: EncodingType.Base64,
       });
 
       // Get current location if available
@@ -228,29 +224,37 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     setFullScreenImage({ source, name });
   }, []);
 
-  // Reset active index when valid images change
+  const getActiveImage = () => {
+    if (!validImages || validImages.length === 0 || activeIndex < 0 || activeIndex >= validImages.length) return null;
+    return validImages[activeIndex];
+  };
 
-  const renderImageItem = ({ item, index }: { item: CallFileResultData; index: number }) => {
+  const handlePrevious = () => {
+    setActiveIndex((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNext = () => {
+    setActiveIndex((prev) => Math.min(validImages.length - 1, prev + 1));
+  };
+
+  const renderActiveImage = () => {
+    const item = getActiveImage();
     if (!item) return null;
 
     const hasError = imageErrors.has(item.Id);
     let imageSource: { uri: string } | null = null;
 
     if (item.Data && item.Data.trim() !== '') {
-      // Use Data as base64 image
-      const mimeType = item.Mime || 'image/png'; // Default to png if no mime type
+      const mimeType = item.Mime || 'image/png';
       imageSource = { uri: `data:${mimeType};base64,${item.Data}` };
     } else if (item.Url && item.Url.trim() !== '') {
-      // Use URL directly since it's unauthenticated
-      const url = item.Url.trim();
-      imageSource = { uri: url };
+      imageSource = { uri: item.Url.trim() };
     }
 
-    // Show error state if there's an error or no valid image source
     if (!imageSource || hasError) {
       return (
-        <Box className="w-full items-center justify-center px-4" style={{ width }}>
-          <Box className="h-64 w-full items-center justify-center rounded-lg bg-gray-200">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
+          <View style={{ height: 256, width: '100%', justifyContent: 'center', alignItems: 'center', borderRadius: 8, backgroundColor: isDark ? '#374151' : '#E5E7EB' }}>
             <ImageIcon size={48} color="#999" />
             <Text className="mt-2 text-gray-500">{t('callImages.failed_to_load')}</Text>
             {item.Url && (
@@ -258,19 +262,20 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
                 URL: {item.Url}
               </Text>
             )}
-          </Box>
-          <Text className="mt-2 text-center font-medium">{item.Name || ''}</Text>
+          </View>
+          <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>
+            {item.Name || ''}
+          </Text>
           <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
-        </Box>
+        </View>
       );
     }
 
-    // At this point, imageSource is guaranteed to be non-null
     return (
-      <Box className="w-full items-center justify-center px-4" style={{ width }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 16 }}>
         <TouchableOpacity onPress={() => handleImagePress(imageSource!, item.Name)} testID={`image-${item.Id}-touchable`} activeOpacity={0.7} style={{ width: '100%' }} delayPressIn={0} delayPressOut={0}>
           <Image
-            key={`${item.Id}-${index}`}
+            key={item.Id}
             source={imageSource}
             style={styles.galleryImage}
             contentFit="contain"
@@ -278,11 +283,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
             pointerEvents="none"
             cachePolicy="memory-disk"
             recyclingKey={item.Id}
-            onError={() => {
-              handleImageError(item.Id, 'expo-image load error');
-            }}
+            onError={() => handleImageError(item.Id, 'expo-image load error')}
             onLoad={() => {
-              // Remove from error set if it loads successfully
               setImageErrors((prev) => {
                 const newSet = new Set(prev);
                 newSet.delete(item.Id);
@@ -291,68 +293,44 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
             }}
           />
         </TouchableOpacity>
-        <Text className="mt-2 text-center font-medium">{item.Name || ''}</Text>
+        <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>
+          {item.Name || ''}
+        </Text>
         <Text className="text-xs text-gray-500">{item.Timestamp || ''}</Text>
-      </Box>
+      </View>
     );
-  };
-
-  const handleViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      setActiveIndex(viewableItems[0].index || 0);
-    }
-  }).current;
-
-  const handlePrevious = () => {
-    const newIndex = Math.max(0, activeIndex - 1);
-    setActiveIndex(newIndex);
-    try {
-      flatListRef.current?.scrollToIndex({
-        index: newIndex,
-        animated: true,
-      });
-    } catch (error) {
-      console.warn('Error scrolling to previous image:', error);
-    }
-  };
-
-  const handleNext = () => {
-    const newIndex = Math.min(validImages.length - 1, activeIndex + 1);
-    setActiveIndex(newIndex);
-    try {
-      flatListRef.current?.scrollToIndex({
-        index: newIndex,
-        animated: true,
-      });
-    } catch (error) {
-      console.warn('Error scrolling to next image:', error);
-    }
   };
 
   const renderPagination = () => {
     if (!validImages || validImages.length <= 1) return null;
 
     return (
-      <HStack className="mt-4 items-center justify-between px-4">
-        <TouchableOpacity testID="previous-button" onPress={handlePrevious} disabled={activeIndex === 0} className={`rounded-full bg-white/80 p-2 ${activeIndex === 0 ? 'opacity-50' : ''}`}>
-          <ChevronLeftIcon size={24} color="#000" />
+      <HStack className="items-center justify-between px-4" style={{ paddingVertical: 12 }}>
+        <TouchableOpacity testID="previous-button" onPress={handlePrevious} disabled={activeIndex === 0} style={{ padding: 12, opacity: activeIndex === 0 ? 0.3 : 1 }}>
+          <ChevronLeftIcon size={28} color={isDark ? '#F3F4F6' : '#1F2937'} />
         </TouchableOpacity>
 
-        <HStack className="items-center space-x-2 rounded-full bg-white/80 px-4 py-2 dark:bg-gray-800/80">
-          <Text className="text-sm font-medium text-gray-800 dark:text-white">
+        <HStack className="items-center" style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: isDark ? '#F3F4F6' : '#1F2937' }}>
             {activeIndex + 1} / {validImages.length}
           </Text>
         </HStack>
 
-        <TouchableOpacity
-          testID="next-button"
-          onPress={handleNext}
-          disabled={activeIndex === validImages.length - 1}
-          className={`rounded-full bg-white/80 p-2 ${activeIndex === validImages.length - 1 ? 'opacity-50' : ''}`}
-        >
-          <ChevronRightIcon size={24} color="#000" />
+        <TouchableOpacity testID="next-button" onPress={handleNext} disabled={activeIndex === validImages.length - 1} style={{ padding: 12, opacity: activeIndex === validImages.length - 1 ? 0.3 : 1 }}>
+          <ChevronRightIcon size={28} color={isDark ? '#F3F4F6' : '#1F2937'} />
         </TouchableOpacity>
       </HStack>
+    );
+  };
+
+  const renderImageGallery = () => {
+    if (!validImages?.length) return null;
+
+    return (
+      <View style={{ flex: 1 }}>
+        {renderActiveImage()}
+        {renderPagination()}
+      </View>
     );
   };
 
@@ -412,41 +390,6 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       )}
     </>
   );
-
-  const renderImageGallery = () => {
-    if (!validImages?.length) return null;
-
-    return (
-      <VStack className="space-y-4 p-4">
-        <Box className="relative">
-          <FlatList
-            ref={flatListRef}
-            data={validImages}
-            renderItem={renderImageItem}
-            keyExtractor={(item) => item?.Id || `image-${Math.random()}`}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onViewableItemsChanged={handleViewableItemsChanged}
-            viewabilityConfig={{
-              itemVisiblePercentThreshold: 50,
-              minimumViewTime: 100,
-            }}
-            estimatedItemSize={width}
-            className="w-full"
-            contentContainerStyle={{ paddingHorizontal: 0 }}
-            initialScrollIndex={0}
-            ListEmptyComponent={() => (
-              <Box className="w-full items-center justify-center p-4">
-                <Text className="text-center text-gray-500">{t('callImages.no_images')}</Text>
-              </Box>
-            )}
-          />
-        </Box>
-        {renderPagination()}
-      </VStack>
-    );
-  };
 
   const renderContent = () => {
     if (isLoadingImages) {

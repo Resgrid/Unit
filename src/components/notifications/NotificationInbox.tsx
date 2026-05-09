@@ -307,7 +307,6 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                   ListFooterComponent={renderFooter}
                   ListEmptyComponent={renderEmpty}
                   refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} colors={['#2196F3']} />}
-                  estimatedItemSize={80}
                 />
               )}
             </>

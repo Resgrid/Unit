@@ -63,6 +63,9 @@ describe('SignalRService - Enhanced Features', () => {
     // Reset SignalR service singleton
     SignalRService.resetInstance();
 
+    // Use fake timers to prevent setTimeout leaks
+    jest.useFakeTimers();
+
     // Mock HubConnection
     mockConnection = {
       start: jest.fn().mockResolvedValue(undefined),
@@ -94,6 +97,10 @@ describe('SignalRService - Enhanced Features', () => {
       accessToken: 'mock-token',
       refreshAccessToken: mockRefreshAccessToken,
     });
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
   });
 
   describe('Singleton behavior', () => {
@@ -224,9 +231,6 @@ describe('SignalRService - Enhanced Features', () => {
       // Get the onclose callback
       const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
       
-      // Use fake timers for this test
-      jest.useFakeTimers();
-      
       // Trigger connection close
       onCloseCallback();
       
@@ -235,7 +239,6 @@ describe('SignalRService - Enhanced Features', () => {
         message: `Scheduling reconnection attempt 1/5 for hub: ${mockConfig.name}`,
       });
       
-      jest.useRealTimers();
     });
 
     it('should cleanup resources after max reconnection attempts', async () => {
@@ -267,7 +270,6 @@ describe('SignalRService - Enhanced Features', () => {
       // Get the onclose callback
       const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
       
-      jest.useFakeTimers();
       
       // Mock connection state to be Connected
       Object.defineProperty(mockConnection, 'state', {
@@ -289,7 +291,6 @@ describe('SignalRService - Enhanced Features', () => {
         message: `Hub ${mockConfig.name} is already connected, skipping reconnection attempt`,
       });
       
-      jest.useRealTimers();
     });
 
     it('should cancel scheduled reconnect if hub is explicitly disconnected after onclose handler', async () => {
@@ -301,7 +302,6 @@ describe('SignalRService - Enhanced Features', () => {
       // Get the onclose callback
       const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
       
-      jest.useFakeTimers();
       
       // Store original connections map state
       const connectionsMap = (service as any).connections;
@@ -343,7 +343,6 @@ describe('SignalRService - Enhanced Features', () => {
         connectionsMap.set(key, value);
       });
       
-      jest.useRealTimers();
     });
   });
 });

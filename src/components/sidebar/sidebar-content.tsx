@@ -14,6 +14,7 @@ import { useStatusBottomSheetStore } from '@/stores/status/store';
 import ZeroState from '../common/zero-state';
 import { StatusBottomSheet } from '../status/status-bottom-sheet';
 import { SidebarCallCard } from './call-sidebar';
+import { CheckInSidebarWidget } from './check-in-sidebar-widget';
 import { SidebarRolesCard } from './roles-sidebar';
 import { SidebarStatusCard } from './status-sidebar';
 import { SidebarUnitCard } from './unit-sidebar';
@@ -49,6 +50,9 @@ const Sidebar = ({ onClose }: SidebarProps) => {
 
         {/* Second row - Single card */}
         <SidebarCallCard />
+
+        {/* Check-in timer widget */}
+        <CheckInSidebarWidget />
 
         {/* Third row - Status buttons or empty state */}
         {isActiveStatusesEmpty ? (

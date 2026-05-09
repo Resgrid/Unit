@@ -1,6 +1,7 @@
-import { AlertTriangle, MapPin, Phone } from 'lucide-react-native';
-import React from 'react';
-import { StyleSheet } from 'react-native';
+import { AlertTriangle, MapPin, Phone, Timer } from 'lucide-react-native';
+import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Animated, ScrollView, StyleSheet } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
@@ -11,6 +12,7 @@ import { VStack } from '@/components/ui/vstack';
 import { getTimeAgoUtc, invertColor } from '@/lib/utils';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import type { CallResultData } from '@/models/v4/calls/callResultData';
+import type { DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
 
 function getColor(call: CallResultData, priority: CallPriorityResultData | undefined) {
   if (!call) {
@@ -27,10 +29,28 @@ function getColor(call: CallResultData, priority: CallPriorityResultData | undef
 interface CallCardProps {
   call: CallResultData;
   priority: CallPriorityResultData | undefined;
+  showTimerIcon?: boolean;
+  isTimerOverdue?: boolean;
+  dispatches?: DispatchedEventResultData[];
 }
 
-export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
+export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIcon = false, isTimerOverdue = false, dispatches }) => {
+  const { t } = useTranslation();
   const textColor = invertColor(getColor(call, priority), true);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const destinationLabel = call.DestinationName || call.DestinationAddress || '';
+
+  useEffect(() => {
+    if (isTimerOverdue) {
+      const animation = Animated.loop(
+        Animated.sequence([Animated.timing(pulseAnim, { toValue: 0.3, duration: 600, useNativeDriver: true }), Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true })])
+      );
+      animation.start();
+      return () => animation.stop();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isTimerOverdue, pulseAnim]);
 
   return (
     <Box
@@ -52,14 +72,21 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
             #{call.Number}
           </Text>
         </HStack>
-        <Text
-          style={{
-            color: textColor,
-          }}
-          className="text-sm text-gray-600"
-        >
-          {getTimeAgoUtc(call.LoggedOnUtc)}
-        </Text>
+        <HStack className="items-center" space="sm">
+          {showTimerIcon ? (
+            <Animated.View style={{ opacity: pulseAnim }}>
+              <Timer size={16} color={isTimerOverdue ? '#EF4444' : textColor} />
+            </Animated.View>
+          ) : null}
+          <Text
+            style={{
+              color: textColor,
+            }}
+            className="text-sm text-gray-600"
+          >
+            {getTimeAgoUtc(call.LoggedOnUtc)}
+          </Text>
+        </HStack>
       </HStack>
 
       {/* Call Details */}
@@ -90,12 +117,60 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority }) => {
           </Text>
         </HStack>
 
+        {destinationLabel ? (
+          <HStack className="items-center space-x-2">
+            <Icon as={MapPin} className="text-gray-500" size="md" />
+            <Text
+              style={{
+                color: textColor,
+              }}
+              className="text-gray-700"
+            >
+              {t('calls.destination')}: {destinationLabel}
+            </Text>
+          </HStack>
+        ) : null}
+
         {/* Dispatched Time */}
         {/* Disabling this for now, ideally a list of disptched items would be ideal here but there is a perf issue getting that data. -SJ
         <HStack className="items-center space-x-2">
           <Icon as={Calendar} className="text-gray-500" size="md" />
           <Text className="text-sm text-gray-600">Dispatched: {format(new Date(call.DispatchedOn), 'PPp')}</Text>
         </HStack>*/}
+
+        {/* Dispatch Ticker */}
+        {dispatches && dispatches.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 6, paddingHorizontal: 4 }} style={{ maxHeight: 32, marginTop: 2 }}>
+            {dispatches.map((d, index) => {
+              let typeLetter = 'P';
+              let typeBgColor = '#3B82F6'; // blue - Personnel
+              const t = d.Type?.toLowerCase() || '';
+              if (t.includes('unit')) {
+                typeLetter = 'U';
+                typeBgColor = '#10B981'; // green
+              } else if (t.includes('group')) {
+                typeLetter = 'G';
+                typeBgColor = '#8B5CF6'; // purple
+              } else if (t.includes('role')) {
+                typeLetter = 'R';
+                typeBgColor = '#F59E0B'; // amber
+              }
+
+              return (
+                <HStack key={`${d.Id || index}-${d.Name}`} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }} className="items-center">
+                  <Box style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }} className="items-center justify-center">
+                    <Text style={{ color: '#fff' }} className="text-xs font-bold">
+                      {typeLetter}
+                    </Text>
+                  </Box>
+                  <Text style={{ color: textColor, paddingHorizontal: 6 }} className="text-xs font-medium" numberOfLines={1}>
+                    {d.Name}
+                  </Text>
+                </HStack>
+              );
+            })}
+          </ScrollView>
+        ) : null}
       </VStack>
 
       {/* Nature of Call */}

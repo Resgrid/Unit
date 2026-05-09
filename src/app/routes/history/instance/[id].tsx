@@ -417,9 +417,21 @@ function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
             </Text>
           ) : null}
           <HStack className="mt-1 space-x-3">
-            {stop.CheckedInOn ? <Text className="text-xs text-gray-500">{t('routes.check_in')}: {formatDate(stop.CheckedInOn)}</Text> : null}
-            {stop.CheckedOutOn ? <Text className="text-xs text-gray-500">{t('routes.check_out')}: {formatDate(stop.CheckedOutOn)}</Text> : null}
-            {stop.SkippedOn ? <Text className="text-xs text-gray-500">{t('routes.skipped')}: {formatDate(stop.SkippedOn)}</Text> : null}
+            {stop.CheckedInOn ? (
+              <Text className="text-xs text-gray-500">
+                {t('routes.check_in')}: {formatDate(stop.CheckedInOn)}
+              </Text>
+            ) : null}
+            {stop.CheckedOutOn ? (
+              <Text className="text-xs text-gray-500">
+                {t('routes.check_out')}: {formatDate(stop.CheckedOutOn)}
+              </Text>
+            ) : null}
+            {stop.SkippedOn ? (
+              <Text className="text-xs text-gray-500">
+                {t('routes.skipped')}: {formatDate(stop.SkippedOn)}
+              </Text>
+            ) : null}
           </HStack>
         </VStack>
         <Text className="text-xs font-medium" style={{ color: statusColor }}>

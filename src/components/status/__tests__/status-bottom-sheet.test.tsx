@@ -242,24 +242,31 @@ const mockTranslation = {
       'status.select_destination_type': 'Select destination type',
       'status.no_destination': 'No Destination',
       'status.general_status': 'General Status',
-      'status.calls_tab': 'Calls',
-      'status.stations_tab': 'Stations',
-      'status.selected_destination': 'Selected Destination',
-      'status.selected_status': 'Selected Status',
-      'status.note': 'Note',
-      'status.note_required': 'Note required',
-      'status.note_optional': 'Note optional',
-      'status.loading_stations': 'Loading stations...',
-      'status.station_destination_enabled': 'Can respond to stations',
-      'status.call_destination_enabled': 'Can respond to calls',
-      'status.both_destinations_enabled': 'Can respond to calls or stations',
-      'status.no_statuses_available': 'No statuses available',
-      'status.status_saved_successfully': 'Status saved successfully',
-      'status.failed_to_save_status': 'Failed to save status',
-      'calls.loading_calls': 'Loading calls...',
-      'calls.no_calls_available': 'No calls available',
-      'status.no_stations_available': 'No stations available',
-    };
+        'status.calls_tab': 'Calls',
+        'status.calls_and_pois_destinations_enabled': 'Can respond to calls or POIs',
+        'status.calls_stations_pois_destinations_enabled': 'Can respond to calls, stations, or POIs',
+        'status.stations_tab': 'Stations',
+        'status.pois_tab': 'POIs',
+        'status.selected_destination': 'Selected Destination',
+        'status.selected_status': 'Selected Status',
+        'status.note': 'Note',
+        'status.note_required': 'Note required',
+        'status.note_optional': 'Note optional',
+        'status.loading_pois': 'Loading POIs...',
+        'status.loading_stations': 'Loading stations...',
+        'status.station_destination_enabled': 'Can respond to stations',
+        'status.call_destination_enabled': 'Can respond to calls',
+        'status.both_destinations_enabled': 'Can respond to calls or stations',
+        'status.poi_destination_enabled': 'Can respond to POIs',
+        'status.stations_and_pois_destinations_enabled': 'Can respond to stations or POIs',
+        'status.no_statuses_available': 'No statuses available',
+        'status.status_saved_successfully': 'Status saved successfully',
+        'status.failed_to_save_status': 'Failed to save status',
+        'calls.loading_calls': 'Loading calls...',
+        'calls.no_calls_available': 'No calls available',
+        'status.no_stations_available': 'No stations available',
+        'status.no_pois_available': 'No POIs available',
+      };
 
     let translation = translations[key] || key;
     if (options && typeof options === 'object') {
@@ -285,6 +292,7 @@ describe('StatusBottomSheet', () => {
   const mockSetCurrentStep = jest.fn();
   const mockSetSelectedCall = jest.fn();
   const mockSetSelectedStation = jest.fn();
+  const mockSetSelectedPoi = jest.fn();
   const mockSetSelectedDestinationType = jest.fn();
   const mockSetNote = jest.fn();
   const mockFetchDestinationData = jest.fn();
@@ -296,17 +304,21 @@ describe('StatusBottomSheet', () => {
     currentStep: 'select-destination' as const,
     selectedCall: null,
     selectedStation: null,
+    selectedPoi: null,
     selectedDestinationType: 'none' as const,
     selectedStatus: null,
     cameFromStatusSelection: false,
     note: '',
     availableCalls: [],
     availableStations: [],
+    availablePois: [],
+    availablePoiTypes: [],
     isLoading: false,
     setIsOpen: jest.fn(),
     setCurrentStep: mockSetCurrentStep,
     setSelectedCall: mockSetSelectedCall,
     setSelectedStation: mockSetSelectedStation,
+    setSelectedPoi: mockSetSelectedPoi,
     setSelectedDestinationType: mockSetSelectedDestinationType,
     setSelectedStatus: jest.fn(),
     setNote: mockSetNote,
@@ -1491,7 +1503,7 @@ describe('StatusBottomSheet', () => {
     const selectedStatus = {
       Id: 'status-1',
       Text: 'Responding',
-      Detail: 3, // Both calls and stations
+      Detail: 2, // Calls only
       Note: 0,
     };
 
@@ -1540,7 +1552,7 @@ describe('StatusBottomSheet', () => {
     const selectedStatus = {
       Id: 'status-1',
       Text: 'Responding',
-      Detail: 3, // Both calls and stations
+      Detail: 1, // Stations only
       Note: 0,
     };
 
@@ -1562,10 +1574,6 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    // Switch to stations tab first
-    const stationsTab = screen.getByText('Stations');
-    fireEvent.press(stationsTab);
-
     // Select station - should clear call selection
     const stationOption = screen.getByText('Fire Station 1');
     fireEvent.press(stationOption);
@@ -1573,6 +1581,51 @@ describe('StatusBottomSheet', () => {
     expect(mockSetSelectedStation).toHaveBeenCalledWith(mockStation);
     expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('station');
     expect(mockSetSelectedCall).toHaveBeenCalledWith(null);
+  });
+
+  it('should select a POI destination and clear call and station selections', () => {
+    const mockPoi = {
+      PoiId: 42,
+      PoiTypeId: 7,
+      PoiTypeName: 'Hospital',
+      Name: 'Mercy Hospital',
+      Address: '789 Care Way',
+      Note: '',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Transporting',
+      Detail: 4, // POIs only
+      Note: 0,
+    };
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availablePois: [mockPoi],
+        availablePoiTypes: [{ PoiTypeId: 7, Name: 'Hospital', IsDestination: true }],
+        selectedCall: { CallId: 'call-1', Number: 'C001', Name: 'Emergency Call', Address: '123 Main St' },
+        selectedStation: { GroupId: 'station-1', Name: 'Station 1', Address: '', GroupType: 'Station' },
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
+
+    render(<StatusBottomSheet />);
+
+    const poiOption = screen.getByText('Mercy Hospital - 789 Care Way');
+    fireEvent.press(poiOption);
+
+    expect(mockSetSelectedPoi).toHaveBeenCalledWith(mockPoi);
+    expect(mockSetSelectedCall).toHaveBeenCalledWith(null);
+    expect(mockSetSelectedStation).toHaveBeenCalledWith(null);
+    expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('poi');
   });
 
   it('should render many items without height constraints for proper scrolling', () => {
@@ -1999,9 +2052,9 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    // Should NOT pre-select the active call since destination type is already set to station
+    // Invalid destination types should be cleared before any pre-selection happens
     expect(mockSetSelectedCall).not.toHaveBeenCalled();
-    expect(mockSetSelectedDestinationType).not.toHaveBeenCalled();
+    expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('none');
   });
 
   it('should not pre-select active call when still loading', () => {
@@ -2851,13 +2904,6 @@ describe('StatusBottomSheet', () => {
 
     // Should show some calls on the Calls tab (default)
     expect(screen.getByText('C001 - Emergency Call 1')).toBeTruthy();
-
-    // Switch to Stations tab
-    const stationsTab = screen.getByText('Stations');
-    fireEvent.press(stationsTab);
-
-    // Should show stations
-    expect(screen.getByText('Fire Station 1')).toBeTruthy();
 
     // Next button should still be accessible
     expect(screen.getByText('Next')).toBeTruthy();

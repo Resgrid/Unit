@@ -149,10 +149,11 @@ const mockCallPin = {
   Latitude: 40.7128,
   Longitude: -74.0060,
   ImagePath: 'call',
-  Type: 1,
+  Type: 0,
   InfoWindowContent: 'Medical emergency at Main St',
   Color: '#ff0000',
   zIndex: '1',
+  PoiImage: '',
 };
 
 const mockUnitPin = {
@@ -165,6 +166,7 @@ const mockUnitPin = {
   InfoWindowContent: 'Engine 1 available',
   Color: '#00ff00',
   zIndex: '1',
+  PoiImage: '',
 };
 
 describe('Pin Actions Integration Tests', () => {
@@ -436,7 +438,7 @@ describe('Pin Actions Integration Tests', () => {
       const callPinByType = {
         ...mockCallPin,
         ImagePath: 'other',
-        Type: 1,
+        Type: 0,
       };
 
       render(
@@ -532,6 +534,7 @@ describe('Pin Actions Integration Tests', () => {
         InfoWindowContent: '',
         Color: '',
         zIndex: '1',
+        PoiImage: '',
       };
 
       render(

@@ -58,6 +58,23 @@ jest.mock('@/stores/security/store', () => ({
   }),
 }));
 
+jest.mock('@/stores/check-in-timers/store', () => ({
+  useCheckInTimerStore: {
+    getState: jest.fn(() => ({
+      performCheckIn: jest.fn(),
+    })),
+  },
+}));
+
+jest.mock('@/stores/app/location-store', () => ({
+  useLocationStore: {
+    getState: jest.fn(() => ({
+      latitude: null,
+      longitude: null,
+    })),
+  },
+}));
+
 // Mock Firebase messaging
 const mockFcmUnsubscribe = jest.fn();
 const mockOnMessage = jest.fn(() => mockFcmUnsubscribe);
