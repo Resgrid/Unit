@@ -444,6 +444,22 @@ const withCheckInLiveActivity = (config) => {
     const resolvedCurrentProjectVersion =
       hostCurrentProjectVersion || (config.ios?.buildNumber ?? '1');
 
+    // Resolve DEVELOPMENT_TEAM from the host target so the widget extension
+    // can be signed. EAS sets this on the main target during credential
+    // application; copying it here ensures the widget inherits it.
+    let hostDevelopmentTeam = null;
+    const hostBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
+    const hostBuildConfigList = project.pbxXCConfigurationList()[hostBuildConfigListId];
+    if (hostBuildConfigList) {
+      const firstHostConfigUuid = hostBuildConfigList.buildConfigurations[0]?.value;
+      if (firstHostConfigUuid) {
+        const firstHostConfig = project.pbxXCBuildConfigurationSection()[firstHostConfigUuid];
+        if (firstHostConfig?.buildSettings) {
+          hostDevelopmentTeam = firstHostConfig.buildSettings.DEVELOPMENT_TEAM || null;
+        }
+      }
+    }
+
     const buildConfigListId = targetSection[widgetTarget.uuid].buildConfigurationList;
     const buildConfigList = project.pbxXCConfigurationList()[buildConfigListId];
     if (buildConfigList) {
@@ -461,6 +477,9 @@ const withCheckInLiveActivity = (config) => {
             CODE_SIGN_STYLE: 'Automatic',
             MARKETING_VERSION: resolvedMarketingVersion,
             CURRENT_PROJECT_VERSION: resolvedCurrentProjectVersion,
+            // Propagate the development team from the host target so the
+            // widget extension can be signed (required since Xcode 14+).
+            ...(hostDevelopmentTeam ? { DEVELOPMENT_TEAM: hostDevelopmentTeam } : {}),
           });
         }
       }
