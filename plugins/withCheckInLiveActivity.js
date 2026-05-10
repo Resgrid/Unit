@@ -466,7 +466,10 @@ const withCheckInLiveActivity = (config) => {
       }
     }
 
-    // 7. Ensure the bridge files are compiled as part of the main app target
+    // 7. Resolve the iOS app target name inside this callback scope.
+    const appName = resolveIosAppName(config, projectRoot);
+
+    // 8. Ensure the bridge files are compiled as part of the main app target
     //    so the native module is linked at runtime.
     const mainGroupKey = project.findPBXGroupKey({ name: appName });
     const BRIDGE_FILES = [
