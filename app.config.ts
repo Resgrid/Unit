@@ -224,7 +224,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     './plugins/withForegroundNotifications.js',
     './plugins/withNotificationSounds.js',
     './plugins/withMediaButtonModule.js',
-    './plugins/withCheckInLiveActivity.js',
+    [
+      './plugins/withCheckInLiveActivity.js',
+      {
+        teamId: 'QKQVAJMTCN',
+        enableLiveActivityEntitlement: Env.APP_ENV === 'production' || Env.APP_ENV === 'internal',
+      },
+    ],
     './plugins/withInCallAudioModule.js',
     ['app-icon-badge', appIconBadgeConfig],
   ],

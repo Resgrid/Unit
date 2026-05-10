@@ -298,18 +298,22 @@ const WIDGET_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 `;
 
-const withCheckInLiveActivity = (config) => {
+const withCheckInLiveActivity = (config, props = {}) => {
+  const { teamId, enableLiveActivityEntitlement = true } = props;
+
   // Step 1: Add NSSupportsLiveActivities to Info.plist
   config = withInfoPlist(config, (config) => {
     config.modResults.NSSupportsLiveActivities = true;
     return config;
   });
 
-  // Step 2: Add live activity entitlement
-  config = withEntitlementsPlist(config, (config) => {
-    config.modResults['com.apple.developer.live-activity'] = true;
-    return config;
-  });
+  // Step 2: Add live activity entitlement (only if the provisioning profile supports it)
+  if (enableLiveActivityEntitlement) {
+    config = withEntitlementsPlist(config, (config) => {
+      config.modResults['com.apple.developer.live-activity'] = true;
+      return config;
+    });
+  }
 
   // Step 3: Write Swift Widget Extension files and native bridge
   config = withDangerousMod(config, [
@@ -327,6 +331,17 @@ const withCheckInLiveActivity = (config) => {
       fs.writeFileSync(path.join(widgetDir, 'CheckInTimerLiveActivity.swift'), LIVE_ACTIVITY_SWIFT);
       fs.writeFileSync(path.join(widgetDir, 'CheckInTimerWidgetBundle.swift'), WIDGET_BUNDLE_SWIFT);
       fs.writeFileSync(path.join(widgetDir, 'Info.plist'), WIDGET_INFO_PLIST);
+
+      // Write an entitlements file for the widget extension.
+      // Required for signing; the entitlements can be empty but the file must exist
+      // so Xcode doesn't fall back to the main target's entitlements.
+      const widgetEntitlements = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>
+`;
+      fs.writeFileSync(path.join(widgetDir, 'CheckInTimerWidget.entitlements'), widgetEntitlements);
 
       // Write native bridge files to the main app directory.
       // resolveIosAppName throws explicitly if the target cannot be determined,
@@ -444,20 +459,27 @@ const withCheckInLiveActivity = (config) => {
     const resolvedCurrentProjectVersion =
       hostCurrentProjectVersion || (config.ios?.buildNumber ?? '1');
 
-    // Resolve DEVELOPMENT_TEAM from the host target so the widget extension
-    // can be signed. EAS sets this on the main target during credential
-    // application; copying it here ensures the widget inherits it.
-    let hostDevelopmentTeam = null;
-    const hostBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
-    const hostBuildConfigList = project.pbxXCConfigurationList()[hostBuildConfigListId];
-    if (hostBuildConfigList) {
-      const firstHostConfigUuid = hostBuildConfigList.buildConfigurations[0]?.value;
-      if (firstHostConfigUuid) {
-        const firstHostConfig = project.pbxXCBuildConfigurationSection()[firstHostConfigUuid];
-        if (firstHostConfig?.buildSettings) {
-          hostDevelopmentTeam = firstHostConfig.buildSettings.DEVELOPMENT_TEAM || null;
+    // Resolve DEVELOPMENT_TEAM for the widget extension.
+    // Priority: plugin config param > host target build settings > env var.
+    // Note: EAS applies credentials *after* prebuild, so reading from the
+    // host target at this point will usually return null. Pass teamId via
+    // the plugin config in app.config.ts for reliable widget signing.
+    let hostDevelopmentTeam = teamId || null;
+    if (!hostDevelopmentTeam) {
+      const hostBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
+      const hostBuildConfigList = project.pbxXCConfigurationList()[hostBuildConfigListId];
+      if (hostBuildConfigList) {
+        const firstHostConfigUuid = hostBuildConfigList.buildConfigurations[0]?.value;
+        if (firstHostConfigUuid) {
+          const firstHostConfig = project.pbxXCBuildConfigurationSection()[firstHostConfigUuid];
+          if (firstHostConfig?.buildSettings) {
+            hostDevelopmentTeam = firstHostConfig.buildSettings.DEVELOPMENT_TEAM || null;
+          }
         }
       }
+    }
+    if (!hostDevelopmentTeam) {
+      hostDevelopmentTeam = process.env.EXPO_APPLE_TEAM_ID || null;
     }
 
     const buildConfigListId = targetSection[widgetTarget.uuid].buildConfigurationList;
@@ -469,6 +491,7 @@ const withCheckInLiveActivity = (config) => {
           Object.assign(buildConfig.buildSettings, {
             // Override the default addTarget placeholder (TargetName-Info.plist)
             INFOPLIST_FILE: `"${WIDGET_NAME}/Info.plist"`,
+            CODE_SIGN_ENTITLEMENTS: `"${WIDGET_NAME}/CheckInTimerWidget.entitlements"`,
             SWIFT_VERSION: '"5.0"',
             TARGETED_DEVICE_FAMILY: '"1,2"',
             // ActivityKit requires iOS 16.1 or later

@@ -39,3 +39,4 @@ expo-env.d.ts
 # @end expo-cli
 .dual-graph/
 .mcp.json
+opencode.json
