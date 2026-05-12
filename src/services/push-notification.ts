@@ -515,7 +515,7 @@ class PushNotificationService {
 
       return this.pushToken;
     } catch (error) {
-      logger.error({
+      logger.warn({
         message: 'Error registering for push notifications',
         context: { error },
       });

@@ -192,7 +192,7 @@ describe('useSignalRStore', () => {
       });
 
       expect(result.current.error).toEqual(connectionError);
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.warn).toHaveBeenCalledWith({
         message: 'Failed to connect to SignalR hubs',
         context: { error: connectionError },
       });
@@ -223,7 +223,7 @@ describe('useSignalRStore', () => {
       });
 
       expect(result.current.error).toEqual(disconnectError);
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.warn).toHaveBeenCalledWith({
         message: 'Failed to disconnect from SignalR hubs',
         context: { error: disconnectError },
       });
@@ -276,7 +276,7 @@ describe('useSignalRStore', () => {
       });
 
       expect(result.current.error).toEqual(disconnectError);
-      expect(logger.error).toHaveBeenCalledWith({
+      expect(logger.warn).toHaveBeenCalledWith({
         message: 'Failed to disconnect from SignalR hubs',
         context: { error: disconnectError },
       });

@@ -561,7 +561,7 @@ describe('LocationService', () => {
       const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
       await locationCallback(mockLocationObject);
 
-      expect(mockLogger.error).toHaveBeenCalledWith({
+      expect(mockLogger.warn).toHaveBeenCalledWith({
         message: 'Failed to send location to API',
         context: {
           error: 'API Error',

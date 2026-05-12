@@ -80,7 +80,6 @@ export default function TabLayout() {
   const hasInitialized = useRef(false);
   const isInitializing = useRef(false);
   const hasHiddenSplash = useRef(false);
-  const lastSignedInStatus = useRef<string | null>(null);
   const parentRef = useRef(null);
 
   // Render counting for diagnostics (web only)
@@ -178,7 +177,7 @@ export default function TabLayout() {
         message: 'App initialization completed successfully',
       });
     } catch (error) {
-      logger.error({
+      logger.warn({
         message: 'Failed to initialize app',
         context: { error },
       });
@@ -201,7 +200,7 @@ export default function TabLayout() {
       // Refresh data
       await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles(), useWeatherAlertsStore.getState().fetchActiveAlerts()]);
     } catch (error) {
-      logger.error({
+      logger.warn({
         message: 'Failed to refresh data on app resume',
         context: { error },
       });
@@ -227,37 +226,40 @@ export default function TabLayout() {
 
   // Handle app initialization - simplified logic
   useEffect(() => {
-    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && lastSignedInStatus.current !== 'signedIn';
+    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current;
 
     if (shouldInitialize) {
       logger.info({
         message: 'Triggering app initialization',
         context: {
-          statusChanged: lastSignedInStatus.current !== status,
+          hasInitialized: hasInitialized.current,
         },
       });
       initializeApp();
     }
-
-    // Update last known status
-    lastSignedInStatus.current = status;
   }, [status, initializeApp]);
 
   // Handle app resuming from background - separate from initialization
   useEffect(() => {
     // On web, isActive/appState are always active — skip the initial fire
-    // and only refresh when they genuinely change (i.e., on native background→foreground)
+    // and only trigger on genuine state changes (i.e., on native background→foreground)
     if (Platform.OS === 'web') return;
 
-    // Only trigger on state change, not on initial render
-    if (isActive && appState === 'active' && hasInitialized.current) {
+    if (isActive && appState === 'active') {
       const timer = setTimeout(() => {
-        refreshDataFromBackground();
+        if (hasInitialized.current) {
+          // Normal refresh after successful init
+          refreshDataFromBackground();
+        } else if (!isInitializing.current) {
+          // Retry initialization if it previously failed
+          logger.info({ message: 'Retrying app initialization after returning to foreground' });
+          initializeApp();
+        }
       }, 500); // Small delay to prevent multiple rapid calls
 
       return () => clearTimeout(timer);
     }
-  }, [isActive, appState, refreshDataFromBackground]);
+  }, [isActive, appState, refreshDataFromBackground, initializeApp]);
 
   // Force drawer open in landscape (guard with functional update to avoid unnecessary re-render)
   useEffect(() => {

@@ -56,6 +56,22 @@ Sentry.init({
     navigationIntegration,
   ],
   enableNativeFramesTracking: Platform.OS !== 'web', //!isRunningInExpoGo(), // Tracks slow and frozen frames in the application
+  beforeSend(event: any) {
+    // Filter known Mapbox GL JS bug: GeolocateControl._onSuccess calls
+    // fitBounds/_cameraForBoundsOnGlobe which throws when the globe
+    // projection matrix is null (TypeError: Cannot read properties of null (reading '3'))
+    const values = event.exception?.values;
+    if (values?.length) {
+      const top = values[values.length - 1];
+      if (top.type === 'TypeError' && top.value?.includes("Cannot read properties of null (reading '3')")) {
+        const frames = top.stacktrace?.frames;
+        if (frames?.some((f: any) => f.function?.includes('_cameraForBounds') || f.function?.includes('GeolocateControl') || f.function?.includes('fromInvProjectionMatrix'))) {
+          return null;
+        }
+      }
+    }
+    return event;
+  },
   // Add additional options to prevent timing issues
   beforeSendTransaction(event: any) {
     // Filter out problematic navigation transactions that might cause timestamp errors

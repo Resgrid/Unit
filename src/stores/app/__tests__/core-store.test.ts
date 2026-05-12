@@ -215,7 +215,7 @@ describe('Core Store', () => {
       const { result } = renderHook(() => useCoreStore());
 
       await act(async () => {
-        await result.current.init();
+        await expect(result.current.init()).rejects.toThrow('Failed to fetch config');
       });
 
       expect(result.current.isInitialized).toBe(false);
