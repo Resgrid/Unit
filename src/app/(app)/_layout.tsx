@@ -44,6 +44,7 @@ export default function TabLayout() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const [isInitComplete, setIsInitComplete] = useState(false);
+  const [initRetryCount, setInitRetryCount] = useState(0);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = width > height;
@@ -177,12 +178,13 @@ export default function TabLayout() {
         message: 'App initialization completed successfully',
       });
     } catch (error) {
-      logger.warn({
+      logger.error({
         message: 'Failed to initialize app',
         context: { error },
       });
       // Reset initialization state on error so it can be retried
       hasInitialized.current = false;
+      setInitRetryCount((c) => c + 1);
     } finally {
       isInitializing.current = false;
       setIsInitComplete(true);
@@ -225,19 +227,26 @@ export default function TabLayout() {
   }, [status, hideSplash]);
 
   // Handle app initialization - simplified logic
+  const MAX_INIT_RETRIES = 3;
   useEffect(() => {
-    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current;
+    if (status !== 'signedIn' && initRetryCount > 0) {
+      setInitRetryCount(0);
+    }
+  }, [status, initRetryCount]);
+  useEffect(() => {
+    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && initRetryCount < MAX_INIT_RETRIES;
 
     if (shouldInitialize) {
       logger.info({
         message: 'Triggering app initialization',
         context: {
           hasInitialized: hasInitialized.current,
+          initRetryCount,
         },
       });
       initializeApp();
     }
-  }, [status, initializeApp]);
+  }, [status, initializeApp, initRetryCount]);
 
   // Handle app resuming from background - separate from initialization
   useEffect(() => {
