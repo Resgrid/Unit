@@ -168,7 +168,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.error({
+      logger.warn({
         message: 'Failed to connect to SignalR hubs',
         context: { error: err },
       });
@@ -181,7 +181,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       set({ isUpdateHubConnected: false, lastUpdateMessage: null });
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.error({
+      logger.warn({
         message: 'Failed to disconnect from SignalR hubs',
         context: { error: err },
       });
@@ -238,7 +238,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       });
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.error({
+      logger.warn({
         message: 'Failed to connect to SignalR hubs',
         context: { error: err },
       });
@@ -251,7 +251,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       set({ isGeolocationHubConnected: false, lastGeolocationMessage: null });
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.error({
+      logger.warn({
         message: 'Failed to disconnect from SignalR hubs',
         context: { error: err },
       });

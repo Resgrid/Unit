@@ -122,6 +122,7 @@ export const useCoreStore = create<CoreState>()(
             message: `Failed to init core app data: ${JSON.stringify(error)}`,
             context: { error },
           });
+          throw error;
         }
       },
       setActiveUnit: async (unitId: string) => {

@@ -64,7 +64,19 @@ export const useCallsStore = create<CallsState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await getCalls();
-      set({ calls: Array.isArray(response.Data) ? response.Data : [], isLoading: false, lastFetchedAt: Date.now() });
+      const newCalls = Array.isArray(response.Data) ? response.Data : [];
+
+      // Evict dispatches for calls no longer in the active list to prevent unbounded memory growth
+      const activeIds = new Set(newCalls.map((c) => c.CallId));
+      const existing = get().callDispatches;
+      const pruned: Record<string, DispatchedEventResultData[]> = {};
+      for (const id in existing) {
+        if (activeIds.has(id)) {
+          pruned[id] = existing[id];
+        }
+      }
+
+      set({ calls: newCalls, callDispatches: pruned, isLoading: false, lastFetchedAt: Date.now() });
     } catch (error) {
       set({ error: 'Failed to fetch calls', isLoading: false });
     }

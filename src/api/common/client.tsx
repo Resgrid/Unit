@@ -108,7 +108,7 @@ axiosInstance.interceptors.response.use(
 
         if (!isNetworkError) {
           // Only logout for non-network errors (e.g., invalid refresh token, 400/401 from token endpoint)
-          logger.error({
+          logger.warn({
             message: 'Token refresh failed with non-recoverable error, logging out user',
             context: { error: refreshError },
           });

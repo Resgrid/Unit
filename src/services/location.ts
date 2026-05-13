@@ -48,7 +48,7 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
       },
     });
   } catch (error) {
-    logger.error({
+    logger.warn({
       message: 'Failed to send location to API',
       context: {
         error: error instanceof Error ? error.message : String(error),

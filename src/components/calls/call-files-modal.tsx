@@ -110,14 +110,6 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     try {
       setDownloadingFiles((prev) => ({ ...prev, [file.Id]: 0 }));
 
-      const fileData = await getCallAttachmentFile(file.Url, {
-        onEvent: (event) => {
-          if (event.type === 'progress' && event.progress !== undefined) {
-            setDownloadingFiles((prev) => ({ ...prev, [file.Id]: event.progress! }));
-          }
-        },
-      });
-
       // Create a temporary file
       const fileName = file.FileName || file.Name || `file_${file.Id}`;
       if (!documentDirectory) {
@@ -125,18 +117,29 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
       }
       const fileUri = `${documentDirectory}${fileName}`;
 
-      // Convert blob to base64
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          // Remove data URL prefix if present
-          const base64 = result.split(',')[1] || result;
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(fileData);
-      });
+      // Convert blob to base64 in a scoped block so the blob reference
+      // is released as soon as conversion completes
+      const base64Data = await (async () => {
+        const blob = await getCallAttachmentFile(file.Url!, {
+          onEvent: (event) => {
+            if (event.type === 'progress' && event.progress !== undefined) {
+              setDownloadingFiles((prev) => ({ ...prev, [file.Id]: event.progress! }));
+            }
+          },
+        });
+
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = reader.result as string;
+            // Remove data URL prefix if present
+            const base64 = result.split(',')[1] || result;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      })();
 
       // Write file to device
       await writeAsStringAsync(fileUri, base64Data, {

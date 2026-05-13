@@ -44,6 +44,7 @@ export default function TabLayout() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const [isInitComplete, setIsInitComplete] = useState(false);
+  const [initRetryCount, setInitRetryCount] = useState(0);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const isLandscape = width > height;
@@ -80,7 +81,6 @@ export default function TabLayout() {
   const hasInitialized = useRef(false);
   const isInitializing = useRef(false);
   const hasHiddenSplash = useRef(false);
-  const lastSignedInStatus = useRef<string | null>(null);
   const parentRef = useRef(null);
 
   // Render counting for diagnostics (web only)
@@ -184,6 +184,7 @@ export default function TabLayout() {
       });
       // Reset initialization state on error so it can be retried
       hasInitialized.current = false;
+      setInitRetryCount((c) => c + 1);
     } finally {
       isInitializing.current = false;
       setIsInitComplete(true);
@@ -201,7 +202,7 @@ export default function TabLayout() {
       // Refresh data
       await Promise.all([useCoreStore.getState().fetchConfig(), useCallsStore.getState().fetchCalls(), useRolesStore.getState().fetchRoles(), useWeatherAlertsStore.getState().fetchActiveAlerts()]);
     } catch (error) {
-      logger.error({
+      logger.warn({
         message: 'Failed to refresh data on app resume',
         context: { error },
       });
@@ -226,38 +227,48 @@ export default function TabLayout() {
   }, [status, hideSplash]);
 
   // Handle app initialization - simplified logic
+  const MAX_INIT_RETRIES = 3;
   useEffect(() => {
-    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && lastSignedInStatus.current !== 'signedIn';
+    if (status !== 'signedIn' && initRetryCount > 0) {
+      setInitRetryCount(0);
+    }
+  }, [status, initRetryCount]);
+  useEffect(() => {
+    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && initRetryCount < MAX_INIT_RETRIES;
 
     if (shouldInitialize) {
       logger.info({
         message: 'Triggering app initialization',
         context: {
-          statusChanged: lastSignedInStatus.current !== status,
+          hasInitialized: hasInitialized.current,
+          initRetryCount,
         },
       });
       initializeApp();
     }
-
-    // Update last known status
-    lastSignedInStatus.current = status;
-  }, [status, initializeApp]);
+  }, [status, initializeApp, initRetryCount]);
 
   // Handle app resuming from background - separate from initialization
   useEffect(() => {
     // On web, isActive/appState are always active — skip the initial fire
-    // and only refresh when they genuinely change (i.e., on native background→foreground)
+    // and only trigger on genuine state changes (i.e., on native background→foreground)
     if (Platform.OS === 'web') return;
 
-    // Only trigger on state change, not on initial render
-    if (isActive && appState === 'active' && hasInitialized.current) {
+    if (isActive && appState === 'active') {
       const timer = setTimeout(() => {
-        refreshDataFromBackground();
+        if (hasInitialized.current) {
+          // Normal refresh after successful init
+          refreshDataFromBackground();
+        } else if (!isInitializing.current) {
+          // Retry initialization if it previously failed
+          logger.info({ message: 'Retrying app initialization after returning to foreground' });
+          initializeApp();
+        }
       }, 500); // Small delay to prevent multiple rapid calls
 
       return () => clearTimeout(timer);
     }
-  }, [isActive, appState, refreshDataFromBackground]);
+  }, [isActive, appState, refreshDataFromBackground, initializeApp]);
 
   // Force drawer open in landscape (guard with functional update to avoid unnecessary re-render)
   useEffect(() => {

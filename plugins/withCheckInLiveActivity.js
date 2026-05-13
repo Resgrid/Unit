@@ -500,6 +500,12 @@ const withCheckInLiveActivity = (config, props = {}) => {
             CODE_SIGN_STYLE: 'Automatic',
             MARKETING_VERSION: resolvedMarketingVersion,
             CURRENT_PROJECT_VERSION: resolvedCurrentProjectVersion,
+            // Disable independent code signing for the widget extension.
+            // The widget is embedded in the main app and signed during the
+            // main target's archive/export phase. Without this, EAS (which
+            // uses manual signing) fails because it has no provisioning
+            // profile for the widget's bundle identifier.
+            CODE_SIGNING_ALLOWED: 'NO',
             // Propagate the development team from the host target so the
             // widget extension can be signed (required since Xcode 14+).
             ...(hostDevelopmentTeam ? { DEVELOPMENT_TEAM: hostDevelopmentTeam } : {}),
