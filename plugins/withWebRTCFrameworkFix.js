@@ -55,6 +55,13 @@ const withWebRTCFrameworkFix = (config) => {
         }
       }
 
+      if (insertAfter === anchorIdx || depth !== 0) {
+        throw new Error(
+          '[withWebRTCFrameworkFix] Unclosed parenthesis in react_native_post_install call — ' +
+            'could not locate closing ")". Aborting to avoid corrupting the Podfile.'
+        );
+      }
+
       contents = contents.slice(0, insertAfter) + hook + contents.slice(insertAfter);
       fs.writeFileSync(podfilePath, contents);
 
