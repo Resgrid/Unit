@@ -22,11 +22,11 @@ const withWebRTCFrameworkFix = (config) => {
 
       // 1. Add use_modular_headers! after use_frameworks! if not already present.
       if (!contents.includes('use_modular_headers!')) {
-        const useFrameworksPattern = /use_frameworks!.*\n/;
-        const match = contents.match(useFrameworksPattern);
-        if (match) {
-          // Insert after the last use_frameworks! line.
-          const lastIdx = contents.lastIndexOf(match[0]) + match[0].length;
+        const useFrameworksPattern = /use_frameworks!.*\n/g;
+        const allMatches = [...contents.matchAll(useFrameworksPattern)];
+        if (allMatches.length > 0) {
+          const lastMatch = allMatches[allMatches.length - 1];
+          const lastIdx = lastMatch.index + lastMatch[0].length;
           contents =
             contents.slice(0, lastIdx) + 'use_modular_headers!\n' + contents.slice(lastIdx);
         }
