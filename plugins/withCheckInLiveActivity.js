@@ -417,7 +417,7 @@ const withCheckInLiveActivity = (config, props = {}) => {
     ];
     for (const filename of SWIFT_SOURCES) {
       project.addSourceFile(
-        `${WIDGET_NAME}/${filename}`,
+        filename,
         { target: widgetTarget.uuid },
         widgetGroupUuid
       );
