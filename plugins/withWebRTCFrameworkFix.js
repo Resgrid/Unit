@@ -94,14 +94,20 @@ const withWebRTCFrameworkFix = (config) => {
         let appDelegate = fs.readFileSync(appDelegatePath, 'utf-8');
         const rnfbImport = '#import <RNFBApp/RNFBAppModule.h>';
         if (!appDelegate.includes(rnfbImport)) {
-          // Insert after the last #import line.
+          // Insert after the last #import line, or at the start if none exist.
           const lastImportIdx = appDelegate.lastIndexOf('#import');
-          const endOfLine = appDelegate.indexOf('\n', lastImportIdx);
+          let insertAt;
+          if (lastImportIdx === -1) {
+            insertAt = 0;
+          } else {
+            const endOfLine = appDelegate.indexOf('\n', lastImportIdx);
+            insertAt = endOfLine === -1 ? appDelegate.length : endOfLine + 1;
+          }
           appDelegate =
-            appDelegate.slice(0, endOfLine + 1) +
+            appDelegate.slice(0, insertAt) +
             rnfbImport +
             '\n' +
-            appDelegate.slice(endOfLine + 1);
+            appDelegate.slice(insertAt);
           fs.writeFileSync(appDelegatePath, appDelegate);
         }
       }
