@@ -3,15 +3,18 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Config plugin that patches the Podfile for Xcode 26+ compatibility with
- * use_frameworks! :linkage => :static (required by @react-native-firebase).
+ * Config plugin that patches the Podfile and source files for Xcode 26+
+ * compatibility with use_frameworks! :linkage => :static (required by
+ * @react-native-firebase).
  *
- * Fixes two classes of errors:
+ * Fixes three classes of errors:
  * 1. "include of non-modular header inside framework module" — sets
  *    CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES for all pods.
  * 2. "declaration of 'X' must be imported from module 'Y' before it is required"
  *    — adds use_modular_headers! so #import statements resolve correctly across
  *    framework module boundaries.
+ * 3. "RCTPromiseRejectBlock must be imported from module 'RNFBApp.RNFBAppModule'"
+ *    — patches RNFBMessaging source files to import RNFBAppModule explicitly.
  */
 const withWebRTCFrameworkFix = (config) => {
   return withDangerousMod(config, [
@@ -76,6 +79,39 @@ const withWebRTCFrameworkFix = (config) => {
       }
 
       fs.writeFileSync(podfilePath, contents);
+
+      // 3. Patch RNFBMessaging source files to import RNFBAppModule explicitly.
+      //    With use_frameworks! :linkage => :static on Xcode 26, the module
+      //    system requires RNFBMessaging to import RNFBAppModule to access
+      //    RCTPromiseRejectBlock and RCTPromiseResolveBlock.
+      const projectRoot = config.modRequest.projectRoot;
+      const appDelegatePath = path.join(
+        projectRoot,
+        'node_modules/@react-native-firebase/messaging/ios/RNFBMessaging/RNFBMessaging+AppDelegate.h'
+      );
+
+      if (fs.existsSync(appDelegatePath)) {
+        let appDelegate = fs.readFileSync(appDelegatePath, 'utf-8');
+        const rnfbImport = '#import <RNFBApp/RNFBAppModule.h>';
+        if (!appDelegate.includes(rnfbImport)) {
+          // Insert after the last #import line, or at the start if none exist.
+          const lastImportIdx = appDelegate.lastIndexOf('#import');
+          let insertAt;
+          if (lastImportIdx === -1) {
+            insertAt = 0;
+          } else {
+            const endOfLine = appDelegate.indexOf('\n', lastImportIdx);
+            insertAt = endOfLine === -1 ? appDelegate.length : endOfLine + 1;
+          }
+          appDelegate =
+            appDelegate.slice(0, insertAt) +
+            rnfbImport +
+            '\n' +
+            appDelegate.slice(insertAt);
+          fs.writeFileSync(appDelegatePath, appDelegate);
+        }
+      }
+
       return config;
     },
   ]);
