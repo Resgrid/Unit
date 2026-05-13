@@ -217,6 +217,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'react-native-ble-manager',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
+    './plugins/withWebRTCFrameworkFix.js',
     '@config-plugins/react-native-callkeep',
     '@react-native-firebase/app',
     './customGradle.plugin.js',
