@@ -24,6 +24,7 @@ jest.mock('@/lib/storage/app', () => ({
 jest.mock('@/lib/logging', () => ({
   logger: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
   },
 }));
@@ -62,6 +63,7 @@ jest.mock('@/lib/storage', () => ({
 import { useCoreStore } from '../core-store';
 import { getActiveUnitId, getActiveCallId } from '@/lib/storage/app';
 import { getConfig } from '@/api/config';
+import { logger } from '@/lib/logging';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
 
 const mockGetActiveUnitId = getActiveUnitId as jest.MockedFunction<typeof getActiveUnitId>;
@@ -267,6 +269,25 @@ describe('Core Store', () => {
       expect(result.current.config).toBe(null);
       expect(result.current.error).toBe('Failed to fetch config');
       expect(result.current.isLoading).toBe(false);
+    });
+
+    it('should log transient network errors at warn level, not error', async () => {
+      // Axios "Network Error" — no response received (offline / background launch)
+      const networkError = Object.assign(new Error('Network Error'), {
+        isAxiosError: true,
+        code: 'ERR_NETWORK',
+      });
+      mockGetConfig.mockRejectedValue(networkError);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await expect(result.current.fetchConfig()).rejects.toBe(networkError);
+      });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('network connectivity') }));
+      expect(logger.error).not.toHaveBeenCalled();
+      expect(result.current.error).toBe('Failed to fetch config');
     });
 
     it('should provide EventingUrl for SignalR connections', async () => {

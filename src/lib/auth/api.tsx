@@ -80,8 +80,11 @@ export const refreshTokenRequest = async (refreshToken: string): Promise<AuthRes
 
     return response.data;
   } catch (error) {
-    logger.error({
-      message: 'Token refresh failed',
+    // The response interceptor (api/common/client.tsx) classifies this failure and
+    // logs the actionable outcome (transient vs. credential rejection). Keep this at
+    // warn so a transient refresh failure isn't duplicated to Sentry as an error.
+    logger.warn({
+      message: 'Token refresh request failed',
       context: { error },
     });
     throw error;

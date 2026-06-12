@@ -50,6 +50,11 @@ function MapContent() {
   const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
   const cameraRef = useRef<any>(null); // Using any due to imperative handle
   const [isMapReady, setIsMapReady] = useState(false);
+  // Track screen focus so camera follow/animations can be stopped on blur. A camera
+  // event delivered while the native map view is tearing down crashes in @rnmapbox/maps
+  // (onCameraChanged use-after-free), so we quiet the camera when the user navigates
+  // away to shrink that window.
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
@@ -198,6 +203,9 @@ function MapContent() {
   // Handle navigation focus - reset map state when user navigates back to map page
   useFocusEffect(
     useCallback(() => {
+      // Mark the screen focused again so camera follow/animations are allowed
+      setIsScreenFocused(true);
+
       // Reset hasUserMovedMap when navigating back to map
       setHasUserMovedMap(false);
 
@@ -228,6 +236,12 @@ function MapContent() {
           },
         });
       }
+
+      // On blur (cleanup), stop the camera following/animating before the native
+      // map view is detached, so a camera event can't fire into a torn-down view.
+      return () => {
+        setIsScreenFocused(false);
+      };
     }, [isMapReady, locationLatitude, locationLongitude, isMapLocked, locationHeading])
   );
 
@@ -258,7 +272,10 @@ function MapContent() {
   }, []);
 
   useEffect(() => {
-    if (isMapReady && locationLatitude && locationLongitude) {
+    // Skip camera animations while the screen is unfocused so a location update
+    // arriving during/after navigation away doesn't drive the (possibly tearing
+    // down) native map view.
+    if (isScreenFocused && isMapReady && locationLatitude && locationLongitude) {
       // When map is locked, always follow the location
       // When map is unlocked, only follow if user hasn't moved the map
       if (isMapLocked || !hasUserMovedMap) {
@@ -278,7 +295,7 @@ function MapContent() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMapReady, locationLatitude, locationLongitude, locationHeading, isMapLocked]);
+  }, [isScreenFocused, isMapReady, locationLatitude, locationLongitude, locationHeading, isMapLocked]);
   // NOTE: hasUserMovedMap intentionally excluded from deps to avoid toggle loop
   // on web where programmatic easeTo → moveend → setHasUserMovedMap(true) → re-trigger.
 
@@ -514,9 +531,9 @@ function MapContent() {
             ref={cameraRef}
             defaultSettings={initialCameraSettings}
             followZoomLevel={isMapLocked ? 16 : 12}
-            followUserLocation={isMapLocked}
-            followUserMode={isMapLocked ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
-            followPitch={isMapLocked ? 45 : undefined}
+            followUserLocation={isMapLocked && isScreenFocused}
+            followUserMode={isMapLocked && isScreenFocused ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
+            followPitch={isMapLocked && isScreenFocused ? 45 : undefined}
           />
 
           {locationLatitude != null && locationLongitude != null ? (

@@ -35,6 +35,7 @@ import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
+import { isNetworkError } from '@/utils/network';
 
 export default function TabLayout() {
   const { t } = useTranslation();
@@ -178,10 +179,20 @@ export default function TabLayout() {
         message: 'App initialization completed successfully',
       });
     } catch (error) {
-      logger.error({
-        message: 'Failed to initialize app',
-        context: { error },
-      });
+      // Transient connectivity failures are expected (e.g. brief network loss) and
+      // already logged deeper in the stack, so keep them at warn to avoid reporting
+      // the same recoverable error to Sentry. Genuine failures still report as errors.
+      if (isNetworkError(error)) {
+        logger.warn({
+          message: 'Failed to initialize app due to network connectivity',
+          context: { error },
+        });
+      } else {
+        logger.error({
+          message: 'Failed to initialize app',
+          context: { error },
+        });
+      }
       // Reset initialization state on error so it can be retried
       hasInitialized.current = false;
       setInitRetryCount((c) => c + 1);
@@ -234,7 +245,14 @@ export default function TabLayout() {
     }
   }, [status, initRetryCount]);
   useEffect(() => {
-    const shouldInitialize = status === 'signedIn' && !hasInitialized.current && !isInitializing.current && initRetryCount < MAX_INIT_RETRIES;
+    // Defer initialization while the app is in the background. iOS cold-launches the
+    // app in the background (push wake, background fetch) where network access is
+    // restricted, so running init here just fails the config fetch with a transient
+    // "Network Error" and burns the retry budget. Wait until the app is foregrounded —
+    // this effect re-runs when appState changes to 'active'. (appState is always
+    // 'active' on web, so web behavior is unchanged.)
+    const isAppInBackground = Platform.OS !== 'web' && appState === 'background';
+    const shouldInitialize = status === 'signedIn' && !isAppInBackground && !hasInitialized.current && !isInitializing.current && initRetryCount < MAX_INIT_RETRIES;
 
     if (shouldInitialize) {
       logger.info({
@@ -246,7 +264,7 @@ export default function TabLayout() {
       });
       initializeApp();
     }
-  }, [status, initializeApp, initRetryCount]);
+  }, [status, initializeApp, initRetryCount, appState]);
 
   // Handle app resuming from background - separate from initialization
   useEffect(() => {
@@ -363,6 +381,12 @@ export default function TabLayout() {
       headerLeft: headerLeftMap,
       tabBarButtonTestID: 'map-tab' as const,
       headerRight: headerRightNotification,
+      // Freeze (suspend) the map screen when switching tabs instead of letting
+      // react-native-screens detach/destroy its native views. Tearing the map
+      // down while a camera event is in flight crashes natively in @rnmapbox/maps'
+      // Fabric event emitter (EXC_BAD_ACCESS in RNMBXMapViewEventEmitter::onCameraChanged,
+      // a use-after-free). Freezing preserves the native MapView, shrinking that race.
+      freezeOnBlur: true,
     }),
     [t, mapIcon, headerLeftMap, headerRightNotification]
   );
