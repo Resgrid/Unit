@@ -103,8 +103,13 @@ const withWebRTCFrameworkFix = (config) => {
             const endOfLine = appDelegate.indexOf('\n', lastImportIdx);
             insertAt = endOfLine === -1 ? appDelegate.length : endOfLine + 1;
           }
+          // Guard against merging into the previous line when the insertion point
+          // is not preceded by a newline (e.g. the file's last line is an #import
+          // with no trailing newline, so endOfLine === -1 and insertAt === length).
+          const needsLeadingNewline = insertAt > 0 && appDelegate[insertAt - 1] !== '\n';
           appDelegate =
             appDelegate.slice(0, insertAt) +
+            (needsLeadingNewline ? '\n' : '') +
             rnfbImport +
             '\n' +
             appDelegate.slice(insertAt);

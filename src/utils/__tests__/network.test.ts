@@ -12,8 +12,16 @@ describe('isNetworkError', () => {
     expect(isNetworkError(new AxiosError('timeout of 0ms exceeded', 'ECONNABORTED'))).toBe(true);
   });
 
-  it('returns true for any Axios error without a response object', () => {
-    expect(isNetworkError(new AxiosError('Something failed'))).toBe(true);
+  it('returns true when the request was sent but no response came back (no specific code)', () => {
+    // request object present, no response, no ERR_NETWORK/ECONNABORTED code (e.g. socket hang up)
+    const error = new AxiosError('socket hang up', undefined, undefined, {} as never);
+    expect(isNetworkError(error)).toBe(true);
+  });
+
+  it('returns false for an Axios error with no response AND no request (setup/config error)', () => {
+    // Failed before the request was ever sent — a client/setup bug, not transient
+    // connectivity; it should surface as an error, not be classified as a network error.
+    expect(isNetworkError(new AxiosError('Something failed'))).toBe(false);
   });
 
   it('returns false for an Axios error that received a server response (4xx/5xx)', () => {
