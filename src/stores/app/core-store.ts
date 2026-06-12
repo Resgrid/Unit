@@ -16,6 +16,7 @@ import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData
 import { type UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { type UnitStatusResultData } from '@/models/v4/unitStatus/unitStatusResultData';
+import { isNetworkError } from '@/utils/network';
 
 import { useCallsStore } from '../calls/store';
 //import { useRolesStore } from '../roles/store';
@@ -118,10 +119,20 @@ export const useCoreStore = create<CoreState>()(
             isLoading: false,
             isInitializing: false,
           });
-          logger.error({
-            message: `Failed to init core app data: ${JSON.stringify(error)}`,
-            context: { error },
-          });
+          // A network failure here has already been surfaced by fetchConfig; keep it
+          // at warn so the same transient, recoverable error is not reported to Sentry
+          // multiple times as it bubbles up the call stack.
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to init core app data due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: `Failed to init core app data: ${JSON.stringify(error)}`,
+              context: { error },
+            });
+          }
           throw error;
         }
       },
@@ -255,10 +266,21 @@ export const useCoreStore = create<CoreState>()(
           }
         } catch (error) {
           set({ error: 'Failed to fetch config', isLoading: false });
-          logger.error({
-            message: `Failed to fetch config: ${JSON.stringify(error)}`,
-            context: { error },
-          });
+          // Transient connectivity failures (offline, or the app cold-launched in the
+          // background with restricted network access) are expected and recoverable,
+          // so log them at warn level to avoid flooding Sentry with non-actionable
+          // errors. Genuine server responses (4xx/5xx) still report as errors.
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to fetch config due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: `Failed to fetch config: ${JSON.stringify(error)}`,
+              context: { error },
+            });
+          }
           throw error; // Re-throw to allow calling code to handle
         }
       },

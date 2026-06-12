@@ -1,6 +1,7 @@
-import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig, isAxiosError } from 'axios';
+import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
 import { refreshTokenRequest } from '@/lib/auth/api';
+import { isRefreshCredentialRejection } from '@/lib/auth/token-refresh';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
 import useAuthStore from '@/stores/auth/store';
@@ -103,19 +104,19 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error);
 
-        // Check if it's a network error vs an invalid refresh token
-        const isNetworkError = isAxiosError(refreshError) && !refreshError.response;
-
-        if (!isNetworkError) {
-          // Only logout for non-network errors (e.g., invalid refresh token, 400/401 from token endpoint)
+        // Only log the user out when the token endpoint explicitly rejected the
+        // refresh token (400 invalid_grant / 401). Transient failures — no response
+        // (offline/timeout), 5xx server errors, or 429 — must preserve the session
+        // and retry, otherwise a backend incident logs out every active responder.
+        if (isRefreshCredentialRejection(refreshError)) {
           logger.warn({
-            message: 'Token refresh failed with non-recoverable error, logging out user',
+            message: 'Token refresh rejected by server (invalid/expired credentials), logging out user',
             context: { error: refreshError },
           });
           useAuthStore.getState().logout();
         } else {
           logger.warn({
-            message: 'Token refresh failed due to network error',
+            message: 'Token refresh failed transiently, preserving session for retry',
             context: { error: refreshError },
           });
         }
