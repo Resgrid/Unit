@@ -68,13 +68,20 @@ const withWebRTCFrameworkFix = (config) => {
       }
 
       // 2. Add CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES to post_install.
-      const marker = 'CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES';
+      // Use a sentinel comment unique to this plugin as the idempotency marker.
+      // We must NOT key off CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES:
+      // @config-plugins/react-native-webrtc runs earlier and injects a
+      // livekit-only block containing that exact string, which would make this
+      // whole block (including FMT_USE_CONSTEVAL=0) get skipped.
+      const marker = '# @withWebRTCFrameworkFix:post-install';
       if (!contents.includes(marker)) {
         const hook = `
-    # Fix non-modular header includes for Xcode 26+
-    # Pods like livekit-react-native-webrtc and @react-native-firebase import
-    # React Native headers inside their framework modules, which Xcode 26
-    # treats as an error (-Werror,-Wnon-modular-include-in-framework-module).
+    ${marker}
+    # Fix non-modular header includes for Xcode 26+ for ALL pods (the webrtc
+    # plugin only covers livekit_react_native_webrtc). Pods like
+    # @react-native-firebase import React Native headers inside their framework
+    # modules, which Xcode 26 treats as an error
+    # (-Werror,-Wnon-modular-include-in-framework-module).
     #
     # Also disable fmt's consteval format-string checking. Building React Native
     # from source compiles the bundled fmt (11.0.2), which fails under Xcode 26's
