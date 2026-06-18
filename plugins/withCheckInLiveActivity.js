@@ -354,6 +354,12 @@ const withCheckInLiveActivity = (config, props = {}) => {
 
       fs.writeFileSync(path.join(appDir, 'CheckInTimerActivityManager.swift'), ACTIVITY_MANAGER_SWIFT);
       fs.writeFileSync(path.join(appDir, 'CheckInTimerActivityBridge.m'), BRIDGE_OBJC);
+      // The ActivityAttributes type must also be compiled into the MAIN APP target,
+      // not just the widget extension: CheckInTimerActivityManager.swift (app target)
+      // references CheckInTimerAttributes to start/update/end the activity. ActivityKit
+      // matches activities across app and widget by the attributes type name, so an
+      // identical copy compiled into each target is the supported pattern.
+      fs.writeFileSync(path.join(appDir, 'CheckInTimerAttributes.swift'), ATTRIBUTES_SWIFT);
 
       return config;
     },
@@ -521,6 +527,10 @@ const withCheckInLiveActivity = (config, props = {}) => {
     //    so the native module is linked at runtime.
     const mainGroupKey = project.findPBXGroupKey({ name: appName });
     const BRIDGE_FILES = [
+      // ActivityAttributes type — must compile into the app target so the
+      // activity manager can see CheckInTimerAttributes (also a member of the
+      // widget target via its own copy in CheckInTimerWidget/).
+      `${appName}/CheckInTimerAttributes.swift`,
       `${appName}/CheckInTimerActivityManager.swift`,
       `${appName}/CheckInTimerActivityBridge.m`,
     ];
