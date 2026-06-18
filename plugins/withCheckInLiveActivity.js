@@ -382,8 +382,54 @@ const withCheckInLiveActivity = (config, props = {}) => {
     const WIDGET_NAME = 'CheckInTimerWidget';
     const widgetBundleId = `${appBundleId}.${WIDGET_NAME}`;
 
-    // Idempotent: skip if the target was already added in a previous prebuild run.
-    // addTarget stores names with surrounding quotes in the comment key, so check both forms.
+    // Host-target handles, resolved up front. The host-target wiring below must run
+    // on EVERY prebuild — including when the widget target already exists — so an
+    // incremental (non `--clean`) prebuild over an existing project still gets the
+    // bridge files + the ActivityAttributes source compiled into the app target.
+    // (These were previously placed after the widget early-return, which skipped
+    // them whenever the widget target already existed.)
+    const targetSection = project.pbxNativeTargetSection();
+    const hostTarget = project.getFirstTarget();
+    const appName = resolveIosAppName(config, projectRoot);
+
+    // Host-target wiring (idempotent via hasFile / existsSync guards):
+    // compile the bridge files AND the ActivityAttributes type into the main app
+    // target so the native module links and CheckInTimerActivityManager can see
+    // CheckInTimerAttributes (also compiled into the widget via its own copy).
+    const mainGroupKey = project.findPBXGroupKey({ name: appName });
+    const BRIDGE_FILES = [
+      `${appName}/CheckInTimerAttributes.swift`,
+      `${appName}/CheckInTimerActivityManager.swift`,
+      `${appName}/CheckInTimerActivityBridge.m`,
+    ];
+    for (const filePath of BRIDGE_FILES) {
+      if (!project.hasFile(filePath)) {
+        project.addSourceFile(filePath, { target: hostTarget.uuid }, mainGroupKey);
+      }
+    }
+
+    // Ensure the main target has a bridging header so the ObjC bridge module is
+    // visible to Swift.
+    const BRIDGING_HEADER_FILE = `${appName}/${appName}-Bridging-Header.h`;
+    const bridgingHeaderPath = path.join(projectRoot, 'ios', BRIDGING_HEADER_FILE);
+    if (!fs.existsSync(bridgingHeaderPath)) {
+      fs.writeFileSync(bridgingHeaderPath, `// Auto-generated bridging header for Live Activity native bridge.\n#import <React/RCTBridgeModule.h>\n`);
+    }
+    const mainBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
+    const mainBuildConfigList = project.pbxXCConfigurationList()[mainBuildConfigListId];
+    if (mainBuildConfigList) {
+      for (const { value: mainConfigUuid } of mainBuildConfigList.buildConfigurations) {
+        const mainBuildConfig = project.pbxXCBuildConfigurationSection()[mainConfigUuid];
+        if (mainBuildConfig && !mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER) {
+          mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER = `"${BRIDGING_HEADER_FILE}"`;
+        }
+      }
+    }
+
+    // Widget-target creation is idempotent: skip if it was already added in a
+    // previous prebuild run. addTarget stores names with surrounding quotes in the
+    // comment key, so check both forms. (Only widget CREATION is gated here — the
+    // host-target wiring above already ran.)
     if (project.pbxTargetByName(WIDGET_NAME) || project.pbxTargetByName(`"${WIDGET_NAME}"`)) {
       return config;
     }
@@ -437,11 +483,10 @@ const withCheckInLiveActivity = (config, props = {}) => {
 
     // 6. Patch build settings on both Debug and Release configurations so the
     //    widget compiles as a Swift 5 app-extension targeting iOS 16.1+.
-    const targetSection = project.pbxNativeTargetSection();
+    //    (targetSection and hostTarget were resolved at the top of this callback.)
 
     // Resolve host app version numbers so the widget extension stays in sync.
     // Priority: main target build settings → Expo config → hardcoded fallback.
-    const hostTarget = project.getFirstTarget();
     let hostMarketingVersion = null;
     let hostCurrentProjectVersion = null;
     const hostConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
@@ -516,45 +561,6 @@ const withCheckInLiveActivity = (config, props = {}) => {
             // widget extension can be signed (required since Xcode 14+).
             ...(hostDevelopmentTeam ? { DEVELOPMENT_TEAM: hostDevelopmentTeam } : {}),
           });
-        }
-      }
-    }
-
-    // 7. Resolve the iOS app target name inside this callback scope.
-    const appName = resolveIosAppName(config, projectRoot);
-
-    // 8. Ensure the bridge files are compiled as part of the main app target
-    //    so the native module is linked at runtime.
-    const mainGroupKey = project.findPBXGroupKey({ name: appName });
-    const BRIDGE_FILES = [
-      // ActivityAttributes type — must compile into the app target so the
-      // activity manager can see CheckInTimerAttributes (also a member of the
-      // widget target via its own copy in CheckInTimerWidget/).
-      `${appName}/CheckInTimerAttributes.swift`,
-      `${appName}/CheckInTimerActivityManager.swift`,
-      `${appName}/CheckInTimerActivityBridge.m`,
-    ];
-    for (const filePath of BRIDGE_FILES) {
-      if (!project.hasFile(filePath)) {
-        project.addSourceFile(filePath, { target: hostTarget.uuid }, mainGroupKey);
-      }
-    }
-
-    // 8. Ensure the main target has a bridging header configured so the ObjC
-    //    bridge module is visible to Swift.
-    const BRIDGING_HEADER_FILE = `${appName}/${appName}-Bridging-Header.h`;
-    const bridgingHeaderPath = path.join(projectRoot, 'ios', BRIDGING_HEADER_FILE);
-    if (!fs.existsSync(bridgingHeaderPath)) {
-      fs.writeFileSync(bridgingHeaderPath, `// Auto-generated bridging header for Live Activity native bridge.\n#import <React/RCTBridgeModule.h>\n`);
-    }
-
-    const mainBuildConfigListId = targetSection[hostTarget.uuid].buildConfigurationList;
-    const mainBuildConfigList = project.pbxXCConfigurationList()[mainBuildConfigListId];
-    if (mainBuildConfigList) {
-      for (const { value: mainConfigUuid } of mainBuildConfigList.buildConfigurations) {
-        const mainBuildConfig = project.pbxXCBuildConfigurationSection()[mainConfigUuid];
-        if (mainBuildConfig && !mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER) {
-          mainBuildConfig.buildSettings.SWIFT_OBJC_BRIDGING_HEADER = `"${BRIDGING_HEADER_FILE}"`;
         }
       }
     }
