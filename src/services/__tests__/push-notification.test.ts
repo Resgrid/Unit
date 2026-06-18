@@ -1,6 +1,3 @@
-import messaging from '@react-native-firebase/messaging';
-import notifee from '@notifee/react-native';
-
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 
 // Mock the store
@@ -75,53 +72,47 @@ jest.mock('@/stores/app/location-store', () => ({
   },
 }));
 
-// Mock Firebase messaging
-const mockFcmUnsubscribe = jest.fn();
-const mockOnMessage = jest.fn(() => mockFcmUnsubscribe);
-const mockOnNotificationOpenedApp = jest.fn(() => mockFcmUnsubscribe);
-const mockGetInitialNotification = jest.fn(() => Promise.resolve(null));
-const mockSetBackgroundMessageHandler = jest.fn();
-const mockGetToken = jest.fn(() => Promise.resolve('test-fcm-token'));
-const mockHasPermission = jest.fn(() => Promise.resolve(1)); // AUTHORIZED
-const mockFcmRequestPermission = jest.fn(() => Promise.resolve(1)); // AUTHORIZED
+// Mock expo-notifications (the push transport)
+const mockReceivedRemove = jest.fn();
+const mockResponseRemove = jest.fn();
+const mockSetNotificationHandler = jest.fn();
+const mockAddNotificationReceivedListener = jest.fn(() => ({ remove: mockReceivedRemove }));
+const mockAddNotificationResponseReceivedListener = jest.fn(() => ({ remove: mockResponseRemove }));
+const mockGetLastNotificationResponseAsync = jest.fn(() => Promise.resolve(null));
+const mockGetPermissionsAsync = jest.fn(() => Promise.resolve({ status: 'granted' }));
+const mockRequestPermissionsAsync = jest.fn(() => Promise.resolve({ status: 'granted' }));
+const mockGetDevicePushTokenAsync = jest.fn(() => Promise.resolve({ data: 'test-device-token' }));
 
-jest.mock('@react-native-firebase/messaging', () => {
-  const messagingInstance = {
-    onMessage: mockOnMessage,
-    onNotificationOpenedApp: mockOnNotificationOpenedApp,
-    getInitialNotification: mockGetInitialNotification,
-    setBackgroundMessageHandler: mockSetBackgroundMessageHandler,
-    getToken: mockGetToken,
-    hasPermission: mockHasPermission,
-    requestPermission: mockFcmRequestPermission,
-  };
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: mockSetNotificationHandler,
+  addNotificationReceivedListener: mockAddNotificationReceivedListener,
+  addNotificationResponseReceivedListener: mockAddNotificationResponseReceivedListener,
+  getLastNotificationResponseAsync: mockGetLastNotificationResponseAsync,
+  getPermissionsAsync: mockGetPermissionsAsync,
+  requestPermissionsAsync: mockRequestPermissionsAsync,
+  getDevicePushTokenAsync: mockGetDevicePushTokenAsync,
+  AndroidImportance: { MAX: 5, HIGH: 4, DEFAULT: 3 },
+  AndroidNotificationVisibility: { PUBLIC: 1 },
+}));
 
-  const messagingModule = jest.fn(() => messagingInstance);
-  (messagingModule as any).AuthorizationStatus = {
-    NOT_DETERMINED: 0,
-    DENIED: 2,
-    AUTHORIZED: 1,
-    PROVISIONAL: 3,
-  };
-
-  return messagingModule;
-});
-
-// Mock Notifee
+// Mock Notifee (channels, categories, foreground/background events, check-in)
+const mockNotifeeForegroundUnsubscribe = jest.fn();
 const mockCreateChannel = jest.fn(() => Promise.resolve());
+const mockSetNotificationCategories = jest.fn(() => Promise.resolve());
 const mockNotifeeRequestPermission = jest.fn(() =>
   Promise.resolve({
     authorizationStatus: 1, // AUTHORIZED
   })
 );
 const mockDisplayNotification = jest.fn(() => Promise.resolve('notification-id'));
-const mockOnForegroundEvent = jest.fn(() => jest.fn());
+const mockOnForegroundEvent = jest.fn(() => mockNotifeeForegroundUnsubscribe);
 const mockOnBackgroundEvent = jest.fn();
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: {
     createChannel: mockCreateChannel,
+    setNotificationCategories: mockSetNotificationCategories,
     requestPermission: mockNotifeeRequestPermission,
     displayNotification: mockDisplayNotification,
     onForegroundEvent: mockOnForegroundEvent,
@@ -137,6 +128,10 @@ jest.mock('@notifee/react-native', () => ({
   AuthorizationStatus: {
     AUTHORIZED: 1,
     DENIED: 2,
+  },
+  EventType: {
+    PRESS: 1,
+    ACTION_PRESS: 2,
   },
 }));
 
@@ -158,41 +153,48 @@ describe('Push Notification Service Integration', () => {
     });
   });
 
-  const createMockRemoteMessage = (data: any): any => ({
-    messageId: 'test-message-id',
-    data: data.data || {},
-    notification: {
-      title: data.title || null,
-      body: data.body || null,
+  // Builds an expo-notifications Notification shape with the given data/title/body.
+  const createMockNotification = (data: any): any => ({
+    request: {
+      content: {
+        title: data.title ?? null,
+        body: data.body ?? null,
+        data: data.data ?? {},
+      },
     },
-    sentTime: Date.now(),
   });
 
-  // Test the notification handling logic directly
-  const simulateNotificationReceived = (remoteMessage: any): void => {
-    const data = remoteMessage.data;
+  // Mirrors the service's eventCode → modal contract for the received handler.
+  const simulateNotificationReceived = (notification: any): void => {
+    const content = notification.request.content;
+    const data = content.data;
 
-    // Check if the notification has an eventCode and show modal
     // eventCode must be a string to be valid
     if (data && data.eventCode && typeof data.eventCode === 'string') {
-      const notificationData = {
+      const notificationData: any = {
         eventCode: data.eventCode as string,
-        title: remoteMessage.notification?.title || undefined,
-        body: remoteMessage.notification?.body || undefined,
         data,
       };
+      if (content.title) {
+        notificationData.title = content.title;
+      }
+      if (content.body) {
+        notificationData.body = content.body;
+      }
 
-      // Show the notification modal using the store
-      usePushNotificationModalStore.getState().showNotificationModal(notificationData).catch((err) => {
-        // Handle error in test environment
-        console.error('Error showing notification modal:', err);
-      });
+      usePushNotificationModalStore
+        .getState()
+        .showNotificationModal(notificationData)
+        .catch((err: unknown) => {
+          // Handle error in test environment
+          console.error('Error showing notification modal:', err);
+        });
     }
   };
 
   describe('notification received handler', () => {
     it('should show modal for call notification with eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Emergency Call',
         body: 'Structure fire at Main St',
         data: {
@@ -201,7 +203,7 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'C:1234',
@@ -215,7 +217,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should show modal for message notification with eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'New Message',
         body: 'You have a new message from dispatch',
         data: {
@@ -224,7 +226,7 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'M:5678',
@@ -238,7 +240,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should show modal for chat notification with eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Chat Message',
         body: 'New message in chat',
         data: {
@@ -247,7 +249,7 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'T:9101',
@@ -261,7 +263,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should show modal for group chat notification with eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Group Chat',
         body: 'New message in group chat',
         data: {
@@ -270,7 +272,7 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'G:1121',
@@ -284,7 +286,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should not show modal for notification without eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Regular Notification',
         body: 'This is a regular notification without eventCode',
         data: {
@@ -292,13 +294,13 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
 
     it('should not show modal for notification with empty eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Empty Event Code',
         body: 'This notification has empty eventCode',
         data: {
@@ -306,37 +308,36 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
 
     it('should not show modal for notification without data', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'No Data',
         body: 'This notification has no data object',
         data: null,
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
 
     it('should handle notification with only title', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Emergency Call',
         data: {
           eventCode: 'C:1234',
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'C:1234',
         title: 'Emergency Call',
-        body: undefined,
         data: {
           eventCode: 'C:1234',
         },
@@ -344,18 +345,17 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should handle notification with only body', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         body: 'Structure fire at Main St',
         data: {
           eventCode: 'C:1234',
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'C:1234',
-        title: undefined,
         body: 'Structure fire at Main St',
         data: {
           eventCode: 'C:1234',
@@ -364,7 +364,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should handle notification with additional data fields', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Emergency Call',
         body: 'Structure fire at Main St',
         data: {
@@ -379,7 +379,7 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).toHaveBeenCalledWith({
         eventCode: 'C:1234',
@@ -399,7 +399,7 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should not show modal for notification with non-string eventCode', () => {
-      const remoteMessage = createMockRemoteMessage({
+      const notification = createMockNotification({
         title: 'Non-string Event Code',
         body: 'This notification has non-string eventCode',
         data: {
@@ -407,38 +407,13 @@ describe('Push Notification Service Integration', () => {
         },
       });
 
-      simulateNotificationReceived(remoteMessage);
+      simulateNotificationReceived(notification);
 
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
   });
 
-  describe('iOS foreground notification display', () => {
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
-    it('should display notification on iOS when app is in foreground with emergency priority', () => {
-      const remoteMessage = createMockRemoteMessage({
-        title: 'Emergency Call',
-        body: 'Structure fire at Main St',
-        data: {
-          eventCode: 'C:1234',
-          priority: '0',
-        },
-      });
-
-      // Since the service is already instantiated with iOS platform mock,
-      // we just need to verify the notification would be displayed
-      // The actual iOS-specific test needs to run on iOS platform
-      // For now, verify that the notification data structure is correct
-      expect(remoteMessage.notification).toBeDefined();
-      expect(remoteMessage.notification.title).toBe('Emergency Call');
-      expect(remoteMessage.data.priority).toBe('0');
-    });
-  });
-
-  describe('listener cleanup', () => {
+  describe('listener lifecycle', () => {
     let pushNotificationService: any;
 
     beforeEach(() => {
@@ -451,19 +426,17 @@ describe('Push Notification Service Integration', () => {
       pushNotificationService = module.pushNotificationService;
     });
 
-    it('should store listener handles on initialization', async () => {
+    it('should register expo-notifications listeners on initialization', async () => {
       jest.useFakeTimers();
-      
+
       await pushNotificationService.initialize();
 
-      // Run all timers to trigger getInitialNotification which is called in setTimeout
+      // Run timers to trigger the killed-state getLastNotificationResponseAsync()
       jest.runAllTimers();
 
-      // Verify listeners were registered
-      expect(mockOnMessage).toHaveBeenCalled();
-      expect(mockOnNotificationOpenedApp).toHaveBeenCalled();
-      expect(mockGetInitialNotification).toHaveBeenCalled();
-      expect(mockSetBackgroundMessageHandler).toHaveBeenCalled();
+      expect(mockAddNotificationReceivedListener).toHaveBeenCalled();
+      expect(mockAddNotificationResponseReceivedListener).toHaveBeenCalled();
+      expect(mockGetLastNotificationResponseAsync).toHaveBeenCalled();
 
       jest.useRealTimers();
     });
@@ -471,26 +444,24 @@ describe('Push Notification Service Integration', () => {
     it('should properly cleanup all listeners', async () => {
       await pushNotificationService.initialize();
 
-      // Clear previous calls
-      mockFcmUnsubscribe.mockClear();
+      mockReceivedRemove.mockClear();
+      mockResponseRemove.mockClear();
+      mockNotifeeForegroundUnsubscribe.mockClear();
 
-      // Call cleanup
       pushNotificationService.cleanup();
 
-      // Verify all listeners were removed
-      // FCM unsubscribe should be called twice (onMessage and onNotificationOpenedApp)
-      expect(mockFcmUnsubscribe).toHaveBeenCalledTimes(2);
+      expect(mockReceivedRemove).toHaveBeenCalledTimes(1);
+      expect(mockResponseRemove).toHaveBeenCalledTimes(1);
+      expect(mockNotifeeForegroundUnsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('should not error when cleanup is called without initialization', () => {
-      // Should not throw when cleanup is called without initializing
       expect(() => pushNotificationService.cleanup()).not.toThrow();
     });
 
     it('should not error when cleanup is called multiple times', async () => {
       await pushNotificationService.initialize();
 
-      // Should not throw when cleanup is called multiple times
       expect(() => {
         pushNotificationService.cleanup();
         pushNotificationService.cleanup();
@@ -513,37 +484,44 @@ describe('Push Notification Service Integration', () => {
     });
 
     it('should successfully register for push notifications with iOS', async () => {
-      mockHasPermission.mockResolvedValueOnce(1); // AUTHORIZED
-      mockGetToken.mockResolvedValueOnce('test-fcm-token');
+      mockGetPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      mockGetDevicePushTokenAsync.mockResolvedValueOnce({ data: 'test-device-token' });
 
       const token = await pushNotificationService.registerForPushNotifications('unit-123', 'TEST');
 
-      expect(token).toBe('test-fcm-token');
-      expect(mockHasPermission).toHaveBeenCalled();
-      expect(mockGetToken).toHaveBeenCalled();
+      expect(token).toBe('test-device-token');
+      expect(mockGetPermissionsAsync).toHaveBeenCalled();
+      expect(mockGetDevicePushTokenAsync).toHaveBeenCalled();
     });
 
-    it('should request permission if not determined', async () => {
-      mockHasPermission.mockResolvedValueOnce(0); // NOT_DETERMINED
-      mockFcmRequestPermission.mockResolvedValueOnce(1); // AUTHORIZED
-      mockGetToken.mockResolvedValueOnce('test-fcm-token');
+    it('should request permission if not already granted', async () => {
+      mockGetPermissionsAsync.mockResolvedValueOnce({ status: 'undetermined' });
+      mockRequestPermissionsAsync.mockResolvedValueOnce({ status: 'granted' });
+      mockGetDevicePushTokenAsync.mockResolvedValueOnce({ data: 'test-device-token' });
 
       const token = await pushNotificationService.registerForPushNotifications('unit-123', 'TEST');
 
-      expect(token).toBe('test-fcm-token');
-      expect(mockHasPermission).toHaveBeenCalled();
-      expect(mockFcmRequestPermission).toHaveBeenCalled();
-      expect(mockGetToken).toHaveBeenCalled();
+      expect(token).toBe('test-device-token');
+      expect(mockGetPermissionsAsync).toHaveBeenCalled();
+      expect(mockRequestPermissionsAsync).toHaveBeenCalled();
+      expect(mockGetDevicePushTokenAsync).toHaveBeenCalled();
     });
 
     it('should return null if permission is denied', async () => {
-      mockHasPermission.mockResolvedValueOnce(2); // DENIED
-      mockFcmRequestPermission.mockResolvedValueOnce(2); // DENIED
+      mockGetPermissionsAsync.mockResolvedValueOnce({ status: 'undetermined' });
+      mockRequestPermissionsAsync.mockResolvedValueOnce({ status: 'denied' });
 
       const token = await pushNotificationService.registerForPushNotifications('unit-123', 'TEST');
 
       expect(token).toBeNull();
-      expect(mockGetToken).not.toHaveBeenCalled();
+      expect(mockGetDevicePushTokenAsync).not.toHaveBeenCalled();
+    });
+
+    it('should return null when called without an active unit ID', async () => {
+      const token = await pushNotificationService.registerForPushNotifications('', 'TEST');
+
+      expect(token).toBeNull();
+      expect(mockGetDevicePushTokenAsync).not.toHaveBeenCalled();
     });
   });
 
@@ -571,7 +549,6 @@ describe('Push Notification Service Integration', () => {
     it('should create notification channels on Android', async () => {
       await pushNotificationService.initialize();
 
-      // Verify channels were created
       // Standard channels: calls, 0-3, notif, message = 7
       // Custom channels: c1-c25 = 25
       // Total: 32 channels
