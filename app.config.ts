@@ -170,6 +170,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ios: {
           deploymentTarget: '18.1',
           useFrameworks: 'static',
+          // Build React Native from source instead of the prebuilt
+          // ReactNativeDependencies.xcframework. The prebuilt core does not
+          // re-export RN's preprocessor macros (RCT_EXTERN, RCT_CONCAT) across
+          // the static-framework module boundary, so RCT_EXPORT_MODULE() fails
+          // to compile in third-party Obj-C modules like @react-native-firebase.
+          buildReactNativeFromSource: true,
         },
       },
     ],

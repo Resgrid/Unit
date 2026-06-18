@@ -7,7 +7,7 @@ const path = require('path');
  * compatibility with use_frameworks! :linkage => :static (required by
  * @react-native-firebase).
  *
- * Fixes three classes of errors:
+ * Fixes four classes of errors:
  * 1. "include of non-modular header inside framework module" — sets
  *    CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES for all pods.
  * 2. "declaration of 'X' must be imported from module 'Y' before it is required"
@@ -15,6 +15,11 @@ const path = require('path');
  *    framework module boundaries.
  * 3. "RCTPromiseRejectBlock must be imported from module 'RNFBApp.RNFBAppModule'"
  *    — patches RNFBMessaging source files to import RNFBAppModule explicitly.
+ * 4. "unknown type name 'RCT_EXTERN'" / "duplicate declaration of method
+ *    'RCT_CONCAT'" in RNFBMessagingModule.m (RCT_EXPORT_MODULE fails to expand)
+ *    — sets $RNFirebaseAsStaticFramework = true so the @react-native-firebase
+ *    pods build as static frameworks, letting React's macro headers resolve
+ *    inside the Firebase module.
  */
 const withWebRTCFrameworkFix = (config) => {
   return withDangerousMod(config, [
@@ -22,6 +27,28 @@ const withWebRTCFrameworkFix = (config) => {
     async (config) => {
       const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
       let contents = fs.readFileSync(podfilePath, 'utf-8');
+
+      // 0. Set $RNFirebaseAsStaticFramework = true at global scope (before any
+      //    target) so the @react-native-firebase pods build as static frameworks.
+      //    Without this, under use_frameworks! :linkage => :static the React
+      //    macro headers (RCT_EXTERN, RCT_CONCAT) don't resolve inside the
+      //    Firebase module and RCT_EXPORT_MODULE() fails to compile.
+      if (!contents.includes('$RNFirebaseAsStaticFramework')) {
+        const fbAnchor = 'prepare_react_native_project!';
+        const fbAnchorIdx = contents.indexOf(fbAnchor);
+        if (fbAnchorIdx === -1) {
+          throw new Error(
+            '[withWebRTCFrameworkFix] Could not find prepare_react_native_project! in Podfile — ' +
+              'cannot place $RNFirebaseAsStaticFramework at global scope.'
+          );
+        }
+        const fbEndOfLine = contents.indexOf('\n', fbAnchorIdx);
+        const fbInsertAt = fbEndOfLine === -1 ? contents.length : fbEndOfLine + 1;
+        contents =
+          contents.slice(0, fbInsertAt) +
+          '\n$RNFirebaseAsStaticFramework = true\n' +
+          contents.slice(fbInsertAt);
+      }
 
       // 1. Add use_modular_headers! after use_frameworks! if not already present.
       if (!contents.includes('use_modular_headers!')) {
