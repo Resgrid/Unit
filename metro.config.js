@@ -27,8 +27,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     // Native modules that need web shims
     const nativeModules = [
       '@notifee/react-native',
-      '@react-native-firebase/messaging',
-      '@react-native-firebase/app',
       'react-native-callkeep',
       'react-native-ble-manager',
       '@livekit/react-native',
