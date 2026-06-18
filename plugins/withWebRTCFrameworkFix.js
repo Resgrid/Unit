@@ -7,7 +7,7 @@ const path = require('path');
  * compatibility with use_frameworks! :linkage => :static (required by
  * @react-native-firebase).
  *
- * Fixes four classes of errors:
+ * Fixes five classes of errors:
  * 1. "include of non-modular header inside framework module" — sets
  *    CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES for all pods.
  * 2. "declaration of 'X' must be imported from module 'Y' before it is required"
@@ -20,6 +20,11 @@ const path = require('path');
  *    — sets $RNFirebaseAsStaticFramework = true so the @react-native-firebase
  *    pods build as static frameworks, letting React's macro headers resolve
  *    inside the Firebase module.
+ * 5. "call to consteval function 'fmt::basic_format_string<...>' is not a
+ *    constant expression" when compiling the fmt pod (v11.0.2) from source.
+ *    Building React Native from source (ios.buildReactNativeFromSource) compiles
+ *    fmt, which fails under Xcode 26's stricter consteval evaluation. Sets
+ *    FMT_USE_CONSTEVAL=0 for all pods so FMT_CONSTEVAL becomes a no-op.
  */
 const withWebRTCFrameworkFix = (config) => {
   return withDangerousMod(config, [
@@ -70,9 +75,19 @@ const withWebRTCFrameworkFix = (config) => {
     # Pods like livekit-react-native-webrtc and @react-native-firebase import
     # React Native headers inside their framework modules, which Xcode 26
     # treats as an error (-Werror,-Wnon-modular-include-in-framework-module).
+    #
+    # Also disable fmt's consteval format-string checking. Building React Native
+    # from source compiles the bundled fmt (11.0.2), which fails under Xcode 26's
+    # Clang with "call to consteval function ... is not a constant expression".
+    # FMT_USE_CONSTEVAL=0 makes FMT_CONSTEVAL a no-op so fmt compiles.
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+        definitions = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        definitions = [definitions] unless definitions.is_a?(Array)
+        definitions << 'FMT_USE_CONSTEVAL=0' unless definitions.include?('FMT_USE_CONSTEVAL=0')
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = definitions
       end
     end`;
 
