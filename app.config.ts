@@ -239,7 +239,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       './plugins/withCheckInLiveActivity.js',
       {
         teamId: 'QKQVAJMTCN',
-        enableLiveActivityEntitlement: Env.APP_ENV === 'production' || Env.APP_ENV === 'internal',
       },
     ],
     './plugins/withInCallAudioModule.js',

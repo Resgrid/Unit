@@ -1,4 +1,4 @@
-const { withDangerousMod, withInfoPlist, withEntitlementsPlist, withXcodeProject } = require('expo/config-plugins');
+const { withDangerousMod, withInfoPlist, withXcodeProject } = require('expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
 
@@ -299,7 +299,7 @@ const WIDGET_INFO_PLIST = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 const withCheckInLiveActivity = (config, props = {}) => {
-  const { teamId, enableLiveActivityEntitlement = true } = props;
+  const { teamId } = props;
 
   // Step 1: Add NSSupportsLiveActivities to Info.plist
   config = withInfoPlist(config, (config) => {
@@ -307,13 +307,11 @@ const withCheckInLiveActivity = (config, props = {}) => {
     return config;
   });
 
-  // Step 2: Add live activity entitlement (only if the provisioning profile supports it)
-  if (enableLiveActivityEntitlement) {
-    config = withEntitlementsPlist(config, (config) => {
-      config.modResults['com.apple.developer.live-activity'] = true;
-      return config;
-    });
-  }
+  // Step 2: (intentionally none) Live Activities require NO code-signing entitlement —
+  // only the NSSupportsLiveActivities Info.plist key above. Do NOT add
+  // `com.apple.developer.live-activity`: it is not a valid Apple entitlement, so the
+  // provisioning profile cannot include it and the archive fails with "Entitlement
+  // com.apple.developer.live-activity not found and could not be included in profile."
 
   // Step 3: Write Swift Widget Extension files and native bridge
   config = withDangerousMod(config, [
