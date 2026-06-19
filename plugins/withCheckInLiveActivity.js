@@ -551,18 +551,26 @@ const withCheckInLiveActivity = (config, props = {}) => {
             CODE_SIGN_STYLE: 'Automatic',
             MARKETING_VERSION: resolvedMarketingVersion,
             CURRENT_PROJECT_VERSION: resolvedCurrentProjectVersion,
-            // Disable independent code signing for the widget extension.
-            // The widget is embedded in the main app and signed during the
-            // main target's archive/export phase. Without this, EAS (which
-            // uses manual signing) fails because it has no provisioning
-            // profile for the widget's bundle identifier.
-            CODE_SIGNING_ALLOWED: 'NO',
-            // Propagate the development team from the host target so the
-            // widget extension can be signed (required since Xcode 14+).
+            // Sign the widget extension with the SAME team/certificate as the parent
+            // app. The extension is declared to EAS via
+            // extra.eas.build.experimental.ios.appExtensions (app.config.ts), so EAS
+            // provisions a matching profile for its bundle id. We must NOT set
+            // CODE_SIGNING_ALLOWED=NO — an unsigned embedded binary fails the archive
+            // with "Embedded binary is not signed with the same certificate as the
+            // parent app".
             ...(hostDevelopmentTeam ? { DEVELOPMENT_TEAM: hostDevelopmentTeam } : {}),
           });
         }
       }
+    }
+
+    // Mark the widget for automatic provisioning under the host app's development
+    // team so EAS/Xcode sign the embedded extension with the same certificate as
+    // the parent app (matches the host target's signing identity). Mirrors the
+    // Responder app's working Live Activity signing setup.
+    if (hostDevelopmentTeam) {
+      project.addTargetAttribute('DevelopmentTeam', hostDevelopmentTeam, widgetTarget);
+      project.addTargetAttribute('ProvisioningStyle', 'Automatic', widgetTarget);
     }
 
     return config;
