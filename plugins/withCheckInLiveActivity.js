@@ -424,60 +424,81 @@ const withCheckInLiveActivity = (config, props = {}) => {
       }
     }
 
-    // Widget-target creation is idempotent: skip if it was already added in a
-    // previous prebuild run. addTarget stores names with surrounding quotes in the
-    // comment key, so check both forms. (Only widget CREATION is gated here — the
-    // host-target wiring above already ran.)
-    if (project.pbxTargetByName(WIDGET_NAME) || project.pbxTargetByName(`"${WIDGET_NAME}"`)) {
+    // Resolve the widget target: reuse an existing one (created in a previous
+    // prebuild) or create it now. Only the one-time CREATION steps below are gated by
+    // this check — the build-settings / signing patches further down run for BOTH the
+    // new and existing cases, so an updated teamId or version is applied even when the
+    // widget target already exists (e.g. on an incremental, non `--clean` prebuild).
+    // addTarget stores names with surrounding quotes in the comment key, so check both
+    // forms.
+    const widgetAlreadyExists = !!(project.pbxTargetByName(WIDGET_NAME) || project.pbxTargetByName(`"${WIDGET_NAME}"`));
+    let widgetTargetUuid = null;
+
+    if (widgetAlreadyExists) {
+      // Find the existing target's uuid in the native-target section (skip the
+      // companion "<uuid>_comment" string entries).
+      for (const key of Object.keys(targetSection)) {
+        if (key.endsWith('_comment')) continue;
+        const existing = targetSection[key];
+        if (existing && (existing.name === WIDGET_NAME || existing.name === `"${WIDGET_NAME}"`)) {
+          widgetTargetUuid = key;
+          break;
+        }
+      }
+    } else {
+      // 1. Create the PBXNativeTarget.
+      //    addTarget('app_extension') also:
+      //      - adds an "Embed App Extensions" CopyFiles phase to the main target
+      //      - adds a PBXTargetDependency from main app → widget
+      //      - creates Debug/Release XCBuildConfigurations with basic defaults
+      const widgetTarget = project.addTarget(WIDGET_NAME, 'app_extension', WIDGET_NAME, widgetBundleId);
+      widgetTargetUuid = widgetTarget.uuid;
+
+      // 2. Add the three build phases the widget target needs.
+      //    These must be added before files/frameworks are wired, because the
+      //    addSourceFile / addFramework helpers find phases by scanning the
+      //    target's buildPhases array.
+      project.addBuildPhase([], 'PBXSourcesBuildPhase', 'Sources', widgetTarget.uuid);
+      project.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', widgetTarget.uuid);
+      project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', widgetTarget.uuid);
+
+      // 3. Create a PBX group for the widget folder and attach it to the project's
+      //    main group so the files appear in the Xcode file navigator.
+      const { uuid: widgetGroupUuid } = project.addPbxGroup([], WIDGET_NAME, WIDGET_NAME);
+      const { firstProject } = project.getFirstProject();
+      const mainGroup = project.getPBXGroupByKey(firstProject.mainGroup);
+      if (mainGroup && !mainGroup.children.find((c) => c.comment === WIDGET_NAME)) {
+        mainGroup.children.push({ value: widgetGroupUuid, comment: WIDGET_NAME });
+      }
+
+      // 4. Add Swift source files to the widget group and to the widget's Sources phase.
+      //    Passing the group key as the third argument to addSourceFile ensures the
+      //    file reference lands in the right PBX group; opt.target routes the build
+      //    file to the widget's PBXSourcesBuildPhase rather than the main app's.
+      const SWIFT_SOURCES = [
+        'CheckInTimerAttributes.swift',
+        'CheckInTimerLiveActivity.swift',
+        'CheckInTimerWidgetBundle.swift',
+      ];
+      for (const filename of SWIFT_SOURCES) {
+        project.addSourceFile(
+          filename,
+          { target: widgetTarget.uuid },
+          widgetGroupUuid
+        );
+      }
+
+      // 5. Link WidgetKit and ActivityKit into the widget's Frameworks phase.
+      //    opt.target directs addToPbxFrameworksBuildPhase to use the widget's
+      //    PBXFrameworksBuildPhase (added above) instead of the main app's.
+      project.addFramework('WidgetKit.framework', { target: widgetTarget.uuid });
+      project.addFramework('ActivityKit.framework', { target: widgetTarget.uuid });
+    }
+
+    // If the widget target can't be resolved, skip the build-settings/signing patches.
+    if (!widgetTargetUuid) {
       return config;
     }
-
-    // 1. Create the PBXNativeTarget.
-    //    addTarget('app_extension') also:
-    //      - adds an "Embed App Extensions" CopyFiles phase to the main target
-    //      - adds a PBXTargetDependency from main app → widget
-    //      - creates Debug/Release XCBuildConfigurations with basic defaults
-    const widgetTarget = project.addTarget(WIDGET_NAME, 'app_extension', WIDGET_NAME, widgetBundleId);
-
-    // 2. Add the three build phases the widget target needs.
-    //    These must be added before files/frameworks are wired, because the
-    //    addSourceFile / addFramework helpers find phases by scanning the
-    //    target's buildPhases array.
-    project.addBuildPhase([], 'PBXSourcesBuildPhase', 'Sources', widgetTarget.uuid);
-    project.addBuildPhase([], 'PBXResourcesBuildPhase', 'Resources', widgetTarget.uuid);
-    project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', widgetTarget.uuid);
-
-    // 3. Create a PBX group for the widget folder and attach it to the project's
-    //    main group so the files appear in the Xcode file navigator.
-    const { uuid: widgetGroupUuid } = project.addPbxGroup([], WIDGET_NAME, WIDGET_NAME);
-    const { firstProject } = project.getFirstProject();
-    const mainGroup = project.getPBXGroupByKey(firstProject.mainGroup);
-    if (mainGroup && !mainGroup.children.find((c) => c.comment === WIDGET_NAME)) {
-      mainGroup.children.push({ value: widgetGroupUuid, comment: WIDGET_NAME });
-    }
-
-    // 4. Add Swift source files to the widget group and to the widget's Sources phase.
-    //    Passing the group key as the third argument to addSourceFile ensures the
-    //    file reference lands in the right PBX group; opt.target routes the build
-    //    file to the widget's PBXSourcesBuildPhase rather than the main app's.
-    const SWIFT_SOURCES = [
-      'CheckInTimerAttributes.swift',
-      'CheckInTimerLiveActivity.swift',
-      'CheckInTimerWidgetBundle.swift',
-    ];
-    for (const filename of SWIFT_SOURCES) {
-      project.addSourceFile(
-        filename,
-        { target: widgetTarget.uuid },
-        widgetGroupUuid
-      );
-    }
-
-    // 5. Link WidgetKit and ActivityKit into the widget's Frameworks phase.
-    //    opt.target directs addToPbxFrameworksBuildPhase to use the widget's
-    //    PBXFrameworksBuildPhase (added above) instead of the main app's.
-    project.addFramework('WidgetKit.framework', { target: widgetTarget.uuid });
-    project.addFramework('ActivityKit.framework', { target: widgetTarget.uuid });
 
     // 6. Patch build settings on both Debug and Release configurations so the
     //    widget compiles as a Swift 5 app-extension targeting iOS 16.1+.
@@ -531,7 +552,7 @@ const withCheckInLiveActivity = (config, props = {}) => {
       hostDevelopmentTeam = process.env.EXPO_APPLE_TEAM_ID || null;
     }
 
-    const buildConfigListId = targetSection[widgetTarget.uuid].buildConfigurationList;
+    const buildConfigListId = targetSection[widgetTargetUuid].buildConfigurationList;
     const buildConfigList = project.pbxXCConfigurationList()[buildConfigListId];
     if (buildConfigList) {
       for (const { value: configUuid } of buildConfigList.buildConfigurations) {
@@ -567,8 +588,8 @@ const withCheckInLiveActivity = (config, props = {}) => {
     // the parent app (matches the host target's signing identity). Mirrors the
     // Responder app's working Live Activity signing setup.
     if (hostDevelopmentTeam) {
-      project.addTargetAttribute('DevelopmentTeam', hostDevelopmentTeam, widgetTarget);
-      project.addTargetAttribute('ProvisioningStyle', 'Automatic', widgetTarget);
+      project.addTargetAttribute('DevelopmentTeam', hostDevelopmentTeam, { uuid: widgetTargetUuid });
+      project.addTargetAttribute('ProvisioningStyle', 'Automatic', { uuid: widgetTargetUuid });
     }
 
     return config;
