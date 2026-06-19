@@ -21,6 +21,16 @@ const appIconBadgeConfig: AppIconBadgeConfig = {
   ],
 };
 
+// Declares the Live Activity widget extension to EAS so it provisions a matching
+// profile and signs the embedded .appex with the SAME certificate as the parent
+// app. Without this the widget builds unsigned and the archive fails with
+// "Embedded binary is not signed with the same certificate as the parent app".
+// Mirrors the Responder app's working Live Activity signing setup.
+const liveActivityExtension = {
+  targetName: 'CheckInTimerWidget',
+  bundleIdentifier: `${Env.BUNDLE_ID}.CheckInTimerWidget`,
+};
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: Env.NAME,
@@ -239,6 +249,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ...ClientEnv,
     eas: {
       projectId: Env.EAS_PROJECT_ID,
+      build: {
+        experimental: {
+          ios: {
+            appExtensions: [liveActivityExtension],
+          },
+        },
+      },
     },
   },
 });
