@@ -95,9 +95,21 @@ jest.mock('expo-notifications', () => ({
   AndroidNotificationVisibility: { PUBLIC: 1 },
 }));
 
+// Mock the modern-sounds preference module (controls Android channel sounds)
+const mockGetModernNotificationSoundsEnabled = jest.fn((): boolean => true);
+const mockGetAppliedNotificationSoundMode = jest.fn((): string | undefined => undefined);
+const mockSetAppliedNotificationSoundMode = jest.fn();
+
+jest.mock('@/lib/storage/notification-prefs', () => ({
+  getModernNotificationSoundsEnabled: mockGetModernNotificationSoundsEnabled,
+  getAppliedNotificationSoundMode: mockGetAppliedNotificationSoundMode,
+  setAppliedNotificationSoundMode: mockSetAppliedNotificationSoundMode,
+}));
+
 // Mock Notifee (channels, categories, foreground/background events, check-in)
 const mockNotifeeForegroundUnsubscribe = jest.fn();
 const mockCreateChannel = jest.fn(() => Promise.resolve());
+const mockDeleteChannel = jest.fn(() => Promise.resolve());
 const mockSetNotificationCategories = jest.fn(() => Promise.resolve());
 const mockNotifeeRequestPermission = jest.fn(() =>
   Promise.resolve({
@@ -112,6 +124,7 @@ jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: {
     createChannel: mockCreateChannel,
+    deleteChannel: mockDeleteChannel,
     setNotificationCategories: mockSetNotificationCategories,
     requestPermission: mockNotifeeRequestPermission,
     displayNotification: mockDisplayNotification,
@@ -553,6 +566,86 @@ describe('Push Notification Service Integration', () => {
       // Custom channels: c1-c25 = 25
       // Total: 32 channels
       expect(mockCreateChannel).toHaveBeenCalledTimes(32);
+    });
+
+    it('should use modern sounds for the standard channels by default', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(true);
+
+      await pushNotificationService.initialize();
+
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'calls', sound: 'modernnotification' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '0', sound: 'moderncallemergency' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '1', sound: 'moderncallhigh' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '2', sound: 'moderncallmedium' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '3', sound: 'moderncalllow' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'notif', sound: 'modernnotification' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'message', sound: 'modernmessage' }));
+    });
+
+    it('should use classic sounds when modern sounds are disabled', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(false);
+
+      await pushNotificationService.initialize();
+
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'calls', sound: 'notification' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '0', sound: 'callemergency' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'notif', sound: 'notification' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'message', sound: 'newmessage' }));
+      // Never falls back to a modern sound when disabled.
+      expect(mockCreateChannel).not.toHaveBeenCalledWith(expect.objectContaining({ sound: 'moderncallemergency' }));
+    });
+
+    it('should leave custom call channels (c1-c25) unaffected by the setting', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(true);
+
+      await pushNotificationService.initialize();
+
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1', sound: 'c1' }));
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: 'c25', sound: 'c25' }));
+    });
+
+    it('should delete the standard sound channels before recreating them when the mode changes', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(true);
+      mockGetAppliedNotificationSoundMode.mockReturnValue('classic');
+
+      await pushNotificationService.initialize();
+
+      // The 7 standard sound channels are deleted so they can be recreated with the new sound.
+      expect(mockDeleteChannel).toHaveBeenCalledTimes(7);
+      expect(mockDeleteChannel).toHaveBeenCalledWith('0');
+      expect(mockDeleteChannel).toHaveBeenCalledWith('notif');
+      expect(mockDeleteChannel).not.toHaveBeenCalledWith('c1');
+    });
+
+    it('should not delete channels when the sound mode is unchanged', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(true);
+      mockGetAppliedNotificationSoundMode.mockReturnValue('modern');
+
+      await pushNotificationService.initialize();
+
+      expect(mockDeleteChannel).not.toHaveBeenCalled();
+      expect(mockCreateChannel).toHaveBeenCalledTimes(32);
+    });
+
+    it('should persist the applied sound mode after setup', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(true);
+      mockGetAppliedNotificationSoundMode.mockReturnValue('modern');
+
+      await pushNotificationService.initialize();
+
+      expect(mockSetAppliedNotificationSoundMode).toHaveBeenCalledWith('modern');
+    });
+
+    it('refreshAndroidNotificationChannels recreates channels with the current setting', async () => {
+      mockGetModernNotificationSoundsEnabled.mockReturnValue(false);
+      mockGetAppliedNotificationSoundMode.mockReturnValue('modern');
+
+      await pushNotificationService.refreshAndroidNotificationChannels();
+
+      // Mode changed modern -> classic, so the standard channels are deleted and recreated.
+      expect(mockDeleteChannel).toHaveBeenCalledTimes(7);
+      expect(mockCreateChannel).toHaveBeenCalledWith(expect.objectContaining({ id: '0', sound: 'callemergency' }));
+      expect(mockSetAppliedNotificationSoundMode).toHaveBeenCalledWith('classic');
     });
   });
 });

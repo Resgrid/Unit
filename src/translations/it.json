@@ -835,6 +835,8 @@
     "logout": "Esci",
     "logout_confirm_message": "Sei sicuro di voler uscire? Questo cancellerà tutti i dati dell'app, i valori memorizzati nella cache e le impostazioni.",
     "logout_confirm_title": "Conferma uscita",
+    "modern_notification_sounds": "Suoni di notifica moderni",
+    "modern_notification_sounds_description": "Usa il nuovo set di suoni moderni per le notifiche push. Disattiva questa opzione per usare i suoni classici.",
     "more": "Altro",
     "no_units_available": "Nessuna unità disponibile",
     "none_selected": "Nessuno selezionato",

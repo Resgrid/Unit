@@ -835,6 +835,8 @@
     "logout": "Abmelden",
     "logout_confirm_message": "Sind Sie sicher, dass Sie sich abmelden möchten? Dadurch werden alle App-Daten, zwischengespeicherten Werte und Einstellungen gelöscht.",
     "logout_confirm_title": "Abmeldung bestätigen",
+    "modern_notification_sounds": "Moderne Benachrichtigungstöne",
+    "modern_notification_sounds_description": "Verwende das neue moderne Sound-Set für Push-Benachrichtigungen. Deaktiviere diese Option, um die klassischen Töne zu verwenden.",
     "more": "Mehr",
     "no_units_available": "Keine Einheiten verfügbar",
     "none_selected": "Keine ausgewählt",
