@@ -835,6 +835,8 @@
     "logout": "Wyloguj",
     "logout_confirm_message": "Czy na pewno chcesz się wylogować? Spowoduje to wyczyszczenie wszystkich danych aplikacji, wartości w pamięci podręcznej i ustawień.",
     "logout_confirm_title": "Potwierdź wylogowanie",
+    "modern_notification_sounds": "Nowoczesne dźwięki powiadomień",
+    "modern_notification_sounds_description": "Używaj nowego, nowoczesnego zestawu dźwięków powiadomień push. Wyłącz, aby używać klasycznych dźwięków.",
     "more": "Więcej",
     "no_units_available": "Brak dostępnych jednostek",
     "none_selected": "Nic nie wybrano",
