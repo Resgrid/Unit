@@ -495,9 +495,9 @@ export default function TabLayout() {
               <Sidebar />
             </View>
           ) : (
-            <Drawer isOpen={isOpen} onClose={handleCloseDrawer} {...({} as any)}>
+            <Drawer isOpen={isOpen} onClose={handleCloseDrawer} size="lg" anchor="left">
               <DrawerBackdrop onPress={handleCloseDrawer} />
-              <DrawerContent className="w-4/5 bg-white p-1 dark:bg-gray-900">
+              <DrawerContent className="w-3/4 bg-white p-1 dark:bg-gray-900">
                 <DrawerBody>
                   <Sidebar onClose={handleCloseDrawer} />
                 </DrawerBody>
