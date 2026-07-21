@@ -195,6 +195,100 @@ describe('useIncidentCommandStore', () => {
     });
   });
 
+  describe('stale request handling', () => {
+    it('should ignore a superseded fetch result', async () => {
+      const staleView = { ...createMockView(), ImportantInformation: 'stale' };
+      const freshView = { ...createMockView(), ImportantInformation: 'fresh' };
+      let resolveFirst: (value: unknown) => void = () => {};
+      mockGetResourceIncidentView
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              resolveFirst = resolve;
+            }) as any
+        )
+        .mockResolvedValueOnce({ Data: freshView, Status: 'Ok' } as any);
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      let firstFetch: Promise<void> = Promise.resolve();
+      act(() => {
+        firstFetch = result.current.fetchIncidentView('call-old');
+      });
+      await act(async () => {
+        await result.current.fetchIncidentView('call-new');
+      });
+      await act(async () => {
+        resolveFirst({ Data: staleView, Status: 'Ok' });
+        await firstFetch;
+      });
+
+      expect(result.current.view).toEqual(freshView);
+      expect(result.current.isLoading).toBe(false);
+
+      unmount();
+    });
+
+    it('should ignore a fetch result arriving after reset', async () => {
+      let resolveFetch: (value: unknown) => void = () => {};
+      mockGetResourceIncidentView.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }) as any
+      );
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      let pending: Promise<void> = Promise.resolve();
+      act(() => {
+        pending = result.current.fetchIncidentView('call123');
+      });
+      act(() => {
+        result.current.reset();
+      });
+      await act(async () => {
+        resolveFetch({ Data: createMockView(), Status: 'Ok' });
+        await pending;
+      });
+
+      expect(result.current.view).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+
+      unmount();
+    });
+
+    it('should ignore a fetch error arriving after reset', async () => {
+      let rejectFetch: (error: Error) => void = () => {};
+      mockGetResourceIncidentView.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectFetch = reject;
+          }) as any
+      );
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      let pending: Promise<void> = Promise.resolve();
+      act(() => {
+        pending = result.current.fetchIncidentView('call123');
+      });
+      act(() => {
+        result.current.reset();
+      });
+      await act(async () => {
+        rejectFetch(new Error('late failure'));
+        await pending;
+      });
+
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
+
+      unmount();
+    });
+  });
+
   describe('reset', () => {
     it('should reset the store to its initial state', async () => {
       useIncidentCommandStore.setState({

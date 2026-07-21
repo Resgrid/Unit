@@ -553,6 +553,57 @@ describe('SidebarCallCard', () => {
         [{ text: 'common.ok' }]
       );
     });
+
+    it('should show error alert when openMapsWithDirections resolves false', async () => {
+      mockOpenMapsWithDirections.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+
+    it('should show error alert when openMapsWithAddress resolves false', async () => {
+      const callWithAddressOnly = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '123 Test Street',
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithAddress.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
   });
 
   describe('Destination Routing Button', () => {
@@ -642,6 +693,68 @@ describe('SidebarCallCard', () => {
 
       expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('789 Hospital Rd');
       expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
+    });
+
+    it('should show error alert when destination openMapsWithDirections resolves false', async () => {
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithDirections.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+
+    it('should show error alert when destination openMapsWithAddress resolves false', async () => {
+      const destinationAddressOnly = {
+        ...mockCall,
+        DestinationName: '',
+        DestinationAddress: '789 Hospital Rd',
+        DestinationLatitude: null,
+        DestinationLongitude: null,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithAddress.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
     });
   });
 

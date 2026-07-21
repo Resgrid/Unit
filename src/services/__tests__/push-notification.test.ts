@@ -427,7 +427,7 @@ describe('Push Notification Service Integration', () => {
   });
 
   describe('cold-start tap dedupe', () => {
-    let pushNotificationService: any;
+    let pushNotificationService: typeof import('../push-notification').pushNotificationService;
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -499,7 +499,7 @@ describe('Push Notification Service Integration', () => {
   });
 
   describe('listener lifecycle', () => {
-    let pushNotificationService: any;
+    let pushNotificationService: typeof import('../push-notification').pushNotificationService;
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -556,7 +556,7 @@ describe('Push Notification Service Integration', () => {
   });
 
   describe('registration', () => {
-    let pushNotificationService: any;
+    let pushNotificationService: typeof import('../push-notification').pushNotificationService;
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -611,7 +611,7 @@ describe('Push Notification Service Integration', () => {
   });
 
   describe('Android notification channels', () => {
-    let pushNotificationService: any;
+    let pushNotificationService: typeof import('../push-notification').pushNotificationService;
 
     beforeEach(() => {
       jest.clearAllMocks();

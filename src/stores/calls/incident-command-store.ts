@@ -12,21 +12,29 @@ interface IncidentCommandState {
   reset: () => void;
 }
 
+// Monotonic token guarding against stale async results: reset() and every new
+// fetch bump it, so an in-flight request that has been superseded is discarded.
+let requestSeq = 0;
+
 export const useIncidentCommandStore = create<IncidentCommandState>((set) => ({
   view: null,
   isLoading: false,
   error: null,
-  reset: () =>
+  reset: () => {
+    requestSeq++;
     set({
       view: null,
       isLoading: false,
       error: null,
-    }),
+    });
+  },
   fetchIncidentView: async (callId: string) => {
+    const seq = ++requestSeq;
     set({ isLoading: true, error: null });
     try {
       const activeUnitId = useCoreStore.getState().activeUnitId;
       const result = await getResourceIncidentView(callId, activeUnitId ?? undefined);
+      if (seq !== requestSeq) return;
 
       if (result && result.Data && result.Status !== 'NotFound') {
         set({
@@ -41,6 +49,7 @@ export const useIncidentCommandStore = create<IncidentCommandState>((set) => ({
         });
       }
     } catch (error) {
+      if (seq !== requestSeq) return;
       set({
         view: null,
         error: error instanceof Error ? error.message : 'An unknown error occurred',

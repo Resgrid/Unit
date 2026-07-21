@@ -92,14 +92,20 @@ export const SidebarCallCard = () => {
     // Check if we have coordinates
     if (latitude && longitude) {
       try {
-        await openMapsWithDirections(latitude, longitude, address);
+        const opened = await openMapsWithDirections(latitude, longitude, address);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
     } else if (address && address.trim() !== '') {
       // Fall back to address if no coordinates
       try {
-        await openMapsWithAddress(address);
+        const opened = await openMapsWithAddress(address);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
@@ -128,13 +134,19 @@ export const SidebarCallCard = () => {
     // Prefer the destination POI coordinates; fall back to its address.
     if (latitude != null && longitude != null) {
       try {
-        await openMapsWithDirections(latitude, longitude, name);
+        const opened = await openMapsWithDirections(latitude, longitude, name);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
     } else if (address && address.trim() !== '') {
       try {
-        await openMapsWithAddress(address);
+        const opened = await openMapsWithAddress(address);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
