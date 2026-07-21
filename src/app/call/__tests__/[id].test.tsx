@@ -175,6 +175,7 @@ jest.mock('expo-router', () => ({
 
 // Mock Lucide React Native icons
 jest.mock('lucide-react-native', () => ({
+  ClipboardListIcon: 'ClipboardListIcon',
   ClockIcon: 'ClockIcon',
   FileTextIcon: 'FileTextIcon',
   ImageIcon: 'ImageIcon',
@@ -283,6 +284,10 @@ jest.mock('@/components/maps/static-map', () => {
 
 jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({
   CheckInTabContent: () => null,
+}));
+
+jest.mock('@/components/incident-command/incident-command-tab-panel', () => ({
+  IncidentCommandTabPanel: () => null,
 }));
 
 jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({

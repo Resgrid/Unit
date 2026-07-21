@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
+import { ClipboardListIcon, ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-ta
 import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { IncidentCommandTabPanel } from '@/components/incident-command/incident-command-tab-panel';
 // Import a static map component instead of react-native-maps
 import StaticMap from '@/components/maps/static-map';
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
@@ -479,6 +480,14 @@ export default function CallDetail() {
         ),
       },
     ];
+
+    // Incident command tab
+    tabs.push({
+      key: 'command',
+      title: t('incident_command.tab_title'),
+      icon: <ClipboardListIcon size={16} />,
+      content: <IncidentCommandTabPanel callId={call.CallId} />,
+    });
 
     // Video feeds tab
     tabs.push({

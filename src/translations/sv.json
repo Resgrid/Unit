@@ -479,6 +479,58 @@
     "invalid_url": "Ange en giltig URL som börjar med http:// eller https://",
     "required": "Detta fält är obligatoriskt"
   },
+  "incident_command": {
+    "action_plan": "Insatsplan",
+    "assigned_since": "Tilldelad {{time}}",
+    "attachments": "Bilagor",
+    "commander": "Insatsledare",
+    "error": "Det gick inte att ladda information om insatsledningen",
+    "established": "Upprättad",
+    "estimated_end": "Beräknat slut",
+    "important_information": "Viktig information",
+    "incident_info": "Incidentinformation",
+    "linked_need": "Kopplat behov",
+    "my_assignment": "Enhetstilldelning",
+    "need_category": {
+      "equipment": "Utrustning",
+      "logistics": "Logistik",
+      "medical": "Medicinskt",
+      "other": "Övrigt",
+      "resource": "Resurs",
+      "staffing": "Bemanning"
+    },
+    "need_status": {
+      "cancelled": "Avbrutet",
+      "met": "Uppfyllt",
+      "open": "Öppet",
+      "partially_met": "Delvis uppfyllt"
+    },
+    "needs": "Behov",
+    "no_active_command": "Ingen insatsledning är aktiv för detta samtal",
+    "no_attachments": "Inga bilagor",
+    "no_needs": "Inga behov",
+    "no_notes": "Inga anteckningar",
+    "no_objectives": "Inga mål",
+    "notes": "Anteckningar",
+    "objective_status": {
+      "complete": "Slutfört",
+      "in_progress": "Pågår",
+      "pending": "Väntande"
+    },
+    "objective_type": {
+      "benchmark": "Milstolpe",
+      "general": "Allmänt",
+      "safety": "Säkerhet"
+    },
+    "objectives": "Mål",
+    "primary_lead": "Huvudansvarig",
+    "primary_objective": "Primärt mål",
+    "progress": "{{percent}} % slutfört",
+    "quantity_fulfilled": "{{fulfilled}} av {{requested}} uppfyllda",
+    "secondary_lead": "Biträdande ansvarig",
+    "secondary_objective": "Sekundärt mål",
+    "tab_title": "Ledning"
+  },
   "livekit": {
     "audio_devices": "Ljudenheter",
     "audio_settings": "Ljudinställningar",

@@ -426,6 +426,78 @@ describe('Push Notification Service Integration', () => {
     });
   });
 
+  describe('cold-start tap dedupe', () => {
+    let pushNotificationService: any;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.resetModules();
+
+      jest.unmock('../push-notification');
+      const module = require('../push-notification');
+      pushNotificationService = module.pushNotificationService;
+
+      // resetModules gave the re-required service a FRESH store mock instance — the outer
+      // describe's mockGetState points at the old one, so prime the fresh instance directly.
+      const freshStore = require('@/stores/push-notification/store').usePushNotificationModalStore;
+      (freshStore.getState as jest.Mock).mockReturnValue({
+        showNotificationModal: mockShowNotificationModal,
+      });
+    });
+
+    afterEach(() => {
+      pushNotificationService.cleanup();
+      jest.useRealTimers();
+    });
+
+    it('handles the same cold-start tap only once across the listener and killed-state replay', async () => {
+      jest.useFakeTimers();
+      const launchResponse = {
+        actionIdentifier: 'default',
+        notification: {
+          request: {
+            identifier: 'launch-tap',
+            content: { title: 'Call', body: 'Dispatch', data: { eventCode: 'C:77' } },
+          },
+        },
+      };
+      mockGetLastNotificationResponseAsync.mockResolvedValueOnce(launchResponse as never);
+
+      await pushNotificationService.initialize();
+
+      const responseHandler = (mockAddNotificationResponseReceivedListener.mock.calls as unknown[][])[0]?.[0] as (r: unknown) => void;
+      responseHandler(launchResponse);
+
+      // Let the killed-state initial delay elapse and its promise resolve
+      jest.advanceTimersByTime(1100);
+      await Promise.resolve();
+      await Promise.resolve();
+      jest.advanceTimersByTime(1000);
+
+      expect(mockShowNotificationModal).toHaveBeenCalledTimes(1);
+      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'C:77' }));
+    });
+
+    it('still handles distinct notification taps separately', async () => {
+      jest.useFakeTimers();
+      await pushNotificationService.initialize();
+
+      const responseHandler = (mockAddNotificationResponseReceivedListener.mock.calls as unknown[][])[0]?.[0] as (r: unknown) => void;
+      const makeResponse = (id: string, eventCode: string) => ({
+        actionIdentifier: 'default',
+        notification: {
+          request: { identifier: id, content: { title: 'T', body: 'B', data: { eventCode } } },
+        },
+      });
+
+      responseHandler(makeResponse('tap-a', 'C:1'));
+      responseHandler(makeResponse('tap-b', 'C:2'));
+      jest.advanceTimersByTime(400);
+
+      expect(mockShowNotificationModal).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('listener lifecycle', () => {
     let pushNotificationService: any;
 

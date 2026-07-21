@@ -74,6 +74,13 @@ class PushNotificationService {
   private notificationListener: { remove: () => void } | null = null;
   private responseListener: { remove: () => void } | null = null;
   private notifeeForegroundUnsubscribe: (() => void) | null = null;
+  /**
+   * Request identifiers of taps already routed to the modal. On a cold start the SAME
+   * launch tap can arrive through both addNotificationResponseReceivedListener and
+   * getLastNotificationResponseAsync — dedupe by identifier so it shows once while
+   * distinct notifications still each get handled.
+   */
+  private handledResponseIds = new Set<string>();
 
   public static getInstance(): PushNotificationService {
     if (!PushNotificationService.instance) {
@@ -215,20 +222,42 @@ class PushNotificationService {
     this.showModalForData(data, notification.request.content.title, notification.request.content.body);
   };
 
-  // Notification tap (background → foreground) via expo-notifications.
-  private handleNotificationResponse = (response: Notifications.NotificationResponse): void => {
-    const content = response.notification.request.content;
+  /**
+   * Single path for tap responses from expo-notifications (live listener AND the
+   * cold-start replay). Skips responses whose request identifier was already routed.
+   */
+  private handleResponseOnce(response: Notifications.NotificationResponse, delayMs: number, source: string): void {
+    const request = response.notification.request;
+    const identifier = request.identifier;
+
+    if (identifier && this.handledResponseIds.has(identifier)) {
+      logger.debug({
+        message: 'Skipping already-handled notification response',
+        context: { identifier, source },
+      });
+      return;
+    }
+    if (identifier) {
+      this.handledResponseIds.add(identifier);
+    }
+
+    const content = request.content;
     const data = content.data as Record<string, unknown> | undefined;
 
     logger.info({
       message: 'Notification response received (tap)',
-      context: { data, actionIdentifier: response.actionIdentifier },
+      context: { data, actionIdentifier: response.actionIdentifier, source },
     });
 
     // Delay so the React tree is mounted and the modal store is ready.
     setTimeout(() => {
       this.showModalForData(data, content.title, content.body);
-    }, TAP_BACKGROUND_DELAY_MS);
+    }, delayMs);
+  }
+
+  // Notification tap (background → foreground) via expo-notifications.
+  private handleNotificationResponse = (response: Notifications.NotificationResponse): void => {
+    this.handleResponseOnce(response, TAP_BACKGROUND_DELAY_MS, 'listener');
   };
 
   // Notifee events handle taps/actions on notifee-displayed notifications,
@@ -316,24 +345,22 @@ class PushNotificationService {
     this.setupNotifeeEvents();
 
     // Handle the notification that launched the app from a killed state.
-    // expo-notifications surfaces this via getLastNotificationResponseAsync().
+    // expo-notifications surfaces this via getLastNotificationResponseAsync(); the same
+    // tap may also have reached the response listener above, so both routes flow through
+    // handleResponseOnce which dedupes by request identifier.
     setTimeout(() => {
       Notifications.getLastNotificationResponseAsync()
         .then((response) => {
           if (!response) {
             return;
           }
-          const content = response.notification.request.content;
-          const data = content.data as Record<string, unknown> | undefined;
 
           logger.info({
             message: 'App opened from notification (killed state)',
-            context: { data },
+            context: { data: response.notification.request.content.data },
           });
 
-          setTimeout(() => {
-            this.showModalForData(data, content.title, content.body);
-          }, TAP_KILLED_MODAL_DELAY_MS);
+          this.handleResponseOnce(response, TAP_KILLED_MODAL_DELAY_MS, 'killed-state');
         })
         .catch((error) => {
           logger.error({

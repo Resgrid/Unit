@@ -72,7 +72,7 @@ export const useWeatherAlertsStore = create<WeatherAlertsState>((set, get) => ({
     }
   },
   fetchAlertDetail: async (alertId: string) => {
-    set({ isLoadingDetail: true });
+    set({ isLoadingDetail: true, selectedAlert: null });
     try {
       const response = await getWeatherAlert(alertId);
       set({ selectedAlert: response.Data, isLoadingDetail: false });

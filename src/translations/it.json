@@ -479,6 +479,58 @@
     "invalid_url": "Inserisci un URL valido che inizia con http:// o https://",
     "required": "Questo campo è obbligatorio"
   },
+  "incident_command": {
+    "action_plan": "Piano d'azione dell'incidente",
+    "assigned_since": "Assegnata {{time}}",
+    "attachments": "Allegati",
+    "commander": "Comandante",
+    "error": "Impossibile caricare le informazioni del comando incidente",
+    "established": "Istituito",
+    "estimated_end": "Fine stimata",
+    "important_information": "Informazioni importanti",
+    "incident_info": "Informazioni sull'incidente",
+    "linked_need": "Necessità collegata",
+    "my_assignment": "Assegnazione unità",
+    "need_category": {
+      "equipment": "Attrezzatura",
+      "logistics": "Logistica",
+      "medical": "Medico",
+      "other": "Altro",
+      "resource": "Risorsa",
+      "staffing": "Personale"
+    },
+    "need_status": {
+      "cancelled": "Annullata",
+      "met": "Soddisfatta",
+      "open": "Aperta",
+      "partially_met": "Parzialmente soddisfatta"
+    },
+    "needs": "Necessità",
+    "no_active_command": "Nessun comando incidente attivo per questa chiamata",
+    "no_attachments": "Nessun allegato",
+    "no_needs": "Nessuna necessità",
+    "no_notes": "Nessuna nota",
+    "no_objectives": "Nessun obiettivo",
+    "notes": "Note",
+    "objective_status": {
+      "complete": "Completato",
+      "in_progress": "In corso",
+      "pending": "In attesa"
+    },
+    "objective_type": {
+      "benchmark": "Traguardo",
+      "general": "Generale",
+      "safety": "Sicurezza"
+    },
+    "objectives": "Obiettivi",
+    "primary_lead": "Responsabile principale",
+    "primary_objective": "Obiettivo principale",
+    "progress": "{{percent}}% completato",
+    "quantity_fulfilled": "{{fulfilled}} di {{requested}} soddisfatti",
+    "secondary_lead": "Responsabile secondario",
+    "secondary_objective": "Obiettivo secondario",
+    "tab_title": "Comando"
+  },
   "livekit": {
     "audio_devices": "Dispositivi audio",
     "audio_settings": "Impostazioni audio",

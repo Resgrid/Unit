@@ -479,6 +479,58 @@
     "invalid_url": "يرجى إدخال عنوان URL صالح يبدأ بـ http:// أو https://",
     "required": "هذا الحقل مطلوب"
   },
+  "incident_command": {
+    "action_plan": "خطة عمل الحادث",
+    "assigned_since": "تم التعيين {{time}}",
+    "attachments": "المرفقات",
+    "commander": "القائد",
+    "error": "فشل في تحميل معلومات قيادة الحادث",
+    "established": "تم التأسيس",
+    "estimated_end": "النهاية المتوقعة",
+    "important_information": "معلومات مهمة",
+    "incident_info": "معلومات الحادث",
+    "linked_need": "احتياج مرتبط",
+    "my_assignment": "تعيين الوحدة",
+    "need_category": {
+      "equipment": "معدات",
+      "logistics": "لوجستيات",
+      "medical": "طبي",
+      "other": "أخرى",
+      "resource": "موارد",
+      "staffing": "طاقم عمل"
+    },
+    "need_status": {
+      "cancelled": "ملغي",
+      "met": "ملبى",
+      "open": "مفتوح",
+      "partially_met": "ملبى جزئيًا"
+    },
+    "needs": "الاحتياجات",
+    "no_active_command": "لا توجد قيادة حادث نشطة لهذه المكالمة",
+    "no_attachments": "لا توجد مرفقات",
+    "no_needs": "لا توجد احتياجات",
+    "no_notes": "لا توجد ملاحظات",
+    "no_objectives": "لا توجد أهداف",
+    "notes": "ملاحظات",
+    "objective_status": {
+      "complete": "مكتمل",
+      "in_progress": "قيد التنفيذ",
+      "pending": "قيد الانتظار"
+    },
+    "objective_type": {
+      "benchmark": "نقطة مرجعية",
+      "general": "عام",
+      "safety": "السلامة"
+    },
+    "objectives": "الأهداف",
+    "primary_lead": "المسؤول الرئيسي",
+    "primary_objective": "الهدف الرئيسي",
+    "progress": "اكتمل {{percent}}%",
+    "quantity_fulfilled": "تم تلبية {{fulfilled}} من {{requested}}",
+    "secondary_lead": "المسؤول الثانوي",
+    "secondary_objective": "الهدف الثانوي",
+    "tab_title": "القيادة"
+  },
   "livekit": {
     "audio_devices": "أجهزة الصوت",
     "audio_settings": "إعدادات الصوت",

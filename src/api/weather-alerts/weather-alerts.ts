@@ -7,7 +7,8 @@ import { createCachedApiEndpoint } from '../common/cached-client';
 import { createApiEndpoint } from '../common/client';
 
 const getActiveAlertsApi = createCachedApiEndpoint('/WeatherAlerts/GetActiveAlerts', { ttl: 60 * 1000, enabled: true });
-const getWeatherAlertApi = createApiEndpoint('/WeatherAlerts/GetWeatherAlert');
+// GetWeatherAlert uses a path parameter, so the endpoint is created per call
+const getWeatherAlertEndpoint = (alertId: string) => createApiEndpoint(`/WeatherAlerts/GetWeatherAlert/${encodeURIComponent(alertId)}`);
 const getAlertsNearLocationApi = createApiEndpoint('/WeatherAlerts/GetAlertsNearLocation');
 const getAlertHistoryApi = createApiEndpoint('/WeatherAlerts/GetAlertHistory');
 const getSettingsApi = createCachedApiEndpoint('/WeatherAlerts/GetSettings', { ttl: 5 * 60 * 1000, enabled: true });
@@ -19,9 +20,7 @@ export const getActiveAlerts = async () => {
 };
 
 export const getWeatherAlert = async (alertId: string) => {
-  const response = await getWeatherAlertApi.get<WeatherAlertResult>({
-    alertId: encodeURIComponent(alertId),
-  });
+  const response = await getWeatherAlertEndpoint(alertId).get<WeatherAlertResult>();
   return response.data;
 };
 

@@ -479,6 +479,58 @@
     "invalid_url": "Please enter a valid URL starting with http:// or https://",
     "required": "This field is required"
   },
+  "incident_command": {
+    "action_plan": "Incident Action Plan",
+    "assigned_since": "Assigned {{time}}",
+    "attachments": "Attachments",
+    "commander": "Commander",
+    "error": "Failed to load incident command information",
+    "established": "Established",
+    "estimated_end": "Estimated End",
+    "important_information": "Important Information",
+    "incident_info": "Incident Information",
+    "linked_need": "Linked Need",
+    "my_assignment": "Unit Assignment",
+    "need_category": {
+      "equipment": "Equipment",
+      "logistics": "Logistics",
+      "medical": "Medical",
+      "other": "Other",
+      "resource": "Resource",
+      "staffing": "Staffing"
+    },
+    "need_status": {
+      "cancelled": "Cancelled",
+      "met": "Met",
+      "open": "Open",
+      "partially_met": "Partially Met"
+    },
+    "needs": "Needs",
+    "no_active_command": "No incident command is active for this call",
+    "no_attachments": "No attachments",
+    "no_needs": "No needs",
+    "no_notes": "No notes",
+    "no_objectives": "No objectives",
+    "notes": "Notes",
+    "objective_status": {
+      "complete": "Complete",
+      "in_progress": "In Progress",
+      "pending": "Pending"
+    },
+    "objective_type": {
+      "benchmark": "Benchmark",
+      "general": "General",
+      "safety": "Safety"
+    },
+    "objectives": "Objectives",
+    "primary_lead": "Primary Lead",
+    "primary_objective": "Primary Objective",
+    "progress": "{{percent}}% complete",
+    "quantity_fulfilled": "{{fulfilled}} of {{requested}} fulfilled",
+    "secondary_lead": "Secondary Lead",
+    "secondary_objective": "Secondary Objective",
+    "tab_title": "Command"
+  },
   "livekit": {
     "audio_devices": "Audio Devices",
     "audio_settings": "Audio Settings",
