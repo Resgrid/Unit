@@ -479,6 +479,58 @@
     "invalid_url": "Por favor, introduce una URL válida que comience con http:// o https://",
     "required": "Este campo es obligatorio"
   },
+  "incident_command": {
+    "action_plan": "Plan de acción del incidente",
+    "assigned_since": "Asignado {{time}}",
+    "attachments": "Adjuntos",
+    "commander": "Comandante",
+    "error": "Error al cargar la información del comando del incidente",
+    "established": "Establecido",
+    "estimated_end": "Fin estimado",
+    "important_information": "Información importante",
+    "incident_info": "Información del incidente",
+    "linked_need": "Necesidad vinculada",
+    "my_assignment": "Asignación de la unidad",
+    "need_category": {
+      "equipment": "Equipamiento",
+      "logistics": "Logística",
+      "medical": "Médico",
+      "other": "Otro",
+      "resource": "Recurso",
+      "staffing": "Personal"
+    },
+    "need_status": {
+      "cancelled": "Cancelada",
+      "met": "Satisfecha",
+      "open": "Abierta",
+      "partially_met": "Parcialmente satisfecha"
+    },
+    "needs": "Necesidades",
+    "no_active_command": "No hay un comando de incidente activo para esta llamada",
+    "no_attachments": "No hay adjuntos",
+    "no_needs": "No hay necesidades",
+    "no_notes": "No hay notas",
+    "no_objectives": "No hay objetivos",
+    "notes": "Notas",
+    "objective_status": {
+      "complete": "Completado",
+      "in_progress": "En progreso",
+      "pending": "Pendiente"
+    },
+    "objective_type": {
+      "benchmark": "Hito",
+      "general": "General",
+      "safety": "Seguridad"
+    },
+    "objectives": "Objetivos",
+    "primary_lead": "Líder principal",
+    "primary_objective": "Objetivo principal",
+    "progress": "{{percent}}% completado",
+    "quantity_fulfilled": "{{fulfilled}} de {{requested}} completados",
+    "secondary_lead": "Líder secundario",
+    "secondary_objective": "Objetivo secundario",
+    "tab_title": "Comando"
+  },
   "livekit": {
     "audio_devices": "Dispositivos de audio",
     "audio_settings": "Configuración de audio",

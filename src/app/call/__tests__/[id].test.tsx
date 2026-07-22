@@ -11,6 +11,7 @@ import { useLocationStore } from '@/stores/app/location-store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 import { useToastStore } from '@/stores/toast/store';
 import { securityStore } from '@/stores/security/store';
+import { openMapsWithDirections } from '@/lib/navigation';
 
 import CallDetail from '../[id]';
 
@@ -174,14 +175,21 @@ jest.mock('expo-router', () => ({
 
 // Mock Lucide React Native icons
 jest.mock('lucide-react-native', () => ({
+  ClipboardListIcon: 'ClipboardListIcon',
   ClockIcon: 'ClockIcon',
   FileTextIcon: 'FileTextIcon',
   ImageIcon: 'ImageIcon',
   InfoIcon: 'InfoIcon',
+  MapPinIcon: 'MapPinIcon',
+  NavigationIcon: 'NavigationIcon',
   PaperclipIcon: 'PaperclipIcon',
   RouteIcon: 'RouteIcon',
   UserIcon: 'UserIcon',
   UsersIcon: 'UsersIcon',
+}));
+
+jest.mock('@/lib/navigation', () => ({
+  openMapsWithDirections: jest.fn(() => Promise.resolve(true)),
 }));
 
 // Mock react-native-svg
@@ -276,6 +284,10 @@ jest.mock('@/components/maps/static-map', () => {
 
 jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({
   CheckInTabContent: () => null,
+}));
+
+jest.mock('@/components/incident-command/incident-command-tab-panel', () => ({
+  IncidentCommandTabPanel: () => null,
 }));
 
 jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({
@@ -434,6 +446,7 @@ const mockUseLocationStore = useLocationStore as jest.MockedFunction<typeof useL
 const mockUseStatusBottomSheetStore = useStatusBottomSheetStore as jest.MockedFunction<typeof useStatusBottomSheetStore>;
 const mockUseToastStore = useToastStore as jest.MockedFunction<typeof useToastStore>;
 const mockSecurityStore = securityStore as jest.MockedFunction<typeof securityStore>;
+const mockOpenMapsWithDirections = openMapsWithDirections as jest.MockedFunction<typeof openMapsWithDirections>;
 
 describe('CallDetail', () => {
   const defaultCallDetailStore = {
@@ -1260,6 +1273,90 @@ describe('CallDetail', () => {
 
         // Should show success toast
         expect(mockShowToast).toHaveBeenCalledWith('success', 'call_detail.set_active_success');
+      });
+    });
+  });
+
+  describe('Destination POI', () => {
+    const callWithDestination = {
+      CallId: 'test-call-id',
+      Name: 'Test Call',
+      Number: 'C2024001',
+      Priority: 2,
+      Type: 'Emergency',
+      Address: '123 Main St',
+      Latitude: '40.7128',
+      Longitude: '-74.0060',
+      DestinationName: 'Central Hospital',
+      DestinationAddress: '789 Hospital Rd',
+      DestinationLatitude: 41.5,
+      DestinationLongitude: -73.5,
+      NotesCount: 0,
+      ImgagesCount: 0,
+      FileCount: 0,
+    };
+
+    const callWithoutDestination = {
+      CallId: 'test-call-id',
+      Name: 'Test Call',
+      Number: 'C2024001',
+      Priority: 2,
+      Type: 'Emergency',
+      Address: '123 Main St',
+      Latitude: '40.7128',
+      Longitude: '-74.0060',
+      NotesCount: 0,
+      ImgagesCount: 0,
+      FileCount: 0,
+    };
+
+    const mockDetailStore = (call: unknown) => {
+      const store = {
+        call,
+        callExtraData: null,
+        callPriority: null,
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      };
+      mockUseCallDetailStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+    };
+
+    it('should show the map toggle and destination route button when the call has a destination POI', async () => {
+      mockDetailStore(callWithDestination);
+
+      const { getByTestId } = render(<CallDetail />);
+
+      await waitFor(() => {
+        expect(getByTestId('call-detail-map-toggle-call')).toBeTruthy();
+        expect(getByTestId('call-detail-map-toggle-destination')).toBeTruthy();
+        expect(getByTestId('call-detail-route-destination-button')).toBeTruthy();
+      });
+    });
+
+    it('should not show the map toggle or destination route button when the call has no destination POI', () => {
+      mockDetailStore(callWithoutDestination);
+
+      const { queryByTestId } = render(<CallDetail />);
+
+      expect(queryByTestId('call-detail-map-toggle-call')).toBeNull();
+      expect(queryByTestId('call-detail-map-toggle-destination')).toBeNull();
+      expect(queryByTestId('call-detail-route-destination-button')).toBeNull();
+    });
+
+    it('should route to the destination POI coordinates when the destination route button is pressed', async () => {
+      mockDetailStore(callWithDestination);
+
+      const { getByTestId } = render(<CallDetail />);
+
+      const destinationButton = await waitFor(() => getByTestId('call-detail-route-destination-button'));
+      fireEvent.press(destinationButton);
+
+      await waitFor(() => {
+        // Routes to the DESTINATION coordinates (41.5, -73.5), not the call's own location,
+        // using the current user location (40.7128, -74.0060) as the origin.
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(41.5, -73.5, 'Central Hospital', 40.7128, -74.006);
       });
     });
   });

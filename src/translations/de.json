@@ -479,6 +479,58 @@
     "invalid_url": "Bitte eine gültige URL eingeben, die mit http:// oder https:// beginnt",
     "required": "Dieses Feld ist erforderlich"
   },
+  "incident_command": {
+    "action_plan": "Einsatzplan",
+    "assigned_since": "Zugewiesen {{time}}",
+    "attachments": "Anhänge",
+    "commander": "Einsatzleiter",
+    "error": "Informationen zur Einsatzleitung konnten nicht geladen werden",
+    "established": "Eingerichtet",
+    "estimated_end": "Voraussichtliches Ende",
+    "important_information": "Wichtige Informationen",
+    "incident_info": "Vorfallinformationen",
+    "linked_need": "Verknüpfter Bedarf",
+    "my_assignment": "Einheitszuweisung",
+    "need_category": {
+      "equipment": "Ausrüstung",
+      "logistics": "Logistik",
+      "medical": "Medizinisch",
+      "other": "Sonstiges",
+      "resource": "Ressource",
+      "staffing": "Personal"
+    },
+    "need_status": {
+      "cancelled": "Abgebrochen",
+      "met": "Erfüllt",
+      "open": "Offen",
+      "partially_met": "Teilweise erfüllt"
+    },
+    "needs": "Bedarfe",
+    "no_active_command": "Für diesen Anruf ist keine Einsatzleitung aktiv",
+    "no_attachments": "Keine Anhänge",
+    "no_needs": "Keine Bedarfe",
+    "no_notes": "Keine Notizen",
+    "no_objectives": "Keine Ziele",
+    "notes": "Notizen",
+    "objective_status": {
+      "complete": "Abgeschlossen",
+      "in_progress": "In Bearbeitung",
+      "pending": "Ausstehend"
+    },
+    "objective_type": {
+      "benchmark": "Meilenstein",
+      "general": "Allgemein",
+      "safety": "Sicherheit"
+    },
+    "objectives": "Ziele",
+    "primary_lead": "Primäre Leitung",
+    "primary_objective": "Primäres Ziel",
+    "progress": "{{percent}} % abgeschlossen",
+    "quantity_fulfilled": "{{fulfilled}} von {{requested}} erfüllt",
+    "secondary_lead": "Sekundäre Leitung",
+    "secondary_objective": "Sekundäres Ziel",
+    "tab_title": "Führung"
+  },
   "livekit": {
     "audio_devices": "Audiogeräte",
     "audio_settings": "Audioeinstellungen",

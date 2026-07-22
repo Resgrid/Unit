@@ -479,6 +479,58 @@
     "invalid_url": "Введіть правильний URL, що починається з http:// або https://",
     "required": "Це поле обов'язкове"
   },
+  "incident_command": {
+    "action_plan": "План дій щодо інциденту",
+    "assigned_since": "Призначено {{time}}",
+    "attachments": "Вкладення",
+    "commander": "Керівник",
+    "error": "Не вдалося завантажити інформацію про керування інцидентом",
+    "established": "Встановлено",
+    "estimated_end": "Орієнтовне завершення",
+    "important_information": "Важлива інформація",
+    "incident_info": "Інформація про інцидент",
+    "linked_need": "Пов'язана потреба",
+    "my_assignment": "Призначення підрозділу",
+    "need_category": {
+      "equipment": "Обладнання",
+      "logistics": "Логістика",
+      "medical": "Медичне",
+      "other": "Інше",
+      "resource": "Ресурс",
+      "staffing": "Персонал"
+    },
+    "need_status": {
+      "cancelled": "Скасовано",
+      "met": "Задоволено",
+      "open": "Відкрито",
+      "partially_met": "Частково задоволено"
+    },
+    "needs": "Потреби",
+    "no_active_command": "Для цього виклику немає активного керування інцидентом",
+    "no_attachments": "Немає вкладень",
+    "no_needs": "Немає потреб",
+    "no_notes": "Немає приміток",
+    "no_objectives": "Немає цілей",
+    "notes": "Примітки",
+    "objective_status": {
+      "complete": "Завершено",
+      "in_progress": "У процесі",
+      "pending": "Очікує"
+    },
+    "objective_type": {
+      "benchmark": "Контрольна точка",
+      "general": "Загальна",
+      "safety": "Безпека"
+    },
+    "objectives": "Цілі",
+    "primary_lead": "Основний відповідальний",
+    "primary_objective": "Основна ціль",
+    "progress": "Виконано {{percent}}%",
+    "quantity_fulfilled": "Виконано {{fulfilled}} з {{requested}}",
+    "secondary_lead": "Додатковий відповідальний",
+    "secondary_objective": "Другорядна ціль",
+    "tab_title": "Керування"
+  },
   "livekit": {
     "audio_devices": "Аудіопристрої",
     "audio_settings": "Налаштування звуку",

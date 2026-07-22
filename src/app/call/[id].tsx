@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
+import { ClipboardListIcon, ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -10,6 +10,7 @@ import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-ta
 import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { IncidentCommandTabPanel } from '@/components/incident-command/incident-command-tab-panel';
 // Import a static map component instead of react-native-maps
 import StaticMap from '@/components/maps/static-map';
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
@@ -72,6 +73,7 @@ export default function CallDetail() {
   const [isFilesModalOpen, setIsFilesModalOpen] = useState(false);
   const [isCloseCallModalOpen, setIsCloseCallModalOpen] = useState(false);
   const [isSettingActive, setIsSettingActive] = useState(false);
+  const [mapTarget, setMapTarget] = useState<'call' | 'destination'>('call');
   const showToast = useToastStore((state) => state.showToast);
   const timerStatuses = useCheckInTimerStore((state) => state.timerStatuses);
   const startPolling = useCheckInTimerStore((state) => state.startPolling);
@@ -108,6 +110,14 @@ export default function CallDetail() {
 
   const handleCloseCall = useCallback(() => {
     setIsCloseCallModalOpen(true);
+  }, []);
+
+  const handleShowCallOnMap = useCallback(() => {
+    setMapTarget('call');
+  }, []);
+
+  const handleShowDestinationOnMap = useCallback(() => {
+    setMapTarget('destination');
   }, []);
 
   const handleSetActive = async () => {
@@ -229,6 +239,34 @@ export default function CallDetail() {
       logger.error({
         message: 'Failed to open maps for routing',
         context: { error, callId, coordinates },
+      });
+      showToast('error', t('call_detail.failed_to_open_maps'));
+    }
+  };
+
+  /**
+   * Opens the device's native maps application with directions to the call's destination POI.
+   */
+  const handleRouteToDestination = async () => {
+    const latitude = call?.DestinationLatitude;
+    const longitude = call?.DestinationLongitude;
+
+    if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) {
+      showToast('error', t('call_detail.no_location_for_routing'));
+      return;
+    }
+
+    try {
+      const destinationName = call?.DestinationName || call?.DestinationAddress || t('call_detail.destination');
+      const success = await openMapsWithDirections(latitude, longitude, destinationName, userLatitude || undefined, userLongitude || undefined);
+
+      if (!success) {
+        showToast('error', t('call_detail.failed_to_open_maps'));
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to open maps for destination routing',
+        context: { error, callId, destination: { latitude, longitude } },
       });
       showToast('error', t('call_detail.failed_to_open_maps'));
     }
@@ -451,6 +489,14 @@ export default function CallDetail() {
       },
     ];
 
+    // Incident command tab
+    tabs.push({
+      key: 'command',
+      title: t('incident_command.tab_title'),
+      icon: <ClipboardListIcon size={16} />,
+      content: <IncidentCommandTabPanel callId={call.CallId} />,
+    });
+
     // Video feeds tab
     tabs.push({
       key: 'video',
@@ -473,6 +519,17 @@ export default function CallDetail() {
 
     return tabs;
   };
+
+  // Destination POI coordinates (if the call has a destination POI) and the
+  // currently displayed map target (call/dispatch location vs. destination).
+  const destinationLatitude = call.DestinationLatitude ?? null;
+  const destinationLongitude = call.DestinationLongitude ?? null;
+  const hasDestinationCoordinates = destinationLatitude !== null && destinationLongitude !== null && (destinationLatitude !== 0 || destinationLongitude !== 0);
+  const hasCallCoordinates = coordinates.latitude !== null && coordinates.longitude !== null;
+  const showingDestination = hasDestinationCoordinates && (mapTarget === 'destination' || !hasCallCoordinates);
+  const mapLatitude = showingDestination ? destinationLatitude : coordinates.latitude;
+  const mapLongitude = showingDestination ? destinationLongitude : coordinates.longitude;
+  const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : call.Address;
 
   return (
     <>
@@ -507,9 +564,22 @@ export default function CallDetail() {
         </Box>
 
         {/* Map - only show when valid coordinates exist */}
-        {coordinates.latitude !== null && coordinates.longitude !== null ? (
+        {mapLatitude !== null && mapLongitude !== null ? (
           <Box className="w-full">
-            <StaticMap latitude={coordinates.latitude} longitude={coordinates.longitude} address={call.Address} zoom={15} height={200} showUserLocation={true} />
+            <StaticMap latitude={mapLatitude} longitude={mapLongitude} address={mapAddress} zoom={15} height={200} showUserLocation={true} />
+            {/* Toggle the map between the call (dispatch) location and the destination POI */}
+            {hasDestinationCoordinates ? (
+              <HStack className="w-full">
+                <Button onPress={handleShowCallOnMap} variant={showingDestination ? 'outline' : 'solid'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-call">
+                  <ButtonIcon as={MapPinIcon} />
+                  <ButtonText className="text-xs">{t('call_detail.call_location')}</ButtonText>
+                </Button>
+                <Button onPress={handleShowDestinationOnMap} variant={showingDestination ? 'solid' : 'outline'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-destination">
+                  <ButtonIcon as={NavigationIcon} />
+                  <ButtonText className="text-xs">{t('call_detail.destination')}</ButtonText>
+                </Button>
+              </HStack>
+            ) : null}
           </Box>
         ) : null}
 
@@ -554,6 +624,14 @@ export default function CallDetail() {
               <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('common.route')}</ButtonText>
             </Button>
           </Box>
+          {hasDestinationCoordinates ? (
+            <Box className="relative mx-1 flex-1">
+              <Button onPress={handleRouteToDestination} variant="outline" className="w-full" size={isLandscape ? 'md' : 'sm'} testID="call-detail-route-destination-button">
+                <ButtonIcon as={NavigationIcon} />
+                <ButtonText className={isLandscape ? '' : 'text-xs'}>{t('call_detail.destination')}</ButtonText>
+              </Button>
+            </Box>
+          ) : null}
         </HStack>
 
         {/* Tabs */}

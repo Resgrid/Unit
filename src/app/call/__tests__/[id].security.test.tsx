@@ -198,6 +198,10 @@ jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({
   CheckInTabContent: () => null,
 }));
 
+jest.mock('@/components/incident-command/incident-command-tab-panel', () => ({
+  IncidentCommandTabPanel: () => null,
+}));
+
 jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({
   VideoFeedTabContent: () => null,
 }));
@@ -315,6 +319,7 @@ jest.mock('date-fns', () => ({
 
 // Mock lucide-react-native icons
 jest.mock('lucide-react-native', () => ({
+  ClipboardListIcon: ({ size, ...props }: any) => <div {...props} data-testid="clipboard-list-icon" style={{ width: size, height: size }}>ClipboardList</div>,
   ClockIcon: ({ size, ...props }: any) => <div {...props} data-testid="clock-icon" style={{ width: size, height: size }}>Clock</div>,
   FileTextIcon: ({ size, ...props }: any) => <div {...props} data-testid="file-text-icon" style={{ width: size, height: size }}>FileText</div>,
   ImageIcon: ({ size, ...props }: any) => <div {...props} data-testid="image-icon" style={{ width: size, height: size }}>Image</div>,

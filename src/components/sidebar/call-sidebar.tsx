@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Check, CircleX, Eye, MapPin } from 'lucide-react-native';
+import { Check, CircleX, Eye, MapPin, Navigation } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -92,19 +92,67 @@ export const SidebarCallCard = () => {
     // Check if we have coordinates
     if (latitude && longitude) {
       try {
-        await openMapsWithDirections(latitude, longitude, address);
+        const opened = await openMapsWithDirections(latitude, longitude, address);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
     } else if (address && address.trim() !== '') {
       // Fall back to address if no coordinates
       try {
-        await openMapsWithAddress(address);
+        const opened = await openMapsWithAddress(address);
+        if (!opened) {
+          showLocationAlert();
+        }
       } catch {
         showLocationAlert();
       }
     } else {
       // No location data available
+      showLocationAlert();
+    }
+  };
+
+  // Check if the call carries a routable destination POI (coordinates or address)
+  const hasDestinationData = (call: typeof activeCall) => {
+    if (!call) return false;
+    // (0,0) is the server's no-data sentinel, not a real destination
+    const hasCoordinates = call.DestinationLatitude != null && call.DestinationLongitude != null && (call.DestinationLatitude !== 0 || call.DestinationLongitude !== 0);
+    const hasAddress = !!call.DestinationAddress && call.DestinationAddress.trim() !== '';
+    return hasCoordinates || hasAddress;
+  };
+
+  const handleDestinationDirections = async () => {
+    if (!activeCall) return;
+
+    const latitude = activeCall.DestinationLatitude;
+    const longitude = activeCall.DestinationLongitude;
+    const address = activeCall.DestinationAddress;
+    const name = activeCall.DestinationName || activeCall.DestinationAddress;
+
+    // Prefer the destination POI coordinates; fall back to its address.
+    // (0,0) is the server's no-data sentinel, not a real destination.
+    if (latitude != null && longitude != null && (latitude !== 0 || longitude !== 0)) {
+      try {
+        const opened = await openMapsWithDirections(latitude, longitude, name);
+        if (!opened) {
+          showLocationAlert();
+        }
+      } catch {
+        showLocationAlert();
+      }
+    } else if (address && address.trim() !== '') {
+      try {
+        const opened = await openMapsWithAddress(address);
+        if (!opened) {
+          showLocationAlert();
+        }
+      } catch {
+        showLocationAlert();
+      }
+    } else {
       showLocationAlert();
     }
   };
@@ -141,6 +189,12 @@ export const SidebarCallCard = () => {
               <ButtonIcon as={MapPin} />
             </Button>
           )}
+
+          {hasDestinationData(activeCall) ? (
+            <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDestinationDirections} testID="call-destination-directions-button">
+              <ButtonIcon as={Navigation} />
+            </Button>
+          ) : null}
 
           <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDeselect}>
             <ButtonIcon as={CircleX} />

@@ -31,7 +31,7 @@ export const SeverityFilterTabs: React.FC<SeverityFilterTabsProps> = ({ selected
   };
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3">
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-3 grow-0">
       {FILTERS.map((filter) => {
         const isActive = selectedFilter === filter.severity;
         const count = getCount(filter.severity);

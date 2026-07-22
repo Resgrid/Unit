@@ -96,6 +96,8 @@ jest.mock('@/components/ui/button', () => ({
         iconTestId = 'circle-x-icon';
       } else if (Icon === require('lucide-react-native').Check) {
         iconTestId = 'check-icon';
+      } else if (Icon === require('lucide-react-native').Navigation) {
+        iconTestId = 'navigation-icon';
       }
     }
     return (
@@ -122,6 +124,10 @@ jest.mock('lucide-react-native', () => ({
   MapPin: (props: any) => {
     const { View, Text } = require('react-native');
     return <View testID="map-pin-icon"><Text>MapPin</Text></View>;
+  },
+  Navigation: (props: any) => {
+    const { View, Text } = require('react-native');
+    return <View testID="navigation-icon"><Text>Navigation</Text></View>;
   },
 }));
 
@@ -547,6 +553,260 @@ describe('SidebarCallCard', () => {
         [{ text: 'common.ok' }]
       );
     });
+
+    it('should show error alert when openMapsWithDirections resolves false', async () => {
+      mockOpenMapsWithDirections.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+
+    it('should show error alert when openMapsWithAddress resolves false', async () => {
+      const callWithAddressOnly = {
+        ...mockCall,
+        Latitude: '',
+        Longitude: '',
+        Address: '123 Test Street',
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: callWithAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithAddress.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+  });
+
+  describe('Destination Routing Button', () => {
+    const mockCallWithDestination: CallResultData = {
+      ...mockCall,
+      DestinationPoiId: 42,
+      DestinationName: 'Central Hospital',
+      DestinationAddress: '789 Hospital Rd',
+      DestinationLatitude: 41.5,
+      DestinationLongitude: -73.5,
+    };
+
+    it('should show destination button when active call has a destination POI', () => {
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(screen.getByTestId('call-destination-directions-button')).toBeTruthy();
+    });
+
+    it('should not show destination button when active call has no destination', () => {
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCall,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: mockCall,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(() => screen.getByTestId('call-destination-directions-button')).toThrow();
+    });
+
+    it('should route to destination coordinates when destination button is pressed', () => {
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      // Routes to the DESTINATION coordinates, not the call's own coordinates.
+      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(41.5, -73.5, 'Central Hospital');
+      expect(mockOpenMapsWithAddress).not.toHaveBeenCalled();
+    });
+
+    it('should route to destination address when destination has no coordinates', () => {
+      const destinationAddressOnly = {
+        ...mockCall,
+        DestinationName: '',
+        DestinationAddress: '789 Hospital Rd',
+        DestinationLatitude: null,
+        DestinationLongitude: null,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('789 Hospital Rd');
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
+    });
+
+    it('should treat (0,0) destination coordinates as no-data and route by address instead', async () => {
+      const destinationZeroCoords = {
+        ...mockCall,
+        DestinationName: 'Central Hospital',
+        DestinationAddress: '789 Hospital Rd',
+        DestinationLatitude: 0,
+        DestinationLongitude: 0,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationZeroCoords,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationZeroCoords,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('789 Hospital Rd');
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
+    });
+
+    it('should hide destination button when destination has only (0,0) coordinates and no address', () => {
+      const destinationZeroNoAddress = {
+        ...mockCall,
+        DestinationName: '',
+        DestinationAddress: '',
+        DestinationLatitude: 0,
+        DestinationLongitude: 0,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationZeroNoAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationZeroNoAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(() => screen.getByTestId('call-destination-directions-button')).toThrow();
+    });
+
+    it('should show error alert when destination openMapsWithDirections resolves false', async () => {
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: mockCallWithDestination,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithDirections.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
+
+    it('should show error alert when destination openMapsWithAddress resolves false', async () => {
+      const destinationAddressOnly = {
+        ...mockCall,
+        DestinationName: '',
+        DestinationAddress: '789 Hospital Rd',
+        DestinationLatitude: null,
+        DestinationLongitude: null,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationAddressOnly,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      mockOpenMapsWithAddress.mockResolvedValue(false);
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      // Wait for the async operation to complete
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockAlert.alert).toHaveBeenCalledWith(
+        'calls.no_location_title',
+        'calls.no_location_message',
+        [{ text: 'common.ok' }]
+      );
+    });
   });
 
   describe('Accessibility', () => {
@@ -556,4 +816,4 @@ describe('SidebarCallCard', () => {
       expect(screen.getByTestId('call-selection-trigger')).toBeTruthy();
     });
   });
-}); 
+});
