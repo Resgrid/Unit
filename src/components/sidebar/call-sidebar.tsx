@@ -118,7 +118,8 @@ export const SidebarCallCard = () => {
   // Check if the call carries a routable destination POI (coordinates or address)
   const hasDestinationData = (call: typeof activeCall) => {
     if (!call) return false;
-    const hasCoordinates = call.DestinationLatitude != null && call.DestinationLongitude != null;
+    // (0,0) is the server's no-data sentinel, not a real destination
+    const hasCoordinates = call.DestinationLatitude != null && call.DestinationLongitude != null && (call.DestinationLatitude !== 0 || call.DestinationLongitude !== 0);
     const hasAddress = !!call.DestinationAddress && call.DestinationAddress.trim() !== '';
     return hasCoordinates || hasAddress;
   };
@@ -132,7 +133,8 @@ export const SidebarCallCard = () => {
     const name = activeCall.DestinationName || activeCall.DestinationAddress;
 
     // Prefer the destination POI coordinates; fall back to its address.
-    if (latitude != null && longitude != null) {
+    // (0,0) is the server's no-data sentinel, not a real destination.
+    if (latitude != null && longitude != null && (latitude !== 0 || longitude !== 0)) {
       try {
         const opened = await openMapsWithDirections(latitude, longitude, name);
         if (!opened) {

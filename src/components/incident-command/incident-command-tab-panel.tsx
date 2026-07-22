@@ -82,9 +82,15 @@ const openContactUrl = async (url: string) => {
   try {
     await Linking.openURL(url);
   } catch (error) {
+    // The URL embeds a phone number or email address (PII) — log only the scheme,
+    // and strip the URL from the platform error message, which repeats it.
+    const scheme = url.split(':')[0];
     logger.error({
       message: 'Failed to open contact link',
-      context: { error, url },
+      context: {
+        scheme,
+        error: error instanceof Error ? error.message.replaceAll(url, `${scheme}:<redacted>`) : String(error),
+      },
     });
   }
 };

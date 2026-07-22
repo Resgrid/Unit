@@ -42,8 +42,8 @@ export class TacticalObjective {
   public DepartmentId: number = 0;
   public CallId: number = 0;
   public Name: string = '';
-  public ObjectiveType: number = 0;
-  public Status: number = 0;
+  public ObjectiveType: TacticalObjectiveType = TacticalObjectiveType.General;
+  public Status: TacticalObjectiveStatus = TacticalObjectiveStatus.Pending;
   public AutoPopulated: boolean = false;
   public CompletedByUserId?: string | null = null;
   public CompletedOn?: string | null = null;
@@ -62,8 +62,8 @@ export class IncidentNeed {
   public CallId: number = 0;
   public Name: string = '';
   public Description?: string | null = null;
-  public Category: number = 0;
-  public Status: number = 0;
+  public Category: IncidentNeedCategory = IncidentNeedCategory.Resource;
+  public Status: IncidentNeedStatus = IncidentNeedStatus.Open;
   public QuantityRequested: number = 0;
   public QuantityFulfilled: number = 0;
   public Priority: number = 0;

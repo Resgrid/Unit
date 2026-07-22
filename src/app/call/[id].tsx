@@ -112,6 +112,14 @@ export default function CallDetail() {
     setIsCloseCallModalOpen(true);
   }, []);
 
+  const handleShowCallOnMap = useCallback(() => {
+    setMapTarget('call');
+  }, []);
+
+  const handleShowDestinationOnMap = useCallback(() => {
+    setMapTarget('destination');
+  }, []);
+
   const handleSetActive = async () => {
     if (!call) return;
 
@@ -562,11 +570,11 @@ export default function CallDetail() {
             {/* Toggle the map between the call (dispatch) location and the destination POI */}
             {hasDestinationCoordinates ? (
               <HStack className="w-full">
-                <Button onPress={() => setMapTarget('call')} variant={showingDestination ? 'outline' : 'solid'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-call">
+                <Button onPress={handleShowCallOnMap} variant={showingDestination ? 'outline' : 'solid'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-call">
                   <ButtonIcon as={MapPinIcon} />
                   <ButtonText className="text-xs">{t('call_detail.call_location')}</ButtonText>
                 </Button>
-                <Button onPress={() => setMapTarget('destination')} variant={showingDestination ? 'solid' : 'outline'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-destination">
+                <Button onPress={handleShowDestinationOnMap} variant={showingDestination ? 'solid' : 'outline'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-destination">
                   <ButtonIcon as={NavigationIcon} />
                   <ButtonText className="text-xs">{t('call_detail.destination')}</ButtonText>
                 </Button>

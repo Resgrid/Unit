@@ -196,6 +196,22 @@ describe('useIncidentCommandStore', () => {
   });
 
   describe('stale request handling', () => {
+    it('should clear the previous view synchronously when a new fetch starts', () => {
+      useIncidentCommandStore.setState({ view: createMockView() as any });
+      mockGetResourceIncidentView.mockImplementation(() => new Promise(() => {}) as any);
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      act(() => {
+        result.current.fetchIncidentView('call-next');
+      });
+
+      expect(result.current.view).toBeNull();
+      expect(result.current.isLoading).toBe(true);
+
+      unmount();
+    });
+
     it('should ignore a superseded fetch result', async () => {
       const staleView = { ...createMockView(), ImportantInformation: 'stale' };
       const freshView = { ...createMockView(), ImportantInformation: 'fresh' };

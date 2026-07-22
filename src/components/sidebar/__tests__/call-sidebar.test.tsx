@@ -695,6 +695,57 @@ describe('SidebarCallCard', () => {
       expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
     });
 
+    it('should treat (0,0) destination coordinates as no-data and route by address instead', async () => {
+      const destinationZeroCoords = {
+        ...mockCall,
+        DestinationName: 'Central Hospital',
+        DestinationAddress: '789 Hospital Rd',
+        DestinationLatitude: 0,
+        DestinationLongitude: 0,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationZeroCoords,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationZeroCoords,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-destination-directions-button'));
+
+      expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('789 Hospital Rd');
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
+    });
+
+    it('should hide destination button when destination has only (0,0) coordinates and no address', () => {
+      const destinationZeroNoAddress = {
+        ...mockCall,
+        DestinationName: '',
+        DestinationAddress: '',
+        DestinationLatitude: 0,
+        DestinationLongitude: 0,
+      };
+
+      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+        activeCall: destinationZeroNoAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      }) : {
+        activeCall: destinationZeroNoAddress,
+        activePriority: mockPriority,
+        setActiveCall: mockSetActiveCall,
+      });
+
+      render(<SidebarCallCard />);
+
+      expect(() => screen.getByTestId('call-destination-directions-button')).toThrow();
+    });
+
     it('should show error alert when destination openMapsWithDirections resolves false', async () => {
       mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
         activeCall: mockCallWithDestination,

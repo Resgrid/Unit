@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 import { getResourceIncidentView } from '@/api/calls/incidentCommand';
 import { type ResourceIncidentView } from '@/models/v4/incidentCommand/resourceIncidentView';
+import { INCIDENT_VIEW_STATUS_NOT_FOUND } from '@/models/v4/incidentCommand/resourceIncidentViewResult';
 import { useCoreStore } from '@/stores/app/core-store';
 
 interface IncidentCommandState {
@@ -30,13 +31,14 @@ export const useIncidentCommandStore = create<IncidentCommandState>((set) => ({
   },
   fetchIncidentView: async (callId: string) => {
     const seq = ++requestSeq;
-    set({ isLoading: true, error: null });
+    // Clear the previous call's view so it can never render for the new call.
+    set({ view: null, isLoading: true, error: null });
     try {
       const activeUnitId = useCoreStore.getState().activeUnitId;
       const result = await getResourceIncidentView(callId, activeUnitId ?? undefined);
       if (seq !== requestSeq) return;
 
-      if (result && result.Data && result.Status !== 'NotFound') {
+      if (result && result.Data && result.Status !== INCIDENT_VIEW_STATUS_NOT_FOUND) {
         set({
           view: result.Data,
           isLoading: false,
