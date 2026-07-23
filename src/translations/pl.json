@@ -331,6 +331,7 @@
     "queued_offline": "Meldunek zakolejkowany do momentu przywrócenia połączenia",
     "quick_check_in": "Szybki meldunek",
     "select_type": "Wybierz typ meldunku",
+    "status_critical": "Krytyczny",
     "status_ok": "OK",
     "status_overdue": "Zaległy",
     "status_warning": "Ostrzeżenie",

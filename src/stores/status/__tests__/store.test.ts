@@ -119,6 +119,51 @@ describe('StatusBottomSheetStore', () => {
 
     expect(result.current.isOpen).toBe(true);
     expect(result.current.selectedStatus).toEqual(testStatus);
+    expect(result.current.currentStep).toBe('select-destination');
+  });
+
+  it('opens on the note step when a preselected status has no destination but needs a note', () => {
+    const { result } = renderHook(() => useStatusBottomSheetStore());
+
+    const testStatus = new CustomStatusResultData();
+    testStatus.Id = '2';
+    testStatus.Text = 'Patient Contact';
+    testStatus.Note = 2;
+    testStatus.Detail = 0;
+
+    act(() => {
+      result.current.setIsOpen(true, testStatus);
+    });
+
+    expect(result.current.currentStep).toBe('add-note');
+    expect(result.current.cameFromStatusSelection).toBe(false);
+  });
+
+  it('opens on a confirm step when a preselected status needs neither destination nor note', () => {
+    const { result } = renderHook(() => useStatusBottomSheetStore());
+
+    const testStatus = new CustomStatusResultData();
+    testStatus.Id = '3';
+    testStatus.Text = 'Patient Contact';
+    testStatus.Note = 0;
+    testStatus.Detail = 0;
+
+    act(() => {
+      result.current.setIsOpen(true, testStatus);
+    });
+
+    expect(result.current.currentStep).toBe('select-destination');
+  });
+
+  it('starts at status selection when no status is preselected', () => {
+    const { result } = renderHook(() => useStatusBottomSheetStore());
+
+    act(() => {
+      result.current.setIsOpen(true);
+    });
+
+    expect(result.current.currentStep).toBe('select-status');
+    expect(result.current.cameFromStatusSelection).toBe(true);
   });
 
   it('fetches destination data successfully', async () => {

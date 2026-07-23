@@ -12,7 +12,6 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 
 import ZeroState from '../common/zero-state';
-import { StatusBottomSheet } from '../status/status-bottom-sheet';
 import { SidebarCallCard } from './call-sidebar';
 import { CheckInSidebarWidget } from './check-in-sidebar-widget';
 import { SidebarRolesCard } from './roles-sidebar';
@@ -97,7 +96,6 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             ))}
           </VStack>
         )}
-        <StatusBottomSheet />
       </VStack>
     </ScrollView>
   );

@@ -42,3 +42,4 @@ expo-env.d.ts
 opencode.json
 /.dual-graph-pro
 .DS_Store
+/docs

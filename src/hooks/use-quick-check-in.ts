@@ -2,17 +2,14 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { PerformCheckInInput } from '@/api/check-in-timers/check-in-timers';
+import { CHECK_IN_TARGET_TYPE } from '@/lib/check-in-eligibility';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import type { CheckInResult } from '@/stores/check-in-timers/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { useToastStore } from '@/stores/toast/store';
 
-// Check-in types
-const CHECK_IN_TYPE_PERSONNEL = 0;
-const CHECK_IN_TYPE_UNIT = 1;
-
-export function useQuickCheckIn(callId: number) {
+export function useQuickCheckIn(callId: number, checkInType?: number) {
   const { t } = useTranslation();
   const isCheckingIn = useCheckInTimerStore((state) => state.isCheckingIn);
   const performCheckInAction = useCheckInTimerStore((state) => state.performCheckIn);
@@ -22,10 +19,12 @@ export function useQuickCheckIn(callId: number) {
   const showToast = useToastStore((state) => state.showToast);
 
   const quickCheckIn = useCallback(async () => {
+    const resolvedCheckInType = checkInType ?? (activeUnit ? CHECK_IN_TARGET_TYPE.UNIT_TYPE : CHECK_IN_TARGET_TYPE.PERSONNEL);
+    const shouldUseActiveUnit = resolvedCheckInType === CHECK_IN_TARGET_TYPE.UNIT_TYPE && activeUnit !== null;
     const input: PerformCheckInInput = {
       CallId: callId,
-      CheckInType: activeUnit ? CHECK_IN_TYPE_UNIT : CHECK_IN_TYPE_PERSONNEL,
-      UnitId: activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
+      CheckInType: resolvedCheckInType,
+      UnitId: shouldUseActiveUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
       Latitude: latitude?.toString(),
       Longitude: longitude?.toString(),
     };
@@ -41,7 +40,7 @@ export function useQuickCheckIn(callId: number) {
     }
 
     return result;
-  }, [callId, activeUnit, latitude, longitude, performCheckInAction, showToast, t]);
+  }, [callId, checkInType, activeUnit, latitude, longitude, performCheckInAction, showToast, t]);
 
   return { quickCheckIn, isCheckingIn };
 }

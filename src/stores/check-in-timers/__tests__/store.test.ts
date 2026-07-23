@@ -33,6 +33,7 @@ jest.mock('@/services/offline-event-manager.service', () => ({
 jest.mock('@/lib/logging', () => ({
   logger: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
   },
@@ -72,6 +73,7 @@ describe('useCheckInTimerStore', () => {
         { TargetEntityId: '1', Status: 'Ok', ElapsedMinutes: 5, DurationMinutes: 30, TargetType: 0, TargetTypeName: 'Unit', TargetName: 'Engine 1', UnitId: '1', LastCheckIn: '', WarningThresholdMinutes: 20 },
         { TargetEntityId: '2', Status: 'Overdue', ElapsedMinutes: 35, DurationMinutes: 30, TargetType: 0, TargetTypeName: 'Unit', TargetName: 'Ladder 1', UnitId: '2', LastCheckIn: '', WarningThresholdMinutes: 20 },
         { TargetEntityId: '3', Status: 'Warning', ElapsedMinutes: 22, DurationMinutes: 30, TargetType: 0, TargetTypeName: 'Unit', TargetName: 'Rescue 1', UnitId: '3', LastCheckIn: '', WarningThresholdMinutes: 20 },
+        { TargetEntityId: '4', Status: 'Critial', ElapsedMinutes: 35, DurationMinutes: 30, TargetType: 0, TargetTypeName: 'Unit', TargetName: 'Medic 1', UnitId: '4', LastCheckIn: '', WarningThresholdMinutes: 20 },
       ];
 
       mockGetTimerStatuses.mockResolvedValue({ Data: mockData, PageSize: 0, Timestamp: '', Version: '', Node: '', RequestId: '', Status: '', Environment: '' });
@@ -83,10 +85,11 @@ describe('useCheckInTimerStore', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.timerStatuses).toHaveLength(3);
-        expect(result.current.timerStatuses[0].Status).toBe('Overdue');
-        expect(result.current.timerStatuses[1].Status).toBe('Warning');
-        expect(result.current.timerStatuses[2].Status).toBe('Ok');
+        expect(result.current.timerStatuses).toHaveLength(4);
+        expect(result.current.timerStatuses[0].Status).toBe('Critial');
+        expect(result.current.timerStatuses[1].Status).toBe('Overdue');
+        expect(result.current.timerStatuses[2].Status).toBe('Warning');
+        expect(result.current.timerStatuses[3].Status).toBe('Ok');
         expect(result.current.isLoadingStatuses).toBe(false);
       });
     });
@@ -108,6 +111,19 @@ describe('useCheckInTimerStore', () => {
   });
 
   describe('performCheckIn', () => {
+    it('should block IC check-ins without calling the API', async () => {
+      const { result } = renderHook(() => useCheckInTimerStore());
+
+      let checkInResult: string = '';
+      await act(async () => {
+        checkInResult = await result.current.performCheckIn({ CallId: 1, CheckInType: 2 });
+      });
+
+      expect(checkInResult).toBe('failed');
+      expect(mockPerformCheckIn).not.toHaveBeenCalled();
+      expect(result.current.checkInError).toBe('IC check-ins are not supported in the Unit app');
+    });
+
     it('should perform check-in and re-fetch statuses', async () => {
       mockPerformCheckIn.mockResolvedValue({ Data: {}, PageSize: 0, Timestamp: '', Version: '', Node: '', RequestId: '', Status: '', Environment: '' });
       mockGetTimerStatuses.mockResolvedValue({ Data: [], PageSize: 0, Timestamp: '', Version: '', Node: '', RequestId: '', Status: '', Environment: '' });

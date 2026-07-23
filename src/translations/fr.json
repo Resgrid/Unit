@@ -331,6 +331,7 @@
     "queued_offline": "Pointage mis en file d'attente pour la restauration de la connexion",
     "quick_check_in": "Pointage rapide",
     "select_type": "Sélectionner le type de pointage",
+    "status_critical": "Critique",
     "status_ok": "OK",
     "status_overdue": "En retard",
     "status_warning": "Avertissement",

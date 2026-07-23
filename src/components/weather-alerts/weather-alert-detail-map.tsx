@@ -1,68 +1,67 @@
-import React, { useMemo, useRef } from 'react';
+import type { Camera as MapboxCamera } from '@rnmapbox/maps';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 
 import Mapbox from '@/components/maps/mapbox';
-import { getSeverityColor } from '@/lib/weather-alert-utils';
-import { parseCenterLocation, parsePolygonGeoJSON } from '@/lib/weather-alert-utils';
+import { Text } from '@/components/ui/text';
+import { getPolygonBounds, getSeverityColor, parseCenterLocation, parsePolygonGeoJSON } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
 interface WeatherAlertDetailMapProps {
   alert: WeatherAlertResultData;
 }
 
+const MAP_PADDING = 40;
+
 export const WeatherAlertDetailMap: React.FC<WeatherAlertDetailMapProps> = ({ alert }) => {
-  const cameraRef = useRef<any>(null);
+  const { t } = useTranslation();
+  const cameraRef = useRef<MapboxCamera>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
   const severityColor = getSeverityColor(alert.Severity);
 
   const polygonGeoJSON = useMemo(() => parsePolygonGeoJSON(alert.Polygon), [alert.Polygon]);
   const centerLocation = useMemo(() => parseCenterLocation(alert.CenterGeoLocation), [alert.CenterGeoLocation]);
-
-  // Compute bounds from polygon for camera
-  const bounds = useMemo(() => {
-    if (!polygonGeoJSON || !polygonGeoJSON.geometry) return null;
-
-    const geometry = polygonGeoJSON.geometry as GeoJSON.Polygon;
-    const coords = geometry.coordinates?.[0];
-    if (!coords || coords.length === 0) return null;
-
-    let minLng = Infinity,
-      maxLng = -Infinity,
-      minLat = Infinity,
-      maxLat = -Infinity;
-    for (const [lng, lat] of coords) {
-      if (lng < minLng) minLng = lng;
-      if (lng > maxLng) maxLng = lng;
-      if (lat < minLat) minLat = lat;
-      if (lat > maxLat) maxLat = lat;
-    }
+  const bounds = useMemo(() => (polygonGeoJSON ? getPolygonBounds(polygonGeoJSON) : null), [polygonGeoJSON]);
+  const handleMapReady = useCallback(() => setIsMapReady(true), []);
+  const mapCenter = useMemo(() => {
+    if (centerLocation) return centerLocation;
+    if (!bounds) return null;
 
     return {
-      ne: [maxLng, maxLat] as [number, number],
-      sw: [minLng, minLat] as [number, number],
-      paddingTop: 40,
-      paddingBottom: 40,
-      paddingLeft: 40,
-      paddingRight: 40,
+      latitude: (bounds.ne[1] + bounds.sw[1]) / 2,
+      longitude: (bounds.ne[0] + bounds.sw[0]) / 2,
     };
-  }, [polygonGeoJSON]);
-
-  const cameraProps = useMemo(() => {
-    if (bounds) {
-      return { bounds };
-    }
-    if (centerLocation) {
-      return {
-        centerCoordinate: [centerLocation.longitude, centerLocation.latitude] as [number, number],
-        zoomLevel: 8,
-      };
-    }
-    return { zoomLevel: 4 };
   }, [bounds, centerLocation]);
+
+  useEffect(() => {
+    if (!isMapReady || !cameraRef.current || !mapCenter) return;
+
+    if (bounds && (bounds.ne[0] !== bounds.sw[0] || bounds.ne[1] !== bounds.sw[1])) {
+      cameraRef.current.fitBounds(bounds.ne, bounds.sw, MAP_PADDING, 0);
+      return;
+    }
+
+    cameraRef.current.setCamera({
+      centerCoordinate: [mapCenter.longitude, mapCenter.latitude],
+      zoomLevel: 8,
+      animationDuration: 0,
+      animationMode: 'moveTo',
+    });
+  }, [bounds, isMapReady, mapCenter]);
+
+  if (!mapCenter) {
+    return (
+      <View style={styles.container} className="items-center justify-center bg-background-100 dark:bg-background-800">
+        <Text className="text-sm text-gray-500 dark:text-gray-400">{t('call_detail.no_location')}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <Mapbox.MapView style={styles.map} scrollEnabled={false} zoomEnabled={false} rotateEnabled={false} pitchEnabled={false}>
-        <Mapbox.Camera ref={cameraRef} {...cameraProps} animationDuration={0} />
+      <Mapbox.MapView style={styles.map} scrollEnabled={false} zoomEnabled={false} rotateEnabled={false} pitchEnabled={false} onDidFinishLoadingMap={handleMapReady}>
+        <Mapbox.Camera ref={cameraRef} centerCoordinate={[mapCenter.longitude, mapCenter.latitude]} zoomLevel={8} animationDuration={0} animationMode="moveTo" />
 
         {polygonGeoJSON ? (
           <Mapbox.ShapeSource id="alert-polygon" shape={polygonGeoJSON}>

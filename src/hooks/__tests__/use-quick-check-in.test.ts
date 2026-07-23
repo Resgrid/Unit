@@ -70,7 +70,7 @@ describe('useQuickCheckIn', () => {
   it('should auto-detect Unit type when active unit exists', async () => {
     mockPerformCheckIn.mockResolvedValue('success');
 
-    const { result } = renderHook(() => useQuickCheckIn(123));
+    const { result } = renderHook(() => useQuickCheckIn(123, 1));
 
     await act(async () => {
       await result.current.quickCheckIn();
@@ -90,7 +90,7 @@ describe('useQuickCheckIn', () => {
   it('should show success toast on successful check-in', async () => {
     mockPerformCheckIn.mockResolvedValue('success');
 
-    const { result } = renderHook(() => useQuickCheckIn(123));
+    const { result } = renderHook(() => useQuickCheckIn(123, 1));
 
     await act(async () => {
       await result.current.quickCheckIn();
@@ -102,12 +102,29 @@ describe('useQuickCheckIn', () => {
   it('should show error toast on failed check-in', async () => {
     mockPerformCheckIn.mockResolvedValue('failed');
 
-    const { result } = renderHook(() => useQuickCheckIn(123));
+    const { result } = renderHook(() => useQuickCheckIn(123, 1));
 
     await act(async () => {
       await result.current.quickCheckIn();
     });
 
     expect(mockShowToast).toHaveBeenCalledWith('error', 'check_in.check_in_error');
+  });
+
+  it('does not attach the active unit to a Personnel check-in', async () => {
+    mockPerformCheckIn.mockResolvedValue('success');
+
+    const { result } = renderHook(() => useQuickCheckIn(123, 0));
+
+    await act(async () => {
+      await result.current.quickCheckIn();
+    });
+
+    expect(mockPerformCheckIn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        CheckInType: 0,
+        UnitId: undefined,
+      })
+    );
   });
 });

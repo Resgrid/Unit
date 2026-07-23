@@ -9,7 +9,10 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useQuickCheckIn } from '@/hooks/use-quick-check-in';
+import { useAuthStore } from '@/lib/auth';
+import { CHECK_IN_TARGET_TYPE, getEligibleCheckInTypeValues, getPreferredQuickCheckInType, isCheckInTargetEligible } from '@/lib/check-in-eligibility';
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
+import { useCoreStore } from '@/stores/app/core-store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 
 import { CheckInBottomSheet } from './check-in-bottom-sheet';
@@ -26,9 +29,19 @@ export const CheckInTabContent: React.FC<CheckInTabContentProps> = ({ callId }) 
   const checkInHistory = useCheckInTimerStore((state) => state.checkInHistory);
   const isLoadingStatuses = useCheckInTimerStore((state) => state.isLoadingStatuses);
   const fetchCheckInHistory = useCheckInTimerStore((state) => state.fetchCheckInHistory);
+  const activeUnit = useCoreStore((state) => state.activeUnit);
+  const currentUserId = useAuthStore((state) => state.userId);
   const [isBottomSheetOpen, setIsBottomSheetOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const { quickCheckIn, isCheckingIn } = useQuickCheckIn(callId);
+  const [selectedCheckInType, setSelectedCheckInType] = useState<number>(CHECK_IN_TARGET_TYPE.PERSONNEL);
+  const eligibilityContext = {
+    currentUnitTypeId: activeUnit?.TypeId,
+    hasCurrentUser: Boolean(currentUserId),
+  };
+  const eligibleTimerStatuses = timerStatuses.filter((timer) => isCheckInTargetEligible(timer, eligibilityContext));
+  const availableCheckInTypes = getEligibleCheckInTypeValues(eligibleTimerStatuses, eligibilityContext);
+  const quickCheckInType = getPreferredQuickCheckInType(eligibleTimerStatuses, eligibilityContext, true);
+  const { quickCheckIn, isCheckingIn } = useQuickCheckIn(callId, quickCheckInType ?? CHECK_IN_TARGET_TYPE.PERSONNEL);
 
   useEffect(() => {
     if (showHistory) {
@@ -36,15 +49,16 @@ export const CheckInTabContent: React.FC<CheckInTabContentProps> = ({ callId }) 
     }
   }, [showHistory, callId, fetchCheckInHistory]);
 
-  const handleCardCheckIn = useCallback(() => {
+  const handleCardCheckIn = useCallback((checkInType: number) => {
+    setSelectedCheckInType(checkInType);
     setIsBottomSheetOpen(true);
   }, []);
 
-  const renderTimerCard = useCallback(({ item }: { item: CheckInTimerStatusResultData }) => <CheckInTimerCard timer={item} onCheckIn={handleCardCheckIn} />, [handleCardCheckIn]);
+  const renderTimerCard = useCallback(({ item }: { item: CheckInTimerStatusResultData }) => <CheckInTimerCard timer={item} onCheckIn={() => handleCardCheckIn(item.TargetType)} />, [handleCardCheckIn]);
 
   const keyExtractor = useCallback((item: CheckInTimerStatusResultData) => `${item.TargetEntityId}-${item.TargetType}`, []);
 
-  if (timerStatuses.length === 0 && !isLoadingStatuses) {
+  if (eligibleTimerStatuses.length === 0 && !isLoadingStatuses) {
     return (
       <Box className="p-4">
         <Text className="text-center text-gray-500">{t('check_in.no_timers')}</Text>
@@ -55,12 +69,14 @@ export const CheckInTabContent: React.FC<CheckInTabContentProps> = ({ callId }) 
   return (
     <VStack className="p-4" space="md">
       {/* Quick Check-In button */}
-      <Button variant="solid" size="lg" onPress={quickCheckIn} disabled={isCheckingIn} className="bg-green-600">
-        <ButtonText className="text-white">{t('check_in.quick_check_in')}</ButtonText>
-      </Button>
+      {quickCheckInType !== null ? (
+        <Button variant="solid" size="lg" onPress={quickCheckIn} disabled={isCheckingIn} className="bg-green-600" testID="quick-check-in-button">
+          <ButtonText className="text-white">{t('check_in.quick_check_in')}</ButtonText>
+        </Button>
+      ) : null}
 
       {/* Timer cards */}
-      <FlatList data={timerStatuses} renderItem={renderTimerCard} keyExtractor={keyExtractor} scrollEnabled={false} removeClippedSubviews={true} maxToRenderPerBatch={10} />
+      <FlatList data={eligibleTimerStatuses} renderItem={renderTimerCard} keyExtractor={keyExtractor} scrollEnabled={false} removeClippedSubviews={true} maxToRenderPerBatch={10} />
 
       {/* History section */}
       <HStack className="items-center justify-between">
@@ -72,7 +88,7 @@ export const CheckInTabContent: React.FC<CheckInTabContentProps> = ({ callId }) 
 
       {showHistory ? <CheckInHistoryList records={checkInHistory} /> : null}
 
-      <CheckInBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} callId={callId} />
+      <CheckInBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} callId={callId} availableCheckInTypes={availableCheckInTypes} defaultCheckInType={selectedCheckInType} />
     </VStack>
   );
 };

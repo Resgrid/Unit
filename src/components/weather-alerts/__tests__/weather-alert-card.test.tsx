@@ -14,6 +14,7 @@ jest.mock('@/lib/utils', () => ({
 }));
 
 jest.mock('@/lib/weather-alert-utils', () => ({
+  ...jest.requireActual('@/lib/weather-alert-utils'),
   getSeverityColor: jest.fn(() => '#D32F2F'),
   getSeverityTranslationKey: jest.fn(() => 'weather_alerts.severity.severe'),
   getCategoryIcon: jest.fn(() => {
@@ -76,5 +77,12 @@ describe('WeatherAlertCard', () => {
   it('should render without headline when empty', () => {
     render(<WeatherAlertCard alert={createMockAlert({ Headline: '' })} />);
     expect(screen.getByText('Tornado Warning')).toBeTruthy();
+  });
+
+  it('should format the department-local expiration date returned by Core', () => {
+    render(<WeatherAlertCard alert={createMockAlert({ ExpiresUtc: '04/15/2026 2:00:00 PM' })} />);
+
+    expect(screen.queryByText(/Invalid Date/)).toBeNull();
+    expect(screen.getByText(/^weather_alerts\.detail\.expires: /)).toBeTruthy();
   });
 });
