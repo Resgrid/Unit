@@ -23,6 +23,7 @@ import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -38,7 +39,6 @@ import CallFilesModal from '../../components/calls/call-files-modal';
 import CallImagesModal from '../../components/calls/call-images-modal';
 import CallNotesModal from '../../components/calls/call-notes-modal';
 import { CloseCallBottomSheet } from '../../components/calls/close-call-bottom-sheet';
-import { StatusBottomSheet } from '../../components/status/status-bottom-sheet';
 
 export default function CallDetail() {
   const { id } = useLocalSearchParams();
@@ -507,12 +507,16 @@ export default function CallDetail() {
 
     // Conditionally add check-in tab
     if (call?.CheckInTimersEnabled) {
-      const overdueCount = timerStatuses.filter((t) => t.Status === 'Overdue').length;
+      const checkInBadge = getUnitTypeCheckInBadge(timerStatuses, {
+        currentUnitTypeId: activeUnit?.TypeId,
+        hasCurrentUser: true,
+      });
       tabs.push({
         key: 'checkin',
         title: t('check_in.tab_title'),
         icon: <TimerIcon size={16} />,
-        badge: overdueCount > 0 ? overdueCount : undefined,
+        badge: checkInBadge?.count,
+        badgeVariant: checkInBadge?.variant,
         content: <CheckInTabContent callId={parseInt(call.CallId, 10)} />,
       });
     }
@@ -636,7 +640,7 @@ export default function CallDetail() {
 
         {/* Tabs */}
         <Box className={`mt-2 flex-1 pb-8 ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-neutral-100'}`}>
-          <SharedTabs tabs={renderTabs()} variant="underlined" size={isLandscape ? 'md' : 'sm'} />
+          <SharedTabs tabs={renderTabs()} variant="underlined" size={isLandscape ? 'md' : 'sm'} showOverflowIndicators />
         </Box>
       </ScrollView>
       <CallNotesModal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} callId={callId} />
@@ -645,9 +649,6 @@ export default function CallDetail() {
 
       {/* Close Call Bottom Sheet */}
       <CloseCallBottomSheet isOpen={isCloseCallModalOpen} onClose={() => setIsCloseCallModalOpen(false)} callId={callId} />
-
-      {/* Status Bottom Sheet */}
-      <StatusBottomSheet />
 
       {/* Call Detail Menu ActionSheet */}
       <CallDetailActionSheet />

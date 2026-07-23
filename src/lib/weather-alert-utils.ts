@@ -3,6 +3,14 @@ import { AlertTriangle, CloudLightning, Flame, Heart, Leaf, type LucideIcon } fr
 import { WeatherAlertCategory, WeatherAlertSeverity, WeatherAlertStatus } from '@/models/v4/weatherAlerts/weatherAlertEnums';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
+type WeatherAlertPolygon = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+type WeatherAlertPolygonFeature = GeoJSON.Feature<WeatherAlertPolygon>;
+
+export interface WeatherAlertMapBounds {
+  ne: [number, number];
+  sw: [number, number];
+}
+
 export const SEVERITY_COLORS: Record<number, string> = {
   [WeatherAlertSeverity.Extreme]: '#7B1FA2',
   [WeatherAlertSeverity.Severe]: '#D32F2F',
@@ -45,14 +53,31 @@ export const getCategoryIcon = (category: number): LucideIcon => {
   return icons[category] ?? icons[WeatherAlertCategory.Other];
 };
 
-export const parsePolygonGeoJSON = (polygonStr: string): GeoJSON.Feature | null => {
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null;
+};
+
+const isPolygonGeometry = (value: unknown): value is WeatherAlertPolygon => {
+  if (!isRecord(value)) return false;
+  return (value.type === 'Polygon' || value.type === 'MultiPolygon') && Array.isArray(value.coordinates);
+};
+
+export const parsePolygonGeoJSON = (polygonStr: string): WeatherAlertPolygonFeature | null => {
   if (!polygonStr) return null;
 
   try {
     // Try parsing as GeoJSON first
-    const parsed = JSON.parse(polygonStr);
-    if (parsed.type === 'Feature') return parsed;
-    if (parsed.type === 'Polygon' || parsed.type === 'MultiPolygon') {
+    const parsed: unknown = JSON.parse(polygonStr);
+    if (!isRecord(parsed)) return null;
+
+    if (parsed.type === 'Feature' && isPolygonGeometry(parsed.geometry)) {
+      return {
+        type: 'Feature',
+        properties: isRecord(parsed.properties) ? parsed.properties : {},
+        geometry: parsed.geometry,
+      };
+    }
+    if (isPolygonGeometry(parsed)) {
       return { type: 'Feature', properties: {}, geometry: parsed };
     }
     return null;
@@ -93,29 +118,99 @@ export const parsePolygonGeoJSON = (polygonStr: string): GeoJSON.Feature | null 
   }
 };
 
+export const getPolygonBounds = (feature: WeatherAlertPolygonFeature): WeatherAlertMapBounds | null => {
+  const polygons = feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+
+  for (const polygon of polygons) {
+    for (const ring of polygon) {
+      for (const position of ring) {
+        const [lng, lat] = position;
+        if (!Number.isFinite(lng) || !Number.isFinite(lat) || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
+          continue;
+        }
+
+        minLng = Math.min(minLng, lng);
+        maxLng = Math.max(maxLng, lng);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      }
+    }
+  }
+
+  if (![minLng, maxLng, minLat, maxLat].every(Number.isFinite)) return null;
+
+  return {
+    ne: [maxLng, maxLat],
+    sw: [minLng, minLat],
+  };
+};
+
 export const parseCenterLocation = (centerStr: string): { latitude: number; longitude: number } | null => {
   if (!centerStr) return null;
 
-  try {
-    const [lat, lng] = centerStr.split(',').map(Number);
-    if (isNaN(lat) || isNaN(lng)) return null;
-    return { latitude: lat, longitude: lng };
-  } catch {
-    return null;
+  const parts = centerStr.split(',').map((part) => Number(part.trim()));
+  if (parts.length !== 2) return null;
+
+  const [latitude, longitude] = parts;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+
+  return { latitude, longitude };
+};
+
+export const parseWeatherAlertDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+
+  const value = dateStr.trim();
+  const departmentDateMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+
+  if (departmentDateMatch) {
+    const [, monthText, dayText, yearText, hourText, minuteText, secondText = '0', periodText] = departmentDateMatch;
+    const month = Number(monthText);
+    const day = Number(dayText);
+    const year = Number(yearText);
+    let hour = Number(hourText);
+    const minute = Number(minuteText);
+    const second = Number(secondText);
+    const period = periodText?.toUpperCase();
+
+    if (period) {
+      if (hour < 1 || hour > 12) return null;
+      hour = hour % 12;
+      if (period === 'PM') hour += 12;
+    }
+
+    if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59) return null;
+
+    const date = new Date(year, month - 1, day, hour, minute, second);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day || date.getHours() !== hour || date.getMinutes() !== minute || date.getSeconds() !== second) {
+      return null;
+    }
+
+    return date;
   }
+
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
 };
 
 export const sortAlertsBySeverity = (alerts: WeatherAlertResultData[]): WeatherAlertResultData[] => {
   return [...alerts].sort((a, b) => {
     if (a.Severity !== b.Severity) return a.Severity - b.Severity;
-    return new Date(b.EffectiveUtc).getTime() - new Date(a.EffectiveUtc).getTime();
+    const bEffectiveTime = parseWeatherAlertDate(b.EffectiveUtc)?.getTime() ?? 0;
+    const aEffectiveTime = parseWeatherAlertDate(a.EffectiveUtc)?.getTime() ?? 0;
+    return bEffectiveTime - aEffectiveTime;
   });
 };
 
 export const isAlertActive = (alert: WeatherAlertResultData): boolean => {
   if (alert.Status !== WeatherAlertStatus.Active) return false;
   if (alert.ExpiresUtc) {
-    return new Date(alert.ExpiresUtc).getTime() > Date.now();
+    const expiration = parseWeatherAlertDate(alert.ExpiresUtc);
+    return expiration ? expiration.getTime() > Date.now() : true;
   }
   return true;
 };

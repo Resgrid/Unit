@@ -24,6 +24,7 @@ import { APIProvider } from '@/api';
 import { CountlyProvider } from '@/components/common/countly-provider';
 import { LiveKitBottomSheet } from '@/components/livekit';
 import { PushNotificationModal } from '@/components/push-notification/push-notification-modal';
+import { StatusBottomSheet } from '@/components/status/status-bottom-sheet';
 import { ToastContainer } from '@/components/toast/toast-container';
 import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
@@ -207,6 +208,10 @@ function Providers({ children }: { children: React.ReactNode }) {
           <BottomSheetModalProvider>
             {children}
             <LiveKitBottomSheet />
+            {/* Driven entirely by useStatusBottomSheetStore, so it is mounted once here.
+                Mounting it per-screen stacked duplicate Actionsheets (each with its own
+                backdrop and destination fetch) whenever those screens were alive together. */}
+            <StatusBottomSheet />
             <PushNotificationModal />
             <FlashMessage position="top" />
             <ToastContainer />

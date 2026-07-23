@@ -7,7 +7,6 @@ import { ScrollView, View } from 'react-native';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import StaticMap from '@/components/maps/static-map';
-import { StatusBottomSheet } from '@/components/status/status-bottom-sheet';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -151,7 +150,6 @@ export default function PoiDetailScreen() {
           </Box>
         </VStack>
       </ScrollView>
-      <StatusBottomSheet />
     </>
   );
 }

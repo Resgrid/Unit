@@ -331,6 +331,7 @@
     "queued_offline": "Incheckning köad för när anslutningen återställs",
     "quick_check_in": "Snabb incheckning",
     "select_type": "Välj incheckningstyp",
+    "status_critical": "Kritisk",
     "status_ok": "OK",
     "status_overdue": "Försenad",
     "status_warning": "Varning",

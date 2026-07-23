@@ -7,7 +7,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { getTimeAgoUtc } from '@/lib/utils';
-import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey } from '@/lib/weather-alert-utils';
+import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey, parseWeatherAlertDate } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
 interface WeatherAlertCardProps {
@@ -18,6 +18,8 @@ const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) =
   const { t } = useTranslation();
   const severityColor = getSeverityColor(alert.Severity);
   const CategoryIcon = getCategoryIcon(alert.Category);
+  const effectiveDate = parseWeatherAlertDate(alert.EffectiveUtc);
+  const expiresDate = parseWeatherAlertDate(alert.ExpiresUtc);
 
   return (
     <Box style={{ borderLeftWidth: 4, borderLeftColor: severityColor }} className="mb-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800">
@@ -31,7 +33,7 @@ const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) =
         </HStack>
         <HStack className="items-center" space="xs">
           <Clock size={12} color="#9CA3AF" />
-          <Text className="text-xs text-gray-500 dark:text-gray-400">{getTimeAgoUtc(alert.EffectiveUtc)}</Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">{getTimeAgoUtc(effectiveDate ?? alert.EffectiveUtc)}</Text>
         </HStack>
       </HStack>
 
@@ -56,7 +58,7 @@ const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) =
       {alert.ExpiresUtc ? (
         <HStack className="mt-2 items-center" space="xs">
           <Text className="text-xs text-gray-400 dark:text-gray-500">
-            {t('weather_alerts.detail.expires')}: {new Date(alert.ExpiresUtc).toLocaleString()}
+            {t('weather_alerts.detail.expires')}: {expiresDate ? expiresDate.toLocaleString() : t('call_detail.not_available')}
           </Text>
         </HStack>
       ) : null}

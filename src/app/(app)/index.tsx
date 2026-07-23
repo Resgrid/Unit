@@ -17,6 +17,7 @@ import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-ba
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
+import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
@@ -68,13 +69,13 @@ function MapContent() {
   // Weather alert banner state
   const weatherAlerts = useWeatherAlertsStore((state) => state.alerts);
   const weatherSettings = useWeatherAlertsStore((state) => state.settings);
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const extremeAlerts = useMemo(() => weatherAlerts.filter((a) => a.Severity <= 1 && a.Status === 0), [weatherAlerts]);
+  const { bannerAlerts, dismissBanner } = useWeatherAlertBanner(extremeAlerts);
 
-  // Reset dismissed state when alert count changes
-  useEffect(() => {
-    setIsBannerDismissed(false);
-  }, [extremeAlerts.length]);
+  const handleWeatherAlertBannerPress = useCallback(() => {
+    dismissBanner();
+    router.push('/(app)/weather-alerts');
+  }, [dismissBanner]);
 
   // Route overlay state
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
@@ -629,9 +630,9 @@ function MapContent() {
         </Mapbox.MapView>
 
         {/* Weather Alert Banner */}
-        {weatherSettings?.WeatherAlertsEnabled && extremeAlerts.length > 0 && !isBannerDismissed ? (
+        {weatherSettings?.WeatherAlertsEnabled && bannerAlerts.length > 0 ? (
           <View style={{ position: 'absolute', top: 8, left: 0, right: 0, zIndex: 10 }}>
-            <WeatherAlertBanner alerts={extremeAlerts} onPress={() => router.push('/(app)/weather-alerts')} onDismiss={() => setIsBannerDismissed(true)} />
+            <WeatherAlertBanner alerts={bannerAlerts} onPress={handleWeatherAlertBannerPress} onDismiss={dismissBanner} />
           </View>
         ) : null}
 

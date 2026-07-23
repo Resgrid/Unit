@@ -491,7 +491,8 @@ export const StatusBottomSheet = () => {
       case 'select-status':
         return t('status.select_status');
       case 'select-destination':
-        return t('status.select_destination', { status: selectedStatus?.Text });
+        // A status with no destination options still lands here as a confirm step.
+        return shouldShowDestinationStep ? t('status.select_destination', { status: selectedStatus?.Text }) : t('status.set_status');
       case 'add-note':
         return t('status.add_note');
       default:
@@ -605,6 +606,10 @@ export const StatusBottomSheet = () => {
 
     return t('status.no_destination');
   };
+
+  // Opening straight into 'add-note' (status picked up front, no destination to choose)
+  // leaves nothing to go back to, so the note step offers Cancel instead of Previous.
+  const hasStepBeforeNote = cameFromStatusSelection || shouldShowDestinationStep;
 
   const shouldShowDestinationTabs = destinationTabs.length > 1;
   const showCalls = destinationTabs.includes('call') && (!shouldShowDestinationTabs || selectedTab === 'call');
@@ -880,10 +885,16 @@ export const StatusBottomSheet = () => {
                 </VStack>
 
                 <HStack space="xs" className="justify-between px-2 pt-2">
-                  <Button variant="outline" onPress={handlePrevious} className="px-3" isDisabled={isSubmitting}>
-                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
-                    <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
-                  </Button>
+                  {hasStepBeforeNote ? (
+                    <Button variant="outline" onPress={handlePrevious} className="px-3" isDisabled={isSubmitting}>
+                      <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                      <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onPress={handleClose} className="px-3" isDisabled={isSubmitting}>
+                      <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
+                    </Button>
+                  )}
                   <Button onPress={() => void handleSubmit()} isDisabled={!canProceedFromCurrentStep() || isSubmitting} className="bg-blue-600 px-3">
                     {isSubmitting ? <Spinner size="small" color="white" /> : null}
                     <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>

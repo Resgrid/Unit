@@ -331,6 +331,7 @@
     "queued_offline": "Check-in queued for when connection is restored",
     "quick_check_in": "Quick Check-In",
     "select_type": "Select check-in type",
+    "status_critical": "Critical",
     "status_ok": "OK",
     "status_overdue": "Overdue",
     "status_warning": "Warning",

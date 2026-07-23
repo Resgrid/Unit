@@ -9,13 +9,8 @@ import { Button, ButtonText } from '@/components/ui/button';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { getCheckInTimerStatusColor, getCheckInTimerStatusTranslationKey, isCheckInTimerCritical } from '@/lib/check-in-timer-utils';
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
-
-const STATUS_COLORS: Record<string, string> = {
-  Ok: '#22C55E',
-  Warning: '#F59E0B',
-  Overdue: '#EF4444',
-};
 
 interface CheckInTimerCardProps {
   timer: CheckInTimerStatusResultData;
@@ -40,9 +35,11 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
     return () => clearInterval(interval);
   }, []);
 
-  // Pulse animation for overdue
+  const isCritical = isCheckInTimerCritical(timer.Status);
+
+  // Pulse animation for critical timers
   useEffect(() => {
-    if (timer.Status === 'Overdue') {
+    if (isCritical) {
       const animation = Animated.loop(
         Animated.sequence([Animated.timing(pulseAnim, { toValue: 0.5, duration: 800, useNativeDriver: true }), Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true })])
       );
@@ -51,12 +48,13 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
     } else {
       pulseAnim.setValue(1);
     }
-  }, [timer.Status, pulseAnim]);
+  }, [isCritical, pulseAnim]);
 
-  const statusColor = STATUS_COLORS[timer.Status] ?? '#808080';
+  const statusColor = getCheckInTimerStatusColor(timer.Status);
+  const statusTranslationKey = getCheckInTimerStatusTranslationKey(timer.Status);
+  const statusLabel = statusTranslationKey ? t(statusTranslationKey) : timer.Status || t('common.unknown');
   const duration = timer.DurationMinutes ? Number(timer.DurationMinutes) : 0;
   const progress = duration > 0 ? Math.min(localElapsed / duration, 1) : 0;
-  const safeStatusLower = typeof timer.Status === 'string' ? timer.Status.toLowerCase() : '';
   const minutesSinceLastCheckIn = timer.LastCheckIn ? differenceInMinutes(new Date(), timer.LastCheckIn) : 0;
 
   return (
@@ -73,7 +71,7 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
         </HStack>
         <Box className="rounded-full px-2 py-1" style={{ backgroundColor: statusColor + '20' }}>
           <Text className="text-xs font-medium" style={{ color: statusColor }}>
-            {t(`check_in.status_${safeStatusLower}`)}
+            {statusLabel}
           </Text>
         </Box>
       </HStack>

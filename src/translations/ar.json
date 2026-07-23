@@ -331,6 +331,7 @@
     "queued_offline": "تم وضع التسجيل في قائمة الانتظار لحين استعادة الاتصال",
     "quick_check_in": "تسجيل سريع",
     "select_type": "اختر نوع التسجيل",
+    "status_critical": "حرج",
     "status_ok": "جيد",
     "status_overdue": "متأخر",
     "status_warning": "تحذير",

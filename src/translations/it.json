@@ -331,6 +331,7 @@
     "queued_offline": "Check-in in coda per quando la connessione sarà ripristinata",
     "quick_check_in": "Check-In rapido",
     "select_type": "Seleziona tipo di check-in",
+    "status_critical": "Critico",
     "status_ok": "OK",
     "status_overdue": "Scaduto",
     "status_warning": "Avviso",

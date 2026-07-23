@@ -108,15 +108,24 @@ describe('CheckInBottomSheet', () => {
     expect(getByText('check_in.confirm')).toBeTruthy();
   });
 
-  it('should render all check-in type buttons', () => {
-    const { getByText } = render(<CheckInBottomSheet isOpen={true} onClose={jest.fn()} callId={1} />);
+  it('should render supported check-in type buttons without IC', () => {
+    const { getByText, queryByText } = render(<CheckInBottomSheet isOpen={true} onClose={jest.fn()} callId={1} />);
 
     expect(getByText('check_in.type_personnel')).toBeTruthy();
     expect(getByText('check_in.type_unit')).toBeTruthy();
-    expect(getByText('check_in.type_ic')).toBeTruthy();
+    expect(queryByText('check_in.type_ic')).toBeNull();
     expect(getByText('check_in.type_par')).toBeTruthy();
     expect(getByText('check_in.type_hazmat')).toBeTruthy();
     expect(getByText('check_in.type_sector_rotation')).toBeTruthy();
     expect(getByText('check_in.type_rehab')).toBeTruthy();
+  });
+
+  it('only renders check-in types available to the current user and unit', () => {
+    const { getByText, queryByText } = render(<CheckInBottomSheet isOpen={true} onClose={jest.fn()} callId={1} availableCheckInTypes={[0, 3]} />);
+
+    expect(getByText('check_in.type_personnel')).toBeTruthy();
+    expect(getByText('check_in.type_par')).toBeTruthy();
+    expect(queryByText('check_in.type_unit')).toBeNull();
+    expect(queryByText('check_in.type_ic')).toBeNull();
   });
 });

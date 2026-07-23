@@ -55,6 +55,27 @@ const hasFreshDestinationData = (lastFetchedAt: number): boolean => {
   return lastFetchedAt > 0 && Date.now() - lastFetchedAt <= STORE_TTL_MS;
 };
 
+const toStatusNumber = (value: unknown): number => {
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
+// When a status is picked up front (sidebar button, call/POI screen) the status-selection
+// step is skipped, so the first step has to match what that status actually asks for.
+// A status with no destination (Detail 0) must not land on 'select-destination'.
+const getInitialStepForStatus = (status: StatusType): StatusStep => {
+  if (toStatusNumber(status.Detail) > 0) {
+    return 'select-destination';
+  }
+
+  if (toStatusNumber(status.Note) > 0) {
+    return 'add-note';
+  }
+
+  // Nothing to collect — keep a confirm step rather than submitting without the user asking.
+  return 'select-destination';
+};
+
 export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, get) => ({
   isOpen: false,
   currentStep: 'select-destination',
@@ -91,7 +112,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
     set({
       isOpen,
       selectedStatus: status,
-      currentStep: 'select-destination',
+      currentStep: getInitialStepForStatus(status),
       cameFromStatusSelection: false,
     });
   },

@@ -267,12 +267,39 @@ type IActionsheetIconProps = VariantProps<typeof actionsheetIconStyle> &
     as?: React.ElementType;
   };
 
-const Actionsheet = React.forwardRef<React.ElementRef<typeof UIActionsheet>, IActionsheetProps>(({ className, ...props }, ref) => {
+// The backdrop is a full-screen Pressable that mounts the instant `isOpen` flips, so the
+// same tap that opened the sheet can land on it and close the sheet again. Keep
+// closeOnOverlayClick off until the open animation has had time to finish. Android's back
+// button goes through isKeyboardDismissable, not this flag, so dismissal still works during
+// the window. Mirrors the guard in @/components/ui/bottom-sheet.
+const BACKDROP_ARM_DELAY_MS = 300;
+
+const Actionsheet = React.forwardRef<React.ElementRef<typeof UIActionsheet>, IActionsheetProps>(({ className, isOpen, closeOnOverlayClick = true, ...props }, ref) => {
+  // Uncontrolled sheets (defaultIsOpen) have no isOpen to key off, so never gate them.
+  const isControlled = isOpen !== undefined;
+  const [isBackdropArmed, setIsBackdropArmed] = React.useState(!isControlled);
+
+  React.useEffect(() => {
+    if (!isControlled) {
+      return;
+    }
+
+    if (!isOpen) {
+      setIsBackdropArmed(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setIsBackdropArmed(true), BACKDROP_ARM_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isControlled, isOpen]);
+
   return (
     <UIActionsheet
       className={actionsheetStyle({
         class: className,
       })}
+      isOpen={isOpen}
+      closeOnOverlayClick={closeOnOverlayClick && isBackdropArmed}
       ref={ref}
       {...props}
     />

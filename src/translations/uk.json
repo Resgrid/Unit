@@ -331,6 +331,7 @@
     "queued_offline": "Реєстрацію поставлено в чергу до відновлення з'єднання",
     "quick_check_in": "Швидка реєстрація",
     "select_type": "Оберіть тип реєстрації",
+    "status_critical": "Критичний",
     "status_ok": "ОК",
     "status_overdue": "Прострочено",
     "status_warning": "Попередження",

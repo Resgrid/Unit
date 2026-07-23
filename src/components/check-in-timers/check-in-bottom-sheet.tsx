@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TextInput } from 'react-native';
 
@@ -10,6 +10,7 @@ import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { CHECK_IN_TARGET_TYPE } from '@/lib/check-in-eligibility';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import type { CheckInResult } from '@/stores/check-in-timers/store';
@@ -19,7 +20,6 @@ import { useToastStore } from '@/stores/toast/store';
 const CHECK_IN_TYPES = [
   { value: 0, key: 'type_personnel' },
   { value: 1, key: 'type_unit' },
-  { value: 2, key: 'type_ic' },
   { value: 3, key: 'type_par' },
   { value: 4, key: 'type_hazmat' },
   { value: 5, key: 'type_sector_rotation' },
@@ -30,9 +30,11 @@ interface CheckInBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
   callId: number;
+  availableCheckInTypes?: number[];
+  defaultCheckInType?: number;
 }
 
-export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, onClose, callId }) => {
+export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, onClose, callId, availableCheckInTypes, defaultCheckInType }) => {
   const { t } = useTranslation();
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const latitude = useLocationStore((state) => state.latitude);
@@ -41,15 +43,22 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
   const isCheckingIn = useCheckInTimerStore((state) => state.isCheckingIn);
   const showToast = useToastStore((state) => state.showToast);
 
-  const defaultType = activeUnit ? 1 : 0;
+  const defaultType = defaultCheckInType ?? (activeUnit ? CHECK_IN_TARGET_TYPE.UNIT_TYPE : CHECK_IN_TARGET_TYPE.PERSONNEL);
   const [selectedType, setSelectedType] = useState(defaultType);
   const [note, setNote] = useState('');
+  const selectableCheckInTypes = CHECK_IN_TYPES.filter((type) => availableCheckInTypes === undefined || availableCheckInTypes.includes(type.value));
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedType(defaultType);
+    }
+  }, [defaultType, isOpen]);
 
   const handleConfirm = useCallback(async () => {
     const input: PerformCheckInInput = {
       CallId: callId,
       CheckInType: selectedType,
-      UnitId: activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
+      UnitId: selectedType !== CHECK_IN_TARGET_TYPE.PERSONNEL && activeUnit ? parseInt(activeUnit.UnitId, 10) : undefined,
       Latitude: latitude?.toString(),
       Longitude: longitude?.toString(),
       Note: note || undefined,
@@ -79,7 +88,7 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
         <VStack space="xs">
           <Text className="text-sm font-medium text-gray-600">{t('check_in.select_type')}</Text>
           <HStack className="flex-wrap" space="sm">
-            {CHECK_IN_TYPES.map((type) => (
+            {selectableCheckInTypes.map((type) => (
               <Button key={type.value} variant={selectedType === type.value ? 'solid' : 'outline'} size="sm" onPress={() => setSelectedType(type.value)} className="mb-1">
                 <ButtonText>{t(`check_in.${type.key}`)}</ButtonText>
               </Button>

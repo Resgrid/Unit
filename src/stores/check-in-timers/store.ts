@@ -2,6 +2,8 @@ import { isAxiosError } from 'axios';
 import { create } from 'zustand';
 
 import { getCheckInHistory, getTimersForCall, getTimerStatuses, performCheckIn, type PerformCheckInInput } from '@/api/check-in-timers/check-in-timers';
+import { isClientCheckInTypeAllowed } from '@/lib/check-in-eligibility';
+import { getCheckInTimerStatusSeverity } from '@/lib/check-in-timer-utils';
 import { logger } from '@/lib/logging';
 import type { CheckInRecordResultData } from '@/models/v4/checkIn/checkInRecordResultData';
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
@@ -9,12 +11,6 @@ import type { ResolvedCheckInTimerResultData } from '@/models/v4/checkIn/resolve
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 
 export type CheckInResult = 'success' | 'queued' | 'failed';
-
-const STATUS_SEVERITY: Record<string, number> = {
-  Overdue: 0,
-  Warning: 1,
-  Ok: 2,
-};
 
 interface CheckInTimerState {
   timerStatuses: CheckInTimerStatusResultData[];
@@ -56,7 +52,7 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
     try {
       const result = await getTimerStatuses(callId);
       const data = Array.isArray(result.Data) ? result.Data : [];
-      const sorted = [...data].sort((a, b) => (STATUS_SEVERITY[a.Status] ?? 3) - (STATUS_SEVERITY[b.Status] ?? 3));
+      const sorted = [...data].sort((a, b) => getCheckInTimerStatusSeverity(a.Status) - getCheckInTimerStatusSeverity(b.Status));
       set({ timerStatuses: sorted, isLoadingStatuses: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch timer statuses';
@@ -86,6 +82,12 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
   },
 
   performCheckIn: async (input: PerformCheckInInput) => {
+    if (!isClientCheckInTypeAllowed(input.CheckInType)) {
+      logger.warn({ message: 'Blocked unsupported IC check-in from Unit app', context: { callId: input.CallId } });
+      set({ checkInError: 'IC check-ins are not supported in the Unit app', isCheckingIn: false });
+      return 'failed';
+    }
+
     set({ isCheckingIn: true, checkInError: null });
     try {
       await performCheckIn(input);

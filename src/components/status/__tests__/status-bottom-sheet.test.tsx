@@ -231,6 +231,7 @@ const mockTranslation = {
       'common.of': 'of',
       'common.next': 'Next',
       'common.previous': 'Previous',
+      'common.cancel': 'Cancel',
       'common.submit': 'Submit',
       'common.submitting': 'Submitting',
       'common.optional': 'Optional',
@@ -2625,6 +2626,7 @@ describe('StatusBottomSheet', () => {
         ...defaultBottomSheetStore,
         isOpen: true,
         currentStep: 'add-note',
+        cameFromStatusSelection: true,
         selectedStatus,
       };
       if (selector) {
@@ -2639,6 +2641,43 @@ describe('StatusBottomSheet', () => {
     fireEvent.press(previousButton);
 
     expect(mockSetCurrentStep).toHaveBeenCalledWith('select-status');
+  });
+
+  it('should offer cancel instead of previous on the note step when the status was picked up front and has no destination', () => {
+    const selectedStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Patient Contact',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: false,
+      Note: 1, // Note optional
+      Detail: 0, // No destination step — nothing precedes the note step
+    };
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        currentStep: 'add-note',
+        cameFromStatusSelection: false,
+        selectedStatus,
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.queryByText('Previous')).toBeNull();
+
+    fireEvent.press(screen.getByText('Cancel'));
+
+    expect(mockReset).toHaveBeenCalled();
+    expect(mockSetCurrentStep).not.toHaveBeenCalledWith('select-status');
   });
 
   it('should calculate correct step numbers with status selection', () => {

@@ -14,7 +14,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { WeatherAlertDetailMap } from '@/components/weather-alerts/weather-alert-detail-map';
-import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey } from '@/lib/weather-alert-utils';
+import { getCategoryIcon, getSeverityColor, getSeverityTranslationKey, parseWeatherAlertDate } from '@/lib/weather-alert-utils';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
 export default function WeatherAlertDetail() {
@@ -41,11 +41,8 @@ export default function WeatherAlertDetail() {
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return t('call_detail.not_available');
-    try {
-      return format(new Date(dateStr), 'PPp');
-    } catch {
-      return dateStr;
-    }
+    const date = parseWeatherAlertDate(dateStr);
+    return date ? format(date, 'PPp') : t('call_detail.not_available');
   };
 
   if (isLoading) {

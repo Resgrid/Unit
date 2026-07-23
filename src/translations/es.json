@@ -331,6 +331,7 @@
     "queued_offline": "Registro en cola para cuando se restaure la conexión",
     "quick_check_in": "Registro rápido",
     "select_type": "Seleccionar tipo de registro",
+    "status_critical": "Crítico",
     "status_ok": "OK",
     "status_overdue": "Vencido",
     "status_warning": "Advertencia",

@@ -84,47 +84,72 @@ describe('CheckInTimerCard', () => {
     const timer = createMockTimer();
     const onCheckIn = jest.fn();
 
-    const { getByText } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
 
     expect(getByText('Engine 1')).toBeTruthy();
     expect(getByText('Unit')).toBeTruthy();
     expect(getByText('check_in.perform_check_in')).toBeTruthy();
+    unmount();
   });
 
   it('should call onCheckIn when button pressed', () => {
     const timer = createMockTimer();
     const onCheckIn = jest.fn();
 
-    const { getByText } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
 
     fireEvent.press(getByText('check_in.perform_check_in'));
     expect(onCheckIn).toHaveBeenCalledTimes(1);
+    unmount();
   });
 
   it('should hide check-in button when showCheckInButton is false', () => {
     const timer = createMockTimer();
     const onCheckIn = jest.fn();
 
-    const { queryByText } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} showCheckInButton={false} />);
+    const { queryByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} showCheckInButton={false} />);
 
     expect(queryByText('check_in.perform_check_in')).toBeNull();
+    unmount();
   });
 
   it('should render warning status', () => {
     const timer = createMockTimer({ Status: 'Warning', ElapsedMinutes: 22 });
     const onCheckIn = jest.fn();
 
-    const { getByText } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
 
     expect(getByText('check_in.status_warning')).toBeTruthy();
+    unmount();
   });
 
   it('should render overdue status', () => {
     const timer = createMockTimer({ Status: 'Overdue', ElapsedMinutes: 35 });
     const onCheckIn = jest.fn();
 
-    const { getByText } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
 
     expect(getByText('check_in.status_overdue')).toBeTruthy();
+    unmount();
+  });
+
+  it.each(['Critical', 'Critial'])('should render %s as the translated critical status', (status) => {
+    const timer = createMockTimer({ Status: status, ElapsedMinutes: 35 });
+    const onCheckIn = jest.fn();
+
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+
+    expect(getByText('check_in.status_critical')).toBeTruthy();
+    unmount();
+  });
+
+  it('should render the API Green status as OK', () => {
+    const timer = createMockTimer({ Status: 'Green' });
+    const onCheckIn = jest.fn();
+
+    const { getByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} />);
+
+    expect(getByText('check_in.status_ok')).toBeTruthy();
+    unmount();
   });
 });
