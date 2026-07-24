@@ -1,6 +1,14 @@
 import { CHECK_IN_TARGET_TYPE, type CheckInEligibilityContext, isCheckInTargetEligible } from '@/lib/check-in-eligibility';
 
-export type CheckInTimerStatus = 'critical' | 'ok' | 'overdue' | 'unknown' | 'warning';
+const STATUS_COLORS = {
+  critical: '#EF4444',
+  ok: '#22C55E',
+  overdue: '#F59E0B',
+  unknown: '#808080',
+  warning: '#F59E0B',
+} as const;
+
+export type CheckInTimerStatus = keyof typeof STATUS_COLORS;
 export type CheckInTimerBadgeVariant = 'critical' | 'warning';
 
 interface CheckInTimerTargetStatus {
@@ -14,14 +22,6 @@ export interface CheckInTimerBadge {
   count: number;
   variant: CheckInTimerBadgeVariant;
 }
-
-const STATUS_COLORS: Record<CheckInTimerStatus, string> = {
-  critical: '#EF4444',
-  ok: '#22C55E',
-  overdue: '#F59E0B',
-  unknown: '#808080',
-  warning: '#F59E0B',
-};
 
 const STATUS_SEVERITY: Record<CheckInTimerStatus, number> = {
   critical: 0,
