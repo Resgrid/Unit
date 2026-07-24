@@ -242,7 +242,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     './plugins/withInCallAudioModule.js',
-    ['app-icon-badge', appIconBadgeConfig],
+    ['./plugins/with-app-icon-badge.js', appIconBadgeConfig],
   ],
   extra: {
     ...ClientEnv,
