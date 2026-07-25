@@ -565,6 +565,54 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         set({ isTalking });
       });
 
+      room.on(RoomEvent.Reconnecting, () => {
+        logger.warn({
+          message: 'LiveKit room connection lost, reconnecting',
+          context: { roomName: roomInfo.Name },
+        });
+      });
+
+      room.on(RoomEvent.Reconnected, () => {
+        logger.info({
+          message: 'LiveKit room reconnected',
+          context: { roomName: roomInfo.Name },
+        });
+      });
+
+      room.on(RoomEvent.Disconnected, () => {
+        // Fired on network drop AND on intentional room.disconnect(). The
+        // intentional path sets isConnected=false BEFORE disconnecting, so a
+        // truthy value here means an unexpected drop — reset state so the UI
+        // never gets stuck showing "in call" with a dead room.
+        if (!get().isConnected) {
+          return;
+        }
+
+        logger.warn({
+          message: 'LiveKit room disconnected unexpectedly, resetting call state',
+          context: { roomName: roomInfo.Name },
+        });
+
+        callKeepService.setMuteStateCallback(null);
+        callKeepService.setEndCallCallback(null);
+        callKeepService.endCall().catch((error) => {
+          logger.warn({ message: 'Failed to end CallKeep call after unexpected disconnect', context: { error } });
+        });
+        if (Platform.OS === 'android') {
+          notifee.stopForegroundService().catch((error) => {
+            logger.warn({ message: 'Failed to stop foreground service after unexpected disconnect', context: { error } });
+          });
+        }
+
+        set({
+          currentRoom: null,
+          currentRoomInfo: null,
+          isConnected: false,
+          isMicrophoneEnabled: false,
+          isTalking: false,
+        });
+      });
+
       // Connect to the room
       logger.info({
         message: 'Connecting to LiveKit room',
@@ -660,10 +708,18 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // We attach these listeners to the local participant if needed for other UI sync
 
       // Setup audio routing based on selected devices
-      // This may change audio modes/focus, so it comes after media button init
-      await setupAudioRouting(room);
-
-      await audioService.playConnectToAudioRoomSound();
+      // This may change audio modes/focus, so it comes after media button init.
+      // Guarded: a failure here must NOT fall into the outer catch, which would
+      // report "Voice Connection Failed" while the room is actually connected.
+      try {
+        await setupAudioRouting(room);
+        await audioService.playConnectToAudioRoomSound();
+      } catch (postConnectError) {
+        logger.warn({
+          message: 'Post-connect audio setup failed - room is still connected',
+          context: { error: postConnectError },
+        });
+      }
 
       // Android foreground service for background audio.
       // Only needed on Android - iOS uses CallKeep, web browsers handle audio natively.
@@ -762,6 +818,11 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
   disconnectFromRoom: async () => {
     const { currentRoom } = get();
     if (currentRoom) {
+      // Mark disconnected FIRST — room.disconnect() fires RoomEvent.Disconnected
+      // and the unexpected-drop handler must not treat this intentional
+      // teardown as a connection failure.
+      set({ isConnected: false });
+
       await currentRoom.disconnect();
       await audioService.playDisconnectedFromAudioRoomSound();
 

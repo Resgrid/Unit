@@ -1,6 +1,32 @@
+import { format } from 'date-fns';
 import { Linking } from 'react-native';
 import { Platform } from 'react-native';
 import type { StoreApi, UseBoundStore } from 'zustand';
+
+/**
+ * Parses an API UTC timestamp. Server "*Utc" fields arrive WITHOUT a timezone
+ * designator (e.g. "2025-08-06T17:30:00") and `new Date()` would parse those as
+ * DEVICE-local time, shifting the value by the timezone offset. Treat
+ * designator-less inputs as UTC. Returns null for unparseable input.
+ */
+export function parseApiUtcDate(input: unknown): Date | null {
+  if (input === null || input === undefined || input === '') {
+    return null;
+  }
+
+  if (input instanceof Date) {
+    return Number.isNaN(input.getTime()) ? null : input;
+  }
+
+  let value = String(input).trim();
+  // Append Z only when the string carries no timezone info (no Z, no ±hh:mm)
+  if (!/[zZ]$/.test(value) && !/[+-]\d{2}:?\d{2}$/.test(value)) {
+    value = `${value}Z`;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
 
 export function openLinkInBrowser(url: string) {
   Linking.canOpenURL(url).then((canOpen) => canOpen && Linking.openURL(url));
@@ -282,6 +308,29 @@ export function subtractDaysFromDate(date: string, days: number): Date {
   return result;
 }
 
+/**
+ * date-fns format() that never throws. API date fields can be empty strings or
+ * malformed — `new Date('')` is an Invalid Date and date-fns format() throws
+ * RangeError during render, crashing the whole screen. Returns the fallback
+ * for unparseable input.
+ */
+export function safeFormatDate(input: unknown, formatStr: string, fallback: string = '--'): string {
+  if (input === null || input === undefined || input === '') {
+    return fallback;
+  }
+
+  const date = input instanceof Date ? input : new Date(input as string | number);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  try {
+    return format(date, formatStr);
+  } catch {
+    return fallback;
+  }
+}
+
 export function getTimeAgo(time: any, floor: number = 0): string {
   if (!time) {
     return 'Unknown';
@@ -300,6 +349,11 @@ export function getTimeAgo(time: any, floor: number = 0): string {
       break;
     default:
       time = +new Date();
+  }
+
+  // Unparseable input → NaN — render a safe string instead of "NaN".
+  if (typeof time !== 'number' || !Number.isFinite(time)) {
+    return 'Unknown';
   }
 
   const timeFormats = [
@@ -346,7 +400,7 @@ export function getTimeAgo(time: any, floor: number = 0): string {
       }
     }
   }
-  return time;
+  return String(time);
 }
 
 export function getTimeAgoUtc(time: any): string {
@@ -354,23 +408,14 @@ export function getTimeAgoUtc(time: any): string {
     return 'Unknown';
   }
 
-  switch (typeof time) {
-    case 'number':
-      break;
-    case 'string':
-      time = +new Date(time);
-      break;
-    case 'object':
-      if (time.constructor === Date) {
-        time = time.getTime();
-      }
-      break;
-    default:
-      time = +new Date();
+  // Parse UTC-naive API strings correctly instead of relying on device-local
+  // parsing plus timezone-offset math (which breaks if the server ever sends
+  // a real Z designator).
+  const parsed = parseApiUtcDate(time);
+  if (!parsed) {
+    return 'Unknown';
   }
-
-  const currentDate = new Date();
-  time = Number(new Date(time).getTime() + 0 * 60 * 1000);
+  time = parsed.getTime();
 
   const timeFormats = [
     [60, 'seconds', 1], // 60
@@ -389,7 +434,7 @@ export function getTimeAgoUtc(time: any): string {
     [5806080000, 'Last century', 'Next century'], // 60*60*24*7*4*12*100*2
     [58060800000, 'centuries', 2903040000], // 60*60*24*7*4*12*100*20, 60*60*24*7*4*12*100
   ];
-  let seconds = (Number(new Date(currentDate).getTime() + new Date(currentDate).getTimezoneOffset() * 60 * 1000) - time) / 1000,
+  let seconds = (Date.now() - time) / 1000,
     token = 'ago',
     listChoice = 1;
 
@@ -412,5 +457,5 @@ export function getTimeAgoUtc(time: any): string {
       }
     }
   }
-  return time;
+  return String(time);
 }

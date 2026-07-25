@@ -13,6 +13,7 @@ import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
+import { isIOS } from '@/lib/platform';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -111,13 +112,19 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
   const handleImageSelect = async () => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (permissionResult.status !== 'granted') {
-        alert(t('common.permission_denied'));
-        return;
+      // Android uses the system photo picker, which grants access only to the
+      // selected item and does not require broad media-library permission.
+      if (isIOS) {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permissionResult.status !== 'granted') {
+          alert(t('common.permission_denied'));
+          return;
+        }
       }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
+        legacy: false,
         allowsEditing: true,
         quality: 0.8,
       });

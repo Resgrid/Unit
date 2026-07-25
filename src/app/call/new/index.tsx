@@ -204,8 +204,6 @@ export default function NewCall() {
         return;
       }
 
-      console.log('Creating new call with data:', data);
-
       const response = await createCall({
         name: data.name,
         nature: data.nature,

@@ -236,7 +236,7 @@ describe('SignalRService - Enhanced Features', () => {
       
       // Should log the reconnection attempt scheduling
       expect(mockLogger.info).toHaveBeenCalledWith({
-        message: `Scheduling reconnection attempt 1/5 for hub: ${mockConfig.name}`,
+        message: `Scheduling reconnection attempt 1/10 for hub: ${mockConfig.name} in 5000ms`,
       });
       
     });
@@ -250,14 +250,14 @@ describe('SignalRService - Enhanced Features', () => {
       // Get the onclose callback
       const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
       
-      // Trigger connection close multiple times to exceed max attempts
-      for (let i = 0; i < 6; i++) {
+      // Trigger connection close enough times to exceed max attempts (10)
+      for (let i = 0; i < 11; i++) {
         onCloseCallback();
       }
       
       // Should log max attempts reached and cleanup
       expect(mockLogger.error).toHaveBeenCalledWith({
-        message: `Max reconnection attempts (5) reached for hub: ${mockConfig.name}`,
+        message: `Max reconnection attempts (10) reached for hub: ${mockConfig.name}`,
       });
     });
 
@@ -312,7 +312,7 @@ describe('SignalRService - Enhanced Features', () => {
       
       // Should log the reconnection attempt scheduling
       expect(mockLogger.info).toHaveBeenCalledWith({
-        message: `Scheduling reconnection attempt 1/5 for hub: ${mockConfig.name}`,
+        message: `Scheduling reconnection attempt 1/10 for hub: ${mockConfig.name} in 5000ms`,
       });
       
       // Clear previous logs to isolate subsequent logging

@@ -238,6 +238,13 @@ class PushNotificationService {
       return;
     }
     if (identifier) {
+      // Cap the dedupe set — one entry per tap, never pruned otherwise.
+      if (this.handledResponseIds.size >= 200) {
+        const oldest = this.handledResponseIds.values().next().value;
+        if (oldest !== undefined) {
+          this.handledResponseIds.delete(oldest);
+        }
+      }
       this.handledResponseIds.add(identifier);
     }
 
@@ -465,6 +472,32 @@ class PushNotificationService {
 
   public getPushToken(): string | null {
     return this.pushToken;
+  }
+
+  /**
+   * Best-effort local push teardown on logout: clears the in-memory token,
+   * badge and delivered notifications so the previous user's alerts don't
+   * linger for the next user of the device. NOTE: the backend has no
+   * unregister-device endpoint yet — server-side token invalidation should be
+   * added there and called from here when available.
+   */
+  public async unregisterFromPushNotifications(): Promise<void> {
+    try {
+      this.pushToken = null;
+      await Notifications.setBadgeCountAsync(0).catch(() => {});
+      await Notifications.dismissAllNotificationsAsync().catch(() => {});
+      if (Platform.OS === 'android') {
+        await notifee.cancelAllNotifications().catch(() => {});
+      }
+      logger.info({
+        message: 'Push notification local state cleared on logout',
+      });
+    } catch (error) {
+      logger.warn({
+        message: 'Error clearing push notification state on logout',
+        context: { error },
+      });
+    }
   }
 
   public cleanup(): void {

@@ -43,6 +43,17 @@ const mockUseLocationStore = useLocationStore as jest.MockedFunction<any>;
 const mockUseCoreStore = require('@/stores/app/core-store').useCoreStore as jest.MockedFunction<any>;
 const mockSaveUnitStatus = require('@/api/units/unitStatuses').saveUnitStatus as jest.MockedFunction<any>;
 
+// The status store only queues offline when isNetworkError() is true — i.e. a
+// genuine axios connectivity failure (no response received). Plain Errors are
+// treated as server rejections and rethrown instead of queued.
+const createNetworkError = (): Error => {
+  const error = new Error('Network Error') as any;
+  error.isAxiosError = true;
+  error.code = 'ERR_NETWORK';
+  error.request = {};
+  return error;
+};
+
 describe('Status GPS Integration', () => {
   let mockLocationStore: any;
   let mockCoreStore: any;
@@ -187,7 +198,7 @@ describe('Status GPS Integration', () => {
       mockLocationStore.speed = 25;
       mockLocationStore.heading = 90;
 
-      mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
+      mockSaveUnitStatus.mockRejectedValue(createNetworkError());
 
       const input = new SaveUnitStatusInput();
       input.Id = 'unit1';
@@ -220,7 +231,7 @@ describe('Status GPS Integration', () => {
     it('should not include GPS data in offline queue when location is unavailable', async () => {
       const { result } = renderHook(() => useStatusesStore());
 
-      mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
+      mockSaveUnitStatus.mockRejectedValue(createNetworkError());
 
       const input = new SaveUnitStatusInput();
       input.Id = 'unit1';
@@ -381,7 +392,7 @@ describe('Status GPS Integration', () => {
       mockLocationStore.latitude = 35.6762;
       mockLocationStore.longitude = 139.6503;
 
-      mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
+      mockSaveUnitStatus.mockRejectedValue(createNetworkError());
 
       const input = new SaveUnitStatusInput();
       input.Id = 'unit1';
@@ -419,7 +430,7 @@ describe('Status GPS Integration', () => {
       mockLocationStore.accuracy = 8;
       mockLocationStore.speed = 30;
 
-      mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
+      mockSaveUnitStatus.mockRejectedValue(createNetworkError());
 
       const input = new SaveUnitStatusInput();
       input.Id = 'unit1';

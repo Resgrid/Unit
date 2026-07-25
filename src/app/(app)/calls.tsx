@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
@@ -20,6 +20,7 @@ import { securityStore } from '@/stores/security/store';
 
 export default function Calls() {
   const calls = useCallsStore((state) => state.calls);
+  const callPriorities = useCallsStore((state) => state.callPriorities);
   const isLoading = useCallsStore((state) => state.isLoading);
   const error = useCallsStore((state) => state.error);
   const fetchCalls = useCallsStore((state) => state.fetchCalls);
@@ -69,8 +70,25 @@ export default function Calls() {
     router.push('/call/new/');
   };
 
-  // Filter calls based on search query
-  const filteredCalls = calls.filter((call) => call.CallId.toLowerCase().includes(searchQuery.toLowerCase()) || (call.Nature?.toLowerCase() || '').includes(searchQuery.toLowerCase()));
+  // Priority lookup map — O(1) per row instead of an O(n) find per row per render
+  const prioritiesById = useMemo(() => new Map(callPriorities.map((p) => [p.Id, p])), [callPriorities]);
+
+  // Filter calls based on search query (memoized — previously recomputed every render)
+  const filteredCalls = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return calls.filter((call) => call.CallId.toLowerCase().includes(query) || (call.Nature?.toLowerCase() || '').includes(query));
+  }, [calls, searchQuery]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: CallResultData }) => (
+      <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
+        <CallCard call={item} priority={prioritiesById.get(item.Priority)} dispatches={callDispatches[item.CallId]} />
+      </Pressable>
+    ),
+    [prioritiesById, callDispatches]
+  );
+
+  const keyExtractor = useCallback((item: CallResultData) => item.CallId, []);
 
   // Render content based on loading, error, and data states
   const renderContent = () => {
@@ -86,12 +104,8 @@ export default function Calls() {
       <FlatList<CallResultData>
         testID="calls-list"
         data={filteredCalls}
-        renderItem={({ item }: { item: CallResultData }) => (
-          <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
-            <CallCard call={item} priority={useCallsStore.getState().callPriorities.find((p: { Id: number }) => p.Id === item.Priority)} dispatches={callDispatches[item.CallId]} />
-          </Pressable>
-        )}
-        keyExtractor={(item: CallResultData) => item.CallId}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
         refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
         ListEmptyComponent={<ZeroState heading={t('calls.no_calls')} description={t('calls.no_calls_description')} icon={RefreshCcwDotIcon} />}
         contentContainerStyle={{ paddingBottom: 20 }}

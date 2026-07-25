@@ -34,7 +34,7 @@ interface CallCardProps {
   dispatches?: DispatchedEventResultData[];
 }
 
-export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIcon = false, isTimerOverdue = false, dispatches }) => {
+export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, showTimerIcon = false, isTimerOverdue = false, dispatches }) => {
   const { t } = useTranslation();
   const textColor = invertColor(getColor(call, priority), true);
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -181,8 +181,7 @@ export const CallCard: React.FC<CallCardProps> = ({ call, priority, showTimerIco
       )}
     </Box>
   );
-};
-
+});
 const styles = StyleSheet.create({
   container: {
     width: '100%',

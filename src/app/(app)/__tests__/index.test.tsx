@@ -160,7 +160,7 @@ describe('Map Component - App Lifecycle', () => {
     });
 
     mockLocationService.startLocationUpdates = jest.fn().mockResolvedValue(undefined);
-    mockLocationService.stopLocationUpdates = jest.fn();
+    mockLocationService.stopLocationUpdates = jest.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {

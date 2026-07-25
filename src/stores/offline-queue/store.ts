@@ -44,6 +44,9 @@ interface OfflineQueueState {
 const DEFAULT_MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1000; // 1 second base delay
 
+// Module-level handle so initialize() never stacks duplicate NetInfo listeners.
+let netInfoUnsubscribe: (() => void) | null = null;
+
 export const useOfflineQueueStore = create<OfflineQueueState>()(
   persist(
     (set, get) => ({
@@ -59,7 +62,12 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
 
       // Initialize network state listener
       initializeNetworkListener: () => {
-        NetInfo.addEventListener((state: NetInfoState) => {
+        if (netInfoUnsubscribe) {
+          // Already listening — a second listener would double-fire handlers.
+          return;
+        }
+
+        netInfoUnsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
           const isConnected = state.isConnected ?? false;
           const isReachable = state.isInternetReachable ?? false;
 
@@ -271,6 +279,18 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
         failedEvents: state.failedEvents,
         completedEvents: state.completedEvents,
       }),
+      onRehydrateStorage: () => {
+        return (state) => {
+          // Events mid-PROCESSING when the app was killed would otherwise be
+          // stuck forever (getPendingEvents excludes PROCESSING) — recover
+          // them to PENDING so they are retried.
+          if (state?.queuedEvents?.some((event) => event.status === QueuedEventStatus.PROCESSING)) {
+            useOfflineQueueStore.setState((current) => ({
+              queuedEvents: current.queuedEvents.map((event) => (event.status === QueuedEventStatus.PROCESSING ? { ...event, status: QueuedEventStatus.PENDING } : event)),
+            }));
+          }
+        };
+      },
     }
   )
 );

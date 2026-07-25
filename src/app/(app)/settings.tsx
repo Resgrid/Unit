@@ -28,7 +28,6 @@ import { useAuth, useAuthStore } from '@/lib';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
 import { openLinkInBrowser } from '@/lib/utils';
-import { clearAllAppData } from '@/services/app-reset.service';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useServerUrlStore } from '@/stores/app/server-url-store';
 import { useUnitsStore } from '@/stores/units/store';
@@ -53,7 +52,9 @@ export default function Settings() {
   }, [activeUnit, t]);
 
   /**
-   * Handles logout confirmation - clears all data and signs out
+   * Handles logout confirmation - signs out. logout() itself runs the full
+   * app-data wipe (storage, stores, SignalR/LiveKit/location teardown) for
+   * every logout path, manual or forced.
    */
   const handleLogoutConfirm = useCallback(async () => {
     setShowLogoutConfirm(false);
@@ -62,18 +63,14 @@ export default function Settings() {
       hadActiveUnit: !!activeUnit,
     });
 
-    // Clear all app data first using the centralized service
     try {
-      await clearAllAppData();
+      await signOut();
     } catch (error) {
       logger.error({
-        message: 'Error during app data cleanup on logout',
+        message: 'Error during logout',
         context: { error },
       });
     }
-
-    // Then sign out
-    await signOut();
   }, [signOut, trackEvent, activeUnit]);
 
   const handleLoginInfoSubmit = async (data: { username: string; password: string }) => {

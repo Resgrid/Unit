@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { CloudOff, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
@@ -40,15 +40,19 @@ export default function WeatherAlerts() {
     setRefreshing(false);
   };
 
-  // Filter alerts
-  const filteredAlerts = alerts.filter((alert) => {
-    if (severityFilter !== null && alert.Severity !== severityFilter) return false;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (alert.Event ?? '').toLowerCase().includes(query) || (alert.Headline ?? '').toLowerCase().includes(query) || (alert.AreaDescription ?? '').toLowerCase().includes(query);
-    }
-    return true;
-  });
+  // Filter alerts (memoized — previously recomputed every render)
+  const filteredAlerts = useMemo(
+    () =>
+      alerts.filter((alert) => {
+        if (severityFilter !== null && alert.Severity !== severityFilter) return false;
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          return (alert.Event ?? '').toLowerCase().includes(query) || (alert.Headline ?? '').toLowerCase().includes(query) || (alert.AreaDescription ?? '').toLowerCase().includes(query);
+        }
+        return true;
+      }),
+    [alerts, severityFilter, searchQuery]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: WeatherAlertResultData }) => (

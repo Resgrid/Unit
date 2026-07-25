@@ -51,6 +51,9 @@ export default function Notes() {
     return notes.filter((note) => note.Title.toLowerCase().includes(query) || note.Body.toLowerCase().includes(query) || note.Category?.toLowerCase().includes(query));
   }, [notes, searchQuery]);
 
+  const renderNote = React.useCallback(({ item }: { item: (typeof filteredNotes)[number] }) => <NoteCard note={item} onPress={selectNote} />, [selectNote]);
+  const noteKeyExtractor = React.useCallback((item: (typeof filteredNotes)[number]) => item.NoteId, []);
+
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -74,8 +77,8 @@ export default function Notes() {
             <FlatList
               testID="notes-list"
               data={filteredNotes}
-              keyExtractor={(item) => item.NoteId}
-              renderItem={({ item }) => <NoteCard note={item} onPress={selectNote} />}
+              keyExtractor={noteKeyExtractor}
+              renderItem={renderNote}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}

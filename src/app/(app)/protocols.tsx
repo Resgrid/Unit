@@ -58,6 +58,9 @@ export default function Protocols() {
     return protocols.filter((protocol) => protocol.Name.toLowerCase().includes(query) || protocol.Description?.toLowerCase().includes(query) || protocol.Code?.toLowerCase().includes(query));
   }, [protocols, searchQuery]);
 
+  const renderProtocol = React.useCallback(({ item }: { item: (typeof filteredProtocols)[number] }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />, [handleProtocolPress]);
+  const protocolKeyExtractor = React.useCallback((item: (typeof filteredProtocols)[number], index: number) => item.ProtocolId || `protocol-${index}`, []);
+
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -81,8 +84,8 @@ export default function Protocols() {
             <FlatList
               testID="protocols-list"
               data={filteredProtocols}
-              keyExtractor={(item, index) => item.ProtocolId || `protocol-${index}`}
-              renderItem={({ item }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />}
+              keyExtractor={protocolKeyExtractor}
+              renderItem={renderProtocol}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}

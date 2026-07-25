@@ -5,6 +5,7 @@ import { logger } from '@/lib/logging';
 
 const CHANNEL_ID = 'check-in-timers';
 const NOTIFICATION_ID = 'check-in-timer-notification';
+const COUNTDOWN_TICK_SECONDS = 15;
 
 export interface NotificationLabels {
   statusLabels: Record<string, string>;
@@ -50,12 +51,14 @@ class CheckInNotificationService {
 
     await this.displayNotification(callName, callNumber, timerName);
 
-    // Local 1s countdown for smooth updates
+    // Local countdown. Updates every 15s (not 1s) — re-posting a notification
+    // to the Android NotificationManager every second for hours drains battery
+    // and churns the system notification service.
     this.stopCountdown();
     this.countdownInterval = setInterval(async () => {
-      this.currentSeconds = Math.max(0, this.currentSeconds - 1);
+      this.currentSeconds = Math.max(0, this.currentSeconds - COUNTDOWN_TICK_SECONDS);
       await this.displayNotification(callName, callNumber, timerName);
-    }, 1000);
+    }, COUNTDOWN_TICK_SECONDS * 1000);
   }
 
   async updateNotification(secondsRemaining: number, status: string, statusLabels: Record<string, string>): Promise<void> {

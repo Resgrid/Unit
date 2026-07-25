@@ -31,6 +31,11 @@ import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
+// Minimum interval between programmatic camera-follow updates. GPS fixes
+// arrive every ~15s; without a throttle each fix drives a native camera
+// animation plus a full MapContent re-render.
+const CAMERA_FOLLOW_THROTTLE_MS = 5000;
+
 export default function Map() {
   const { t } = useTranslation();
   const isInitialized = useCoreStore((state) => state.isInitialized);
@@ -101,6 +106,9 @@ function MapContent() {
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
+
+  // Throttle state for programmatic camera follow (see effect below)
+  const lastCameraFollowRef = useRef(0);
 
   // Stable initial camera settings so the native Camera renders at the
   // correct position from the very first frame (fixes Android/iOS centering).
@@ -254,8 +262,10 @@ function MapContent() {
           message: 'Location tracking started successfully',
         });
       } catch (error) {
+        // NOTE: do not JSON.stringify the error — axios errors carry circular
+        // refs and stringify throws inside the catch handler.
         logger.error({
-          message: 'MapPage: Failed to start location tracking. ' + JSON.stringify(error),
+          message: 'MapPage: Failed to start location tracking',
           context: {
             error,
           },
@@ -265,10 +275,22 @@ function MapContent() {
       }
     };
 
-    startLocationTracking();
+    startLocationTracking().catch((error) => {
+      logger.error({
+        message: 'MapPage: Unexpected error starting location tracking',
+        context: { error },
+      });
+    });
 
     return () => {
-      locationService.stopLocationUpdates();
+      // Async cleanup — swallow rejections so they don't surface as unhandled
+      // promise rejections after unmount.
+      locationService.stopLocationUpdates().catch((error) => {
+        logger.warn({
+          message: 'MapPage: Failed to stop location tracking cleanly',
+          context: { error },
+        });
+      });
     };
   }, []);
 
@@ -280,6 +302,14 @@ function MapContent() {
       // When map is locked, always follow the location
       // When map is unlocked, only follow if user hasn't moved the map
       if (isMapLocked || !hasUserMovedMap) {
+        // Throttle programmatic camera moves — GPS fixes arrive every ~15s and
+        // each setCamera triggers a native camera animation + re-render.
+        const now = Date.now();
+        if (now - lastCameraFollowRef.current < CAMERA_FOLLOW_THROTTLE_MS) {
+          return;
+        }
+        lastCameraFollowRef.current = now;
+
         const cameraConfig: any = {
           centerCoordinate: [locationLongitude, locationLatitude],
           zoomLevel: isMapLocked ? 16 : 12,

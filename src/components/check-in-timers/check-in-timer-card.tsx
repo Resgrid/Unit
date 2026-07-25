@@ -10,6 +10,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { getCheckInTimerStatusColor, getCheckInTimerStatusTranslationKey, isCheckInTimerCritical } from '@/lib/check-in-timer-utils';
+import { subscribeToSharedTicker } from '@/lib/shared-ticker';
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
 
 interface CheckInTimerCardProps {
@@ -29,10 +30,10 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
   }, [timer.ElapsedMinutes]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    // Shared ticker: all visible timer cards run on ONE interval.
+    return subscribeToSharedTicker(() => {
       setLocalElapsed((prev) => prev + 1 / 60);
-    }, 1000);
-    return () => clearInterval(interval);
+    });
   }, []);
 
   const isCritical = isCheckInTimerCritical(timer.Status);

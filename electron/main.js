@@ -75,9 +75,13 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // Handle external links
+  // Handle external links — only http(s) may be opened externally. Other
+  // schemes (file:, javascript:, custom protocols) are denied: a crafted link
+  // inside rendered content could otherwise escape to the OS handler.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require('electron').shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) {
+      require('electron').shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 }

@@ -5,11 +5,14 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { logger } from '@/lib/logging';
 
-import { loginRequest, refreshTokenRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
+import { loginRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
+import { refreshTokenSingleFlight } from '../../lib/auth/refresh-lock';
+import { runSessionCleanup } from '../../lib/auth/session-cleanup';
+import { isRefreshCredentialRejection } from '../../lib/auth/token-refresh';
 import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
-import { setItem, zustandStorage } from '../../lib/storage';
+import { removeItem, setItem, zustandStorage } from '../../lib/storage';
 
 const useAuthStore = create<AuthState>()(
   persist(
@@ -153,20 +156,49 @@ const useAuthStore = create<AuthState>()(
           refreshTimeoutId: null,
         });
         Sentry.setUser(null);
+
+        // Remove the standalone stored auth response so no valid refresh
+        // token is left on the device after logout.
+        try {
+          await removeItem('authResponse');
+        } catch (error) {
+          logger.warn({
+            message: 'Failed to remove stored auth response on logout',
+            context: { error },
+          });
+        }
+
+        // Route EVERY logout (manual, forced by the 401 interceptor, refresh
+        // credential rejection) through the full app-data reset so a different
+        // user logging in on the same device never sees the previous user's
+        // data — and the previous user's queued offline events never replay
+        // under the new account. The reset service registers its handler in
+        // the leaf session-cleanup module (avoids a static import cycle).
+        try {
+          await runSessionCleanup();
+        } catch (error) {
+          logger.error({
+            message: 'Failed to clear app data on logout',
+            context: { error },
+          });
+        }
       },
 
-      refreshAccessToken: async () => {
+      refreshAccessToken: async (): Promise<boolean> => {
         try {
           const { refreshToken } = get();
           if (!refreshToken) {
             logger.warn({
               message: 'No refresh token available, logging out user',
             });
-            get().logout();
-            return;
+            await get().logout();
+            return false;
           }
 
-          const response = await refreshTokenRequest(refreshToken);
+          // Single-flight: concurrent refresh triggers (proactive timer, axios
+          // 401 interceptor, SignalR reconnect) share one request so server-side
+          // refresh-token rotation never invalidates a parallel caller.
+          const response = await refreshTokenSingleFlight(refreshToken);
 
           // Update the stored auth response for hydration
           setItem<AuthResponse>('authResponse', response);
@@ -192,32 +224,35 @@ const useAuthStore = create<AuthState>()(
           }
           const timeoutId = setTimeout(() => get().refreshAccessToken(), refreshDelayMs);
           set({ refreshTimeoutId: timeoutId });
+          return true;
         } catch (error) {
-          // Check if it's a network error vs an invalid refresh token
-          const isNetworkError = error instanceof Error && (error.message.includes('Network Error') || error.message.includes('timeout') || error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEDOUT'));
-
-          if (isNetworkError) {
-            // Network error - retry after a delay, don't logout
-            logger.warn({
-              message: 'Token refresh failed due to network error, will retry',
-              context: { error: error instanceof Error ? error.message : String(error) },
-            });
-            // Clear any existing refresh timer before scheduling retry
-            const existingTimeoutId = get().refreshTimeoutId;
-            if (existingTimeoutId !== null) {
-              clearTimeout(existingTimeoutId);
-            }
-            // Retry after 30 seconds for network errors
-            const retryTimeoutId = setTimeout(() => get().refreshAccessToken(), 30000);
-            set({ refreshTimeoutId: retryTimeoutId });
-          } else {
-            // Invalid refresh token or server rejected it - logout user
+          if (isRefreshCredentialRejection(error)) {
+            // The token endpoint explicitly rejected the refresh token
+            // (400 invalid_grant / 401) — credentials are known-bad, log out.
             logger.error({
-              message: 'Token refresh failed with non-recoverable error, logging out user',
-              context: { error: error instanceof Error ? error.message : String(error) },
+              message: 'Token refresh rejected by server, logging out user',
+              context: { error },
             });
-            get().logout();
+            await get().logout();
+            return false;
           }
+
+          // Everything else is transient (offline, timeout, 5xx, 429) — keep the
+          // session and retry, otherwise a backend incident logs out every
+          // active responder at once.
+          logger.warn({
+            message: 'Token refresh failed transiently, will retry',
+            context: { error },
+          });
+          // Clear any existing refresh timer before scheduling retry
+          const existingTimeoutId = get().refreshTimeoutId;
+          if (existingTimeoutId !== null) {
+            clearTimeout(existingTimeoutId);
+          }
+          // Retry after 30 seconds for transient errors
+          const retryTimeoutId = setTimeout(() => get().refreshAccessToken(), 30000);
+          set({ refreshTimeoutId: retryTimeoutId });
+          return false;
         }
       },
       hydrate: () => {
@@ -301,6 +336,18 @@ const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => zustandStorage),
+      // Only persist what is needed to restore a session. Transient fields —
+      // status, error, refreshTimeoutId — must never be persisted: an app kill
+      // mid-login used to rehydrate `status: 'loading'` with no way out,
+      // permanently locking the user behind a spinner.
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        refreshTokenExpiresOn: state.refreshTokenExpiresOn,
+        profile: state.profile,
+        userId: state.userId,
+        isFirstTime: state.isFirstTime,
+      }),
       onRehydrateStorage: () => {
         return (state, error) => {
           if (error) {
@@ -313,30 +360,12 @@ const useAuthStore = create<AuthState>()(
 
           // Defer execution to ensure useAuthStore is fully initialized
           setTimeout(() => {
-            if (state && state.refreshToken && state.status === 'signedIn') {
-              // We have a stored refresh token and were previously signed in
-              // Schedule an immediate token refresh to ensure we have a valid access token
+            // status/error are no longer persisted, so a stored refresh token is
+            // the only signal that a session existed — always try to restore it.
+            if (state && state.refreshToken) {
               logger.info({
-                message: 'Auth state rehydrated from storage, scheduling token refresh',
-                context: { hasAccessToken: !!state.accessToken, hasRefreshToken: !!state.refreshToken },
-              });
-
-              // Clear any existing refresh timer before scheduling a new one
-              const existingTimeoutId = useAuthStore.getState().refreshTimeoutId;
-              if (existingTimeoutId !== null) {
-                clearTimeout(existingTimeoutId);
-              }
-              // Use a small delay to allow the app to fully initialize
-              const timeoutId = setTimeout(() => {
-                useAuthStore.getState().refreshAccessToken();
-              }, 2000);
-              useAuthStore.setState({ refreshTimeoutId: timeoutId });
-            } else if (state && state.refreshToken && state.status !== 'signedIn') {
-              // We have a refresh token but status is not signedIn (maybe was idle/error)
-              // Try to refresh and restore the session
-              logger.info({
-                message: 'Found refresh token in storage with non-signedIn status, attempting to restore session',
-                context: { status: state.status },
+                message: 'Found refresh token in storage, attempting to restore session',
+                context: { hasAccessToken: !!state.accessToken },
               });
 
               // Clear any existing refresh timer before scheduling a new one

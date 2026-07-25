@@ -3,10 +3,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import { logger } from '@/lib/logging';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
-import { useSignalRStore } from '@/stores/signalr/signalr-store';
+import { type UpdateHubEvent, useSignalRStore } from '@/stores/signalr/signalr-store';
 
 // Debounce delay in milliseconds to prevent rapid consecutive API calls
 const DEBOUNCE_DELAY = 1000;
+
+// Only these events can change what the map renders. Weather-alert and other
+// update-hub events must NOT trigger a full marker refetch.
+const MAP_RELEVANT_EVENTS: UpdateHubEvent[] = ['personnelStatusUpdated', 'personnelStaffingUpdated', 'unitStatusUpdated', 'callsUpdated', 'callAdded', 'callClosed'];
 
 export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData[]) => void) => {
   const lastProcessedTimestamp = useRef<number>(0);
@@ -15,7 +19,9 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortController = useRef<AbortController | null>(null);
 
-  const lastUpdateTimestamp = useSignalRStore((state) => state.lastUpdateTimestamp);
+  // Latest timestamp across map-relevant events only (primitive, so the
+  // selector is safe). Weather alerts etc. no longer trigger marker refetches.
+  const lastUpdateTimestamp = useSignalRStore((state) => Math.max(0, ...MAP_RELEVANT_EVENTS.map((event) => state.lastUpdateTimestamps[event] ?? 0)));
 
   // Use a ref so the callback doesn't need lastUpdateTimestamp in its deps
   const lastUpdateTimestampRef = useRef(lastUpdateTimestamp);

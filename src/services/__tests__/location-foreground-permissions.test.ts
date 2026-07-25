@@ -32,6 +32,16 @@ jest.mock('@/lib/storage/background-geolocation', () => ({
   loadBackgroundGeolocationState: jest.fn(),
 }));
 
+jest.mock('@/services/offline-event-manager.service', () => ({
+  offlineEventManager: {
+    queueLocationUpdateEvent: jest.fn(),
+  },
+}));
+
+jest.mock('@/utils/network', () => ({
+  isNetworkError: jest.fn(),
+}));
+
 // Create mock store states
 const mockCoreStoreState = {
   activeUnitId: 'unit-123' as string | null,
@@ -101,6 +111,8 @@ import { setUnitLocation } from '@/api/units/unitLocation';
 import { logger } from '@/lib/logging';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
+import { offlineEventManager } from '@/services/offline-event-manager.service';
+import { isNetworkError } from '@/utils/network';
 
 // Import the service after mocks are set up
 let locationService: any;
@@ -109,6 +121,8 @@ let locationService: any;
 const mockSetUnitLocation = setUnitLocation as jest.MockedFunction<typeof setUnitLocation>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockLoadBackgroundGeolocationState = loadBackgroundGeolocationState as jest.MockedFunction<typeof loadBackgroundGeolocationState>;
+const mockIsNetworkError = isNetworkError as jest.MockedFunction<typeof isNetworkError>;
+const mockQueueLocationUpdateEvent = offlineEventManager.queueLocationUpdateEvent as jest.Mock;
 const mockTaskManager = TaskManager as jest.Mocked<typeof TaskManager>;
 const mockLocation = Location as jest.Mocked<typeof Location>;
 
@@ -195,6 +209,9 @@ describe('LocationService - Foreground-Only Permissions', () => {
 
     // Setup API mock
     mockSetUnitLocation.mockResolvedValue(mockApiResponse);
+
+    // Default: errors are not network errors (no offline queueing)
+    mockIsNetworkError.mockReturnValue(false);
 
     // Reset core store state
     mockCoreStoreState.activeUnitId = 'unit-123';
@@ -406,7 +423,7 @@ describe('LocationService - Foreground-Only Permissions', () => {
       });
       
       await locationService.startLocationUpdates();
-      
+
       // Should register background task
       expect(mockLocation.startLocationUpdatesAsync).toHaveBeenCalledWith(
         'location-updates',
@@ -416,6 +433,38 @@ describe('LocationService - Foreground-Only Permissions', () => {
           distanceInterval: 10,
         })
       );
+    });
+  });
+
+  describe('Offline Queueing', () => {
+    it('should queue location update for offline replay on network errors in foreground-only mode', async () => {
+      const networkError = new Error('Network Error');
+      mockSetUnitLocation.mockRejectedValue(networkError);
+      mockIsNetworkError.mockReturnValue(true);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockQueueLocationUpdateEvent).toHaveBeenCalledWith(
+        'unit-123',
+        mockLocationObject.coords.latitude,
+        mockLocationObject.coords.longitude,
+        mockLocationObject.coords.accuracy,
+        mockLocationObject.coords.heading,
+        mockLocationObject.coords.speed
+      );
+    });
+
+    it('should not queue location update for non-network errors in foreground-only mode', async () => {
+      mockSetUnitLocation.mockRejectedValue(new Error('Server rejected'));
+      mockIsNetworkError.mockReturnValue(false);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockQueueLocationUpdateEvent).not.toHaveBeenCalled();
     });
   });
 });

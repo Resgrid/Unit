@@ -230,12 +230,15 @@ class OfflineEventManager {
       context: { eventCount: pendingEvents.length },
     });
 
-    // Process events in batches
-    const eventsToProcess = pendingEvents.slice(0, this.MAX_CONCURRENT_EVENTS);
-    const processingPromises = eventsToProcess.map((event) => this.processEvent(event));
+    // Process events SEQUENTIALLY in creation order. Concurrent batches could
+    // land two UNIT_STATUS/LOCATION events for the same unit out of order on
+    // the server, showing a stale status/position as current.
+    const eventsToProcess = [...pendingEvents].sort((a, b) => a.createdAt - b.createdAt).slice(0, this.MAX_CONCURRENT_EVENTS);
 
     try {
-      await Promise.allSettled(processingPromises);
+      for (const event of eventsToProcess) {
+        await this.processEvent(event);
+      }
     } catch (error) {
       logger.error({
         message: 'Error during batch event processing',

@@ -1,7 +1,5 @@
 import axios, { type AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
 
-import { refreshTokenRequest } from '@/lib/auth/api';
-import { isRefreshCredentialRejection } from '@/lib/auth/token-refresh';
 import { logger } from '@/lib/logging';
 import { getBaseApiUrl } from '@/lib/storage/app';
 import useAuthStore from '@/stores/auth/store';
@@ -61,6 +59,10 @@ axiosInstance.interceptors.response.use(
     }
     // Handle 401 errors
     if (error.response?.status === 401 && !(originalRequest as InternalAxiosRequestConfig & { _retry?: boolean })._retry) {
+      // Mark as retried immediately — also covers requests queued while a
+      // refresh is in flight, so a second 401 never triggers another refresh.
+      (originalRequest as InternalAxiosRequestConfig & { _retry: boolean })._retry = true;
+
       if (isRefreshing) {
         // If refreshing, queue the request
         return new Promise((resolve, reject) => {
@@ -74,26 +76,28 @@ axiosInstance.interceptors.response.use(
           });
       }
 
-      // Add _retry property to request config type
-      (originalRequest as InternalAxiosRequestConfig & { _retry: boolean })._retry = true;
       isRefreshing = true;
 
       try {
-        const refreshToken = useAuthStore.getState().refreshToken;
-        if (!refreshToken) {
+        if (!useAuthStore.getState().refreshToken) {
           throw new Error('No refresh token available');
         }
 
-        const response = await refreshTokenRequest(refreshToken);
-        const { access_token, refresh_token: newRefreshToken } = response;
+        // Delegate to the auth store's single-flight refresh. Concurrent 401s,
+        // the proactive refresh timer and SignalR reconnects all share one
+        // request, so server-side refresh-token rotation never invalidates a
+        // parallel caller. The store also reschedules the proactive timer and
+        // performs the full logout + data wipe when the server rejects the
+        // refresh token.
+        const refreshed = await useAuthStore.getState().refreshAccessToken();
+        if (!refreshed) {
+          throw new Error('Token refresh failed');
+        }
 
-        // Update tokens in store
-        useAuthStore.setState({
-          accessToken: access_token,
-          refreshToken: newRefreshToken,
-          status: 'signedIn',
-          error: null,
-        });
+        const access_token = useAuthStore.getState().accessToken;
+        if (!access_token) {
+          throw new Error('No access token available after refresh');
+        }
 
         // Update Authorization header
         axiosInstance.defaults.headers.common.Authorization = `Bearer ${access_token}`;
@@ -104,22 +108,13 @@ axiosInstance.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error);
 
-        // Only log the user out when the token endpoint explicitly rejected the
-        // refresh token (400 invalid_grant / 401). Transient failures — no response
-        // (offline/timeout), 5xx server errors, or 429 — must preserve the session
-        // and retry, otherwise a backend incident logs out every active responder.
-        if (isRefreshCredentialRejection(refreshError)) {
-          logger.warn({
-            message: 'Token refresh rejected by server (invalid/expired credentials), logging out user',
-            context: { error: refreshError },
-          });
-          useAuthStore.getState().logout();
-        } else {
-          logger.warn({
-            message: 'Token refresh failed transiently, preserving session for retry',
-            context: { error: refreshError },
-          });
-        }
+        // The store has already classified the failure: a credential rejection
+        // (400/401 from the token endpoint) triggered logout there; anything
+        // else is transient and the session is preserved for a later retry.
+        logger.warn({
+          message: 'Request failed after token refresh attempt',
+          context: { error: refreshError },
+        });
 
         return Promise.reject(refreshError);
       } finally {

@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ClipboardListIcon, ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -26,6 +25,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
+import { parseApiUtcDate, safeFormatDate } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -353,7 +353,7 @@ export default function CallDetail() {
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.timestamp')}</Text>
-                <Text className="font-medium">{format(new Date(call.LoggedOn), 'MMM d, h:mm a')}</Text>
+                <Text className="font-medium">{safeFormatDate(parseApiUtcDate(call.LoggedOnUtc) ?? call.LoggedOn, 'MMM d, h:mm a')}</Text>
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.type')}</Text>

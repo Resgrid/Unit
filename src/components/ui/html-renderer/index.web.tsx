@@ -109,12 +109,20 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
   // Listen for link-click messages from the iframe
   const handleMessage = useCallback(
     (event: MessageEvent) => {
-      // Validate message origin/source - only accept messages from our trusted iframe
+      // Validate message source — only accept messages from our own iframe.
+      // The iframe is sandboxed WITHOUT allow-same-origin, so its origin is
+      // opaque ('null') and its scripts cannot reach parent storage/cookies.
       if (event.data?.type === 'html-renderer-link' && event.data.url && event.source === iframeRef.current?.contentWindow) {
+        const url = String(event.data.url);
+        // Only open safe schemes — a crafted anchor could otherwise hand us a
+        // javascript: or data: URL.
+        if (!/^(https?:|mailto:)/i.test(url)) {
+          return;
+        }
         if (onLinkPress) {
-          onLinkPress(event.data.url);
+          onLinkPress(url);
         } else {
-          Linking.openURL(event.data.url);
+          Linking.openURL(url);
         }
       }
     },
@@ -129,8 +137,11 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
 
   const flatStyle = StyleSheet.flatten([styles.container, style]) as Record<string, unknown>;
 
-  // When onLinkPress is provided we need allow-scripts so the click-interceptor runs
-  const sandboxValue = onLinkPress ? 'allow-same-origin allow-scripts' : 'allow-same-origin';
+  // allow-scripts is needed for the click-interceptor, but allow-same-origin
+  // must NEVER be set: combined with srcDoc it would give server-supplied HTML
+  // full access to this origin's web storage (incl. auth tokens). Without it
+  // the iframe runs on an opaque origin, isolated from the app.
+  const sandboxValue = onLinkPress ? 'allow-scripts' : '';
 
   const iframeStyle: React.CSSProperties = {
     border: 'none',

@@ -4,11 +4,14 @@ import { getCallPriorities } from '@/api/calls/callPriorities';
 import { getCallExtraData, getCalls } from '@/api/calls/calls';
 import { getCallTypes } from '@/api/calls/callTypes';
 import { getNewCallData } from '@/api/dispatch/dispatch';
+import { logger } from '@/lib/logging';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
 import { type CallTypeResultData } from '@/models/v4/callTypes/callTypeResultData';
 import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
+
+const DISPATCHES_TTL_MS = 5 * 60 * 1000; // refetch per-call dispatches after 5 min
 
 interface CallsState {
   calls: CallResultData[];
@@ -17,6 +20,7 @@ interface CallsState {
   destinationPois: PoiResultData[];
   poiTypes: PoiTypeResultData[];
   callDispatches: Record<string, DispatchedEventResultData[]>;
+  callDispatchesFetchedAt: Record<string, number>;
   isLoading: boolean;
   isInitialized: boolean;
   isCallFormDataLoaded: boolean;
@@ -37,6 +41,7 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   destinationPois: [],
   poiTypes: [],
   callDispatches: {},
+  callDispatchesFetchedAt: {},
   isLoading: false,
   isInitialized: false,
   isCallFormDataLoaded: false,
@@ -69,14 +74,17 @@ export const useCallsStore = create<CallsState>((set, get) => ({
       // Evict dispatches for calls no longer in the active list to prevent unbounded memory growth
       const activeIds = new Set(newCalls.map((c) => c.CallId));
       const existing = get().callDispatches;
+      const existingFetchedAt = get().callDispatchesFetchedAt;
       const pruned: Record<string, DispatchedEventResultData[]> = {};
+      const prunedFetchedAt: Record<string, number> = {};
       for (const id in existing) {
         if (activeIds.has(id)) {
           pruned[id] = existing[id];
+          prunedFetchedAt[id] = existingFetchedAt[id] ?? 0;
         }
       }
 
-      set({ calls: newCalls, callDispatches: pruned, isLoading: false, lastFetchedAt: Date.now() });
+      set({ calls: newCalls, callDispatches: pruned, callDispatchesFetchedAt: prunedFetchedAt, isLoading: false, lastFetchedAt: Date.now() });
     } catch (error) {
       set({ error: 'Failed to fetch calls', isLoading: false });
     }
@@ -128,8 +136,13 @@ export const useCallsStore = create<CallsState>((set, get) => ({
   },
   fetchCallDispatches: async (callIds: string[]) => {
     const existing = get().callDispatches;
-    // Only fetch for call IDs that aren't already cached
-    const uncachedIds = callIds.filter((id) => !(id in existing));
+    const fetchedAt = get().callDispatchesFetchedAt;
+    const now = Date.now();
+
+    // Only fetch for call IDs that aren't cached or whose cache is stale.
+    // Dispatches for an active call change over time, so an eternal cache
+    // hides newly dispatched units/personnel.
+    const uncachedIds = callIds.filter((id) => !(id in existing) || now - (fetchedAt[id] ?? 0) > DISPATCHES_TTL_MS);
     if (uncachedIds.length === 0) return;
 
     try {
@@ -140,18 +153,30 @@ export const useCallsStore = create<CallsState>((set, get) => ({
             const dispatches = result?.Data?.Dispatches ?? [];
             return { callId, dispatches: dispatches as DispatchedEventResultData[] };
           } catch {
-            return { callId, dispatches: [] as DispatchedEventResultData[] };
+            // Failed fetches must NOT be cached as empty — that would suppress
+            // retries and hide dispatches for the life of the call.
+            return { callId, dispatches: null };
           }
         })
       );
 
       const newDispatches: Record<string, DispatchedEventResultData[]> = {};
+      const newFetchedAt: Record<string, number> = {};
       for (const { callId, dispatches } of results) {
-        newDispatches[callId] = dispatches;
+        if (dispatches !== null) {
+          newDispatches[callId] = dispatches;
+          newFetchedAt[callId] = now;
+        }
       }
-      set({ callDispatches: { ...get().callDispatches, ...newDispatches } });
+      set({
+        callDispatches: { ...get().callDispatches, ...newDispatches },
+        callDispatchesFetchedAt: { ...get().callDispatchesFetchedAt, ...newFetchedAt },
+      });
     } catch (error) {
-      console.warn('Failed to fetch call dispatches:', error);
+      logger.warn({
+        message: 'Failed to fetch call dispatches',
+        context: { error },
+      });
     }
   },
 }));

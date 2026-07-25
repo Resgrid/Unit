@@ -1,3 +1,4 @@
+import { cacheManager } from '@/lib/cache/cache-manager';
 import { type NoteCategoryResult } from '@/models/v4/notes/noteCategoryResult';
 import { type NoteResult } from '@/models/v4/notes/noteResult';
 import { type NotesResult } from '@/models/v4/notes/notesResult';
@@ -62,5 +63,8 @@ export const saveNote = async (data: SaveNoteInput) => {
   const response = await saveNoteApi.post<SaveNoteResult>({
     ...data,
   });
+  // The notes list is cached for 2 days — invalidate so the new/updated note
+  // is visible immediately instead of after cache expiry.
+  cacheManager.remove('/Notes/GetAllNotes');
   return response.data;
 };

@@ -25,7 +25,9 @@ interface ServerUrlBottomSheetProps {
   onClose: () => void;
 }
 
-const URL_PATTERN = /^https?:\/\/.+/;
+// Plain HTTP would send the OAuth2 password grant and bearer tokens in
+// cleartext — only allow it in dev builds (local testing against localhost).
+const URL_PATTERN = __DEV__ ? /^https?:\/\/.+/ : /^https:\/\/.+/;
 
 export function ServerUrlBottomSheet({ isOpen, onClose }: ServerUrlBottomSheetProps) {
   const { t } = useTranslation();

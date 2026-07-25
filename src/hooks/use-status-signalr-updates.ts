@@ -4,63 +4,62 @@ import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 
+// Coalesce bursts of unitStatusUpdated messages into a single status fetch.
+const DEBOUNCE_DELAY = 2000;
+
+interface UnitStatusSignalRMessage {
+  UnitId?: string;
+}
+
 export const useStatusSignalRUpdates = () => {
   const lastProcessedTimestamp = useRef<number>(0);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
-  const setActiveUnitWithFetch = useCoreStore((state) => state.setActiveUnitWithFetch);
+  const refreshActiveUnitStatus = useCoreStore((state) => state.refreshActiveUnitStatus);
 
-  const lastUpdateTimestamp = useSignalRStore((state) => state.lastUpdateTimestamp);
-  const lastUpdateMessage = useSignalRStore((state) => state.lastUpdateMessage);
+  const lastUnitStatusTimestamp = useSignalRStore((state) => state.lastUnitStatusTimestamp);
+  const lastUnitStatusMessage = useSignalRStore((state) => state.lastUnitStatusMessage);
 
   useEffect(() => {
-    const handleStatusUpdate = async () => {
-      try {
-        if (!activeUnitId) {
-          logger.info({
-            message: 'No active unit, skipping status update',
-          });
-          return;
-        }
+    if (lastUnitStatusTimestamp <= 0 || lastUnitStatusTimestamp === lastProcessedTimestamp.current || !activeUnitId) {
+      return;
+    }
 
-        // Parse the SignalR message to check if it's a unit status update
-        if (lastUpdateMessage && typeof lastUpdateMessage === 'string') {
-          try {
-            const parsedMessage = JSON.parse(lastUpdateMessage);
+    // Message arrives as a raw object — no JSON round-trip needed.
+    const message = lastUnitStatusMessage as UnitStatusSignalRMessage | null;
+    if (!message || typeof message !== 'object' || message.UnitId !== activeUnitId) {
+      lastProcessedTimestamp.current = lastUnitStatusTimestamp;
+      return;
+    }
 
-            // Check if this is a unit status update message
-            if (parsedMessage && parsedMessage.UnitId === activeUnitId) {
-              logger.info({
-                message: 'Processing unit status update for active unit',
-                context: {
-                  unitId: activeUnitId,
-                  timestamp: lastUpdateTimestamp,
-                  message: parsedMessage,
-                },
-              });
+    // Debounce so a burst of status events yields ONE lightweight status fetch
+    // (previously each message refetched the entire fleet via fetchUnits()).
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
 
-              // Refresh the active unit status
-              await setActiveUnitWithFetch(activeUnitId);
+    debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = null;
+      lastProcessedTimestamp.current = lastUnitStatusTimestamp;
 
-              // Update the last processed timestamp
-              lastProcessedTimestamp.current = lastUpdateTimestamp;
-            }
-          } catch (parseError) {
-            logger.error({
-              message: 'Failed to parse SignalR message',
-              context: { error: parseError, message: lastUpdateMessage },
-            });
-          }
-        }
-      } catch (error) {
+      logger.info({
+        message: 'Refreshing active unit status from SignalR update',
+        context: { unitId: activeUnitId, timestamp: lastUnitStatusTimestamp },
+      });
+
+      refreshActiveUnitStatus(activeUnitId).catch((error) => {
         logger.error({
           message: 'Failed to process unit status update',
           context: { error },
         });
+      });
+    }, DEBOUNCE_DELAY);
+
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = null;
       }
     };
-
-    if (lastUpdateTimestamp > 0 && lastUpdateTimestamp !== lastProcessedTimestamp.current && activeUnitId) {
-      handleStatusUpdate();
-    }
-  }, [lastUpdateTimestamp, lastUpdateMessage, activeUnitId, setActiveUnitWithFetch]);
+  }, [lastUnitStatusTimestamp, lastUnitStatusMessage, activeUnitId, refreshActiveUnitStatus]);
 };

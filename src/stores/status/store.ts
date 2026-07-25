@@ -10,6 +10,7 @@ import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/
 import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
 import { type SaveUnitStatusInput, type SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
+import { isNetworkError } from '@/utils/network';
 
 import { useCoreStore } from '../app/core-store';
 import { useLocationStore } from '../app/location-store';
@@ -240,8 +241,21 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           }
         }
       } catch (error) {
+        // Only queue the status when the failure is genuinely network-related
+        // (offline/timeout, no response). Server rejections (400 validation,
+        // 403 permission, 5xx) must surface as errors — queuing them would
+        // tell the user the save succeeded and replay a stale status later.
+        if (!isNetworkError(error)) {
+          logger.error({
+            message: 'Unit status save rejected by server',
+            context: { unitId: input.Id, statusType: input.Type, error },
+          });
+          set({ error: 'Failed to save unit status', isLoading: false });
+          throw error;
+        }
+
         logger.warn({
-          message: 'Direct unit status save failed, queuing for offline processing',
+          message: 'Direct unit status save failed due to network, queuing for offline processing',
           context: { unitId: input.Id, statusType: input.Type, error },
         });
 

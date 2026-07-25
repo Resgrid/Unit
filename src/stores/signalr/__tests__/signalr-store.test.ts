@@ -7,14 +7,6 @@ const mockCoreStoreGetState = jest.fn(() => ({
   },
 }));
 
-const mockSecurityStore = {
-  getState: jest.fn(() => ({
-    rights: {
-      DepartmentId: '123',
-    },
-  })),
-};
-
 // Mock all dependencies before importing anything
 jest.mock('@/services/signalr.service', () => {
   const mockInstance = {
@@ -26,7 +18,13 @@ jest.mock('@/services/signalr.service', () => {
     connectToHub: jest.fn().mockResolvedValue(undefined),
     disconnectAll: jest.fn().mockResolvedValue(undefined),
   };
+  class MockSignalRService {
+    static readonly HUB_DISCONNECTED_EVENT = '__hubDisconnected';
+    static readonly HUB_RECONNECTING_EVENT = '__hubReconnecting';
+    static readonly HUB_RECONNECTED_EVENT = '__hubReconnected';
+  }
   return {
+    SignalRService: MockSignalRService,
     signalRService: mockInstance,
     default: mockInstance,
   };
@@ -50,13 +48,14 @@ jest.mock('../../app/core-store', () => {
   };
 });
 
-jest.mock('@/stores/security/store', () => ({
-  securityStore: mockSecurityStore,
-}));
-
 jest.mock('../../security/store', () => ({
-  securityStore: mockSecurityStore,
-  useSecurityStore: mockSecurityStore,
+  securityStore: {
+    getState: jest.fn(() => ({
+      rights: {
+        DepartmentId: '123',
+      },
+    })),
+  },
 }));
 
 jest.mock('@/lib/logging', () => ({
@@ -89,6 +88,9 @@ jest.mock('@/lib', () => ({
 import { useSignalRStore } from '../signalr-store';
 import { logger } from '@/lib/logging';
 import { signalRService } from '@/services/signalr.service';
+import { securityStore } from '../../security/store';
+
+const mockSecurityStoreGetState = securityStore.getState as jest.Mock;
 
 describe('useSignalRStore', () => {
   const mockEventingUrl = 'https://eventing.example.com/';
@@ -96,6 +98,21 @@ describe('useSignalRStore', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Reset store state — the store is a module-level singleton and connection
+    // flags persist across tests otherwise.
+    useSignalRStore.setState({
+      isUpdateHubConnected: false,
+      lastUpdateMessage: null,
+      lastUpdateTimestamp: 0,
+      lastUpdateTimestamps: {},
+      lastUnitStatusMessage: null,
+      lastUnitStatusTimestamp: 0,
+      isGeolocationHubConnected: false,
+      lastGeolocationMessage: null,
+      lastGeolocationTimestamp: 0,
+      error: null,
+    });
 
     // Reset the mock function to default behavior
     mockCoreStoreGetState.mockReturnValue({
@@ -105,7 +122,7 @@ describe('useSignalRStore', () => {
     });
 
     // Mock security store
-    mockSecurityStore.getState.mockReturnValue({
+    mockSecurityStoreGetState.mockReturnValue({
       rights: {
         DepartmentId: mockDepartmentId,
       },
@@ -134,6 +151,9 @@ describe('useSignalRStore', () => {
       expect(result.current.lastGeolocationMessage).toBeNull();
       expect(result.current.lastUpdateTimestamp).toBe(0);
       expect(result.current.lastGeolocationTimestamp).toBe(0);
+      expect(result.current.lastUpdateTimestamps).toEqual({});
+      expect(result.current.lastUnitStatusMessage).toBeNull();
+      expect(result.current.lastUnitStatusTimestamp).toBe(0);
       expect(result.current.error).toBeNull();
     });
   });
@@ -197,6 +217,143 @@ describe('useSignalRStore', () => {
         context: { error: connectionError },
       });
     });
+
+    it('should join the department group with the parsed DepartmentId', async () => {
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      expect(signalRService.invoke).toHaveBeenCalledWith('eventingHub', 'connect', 123);
+    });
+
+    it.each([
+      ['missing', undefined],
+      ['non-numeric', 'abc'],
+      ['zero', '0'],
+      ['negative', '-5'],
+    ])('should not join the department group when DepartmentId is %s', async (_label, departmentId) => {
+      mockSecurityStoreGetState.mockReturnValue({
+        rights: {
+          DepartmentId: departmentId,
+        },
+      } as any);
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      expect(signalRService.invoke).not.toHaveBeenCalled();
+      expect(logger.error).toHaveBeenCalledWith({
+        message: 'Cannot join SignalR department group: invalid or missing DepartmentId',
+        context: { rawDepartmentId: departmentId },
+      });
+    });
+
+    it('should register per-event handlers that record raw messages and per-event timestamps', async () => {
+      const handlers: Record<string, (message?: unknown) => void> = {};
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+        handlers[event] = handler;
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      const callsMessage = { CallId: '42' };
+      act(() => {
+        handlers['callsUpdated'](callsMessage);
+      });
+
+      expect(result.current.lastUpdateMessage).toBe(callsMessage);
+      expect(result.current.lastUpdateTimestamp).toBeGreaterThan(0);
+      expect(result.current.lastUpdateTimestamps.callsUpdated).toBe(result.current.lastUpdateTimestamp);
+
+      const unitMessage = { UnitId: '123' };
+      act(() => {
+        handlers['unitStatusUpdated'](unitMessage);
+      });
+
+      expect(result.current.lastUnitStatusMessage).toBe(unitMessage);
+      expect(result.current.lastUnitStatusTimestamp).toBeGreaterThan(0);
+      expect(result.current.lastUpdateTimestamps.unitStatusUpdated).toBe(result.current.lastUnitStatusTimestamp);
+    });
+
+    it('should clear isUpdateHubConnected on hub disconnect and reconnecting events', async () => {
+      const handlers: Record<string, (message?: unknown) => void> = {};
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+        handlers[event] = handler;
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      act(() => {
+        handlers['onConnected']();
+      });
+      expect(result.current.isUpdateHubConnected).toBe(true);
+
+      act(() => {
+        handlers['__hubDisconnected:eventingHub']();
+      });
+      expect(result.current.isUpdateHubConnected).toBe(false);
+
+      act(() => {
+        handlers['onConnected']();
+      });
+      act(() => {
+        handlers['__hubReconnecting:eventingHub']();
+      });
+      expect(result.current.isUpdateHubConnected).toBe(false);
+    });
+
+    it('should re-join the department group and bump all timestamps on hub reconnect', async () => {
+      const handlers: Record<string, (message?: unknown) => void> = {};
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+        handlers[event] = handler;
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      (signalRService.invoke as jest.Mock).mockClear();
+
+      await act(async () => {
+        handlers['__hubReconnected:eventingHub']();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      expect(signalRService.invoke).toHaveBeenCalledWith('eventingHub', 'connect', 123);
+      expect(result.current.isUpdateHubConnected).toBe(true);
+      expect(result.current.lastUpdateTimestamp).toBeGreaterThan(0);
+      expect(result.current.lastUpdateTimestamps.callsUpdated).toBe(result.current.lastUpdateTimestamp);
+      expect(result.current.lastUpdateTimestamps.unitStatusUpdated).toBe(result.current.lastUpdateTimestamp);
+      expect(result.current.lastUpdateTimestamps.personnelStatusUpdated).toBe(result.current.lastUpdateTimestamp);
+      expect(result.current.lastUpdateTimestamps.weatherAlertReceived).toBe(result.current.lastUpdateTimestamp);
+    });
+
+    it('should remove hub-scoped lifecycle listeners before connecting', async () => {
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      expect(signalRService.removeAllListeners).toHaveBeenCalledWith('__hubDisconnected:eventingHub');
+      expect(signalRService.removeAllListeners).toHaveBeenCalledWith('__hubReconnecting:eventingHub');
+      expect(signalRService.removeAllListeners).toHaveBeenCalledWith('__hubReconnected:eventingHub');
+    });
   });
 
   describe('disconnectUpdateHub', () => {
@@ -249,6 +406,27 @@ describe('useSignalRStore', () => {
       expect(result.current.error).toEqual(
         new Error('EventingUrl not available in config. Please ensure config is loaded first.')
       );
+    });
+
+    it('should register no-op location handlers that do not write to the store', async () => {
+      const handlers: Record<string, (message?: unknown) => void> = {};
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+        handlers[event] = handler;
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      act(() => {
+        handlers['onPersonnelLocationUpdated']({ Latitude: 1, Longitude: 2 });
+        handlers['onUnitLocationUpdated']({ Latitude: 3, Longitude: 4 });
+      });
+
+      expect(result.current.lastGeolocationMessage).toBeNull();
+      expect(result.current.lastGeolocationTimestamp).toBe(0);
     });
   });
 
