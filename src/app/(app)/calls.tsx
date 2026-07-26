@@ -14,9 +14,29 @@ import { FlatList } from '@/components/ui/flat-list';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
+import { type DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
 import { useCallsStore } from '@/stores/calls/store';
 import { securityStore } from '@/stores/security/store';
+
+interface CallListItemProps {
+  call: CallResultData;
+  dispatches?: DispatchedEventResultData[];
+  priority?: CallPriorityResultData;
+}
+
+const CallListItem: React.FC<CallListItemProps> = React.memo(({ call, dispatches, priority }) => {
+  const handlePress = useCallback(() => {
+    router.push(`/call/${call.CallId}`);
+  }, [call.CallId]);
+
+  return (
+    <Pressable onPress={handlePress}>
+      <CallCard call={call} priority={priority} dispatches={dispatches} />
+    </Pressable>
+  );
+});
 
 export default function Calls() {
   const calls = useCallsStore((state) => state.calls);
@@ -80,11 +100,7 @@ export default function Calls() {
   }, [calls, searchQuery]);
 
   const renderItem = useCallback(
-    ({ item }: { item: CallResultData }) => (
-      <Pressable onPress={() => router.push(`/call/${item.CallId}`)}>
-        <CallCard call={item} priority={prioritiesById.get(item.Priority)} dispatches={callDispatches[item.CallId]} />
-      </Pressable>
-    ),
+    ({ item }: { item: CallResultData }) => <CallListItem call={item} priority={prioritiesById.get(item.Priority)} dispatches={callDispatches[item.CallId]} />,
     [prioritiesById, callDispatches]
   );
 

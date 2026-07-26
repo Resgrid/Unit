@@ -8,6 +8,15 @@ interface CacheItem<T> {
   expiresIn: number;
 }
 
+const isCacheItem = (value: unknown): value is CacheItem<unknown> => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const item = value as Partial<CacheItem<unknown>>;
+  return Object.prototype.hasOwnProperty.call(item, 'data') && typeof item.timestamp === 'number' && Number.isFinite(item.timestamp) && typeof item.expiresIn === 'number' && Number.isFinite(item.expiresIn);
+};
+
 // Hard cap on cached entries — MMKV growth is otherwise unbounded because
 // endpoints with varying params (ids, dates) create a key per combination.
 const MAX_CACHE_ENTRIES = 200;
@@ -55,7 +64,7 @@ export class CacheManager {
       return null;
     }
 
-    let cacheItem: CacheItem<T>;
+    let cacheItem: unknown;
     try {
       cacheItem = JSON.parse(cached);
     } catch {
@@ -65,12 +74,17 @@ export class CacheManager {
       return null;
     }
 
+    if (!isCacheItem(cacheItem)) {
+      storage.delete(key);
+      return null;
+    }
+
     if (this.isExpired(cacheItem.timestamp, cacheItem.expiresIn)) {
       storage.delete(key);
       return null;
     }
 
-    return cacheItem.data;
+    return cacheItem.data as T;
   }
 
   remove(endpoint: string, params?: Record<string, unknown>): void {
@@ -96,7 +110,11 @@ export class CacheManager {
           return;
         }
         try {
-          const item = JSON.parse(raw) as CacheItem<unknown>;
+          const item: unknown = JSON.parse(raw);
+          if (!isCacheItem(item)) {
+            storage.delete(key);
+            return;
+          }
           if (now - item.timestamp > item.expiresIn) {
             storage.delete(key);
           } else {

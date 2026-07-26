@@ -123,13 +123,15 @@ class LogService {
     return LogService.instance;
   }
 
-  private log(level: LogLevel, { message, context = {} }: LogEntry): void {
+  private log(level: LogLevel, { message, operation, trace_id, context = {} }: LogEntry): void {
     // Bail before allocating the context object on hot paths (SignalR messages,
     // GPS fixes) when the level would be filtered out anyway.
     if (isJest || LEVEL_VALUES[level] < MIN_SEVERITY) return;
     this.logger[level](message, {
       ...this.globalContext,
       ...context,
+      ...(operation ? { operation } : {}),
+      ...(trace_id ? { trace_id } : {}),
       timestamp: new Date().toISOString(),
     });
   }
@@ -157,7 +159,11 @@ class LogService {
   public error(entry: LogEntry): void {
     this.log('error', entry);
     if (!isJest) {
-      const sanitized = sanitizeLogContext(entry.context);
+      const sanitized = sanitizeLogContext({
+        ...entry.context,
+        ...(entry.operation ? { operation: entry.operation } : {}),
+        ...(entry.trace_id ? { trace_id: entry.trace_id } : {}),
+      });
       const err = sanitized.error;
       if (err instanceof Error) {
         Sentry.captureException(err, { extra: { message: entry.message, ...sanitized } });

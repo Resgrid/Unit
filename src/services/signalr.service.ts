@@ -35,6 +35,7 @@ class SignalRService {
   private connectionLocks: Map<string, Promise<void>> = new Map();
   private reconnectingHubs: Set<string> = new Set();
   private hubStates: Map<string, HubConnectingState> = new Map();
+  private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 10;
   private readonly RECONNECT_INTERVAL = 5000; // 5 seconds base (linear backoff to 60s cap)
 
@@ -106,7 +107,17 @@ class SignalRService {
     }
   }
 
+  private clearReconnectTimer(hubName: string): void {
+    const reconnectTimer = this.reconnectTimers.get(hubName);
+    if (reconnectTimer !== undefined) {
+      clearTimeout(reconnectTimer);
+      this.reconnectTimers.delete(hubName);
+    }
+  }
+
   public async connectToHubWithEventingUrl(config: SignalRHubConnectConfig): Promise<void> {
+    this.clearReconnectTimer(config.name);
+
     // Check for existing lock to prevent concurrent connections to the same hub
     const existingLock = this.connectionLocks.get(config.name);
     if (existingLock) {
@@ -216,6 +227,7 @@ class SignalRService {
       });
 
       connection.onreconnected((connectionId) => {
+        this.clearReconnectTimer(config.name);
         logger.info({
           message: `Reconnected to hub: ${config.name}`,
           context: { connectionId },
@@ -243,6 +255,7 @@ class SignalRService {
       });
 
       await connection.start();
+      this.clearReconnectTimer(config.name);
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
@@ -265,6 +278,8 @@ class SignalRService {
   }
 
   public async connectToHub(config: SignalRHubConfig): Promise<void> {
+    this.clearReconnectTimer(config.name);
+
     // Check for existing lock to prevent concurrent connections to the same hub
     const existingLock = this.connectionLocks.get(config.name);
     if (existingLock) {
@@ -350,6 +365,7 @@ class SignalRService {
       });
 
       connection.onreconnected((connectionId) => {
+        this.clearReconnectTimer(config.name);
         logger.info({
           message: `Reconnected to hub: ${config.name}`,
           context: { connectionId },
@@ -377,6 +393,7 @@ class SignalRService {
       });
 
       await connection.start();
+      this.clearReconnectTimer(config.name);
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
@@ -401,6 +418,7 @@ class SignalRService {
   private handleConnectionClose(hubName: string): void {
     const attempts = this.reconnectAttempts.get(hubName) || 0;
     if (attempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      this.clearReconnectTimer(hubName);
       logger.error({
         message: `Max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached for hub: ${hubName}`,
       });
@@ -431,7 +449,12 @@ class SignalRService {
       message: `Scheduling reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} for hub: ${hubName} in ${delay}ms`,
     });
 
-    setTimeout(async () => {
+    this.clearReconnectTimer(hubName);
+    const reconnectTimer = setTimeout(async () => {
+      if (this.reconnectTimers.get(hubName) === reconnectTimer) {
+        this.reconnectTimers.delete(hubName);
+      }
+
       try {
         // Check if the hub config was removed (e.g., by explicit disconnect)
         const currentHubConfig = this.hubConfigs.get(hubName);
@@ -509,6 +532,7 @@ class SignalRService {
         this.handleConnectionClose(hubName);
       }
     }, delay);
+    this.reconnectTimers.set(hubName, reconnectTimer);
   }
 
   private handleMessage(_hubName: string, method: string, data: unknown): void {
@@ -517,6 +541,8 @@ class SignalRService {
   }
 
   public async disconnectFromHub(hubName: string): Promise<void> {
+    this.clearReconnectTimer(hubName);
+
     // Wait for any ongoing connection attempt to complete
     const existingLock = this.connectionLocks.get(hubName);
     if (existingLock) {
@@ -534,10 +560,15 @@ class SignalRService {
       }
     }
 
+    // A connection attempt may have scheduled a reconnect while we waited.
+    this.clearReconnectTimer(hubName);
+
     const connection = this.connections.get(hubName);
     if (connection) {
       try {
         await connection.stop();
+        // stop() may invoke onclose and schedule a reconnect before resolving.
+        this.clearReconnectTimer(hubName);
         this.connections.delete(hubName);
         this.reconnectAttempts.delete(hubName);
         this.hubConfigs.delete(hubName);
@@ -546,6 +577,7 @@ class SignalRService {
           message: `Disconnected from hub: ${hubName}`,
         });
       } catch (error) {
+        this.clearReconnectTimer(hubName);
         logger.error({
           message: `Error disconnecting from hub: ${hubName}`,
           context: { error },
@@ -607,7 +639,8 @@ class SignalRService {
   }
 
   public async disconnectAll(): Promise<void> {
-    const disconnectPromises = Array.from(this.connections.keys()).map((hubName) => this.disconnectFromHub(hubName));
+    const hubNames = new Set([...this.connections.keys(), ...this.hubConfigs.keys(), ...this.reconnectTimers.keys()]);
+    const disconnectPromises = Array.from(hubNames).map((hubName) => this.disconnectFromHub(hubName));
     await Promise.all(disconnectPromises);
   }
 

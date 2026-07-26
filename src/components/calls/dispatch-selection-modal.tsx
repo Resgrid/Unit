@@ -21,6 +21,8 @@ interface DispatchSelectionModalProps {
   initialSelection?: DispatchSelection;
 }
 
+const nameIncludesQuery = (name: string | null | undefined, query: string): boolean => name?.toLowerCase().includes(query) ?? false;
+
 export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ isVisible, onClose, onConfirm, initialSelection }) => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
@@ -48,10 +50,10 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
     }
     const query = searchQuery.toLowerCase();
     return {
-      users: data.users.filter((user) => user.Name.toLowerCase().includes(query)),
-      groups: data.groups.filter((group) => group.Name.toLowerCase().includes(query)),
-      roles: data.roles.filter((role) => role.Name.toLowerCase().includes(query)),
-      units: data.units.filter((unit) => unit.Name.toLowerCase().includes(query)),
+      users: data.users.filter((user) => nameIncludesQuery(user.Name, query)),
+      groups: data.groups.filter((group) => nameIncludesQuery(group.Name, query)),
+      roles: data.roles.filter((role) => nameIncludesQuery(role.Name, query)),
+      units: data.units.filter((unit) => nameIncludesQuery(unit.Name, query)),
     };
   }, [data, searchQuery]);
 

@@ -314,23 +314,19 @@ describe('SignalRService - Enhanced Features', () => {
       expect(mockLogger.info).toHaveBeenCalledWith({
         message: `Scheduling reconnection attempt 1/10 for hub: ${mockConfig.name} in 5000ms`,
       });
+      expect((service as any).reconnectTimers.has(mockConfig.name)).toBe(true);
       
       // Clear previous logs to isolate subsequent logging
       jest.clearAllMocks();
       
       // Simulate explicit disconnect after the onclose handler
       await service.disconnectFromHub(mockConfig.name);
+      expect((service as any).reconnectTimers.has(mockConfig.name)).toBe(false);
       
-      // Advance timers to trigger the scheduled reconnect
+      // Advancing time must not run the cancelled reconnect callback.
       jest.advanceTimersByTime(5000);
       
-      // Assert that no reconnection attempt occurs
-      // The reconnect logic should not be called because the hub was explicitly disconnected
-      expect(mockLogger.debug).toHaveBeenCalledWith({
-        message: `Hub ${mockConfig.name} config was removed, skipping reconnection attempt`,
-      });
-      
-      // Ensure no actual reconnection attempt was made
+      expect(mockRefreshAccessToken).not.toHaveBeenCalled();
       expect(mockLogger.info).not.toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('attempting to reconnect to hub'),
@@ -343,6 +339,26 @@ describe('SignalRService - Enhanced Features', () => {
         connectionsMap.set(key, value);
       });
       
+    });
+
+    it('should cancel pending reconnect timers during teardown when no live connection remains', async () => {
+      const service = SignalRService.getInstance();
+
+      await service.connectToHubWithEventingUrl(mockConfig);
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+
+      onCloseCallback();
+      (service as any).connections.delete(mockConfig.name);
+      expect((service as any).reconnectTimers.has(mockConfig.name)).toBe(true);
+
+      jest.clearAllMocks();
+      await service.disconnectAll();
+
+      expect((service as any).reconnectTimers.has(mockConfig.name)).toBe(false);
+      expect((service as any).hubConfigs.has(mockConfig.name)).toBe(false);
+
+      jest.advanceTimersByTime(5000);
+      expect(mockRefreshAccessToken).not.toHaveBeenCalled();
     });
   });
 });

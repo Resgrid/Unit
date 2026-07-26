@@ -173,6 +173,24 @@ describe('useSamlLogin', () => {
     expect(tokenResult).toBeNull();
   });
 
+  it('handleDeepLink catches RelayState storage read failures', async () => {
+    (mockedLinking.parse as jest.Mock).mockReturnValueOnce({
+      scheme: 'resgridunit',
+      path: 'auth/callback',
+      queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE },
+    });
+    mockedGetItem.mockRejectedValueOnce(new Error('Storage read failed'));
+
+    const { result } = renderHook(() => useSamlLogin());
+    const tokenResult = await result.current.handleDeepLink(
+      `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
+      'john.doe',
+    );
+
+    expect(tokenResult).toBeNull();
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
   describe('validateSamlCallback', () => {
     it('returns the saml_response and consumes the nonce when relay state matches', async () => {
       (mockedLinking.parse as jest.Mock).mockReturnValueOnce({
@@ -180,7 +198,7 @@ describe('useSamlLogin', () => {
         path: 'auth/callback',
         queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE },
       });
-      mockedGetItem.mockReturnValue(TEST_NONCE);
+      mockedGetItem.mockResolvedValue(TEST_NONCE);
 
       const { result } = renderHook(() => useSamlLogin());
       const samlResponse = await result.current.validateSamlCallback(

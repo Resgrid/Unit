@@ -513,6 +513,9 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // Disconnect from current room if connected
       if (currentRoom) {
         logger.debug({ message: 'connectToRoom: disconnecting existing room' });
+        // RoomEvent.Disconnected also fires for intentional room switches.
+        // Clear the flag first so that handler does not run unexpected-drop cleanup.
+        set({ isConnected: false });
         await currentRoom.disconnect();
       }
 

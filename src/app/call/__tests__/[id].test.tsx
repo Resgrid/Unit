@@ -282,6 +282,13 @@ jest.mock('@/components/maps/static-map', () => {
   };
 });
 
+jest.mock('@/components/maps/full-screen-map', () => ({
+  FullScreenMap: ({ isOpen, ...props }: any) => {
+    const React = require('react');
+    return isOpen ? React.createElement('full-screen-map', { ...props, testID: 'full-screen-call-map' }) : null;
+  },
+}));
+
 jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({
   CheckInTabContent: () => null,
 }));
@@ -316,6 +323,10 @@ jest.mock('react-native', () => ({
   View: jest.fn().mockImplementation(({ children, ...props }) => children),
   Text: jest.fn().mockImplementation(({ children }) => children),
   ScrollView: jest.fn().mockImplementation(({ children }) => children),
+  Pressable: jest.fn().mockImplementation(({ children, ...props }) => {
+    const React = require('react');
+    return React.createElement('button', props, children);
+  }),
   ActivityIndicator: jest.fn().mockImplementation(() => null),
   StatusBar: {
     setBackgroundColor: jest.fn(),
@@ -1343,6 +1354,23 @@ describe('CallDetail', () => {
       expect(queryByTestId('call-detail-map-toggle-call')).toBeNull();
       expect(queryByTestId('call-detail-map-toggle-destination')).toBeNull();
       expect(queryByTestId('call-detail-route-destination-button')).toBeNull();
+    });
+
+    it('should open the call location in the full-screen map when the static map is pressed', async () => {
+      mockDetailStore(callWithoutDestination);
+
+      const { getByTestId, queryByTestId } = render(<CallDetail />);
+
+      expect(queryByTestId('full-screen-call-map')).toBeNull();
+      fireEvent.press(await waitFor(() => getByTestId('call-detail-static-map')));
+
+      const fullScreenMap = getByTestId('full-screen-call-map');
+      expect(fullScreenMap.props).toMatchObject({
+        latitude: 40.7128,
+        longitude: -74.006,
+        title: 'Test Call',
+        address: '123 Main St',
+      });
     });
 
     it('should route to the destination POI coordinates when the destination route button is pressed', async () => {

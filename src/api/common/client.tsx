@@ -113,6 +113,8 @@ axiosInstance.interceptors.response.use(
         // else is transient and the session is preserved for a later retry.
         logger.warn({
           message: 'Request failed after token refresh attempt',
+          operation: 'token_refresh',
+          trace_id: originalRequest.headers.get('x-trace-id')?.toString(),
           context: { error: refreshError },
         });
 

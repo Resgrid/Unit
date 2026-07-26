@@ -6,28 +6,38 @@
 
 type TickCallback = () => void;
 
-const listeners = new Set<TickCallback>();
+export interface SharedTickerSubscriptionOptions {
+  onError: (error: unknown) => void;
+}
+
+interface TickListener {
+  callback: TickCallback;
+  onError: SharedTickerSubscriptionOptions['onError'];
+}
+
+const listeners = new Set<TickListener>();
 let interval: ReturnType<typeof setInterval> | null = null;
 
 const tick = (): void => {
-  listeners.forEach((callback) => {
+  listeners.forEach(({ callback, onError }) => {
     try {
       callback();
-    } catch {
-      // A throwing listener must not kill the shared ticker for everyone else.
+    } catch (error) {
+      onError(error);
     }
   });
 };
 
-export const subscribeToSharedTicker = (callback: TickCallback): (() => void) => {
-  listeners.add(callback);
+export const subscribeToSharedTicker = (callback: TickCallback, options: SharedTickerSubscriptionOptions): (() => void) => {
+  const listener = { callback, onError: options.onError };
+  listeners.add(listener);
 
   if (!interval) {
     interval = setInterval(tick, 1000);
   }
 
   return () => {
-    listeners.delete(callback);
+    listeners.delete(listener);
     if (listeners.size === 0 && interval) {
       clearInterval(interval);
       interval = null;

@@ -172,6 +172,8 @@ describe('DispatchSelectionModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockDispatchStore.data.users[0].Name = 'John Doe';
+    mockDispatchStore.searchQuery = '';
   });
 
   it('should render when visible', () => {
@@ -226,6 +228,15 @@ describe('DispatchSelectionModal', () => {
     });
   });
 
+  it.each([undefined, null])('should not crash while filtering when a user name is %s', (missingName) => {
+    mockDispatchStore.data.users[0].Name = missingName as unknown as string;
+    mockDispatchStore.searchQuery = 'john';
+
+    const { queryByText } = render(<DispatchSelectionModal {...mockProps} />);
+
+    expect(queryByText('calls.users (1)')).toBeNull();
+  });
+
   it('should call clearSelection and onClose when cancel button is pressed', async () => {
     const { getByText } = render(<DispatchSelectionModal {...mockProps} />);
 
@@ -244,4 +255,4 @@ describe('DispatchSelectionModal', () => {
     // Should show 0 selected by default
     expect(getByText('0 calls.selected')).toBeTruthy();
   });
-}); 
+});

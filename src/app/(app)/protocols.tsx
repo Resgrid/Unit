@@ -13,6 +13,7 @@ import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { getProtocolKey } from '@/lib/protocol-utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
 
 export default function Protocols() {
@@ -59,7 +60,6 @@ export default function Protocols() {
   }, [protocols, searchQuery]);
 
   const renderProtocol = React.useCallback(({ item }: { item: (typeof filteredProtocols)[number] }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />, [handleProtocolPress]);
-  const protocolKeyExtractor = React.useCallback((item: (typeof filteredProtocols)[number], index: number) => item.ProtocolId || `protocol-${index}`, []);
 
   return (
     <>
@@ -84,7 +84,7 @@ export default function Protocols() {
             <FlatList
               testID="protocols-list"
               data={filteredProtocols}
-              keyExtractor={protocolKeyExtractor}
+              keyExtractor={getProtocolKey}
               renderItem={renderProtocol}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}

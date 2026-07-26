@@ -73,7 +73,7 @@ export function useSamlLogin() {
       return null;
     }
 
-    const pendingRelayState = getItem<string>(SAML_RELAY_STATE_KEY);
+    const pendingRelayState = await getItem<string>(SAML_RELAY_STATE_KEY);
     if (!pendingRelayState) {
       // No SAML flow is pending — this callback was not initiated by this app.
       logger.warn({ message: 'Ignoring SAML callback with no pending flow' });
