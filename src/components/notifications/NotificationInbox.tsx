@@ -24,6 +24,69 @@ interface NotificationInboxProps {
   onClose: () => void;
 }
 
+interface NotificationRowProps {
+  notification: NotificationPayload;
+  unread: boolean;
+  isSelectionMode: boolean;
+  isSelected: boolean;
+  onPress: (notification: NotificationPayload) => void;
+  onLongPress: (notification: NotificationPayload) => void;
+  onNavigateToReference: (referenceType: string, referenceId: string) => void;
+}
+
+const NotificationRow = React.memo(
+  ({ notification, unread, isSelectionMode, isSelected, onPress, onLongPress, onNavigateToReference }: NotificationRowProps) => {
+    const handlePress = React.useCallback(() => onPress(notification), [onPress, notification]);
+    const handleLongPress = React.useCallback(() => onLongPress(notification), [onLongPress, notification]);
+    const handleNavigate = React.useCallback(
+      () => notification.referenceType && notification.referenceId && onNavigateToReference(notification.referenceType, notification.referenceId),
+      [onNavigateToReference, notification.referenceType, notification.referenceId]
+    );
+
+    return (
+      <Pressable onPress={handlePress} onLongPress={handleLongPress} style={[styles.notificationItem, unread ? styles.unreadNotificationItem : {}, isSelected ? styles.selectedNotificationItem : {}]}>
+        {unread ? <View style={styles.unreadIndicator} /> : null}
+
+        {isSelectionMode ? (
+          <View style={styles.selectionIndicator}>
+            {isSelected ? <CheckCircle size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} /> : <Circle size={24} className="text-gray-400 dark:text-gray-500" strokeWidth={2} />}
+          </View>
+        ) : null}
+
+        <View style={styles.notificationContent}>
+          <Text style={[styles.notificationBody, unread ? styles.unreadNotificationText : {}]}>{notification.title}</Text>
+          <Text style={styles.timestamp}>
+            {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
+          </Text>
+        </View>
+
+        {!isSelectionMode ? (
+          notification.referenceType && notification.referenceId ? (
+            <View style={styles.actionButtons}>
+              <Button onPress={handleNavigate} variant="outline" className="size-8 p-0">
+                <ExternalLink size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+              </Button>
+              <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
+            </View>
+          ) : (
+            <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
+          )
+        ) : null}
+      </Pressable>
+    );
+  },
+  (prev, next) =>
+    prev.notification.id === next.notification.id &&
+    prev.notification.title === next.notification.title &&
+    prev.notification.createdAt === next.notification.createdAt &&
+    prev.notification.referenceType === next.notification.referenceType &&
+    prev.notification.referenceId === next.notification.referenceId &&
+    prev.unread === next.unread &&
+    prev.isSelectionMode === next.isSelectionMode &&
+    prev.isSelected === next.isSelected
+);
+NotificationRow.displayName = 'NotificationRow';
+
 export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) => {
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const config = useCoreStore((state: any) => state.config);
@@ -77,15 +140,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     }
   }, [isOpen, slideAnim, fadeAnim]);
 
-  const handleNotificationPress = (notification: NotificationPayload) => {
-    if (isSelectionMode) {
-      toggleNotificationSelection(notification.id);
-    } else {
-      setSelectedNotification(notification);
-    }
-  };
-
-  const toggleNotificationSelection = (notificationId: string) => {
+  const toggleNotificationSelection = React.useCallback((notificationId: string) => {
     setSelectedNotificationIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(notificationId)) {
@@ -95,7 +150,28 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       }
       return newSet;
     });
-  };
+  }, []);
+
+  const handleNotificationPress = React.useCallback(
+    (notification: NotificationPayload) => {
+      if (isSelectionMode) {
+        toggleNotificationSelection(notification.id);
+      } else {
+        setSelectedNotification(notification);
+      }
+    },
+    [isSelectionMode, toggleNotificationSelection]
+  );
+
+  const handleNotificationLongPress = React.useCallback((notification: NotificationPayload) => {
+    setIsSelectionMode((prevMode) => {
+      if (!prevMode) {
+        setSelectedNotificationIds(new Set([notification.id]));
+        return true;
+      }
+      return prevMode;
+    });
+  }, []);
 
   const enterSelectionMode = () => {
     setIsSelectionMode(true);
@@ -153,68 +229,43 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     [showToast, refetch]
   );
 
-  const handleNavigateToReference = (referenceType: string, referenceId: string) => {
-    // TODO: Implement navigation based on reference type
-    console.log('Navigate to:', referenceType, referenceId);
-    onClose();
-  };
+  const handleNavigateToReference = React.useCallback(
+    (referenceType: string, referenceId: string) => {
+      // TODO: Implement navigation based on reference type
+      console.log('Navigate to:', referenceType, referenceId);
+      onClose();
+    },
+    [onClose]
+  );
 
-  const renderItem = ({ item }: { item: any }) => {
-    const notification: NotificationPayload = {
-      id: item.id,
-      title: item.subject,
-      body: item.body,
-      createdAt: item.createdAt,
-      read: item.read,
-      type: item.type,
-      referenceId: item.payload?.referenceId,
-      referenceType: item.payload?.referenceType,
-      metadata: item.payload?.metadata,
-    };
+  const renderItem = React.useCallback(
+    ({ item }: { item: any }) => {
+      const notification: NotificationPayload = {
+        id: item.id,
+        title: item.subject,
+        body: item.body,
+        createdAt: item.createdAt,
+        read: item.read,
+        type: item.type,
+        referenceId: item.payload?.referenceId,
+        referenceType: item.payload?.referenceType,
+        metadata: item.payload?.metadata,
+      };
 
-    const isSelected = selectedNotificationIds.has(notification.id);
-
-    return (
-      <Pressable
-        onPress={() => handleNotificationPress(notification)}
-        onLongPress={() => {
-          if (!isSelectionMode) {
-            enterSelectionMode();
-            toggleNotificationSelection(notification.id);
-          }
-        }}
-        style={[styles.notificationItem, !item.read ? styles.unreadNotificationItem : {}, isSelected ? styles.selectedNotificationItem : {}]}
-      >
-        {!item.read ? <View style={styles.unreadIndicator} /> : null}
-
-        {isSelectionMode ? (
-          <View style={styles.selectionIndicator}>
-            {isSelected ? <CheckCircle size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} /> : <Circle size={24} className="text-gray-400 dark:text-gray-500" strokeWidth={2} />}
-          </View>
-        ) : null}
-
-        <View style={styles.notificationContent}>
-          <Text style={[styles.notificationBody, !item.read ? styles.unreadNotificationText : {}]}>{notification.title}</Text>
-          <Text style={styles.timestamp}>
-            {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
-          </Text>
-        </View>
-
-        {!isSelectionMode ? (
-          notification.referenceType && notification.referenceId ? (
-            <View style={styles.actionButtons}>
-              <Button onPress={() => handleNavigateToReference(notification.referenceType!, notification.referenceId!)} variant="outline" className="size-8 p-0">
-                <ExternalLink size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
-              </Button>
-              <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
-            </View>
-          ) : (
-            <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
-          )
-        ) : null}
-      </Pressable>
-    );
-  };
+      return (
+        <NotificationRow
+          notification={notification}
+          unread={!item.read}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedNotificationIds.has(notification.id)}
+          onPress={handleNotificationPress}
+          onLongPress={handleNotificationLongPress}
+          onNavigateToReference={handleNavigateToReference}
+        />
+      );
+    },
+    [isSelectionMode, selectedNotificationIds, handleNotificationPress, handleNotificationLongPress, handleNavigateToReference]
+  );
 
   const renderFooter = () => {
     if (!hasMore) return null;

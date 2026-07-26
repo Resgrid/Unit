@@ -3,7 +3,7 @@ import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib/auth';
@@ -106,44 +106,44 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   return (
     <Modal visible={isOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
-        {/* Header */}
-        <View style={[styles.header, isDark && styles.headerDark]}>
-          <Heading size="lg">{t('callNotes.title')}</Heading>
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-button">
-            <X size={24} color={isDark ? '#D1D5DB' : '#374151'} />
-          </TouchableOpacity>
-        </View>
+        <KeyboardAvoidingView style={styles.keyboardAvoiding} behavior="padding" keyboardVerticalOffset={0}>
+          {/* Header */}
+          <View style={[styles.header, isDark && styles.headerDark]}>
+            <Heading size="lg">{t('callNotes.title')}</Heading>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-button">
+              <X size={24} color={isDark ? '#D1D5DB' : '#374151'} />
+            </TouchableOpacity>
+          </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Input className="w-full rounded-lg bg-gray-100 dark:bg-gray-700">
-            <InputSlot>
-              <SearchIcon size={20} className="text-gray-500" />
-            </InputSlot>
-            <InputField placeholder={t('callNotes.searchPlaceholder')} value={searchQuery} onChangeText={setSearchQuery} />
-          </Input>
-        </View>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <Input className="w-full rounded-lg bg-gray-100 dark:bg-gray-700">
+              <InputSlot>
+                <SearchIcon size={20} className="text-gray-500" />
+              </InputSlot>
+              <InputField placeholder={t('callNotes.searchPlaceholder')} value={searchQuery} onChangeText={setSearchQuery} />
+            </Input>
+          </View>
 
-        {/* Notes List */}
-        <View style={styles.listContainer}>
-          {isNotesLoading ? (
-            <Loading />
-          ) : filteredNotes.length > 0 ? (
-            <FlatList
-              data={filteredNotes}
-              renderItem={renderNote}
-              keyExtractor={(item) => item.CallNoteId}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={true}
-              keyboardShouldPersistTaps="handled"
-            />
-          ) : (
-            <ZeroState heading={t('callNotes.noNotesFound')} />
-          )}
-        </View>
+          {/* Notes List */}
+          <View style={styles.listContainer}>
+            {isNotesLoading ? (
+              <Loading />
+            ) : filteredNotes.length > 0 ? (
+              <FlatList
+                data={filteredNotes}
+                renderItem={renderNote}
+                keyExtractor={(item) => item.CallNoteId}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={true}
+                keyboardShouldPersistTaps="handled"
+              />
+            ) : (
+              <ZeroState heading={t('callNotes.noNotesFound')} />
+            )}
+          </View>
 
-        {/* Add Note Section - Sticks to keyboard */}
-        <KeyboardStickyView offset={{ opened: 0, closed: 0 }}>
+          {/* Add Note Section */}
           <View style={[styles.footer, isDark && styles.footerDark]}>
             <VStack space="sm" className="w-full">
               <Text className="font-medium">{t('callNotes.addNoteLabel')}</Text>
@@ -161,7 +161,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
               </Button>
             </HStack>
           </View>
-        </KeyboardStickyView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );
@@ -174,6 +174,9 @@ const styles = StyleSheet.create({
   },
   containerDark: {
     backgroundColor: '#1F2937',
+  },
+  keyboardAvoiding: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',

@@ -66,9 +66,9 @@ jest.mock('react-native-keyboard-controller', () => ({
     const { View } = require('react-native');
     return <View testID="keyboard-aware-scroll-view">{children}</View>;
   },
-  KeyboardStickyView: ({ children }: any) => {
+  KeyboardAvoidingView: ({ children }: any) => {
     const { View } = require('react-native');
-    return <View testID="keyboard-sticky-view">{children}</View>;
+    return <View testID="keyboard-avoiding-view">{children}</View>;
   },
 }));
 
