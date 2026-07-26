@@ -1,4 +1,5 @@
 import { useNotifications } from '@novu/react-native';
+import { router } from 'expo-router';
 import { CheckCircle, ChevronRight, Circle, ExternalLink, MoreVertical, Trash2, X } from 'lucide-react-native';
 import { colorScheme } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
@@ -10,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { FlatList } from '@/components/ui/flat-list';
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
 import { Text } from '@/components/ui/text';
+import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useToastStore } from '@/stores/toast/store';
 import { type NotificationPayload } from '@/types/notification';
@@ -157,21 +159,24 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       if (isSelectionMode) {
         toggleNotificationSelection(notification.id);
       } else {
+        // Mark unread notifications as read via the Novu SDK; the SDK
+        // optimistically updates its cache, refreshing inbox state.
+        notification.markAsRead?.();
         setSelectedNotification(notification);
       }
     },
     [isSelectionMode, toggleNotificationSelection]
   );
 
-  const handleNotificationLongPress = React.useCallback((notification: NotificationPayload) => {
-    setIsSelectionMode((prevMode) => {
-      if (!prevMode) {
+  const handleNotificationLongPress = React.useCallback(
+    (notification: NotificationPayload) => {
+      if (!isSelectionMode) {
         setSelectedNotificationIds(new Set([notification.id]));
-        return true;
+        setIsSelectionMode(true);
       }
-      return prevMode;
-    });
-  }, []);
+    },
+    [isSelectionMode]
+  );
 
   const enterSelectionMode = () => {
     setIsSelectionMode(true);
@@ -231,9 +236,12 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
 
   const handleNavigateToReference = React.useCallback(
     (referenceType: string, referenceId: string) => {
-      // TODO: Implement navigation based on reference type
-      console.log('Navigate to:', referenceType, referenceId);
-      onClose();
+      if (referenceType === 'call') {
+        router.push(`/call/${referenceId}`);
+        onClose();
+      } else {
+        logger.info({ message: 'Notification reference navigation not supported for type', context: { referenceType, referenceId } });
+      }
     },
     [onClose]
   );
@@ -245,17 +253,18 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
         title: item.subject,
         body: item.body,
         createdAt: item.createdAt,
-        read: item.read,
+        read: item.isRead,
         type: item.type,
         referenceId: item.payload?.referenceId,
         referenceType: item.payload?.referenceType,
         metadata: item.payload?.metadata,
+        markAsRead: !item.isRead && typeof item.read === 'function' ? () => item.read() : undefined,
       };
 
       return (
         <NotificationRow
           notification={notification}
-          unread={!item.read}
+          unread={!item.isRead}
           isSelectionMode={isSelectionMode}
           isSelected={selectedNotificationIds.has(notification.id)}
           onPress={handleNotificationPress}

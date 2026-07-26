@@ -26,6 +26,8 @@ interface CallNotesModalProps {
   callId: string;
 }
 
+const keyExtractor = (item: { CallNoteId: string }) => item.CallNoteId;
+
 const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
@@ -130,14 +132,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
             {isNotesLoading ? (
               <Loading />
             ) : filteredNotes.length > 0 ? (
-              <FlatList
-                data={filteredNotes}
-                renderItem={renderNote}
-                keyExtractor={(item) => item.CallNoteId}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={true}
-                keyboardShouldPersistTaps="handled"
-              />
+              <FlatList data={filteredNotes} renderItem={renderNote} keyExtractor={keyExtractor} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={true} keyboardShouldPersistTaps="handled" />
             ) : (
               <ZeroState heading={t('callNotes.noNotesFound')} />
             )}
