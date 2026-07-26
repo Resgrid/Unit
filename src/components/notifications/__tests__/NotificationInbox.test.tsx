@@ -61,6 +61,7 @@ const MockNotificationInbox = ({ isOpen, onClose }: { isOpen: boolean; onClose: 
       }
       setSelectedNotificationIds(newSet);
     } else {
+      notification.markAsRead?.();
       setSelectedNotification(notification);
     }
   };
@@ -167,6 +168,7 @@ describe('NotificationInbox', () => {
         referenceType: 'call',
         metadata: {},
       },
+      markAsRead: jest.fn(),
     },
     {
       id: '2',
@@ -416,6 +418,32 @@ describe('NotificationInbox', () => {
     // Should show notification detail
     expect(queryByText('Notification Detail')).toBeTruthy();
     expect(queryByText('Notifications')).toBeNull();
+  });
+
+  it('marks an unread notification as read when opening the detail', async () => {
+    const { getByTestId } = render(
+      <NotificationInbox isOpen={true} onClose={mockOnClose} />
+    );
+
+    await act(async () => {
+      fireEvent.press(getByTestId('notification-1'));
+    });
+
+    expect((mockNotifications[0] as any).markAsRead).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not invoke mark-as-read for an already-read notification', async () => {
+    const { getByTestId, queryByText } = render(
+      <NotificationInbox isOpen={true} onClose={mockOnClose} />
+    );
+
+    await act(async () => {
+      fireEvent.press(getByTestId('notification-2'));
+    });
+
+    // Already-read notification has no markAsRead attached; detail still opens
+    expect((mockNotifications[0] as any).markAsRead).not.toHaveBeenCalled();
+    expect(queryByText('Notification Detail')).toBeTruthy();
   });
 
   it('resets state when component closes', async () => {

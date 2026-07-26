@@ -1,7 +1,6 @@
-import { useNotifications } from '@novu/react-native';
 import { ArrowLeft, Calendar, ExternalLink, Trash2 } from 'lucide-react-native';
 import { colorScheme } from 'nativewind';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Animated, Dimensions, Platform, Pressable, SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 
 // Define the interface directly in this file
@@ -29,30 +28,8 @@ const SIDEBAR_WIDTH = Math.min(width * 0.85, 400);
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0;
 
 export const NotificationDetail = ({ notification, onClose, onDelete, onNavigateToReference }: NotificationDetailProps) => {
-  const { refetch } = useNotifications();
-  const slideAnim = React.useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
-  const fadeAnim = React.useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Mark as read when opened - we'll just refetch to sync with server
-    if (!notification.read && notification.id) {
-      refetch();
-    }
-
-    // Animate in
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [notification, refetch, slideAnim, fadeAnim]);
+  const slideAnim = React.useRef(new Animated.Value(0)).current;
+  const fadeAnim = React.useRef(new Animated.Value(1)).current;
 
   const handleClose = () => {
     // Animate out

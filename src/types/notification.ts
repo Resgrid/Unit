@@ -8,6 +8,7 @@ export interface NotificationPayload {
   referenceId?: string;
   referenceType?: 'call' | 'message' | 'status' | 'note' | 'other';
   metadata?: Record<string, any>;
+  markAsRead?: () => void;
 }
 
 export interface NotificationDetailProps {
