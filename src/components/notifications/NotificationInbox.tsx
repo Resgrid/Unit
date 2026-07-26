@@ -258,7 +258,16 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
         referenceId: item.payload?.referenceId,
         referenceType: item.payload?.referenceType,
         metadata: item.payload?.metadata,
-        markAsRead: !item.isRead && typeof item.read === 'function' ? () => item.read() : undefined,
+        markAsRead:
+          !item.isRead && typeof item.read === 'function'
+            ? async () => {
+                try {
+                  await item.read();
+                } catch (error) {
+                  logger.warn({ message: 'Failed to mark notification as read', context: { error } });
+                }
+              }
+            : undefined,
       };
 
       return (
