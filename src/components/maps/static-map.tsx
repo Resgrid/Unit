@@ -1,15 +1,12 @@
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 
-import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
 import { Env } from '@/lib/env';
-
-// Ensure Mapbox access token is set before using any Mapbox components
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+import { useLocationStore } from '@/stores/app/location-store';
 
 interface StaticMapProps {
   latitude: number;
@@ -20,14 +17,40 @@ interface StaticMapProps {
   showUserLocation?: boolean;
 }
 
+/**
+ * Renders a map snapshot via the Mapbox Static Images API instead of mounting
+ * a full interactive Mapbox GL map (style load, tile downloads, GL context per
+ * instance) — call/POI detail screens open noticeably faster and hold far less
+ * native memory. The destination (and optionally the user's own position) are
+ * drawn as pins.
+ */
 const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoom = 15, height = 200, showUserLocation = false }) => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
 
-  // Get map style based on current theme
-  const mapStyle = colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
+  const imageUrl = React.useMemo(() => {
+    if (!latitude || !longitude) {
+      return null;
+    }
 
-  if (!latitude || !longitude) {
+    const styleId = colorScheme === 'dark' ? 'mapbox/dark-v11' : 'mapbox/streets-v12';
+    const pins: string[] = [`pin-s+E53E3E(${longitude},${latitude})`];
+
+    // Snapshot of the user's own position (no subscription needed for a static image)
+    let position = `${longitude},${latitude},${zoom}`;
+    if (showUserLocation) {
+      const { latitude: userLat, longitude: userLon } = useLocationStore.getState();
+      if (userLat !== null && userLon !== null) {
+        pins.push(`pin-s+3B82F6(${userLon},${userLat})`);
+        // 'auto' fits the viewport to both pins
+        position = 'auto';
+      }
+    }
+
+    return `https://api.mapbox.com/styles/v1/${styleId}/static/${pins.join(',')}/${position}/800x${Math.round(height)}@2x?access_token=${Env.UNIT_MAPBOX_PUBKEY}&logo=false&attribution=false`;
+  }, [latitude, longitude, zoom, height, showUserLocation, colorScheme]);
+
+  if (!imageUrl) {
     return (
       <Box style={StyleSheet.flatten([styles.container, { height }])} className="items-center justify-center bg-gray-200">
         <Text className="text-gray-500">{t('call_detail.no_location')}</Text>
@@ -37,19 +60,7 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
 
   return (
     <Box style={StyleSheet.flatten([styles.container, { height }])}>
-      <Mapbox.MapView style={StyleSheet.flatten([styles.map, { height }])} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true}>
-        <Mapbox.Camera zoomLevel={zoom} centerCoordinate={[longitude, latitude]} animationMode="flyTo" animationDuration={1000} />
-        {/* Marker pin for the location */}
-        <Mapbox.PointAnnotation id="destinationPoint" coordinate={[longitude, latitude]} title={address || 'Location'}>
-          <View style={styles.markerContainer}>
-            <View style={styles.markerPin} />
-            <View style={styles.markerDot} />
-          </View>
-        </Mapbox.PointAnnotation>
-
-        {/* Show user location if requested */}
-        {showUserLocation && <Mapbox.UserLocation visible={true} showsUserHeadingIndicator={true} />}
-      </Mapbox.MapView>
+      <Image source={{ uri: imageUrl }} style={StyleSheet.flatten([styles.map, { height }])} resizeMode="cover" accessibilityLabel={address || 'Map'} />
 
       {/* Address overlay */}
       {address && (
@@ -69,42 +80,6 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
-  },
-  markerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 30,
-    height: 40,
-  },
-  markerPin: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E53E3E',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 3,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  markerDot: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: '#E53E3E',
-    marginTop: -2,
   },
   addressContainer: {
     position: 'absolute',

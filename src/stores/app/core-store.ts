@@ -8,7 +8,7 @@ import { getAllUnitStatuses } from '@/api/satuses/statuses';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
 import { zustandStorage } from '@/lib/storage';
-import { getActiveCallId, getActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
+import { getActiveCallId, getActiveUnitId, removeActiveCallId, removeActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
@@ -42,6 +42,7 @@ interface CoreState {
   init: () => Promise<void>;
   setActiveUnit: (unitId: string) => void;
   setActiveUnitWithFetch: (unitId: string) => Promise<void>;
+  refreshActiveUnitStatus: (unitId: string) => Promise<void>;
   setActiveCall: (callId: string | null) => Promise<void>;
   fetchConfig: () => Promise<void>;
 }
@@ -129,7 +130,7 @@ export const useCoreStore = create<CoreState>()(
             });
           } else {
             logger.error({
-              message: `Failed to init core app data: ${JSON.stringify(error)}`,
+              message: 'Failed to init core app data',
               context: { error },
             });
           }
@@ -166,6 +167,23 @@ export const useCoreStore = create<CoreState>()(
               activeStatuses: activeStatuses,
               isLoading: false,
             });
+          } else {
+            // Persisted unit no longer exists (deleted/decommissioned) — clear
+            // the stale id and ALWAYS reset isLoading or consumers spin forever.
+            logger.warn({
+              message: 'Active unit not found in fetched units, clearing stale selection',
+              context: { unitId },
+            });
+            await removeActiveUnitId();
+            set({
+              activeUnitId: null,
+              activeUnit: null,
+              activeUnitStatus: null,
+              activeUnitStatusType: null,
+              activeStatuses: null,
+              isLoading: false,
+            });
+            return;
           }
 
           const unitStatus = await getUnitStatus(unitId);
@@ -190,7 +208,7 @@ export const useCoreStore = create<CoreState>()(
         } catch (error) {
           set({ error: 'Failed to set active unit', isLoading: false });
           logger.error({
-            message: `Failed to set active unit: ${JSON.stringify(error)}`,
+            message: 'Failed to set active unit',
             context: { error },
           });
         }
@@ -216,14 +234,31 @@ export const useCoreStore = create<CoreState>()(
             isLoading: false,
           });
           logger.error({
-            message: `Failed to fetch and set active unit: ${JSON.stringify(error)}`,
+            message: 'Failed to fetch and set active unit',
+            context: { error },
+          });
+        }
+      },
+      // Lightweight status-only refresh — used by the SignalR status hook so a
+      // unitStatusUpdated event does NOT refetch the entire fleet.
+      refreshActiveUnitStatus: async (unitId: string) => {
+        try {
+          const unitStatus = await getUnitStatus(unitId);
+          if (unitStatus?.Data) {
+            set({ activeUnitStatus: unitStatus.Data });
+          }
+        } catch (error) {
+          logger.error({
+            message: 'Failed to refresh active unit status',
             context: { error },
           });
         }
       },
       setActiveCall: async (callId: string | null) => {
         if (!callId) {
-          // Deselect the call
+          // Deselect the call — also drop the persisted id so a stale value is
+          // not re-attempted on every cold start.
+          await removeActiveCallId();
           set({
             activeCall: null,
             activePriority: null,
@@ -240,6 +275,20 @@ export const useCoreStore = create<CoreState>()(
           await callStore.fetchCallPriorities();
           const activeCall = callStore.calls.find((call) => call.CallId === callId);
           const activePriority = callStore.callPriorities.find((priority) => priority.Id === activeCall?.Priority);
+
+          if (!activeCall) {
+            // Call no longer active (e.g. closed between persist and init) —
+            // clear the stale id instead of re-attempting it every cold start.
+            await removeActiveCallId();
+            set({
+              activeCall: null,
+              activePriority: null,
+              activeCallId: null,
+              isLoading: false,
+            });
+            return;
+          }
+
           set({
             activeCall: activeCall,
             activePriority: activePriority,
@@ -248,7 +297,7 @@ export const useCoreStore = create<CoreState>()(
         } catch (error) {
           set({ error: 'Failed to set active call', isLoading: false });
           logger.error({
-            message: `Failed to set active call: ${JSON.stringify(error)}`,
+            message: 'Failed to set active call',
             context: { error },
           });
         }
@@ -277,7 +326,7 @@ export const useCoreStore = create<CoreState>()(
             });
           } else {
             logger.error({
-              message: `Failed to fetch config: ${JSON.stringify(error)}`,
+              message: 'Failed to fetch config',
               context: { error },
             });
           }
@@ -288,18 +337,14 @@ export const useCoreStore = create<CoreState>()(
     {
       name: 'core-storage',
       storage: createJSONStorage(() => zustandStorage),
+      // Persist ONLY the selection ids. init() refetches everything else from
+      // the server (and the standalone activeUnitId/activeCallId MMKV keys are
+      // the real restore mechanism), so persisting full objects just meant
+      // JSON.stringify + a synchronous MMKV write of heavy config/unit/call
+      // payloads on EVERY store set.
       partialize: (state) => ({
         activeUnitId: state.activeUnitId,
-        activeUnit: state.activeUnit,
-        activeUnitStatus: state.activeUnitStatus,
-        activeUnitStatusType: state.activeUnitStatusType,
         activeCallId: state.activeCallId,
-        activeCall: state.activeCall,
-        activePriority: state.activePriority,
-        config: state.config,
-        activeStatuses: state.activeStatuses,
-        // Exclude: isLoading, isInitialized, isInitializing, error
-        // These are transient flags that must NOT persist across reloads
       }),
     }
   )

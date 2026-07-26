@@ -61,6 +61,9 @@ export default function Contacts() {
     );
   }, [contacts, searchQuery]);
 
+  const renderContact = React.useCallback(({ item }: { item: (typeof filteredContacts)[number] }) => <ContactCard contact={item} onPress={selectContact} />, [selectContact]);
+  const contactKeyExtractor = React.useCallback((item: (typeof filteredContacts)[number]) => item.ContactId, []);
+
   // Show loading page during initial fetch (when no contacts are loaded yet)
   if (isLoading && contacts.length === 0) {
     return (
@@ -90,8 +93,8 @@ export default function Contacts() {
           <FlatList
             testID="contacts-list"
             data={filteredContacts}
-            keyExtractor={(item) => item.ContactId}
-            renderItem={({ item }) => <ContactCard contact={item} onPress={selectContact} />}
+            keyExtractor={contactKeyExtractor}
+            renderItem={renderContact}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 100 }}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}

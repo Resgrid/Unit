@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { CheckCircleIcon, ClockIcon, LogInIcon, LogOutIcon, MapPinIcon, SkipForwardIcon, UserIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
@@ -18,6 +17,7 @@ import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { VStack } from '@/components/ui/vstack';
+import { safeFormatDate } from '@/lib/utils';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -215,11 +215,11 @@ export default function StopDetailScreen() {
           <HStack className="mt-2 gap-6">
             <VStack>
               <Text className="text-xs text-typography-500">{t('routes.planned_arrival')}</Text>
-              <Text className="text-sm font-medium">{stop.PlannedArrival ? format(new Date(stop.PlannedArrival), 'MMM d, h:mm a') : '--'}</Text>
+              <Text className="text-sm font-medium">{safeFormatDate(stop.PlannedArrival, 'MMM d, h:mm a')}</Text>
             </VStack>
             <VStack>
               <Text className="text-xs text-typography-500">{t('routes.planned_departure')}</Text>
-              <Text className="text-sm font-medium">{stop.PlannedDeparture ? format(new Date(stop.PlannedDeparture), 'MMM d, h:mm a') : '--'}</Text>
+              <Text className="text-sm font-medium">{safeFormatDate(stop.PlannedDeparture, 'MMM d, h:mm a')}</Text>
             </VStack>
           </HStack>
           {stop.DwellTimeMinutes > 0 && (

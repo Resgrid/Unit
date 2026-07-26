@@ -32,6 +32,10 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
 
   if (!feed) return null;
 
+  // Feed URLs are admin/server-configured — only ever load https/http in the
+  // WebView and restrict JS to embed-style formats that actually need it.
+  const safeWebUrl = /^https?:\/\//i.test(feed.Url) ? feed.Url : undefined;
+
   const renderPlayer = () => {
     switch (feed.FeedFormat) {
       case FeedFormat.HLS:
@@ -40,9 +44,20 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
 
       case FeedFormat.YouTubeLive:
       case FeedFormat.Embed:
+        return safeWebUrl ? (
+          <WebView source={{ uri: safeWebUrl }} style={styles.video} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} javaScriptEnabled originWhitelist={['https://*', 'http://*']} />
+        ) : (
+          <Text className="text-center text-white">{t('video_feeds.webrtc_not_supported')}</Text>
+        );
+
       case FeedFormat.MJPEG:
       case FeedFormat.Other:
-        return <WebView source={{ uri: feed.Url }} style={styles.video} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} javaScriptEnabled />;
+        // MJPEG/plain pages don't need JavaScript — keep it off.
+        return safeWebUrl ? (
+          <WebView source={{ uri: safeWebUrl }} style={styles.video} allowsInlineMediaPlayback javaScriptEnabled={false} originWhitelist={['https://*', 'http://*']} />
+        ) : (
+          <Text className="text-center text-white">{t('video_feeds.webrtc_not_supported')}</Text>
+        );
 
       case FeedFormat.RTSP:
         return (
@@ -63,7 +78,11 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
         );
 
       default:
-        return <WebView source={{ uri: feed.Url }} style={styles.video} allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} javaScriptEnabled />;
+        return safeWebUrl ? (
+          <WebView source={{ uri: safeWebUrl }} style={styles.video} allowsInlineMediaPlayback javaScriptEnabled={false} originWhitelist={['https://*', 'http://*']} />
+        ) : (
+          <Text className="text-center text-white">{t('video_feeds.webrtc_not_supported')}</Text>
+        );
     }
   };
 

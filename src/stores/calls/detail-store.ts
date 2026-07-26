@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { getCallFiles, getCallImages, saveCallImage } from '@/api/calls/callFiles';
 import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
 import { closeCall, type CloseCallRequest, getCall, getCallExtraData, updateCall, type UpdateCallRequest } from '@/api/calls/calls';
+import { logger } from '@/lib/logging';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { type CallNoteResultData } from '@/models/v4/callNotes/callNoteResultData';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
@@ -99,7 +100,7 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
         });
       } else {
         set({
-          error: callResult.Message || callExtraDataResult.Message || 'Failed to fetch call details',
+          error: callResult?.Message || callExtraDataResult?.Message || 'Failed to fetch call details',
           isLoading: false,
         });
       }
@@ -167,7 +168,10 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
       // After successful upload, refresh the images list
       useCallDetailStore.getState().fetchCallImages(callId);
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error({
+        message: 'Error uploading image',
+        context: { error },
+      });
       throw error;
     }
   },

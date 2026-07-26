@@ -17,6 +17,17 @@ const mockGetMapDataAndMarkers = getMapDataAndMarkers as jest.MockedFunction<typ
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockUseSignalRStore = useSignalRStore as jest.MockedFunction<typeof useSignalRStore>;
 
+// The hook's selector reads state.lastUpdateTimestamps (per-event timestamps)
+// and takes the max across map-relevant events. A single map-relevant event
+// entry is enough to simulate an update.
+const stateWithUpdate = (timestamp: number) => ({
+  lastUpdateTimestamps: timestamp > 0 ? { callsUpdated: timestamp } : {},
+});
+const mockStoreWithTimestamp = (timestamp: number) => {
+  const state = stateWithUpdate(timestamp);
+  mockUseSignalRStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(state) : state));
+};
+
 describe('useMapSignalRUpdates', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -60,7 +71,7 @@ describe('useMapSignalRUpdates', () => {
     jest.clearAllTimers();
     
     // Reset store state
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: 0 }) : { lastUpdateTimestamp: 0});
+    mockStoreWithTimestamp(0);
     // Mock successful API response by default
     mockGetMapDataAndMarkers.mockResolvedValue(mockMapData);
   });
@@ -70,7 +81,7 @@ describe('useMapSignalRUpdates', () => {
   });
 
   it('should not trigger API call when lastUpdateTimestamp is 0', () => {
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: 0 }) : { lastUpdateTimestamp: 0});
+    mockStoreWithTimestamp(0);
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
 
     // Fast forward timers to ensure debounce completes
@@ -82,7 +93,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should trigger API call when lastUpdateTimestamp changes', async () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
 
@@ -102,7 +113,7 @@ describe('useMapSignalRUpdates', () => {
     
     const { rerender } = renderHook(
       (props) => {
-        mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: props.timestamp }) : { lastUpdateTimestamp: props.timestamp });
+        mockStoreWithTimestamp(props.timestamp);
         return useMapSignalRUpdates(mockOnMarkersUpdate);
       },
       { initialProps: { timestamp } }
@@ -144,7 +155,7 @@ describe('useMapSignalRUpdates', () => {
 
     const { rerender } = renderHook(
       (props) => {
-        mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: props.timestamp }) : { lastUpdateTimestamp: props.timestamp });
+        mockStoreWithTimestamp(props.timestamp);
         return useMapSignalRUpdates(mockOnMarkersUpdate);
       },
       { initialProps: { timestamp } }
@@ -201,7 +212,7 @@ describe('useMapSignalRUpdates', () => {
 
     const { rerender } = renderHook(
       (props) => {
-        mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: props.timestamp }) : { lastUpdateTimestamp: props.timestamp });
+        mockStoreWithTimestamp(props.timestamp);
         return useMapSignalRUpdates(mockOnMarkersUpdate);
       },
       { initialProps: { timestamp: timestamp1 } }
@@ -249,7 +260,7 @@ describe('useMapSignalRUpdates', () => {
     const timestamp = Date.now();
     const error = new Error('API Error');
     
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
     mockGetMapDataAndMarkers.mockRejectedValue(error);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
@@ -274,7 +285,7 @@ describe('useMapSignalRUpdates', () => {
     const abortError = new Error('The operation was aborted');
     abortError.name = 'AbortError';
     
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
     mockGetMapDataAndMarkers.mockRejectedValue(abortError);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
@@ -300,7 +311,7 @@ describe('useMapSignalRUpdates', () => {
     const timestamp = Date.now();
     const cancelError = new Error('canceled');
     
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
     mockGetMapDataAndMarkers.mockRejectedValue(cancelError);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
@@ -339,7 +350,7 @@ describe('useMapSignalRUpdates', () => {
     }) as any;
 
     renderHook(() => {
-      mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp1 }) : { lastUpdateTimestamp: timestamp1 });
+      mockStoreWithTimestamp(timestamp1);
       return useMapSignalRUpdates(mockOnMarkersUpdate);
     });
 
@@ -369,7 +380,7 @@ describe('useMapSignalRUpdates', () => {
       },
     };
     
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
     mockGetMapDataAndMarkers.mockResolvedValue(emptyMapData);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
@@ -386,7 +397,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should handle null API response', async () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
     mockGetMapDataAndMarkers.mockResolvedValue(undefined as any);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
@@ -406,7 +417,7 @@ describe('useMapSignalRUpdates', () => {
     
     const { rerender } = renderHook(
       (props) => {
-        mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: props.timestamp }) : { lastUpdateTimestamp: props.timestamp });
+        mockStoreWithTimestamp(props.timestamp);
         return useMapSignalRUpdates(mockOnMarkersUpdate);
       },
       { initialProps: { timestamp } }
@@ -433,7 +444,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should cleanup timers and abort requests on unmount', () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
 
     // Mock AbortController
     const mockAbort = jest.fn();
@@ -461,7 +472,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should maintain stable callback reference', async () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
 
     const secondCallback = jest.fn();
     const { rerender } = renderHook(
@@ -488,7 +499,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should log debug information for debouncing', () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
 
@@ -504,7 +515,7 @@ describe('useMapSignalRUpdates', () => {
 
   it('should log successful marker updates', async () => {
     const timestamp = Date.now();
-    mockUseSignalRStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ lastUpdateTimestamp: timestamp }) : { lastUpdateTimestamp: timestamp });
+    mockStoreWithTimestamp(timestamp);
 
     renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
 

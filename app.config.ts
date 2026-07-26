@@ -108,6 +108,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.READ_PHONE_NUMBERS',
       'android.permission.MANAGE_OWN_CALLS',
     ],
+    blockedPermissions: ['android.permission.READ_MEDIA_IMAGES', 'android.permission.READ_MEDIA_VIDEO'],
   },
   web: {
     favicon: './assets/favicon.png',

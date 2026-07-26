@@ -153,22 +153,27 @@ describe('SignalRService', () => {
       );
     });
 
-    it('should use URL parameter for geolocation hub authentication', async () => {
+    it('should use accessTokenFactory for geolocation hub authentication (no token in URL)', async () => {
       // Create a geolocation config
       const geoConfig: SignalRHubConnectConfig = {
         name: 'geoHub',
         eventingUrl: 'https://api.example.com/',
-        hubName: 'geolocationHub', // This should match REALTIME_GEO_HUB_NAME from env
+        hubName: 'geolocationHub',
         methods: ['onPersonnelLocationUpdated'],
       };
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should connect with URL parameter instead of header auth
+      // Token must not appear in the URL — auth goes via accessTokenFactory
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/geolocationHub?access_token=mock-token',
-        {}
+        'https://api.example.com/geolocationHub',
+        expect.objectContaining({
+          accessTokenFactory: expect.any(Function),
+        })
       );
+
+      const options = mockBuilderInstance.withUrl.mock.calls[0][1] as any;
+      expect(options.accessTokenFactory()).toBe('mock-token');
     });
 
     it('should use header authentication for non-geolocation hubs', async () => {
@@ -190,7 +195,7 @@ describe('SignalRService', () => {
       );
     });
 
-    it('should properly encode access token in URL for geolocation hub', async () => {
+    it('should not put access token with special chars in URL for geolocation hub', async () => {
       // Set up a token that needs encoding
       mockGetState.mockReturnValue({ 
         accessToken: 'token with spaces & special chars',
@@ -200,20 +205,25 @@ describe('SignalRService', () => {
       const geoConfig: SignalRHubConnectConfig = {
         name: 'geoHub',
         eventingUrl: 'https://api.example.com/',
-        hubName: 'geolocationHub', // This should match REALTIME_GEO_HUB_NAME from env
+        hubName: 'geolocationHub',
         methods: ['onPersonnelLocationUpdated'],
       };
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should properly encode the token in the URL (URLSearchParams uses + for spaces, which is correct)
+      // URL must stay clean regardless of token content
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/geolocationHub?access_token=token+with+spaces+%26+special+chars',
-        {}
+        'https://api.example.com/geolocationHub',
+        expect.objectContaining({
+          accessTokenFactory: expect.any(Function),
+        })
       );
+
+      const options = mockBuilderInstance.withUrl.mock.calls[0][1] as any;
+      expect(options.accessTokenFactory()).toBe('token with spaces & special chars');
     });
 
-    it('should properly URI encode complex access tokens for geolocation hub', async () => {
+    it('should not put complex access tokens in URL for geolocation hub', async () => {
       // Set up a complex token with various characters that need encoding
       mockGetState.mockReturnValue({ 
         accessToken: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9+/=?#&',
@@ -229,27 +239,34 @@ describe('SignalRService', () => {
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should properly encode all special characters in the token (URLSearchParams uses + for spaces, which is correct)
+      // URL must stay clean regardless of token content
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/geolocationHub?access_token=Bearer+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9%2B%2F%3D%3F%23%26',
-        {}
+        'https://api.example.com/geolocationHub',
+        expect.objectContaining({
+          accessTokenFactory: expect.any(Function),
+        })
       );
+
+      const options = mockBuilderInstance.withUrl.mock.calls[0][1] as any;
+      expect(options.accessTokenFactory()).toBe('Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9+/=?#&');
     });
 
-    it('should handle URL with existing query parameters for geolocation hub', async () => {
+    it('should preserve existing query parameters without adding access_token for geolocation hub', async () => {
       const geoConfig: SignalRHubConnectConfig = {
         name: 'geoHub',
         eventingUrl: 'https://api.example.com/path?existing=param',
-        hubName: 'geolocationHub', // This should match REALTIME_GEO_HUB_NAME from env
+        hubName: 'geolocationHub',
         methods: ['onPersonnelLocationUpdated'],
       };
 
       await signalRService.connectToHubWithEventingUrl(geoConfig);
 
-      // Should append the hub to the path and merge access_token with existing query parameters
+      // Hub appended to path, existing query string preserved, no access_token added
       expect(mockBuilderInstance.withUrl).toHaveBeenCalledWith(
-        'https://api.example.com/path/geolocationHub?existing=param&access_token=mock-token',
-        {}
+        'https://api.example.com/path/geolocationHub?existing=param',
+        expect.objectContaining({
+          accessTokenFactory: expect.any(Function),
+        })
       );
     });
 
@@ -844,18 +861,20 @@ describe('SignalRService', () => {
       // Remove the connection to simulate it being closed
       (signalRService as any).connections.delete(mockConfig.name);
       
-      // Simulate multiple failed reconnection attempts
-      for (let i = 0; i < 6; i++) {
-        onCloseCallback();
-        jest.advanceTimersByTime(5000);
-        await jest.runAllTicks();
-        // Simulate each attempt failing by removing the connection
-        (signalRService as any).connections.delete(mockConfig.name);
-      }
+      // Trigger the initial close — schedules attempt 1
+      onCloseCallback();
+      
+      // Each failed attempt now reschedules automatically (retry-until-cap).
+      // One large advance covers the full linear backoff schedule
+      // (5s, 10s, ..., 50s — sum is 275s).
+      await jest.advanceTimersByTimeAsync(600000);
+      
+      // Should have retried 10 times before giving up
+      expect(connectSpy).toHaveBeenCalledTimes(10);
       
       // Should log max attempts reached error
       expect(mockLogger.error).toHaveBeenCalledWith({
-        message: `Max reconnection attempts (5) reached for hub: ${mockConfig.name}`,
+        message: `Max reconnection attempts (10) reached for hub: ${mockConfig.name}`,
       });
       
       jest.useRealTimers();
@@ -903,22 +922,65 @@ describe('SignalRService', () => {
       onCloseCallback();
       
       // Fast-forward time to trigger the setTimeout callback
-      jest.advanceTimersByTime(5000);
-      
-      // Wait for all promises to resolve
-      await jest.runAllTicks();
+      await jest.advanceTimersByTimeAsync(5000);
       
       // Should have attempted to refresh token
       expect(mockRefreshAccessToken).toHaveBeenCalled();
       
-      // Should have logged the failure
+      // Should have logged the failure and rescheduled (retry-until-cap semantics)
       expect(mockLogger.error).toHaveBeenCalledWith({
-        message: `Failed to refresh token or reconnect to hub: ${mockConfig.name}`,
-        context: { error: expect.any(Error), attempts: 1, maxAttempts: 5 },
+        message: `Reconnection attempt 1/10 failed for hub: ${mockConfig.name}`,
+        context: { error: expect.any(Error) },
       });
       
       // Should NOT have called connectToHubWithEventingUrl due to token refresh failure
       expect(connectSpy).not.toHaveBeenCalled();
+      
+      // A retry should have been scheduled (attempt counter advanced)
+      expect((signalRService as any).reconnectAttempts.get(mockConfig.name)).toBe(2);
+      
+      jest.useRealTimers();
+      connectSpy.mockRestore();
+    });
+
+    it('should abort reconnection and clean up when no token remains after refresh', async () => {
+      jest.useFakeTimers();
+      
+      // Refresh succeeds but yields no access token (logged out)
+      mockRefreshAccessToken.mockImplementation(async () => {
+        mockGetState.mockReturnValue({
+          accessToken: null,
+          refreshAccessToken: mockRefreshAccessToken,
+        });
+      });
+      
+      // Connect to hub
+      await signalRService.connectToHubWithEventingUrl(mockConfig);
+      
+      const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+      
+      const connectSpy = jest.spyOn(signalRService, 'connectToHubWithEventingUrl');
+      connectSpy.mockResolvedValue();
+      
+      // Remove the connection to simulate it being closed
+      (signalRService as any).connections.delete(mockConfig.name);
+      
+      // Trigger connection close
+      onCloseCallback();
+      
+      await jest.advanceTimersByTimeAsync(5000);
+      
+      // Should abort with a warn log
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: `No valid authentication token after refresh, aborting reconnect for hub: ${mockConfig.name}`,
+      });
+      
+      // Should NOT attempt to reconnect
+      expect(connectSpy).not.toHaveBeenCalled();
+      
+      // Hub config and attempts should be cleaned up — no further retries
+      expect((signalRService as any).hubConfigs.has(mockConfig.name)).toBe(false);
+      expect((signalRService as any).reconnectAttempts.has(mockConfig.name)).toBe(false);
       
       jest.useRealTimers();
       connectSpy.mockRestore();

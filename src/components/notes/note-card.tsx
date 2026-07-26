@@ -14,7 +14,7 @@ interface NoteCardProps {
   onPress: (id: string) => void;
 }
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
+export const NoteCard: React.FC<NoteCardProps> = React.memo(({ note, onPress }) => {
   return (
     <Pressable onPress={() => onPress(note.NoteId)}>
       <Box className="mb-3 rounded-lg bg-white p-4 shadow-sm dark:bg-gray-800">
@@ -35,4 +35,4 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, onPress }) => {
       </Box>
     </Pressable>
   );
-};
+});

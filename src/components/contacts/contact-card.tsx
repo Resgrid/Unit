@@ -10,7 +10,7 @@ interface ContactCardProps {
   onPress: (id: string) => void;
 }
 
-export const ContactCard: React.FC<ContactCardProps> = ({ contact, onPress }) => {
+export const ContactCard: React.FC<ContactCardProps> = React.memo(({ contact, onPress }) => {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -67,4 +67,4 @@ export const ContactCard: React.FC<ContactCardProps> = ({ contact, onPress }) =>
       </View>
     </Pressable>
   );
-};
+});

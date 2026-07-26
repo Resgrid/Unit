@@ -1,16 +1,16 @@
-import { format } from 'date-fns';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ClipboardListIcon, ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-tab-content';
 import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { IncidentCommandTabPanel } from '@/components/incident-command/incident-command-tab-panel';
+import { FullScreenMap } from '@/components/maps/full-screen-map';
 // Import a static map component instead of react-native-maps
 import StaticMap from '@/components/maps/static-map';
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
@@ -26,6 +26,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
+import { parseApiUtcDate, safeFormatDate } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
@@ -74,6 +75,7 @@ export default function CallDetail() {
   const [isCloseCallModalOpen, setIsCloseCallModalOpen] = useState(false);
   const [isSettingActive, setIsSettingActive] = useState(false);
   const [mapTarget, setMapTarget] = useState<'call' | 'destination'>('call');
+  const [isFullScreenMapOpen, setIsFullScreenMapOpen] = useState(false);
   const showToast = useToastStore((state) => state.showToast);
   const timerStatuses = useCheckInTimerStore((state) => state.timerStatuses);
   const startPolling = useCheckInTimerStore((state) => state.startPolling);
@@ -118,6 +120,14 @@ export default function CallDetail() {
 
   const handleShowDestinationOnMap = useCallback(() => {
     setMapTarget('destination');
+  }, []);
+
+  const handleOpenFullScreenMap = useCallback(() => {
+    setIsFullScreenMapOpen(true);
+  }, []);
+
+  const handleCloseFullScreenMap = useCallback(() => {
+    setIsFullScreenMapOpen(false);
   }, []);
 
   const handleSetActive = async () => {
@@ -353,7 +363,7 @@ export default function CallDetail() {
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.timestamp')}</Text>
-                <Text className="font-medium">{format(new Date(call.LoggedOn), 'MMM d, h:mm a')}</Text>
+                <Text className="font-medium">{safeFormatDate(parseApiUtcDate(call.LoggedOnUtc) ?? call.LoggedOn, 'MMM d, h:mm a')}</Text>
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.type')}</Text>
@@ -534,6 +544,7 @@ export default function CallDetail() {
   const mapLatitude = showingDestination ? destinationLatitude : coordinates.latitude;
   const mapLongitude = showingDestination ? destinationLongitude : coordinates.longitude;
   const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : call.Address;
+  const mapTitle = showingDestination ? call.DestinationName || t('call_detail.destination') : call.Name || t('call_detail.call_location');
 
   return (
     <>
@@ -569,22 +580,27 @@ export default function CallDetail() {
 
         {/* Map - only show when valid coordinates exist */}
         {mapLatitude !== null && mapLongitude !== null ? (
-          <Box className="w-full">
-            <StaticMap latitude={mapLatitude} longitude={mapLongitude} address={mapAddress} zoom={15} height={200} showUserLocation={true} />
-            {/* Toggle the map between the call (dispatch) location and the destination POI */}
-            {hasDestinationCoordinates ? (
-              <HStack className="w-full">
-                <Button onPress={handleShowCallOnMap} variant={showingDestination ? 'outline' : 'solid'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-call">
-                  <ButtonIcon as={MapPinIcon} />
-                  <ButtonText className="text-xs">{t('call_detail.call_location')}</ButtonText>
-                </Button>
-                <Button onPress={handleShowDestinationOnMap} variant={showingDestination ? 'solid' : 'outline'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-destination">
-                  <ButtonIcon as={NavigationIcon} />
-                  <ButtonText className="text-xs">{t('call_detail.destination')}</ButtonText>
-                </Button>
-              </HStack>
-            ) : null}
-          </Box>
+          <>
+            <Box className="w-full">
+              <Pressable onPress={handleOpenFullScreenMap} accessibilityRole="button" accessibilityLabel={t('calls.view_on_map')} accessibilityHint={t('accessibility.action.address')} testID="call-detail-static-map">
+                <StaticMap latitude={mapLatitude} longitude={mapLongitude} address={mapAddress} zoom={15} height={200} showUserLocation={true} />
+              </Pressable>
+              {/* Toggle the map between the call (dispatch) location and the destination POI */}
+              {hasDestinationCoordinates ? (
+                <HStack className="w-full">
+                  <Button onPress={handleShowCallOnMap} variant={showingDestination ? 'outline' : 'solid'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-call">
+                    <ButtonIcon as={MapPinIcon} />
+                    <ButtonText className="text-xs">{t('call_detail.call_location')}</ButtonText>
+                  </Button>
+                  <Button onPress={handleShowDestinationOnMap} variant={showingDestination ? 'solid' : 'outline'} size="sm" className="flex-1 rounded-none" testID="call-detail-map-toggle-destination">
+                    <ButtonIcon as={NavigationIcon} />
+                    <ButtonText className="text-xs">{t('call_detail.destination')}</ButtonText>
+                  </Button>
+                </HStack>
+              ) : null}
+            </Box>
+            <FullScreenMap isOpen={isFullScreenMapOpen} latitude={mapLatitude} longitude={mapLongitude} title={mapTitle} address={mapAddress} onClose={handleCloseFullScreenMap} />
+          </>
         ) : null}
 
         {/* Action Buttons */}

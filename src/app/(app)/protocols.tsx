@@ -13,6 +13,7 @@ import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { Input } from '@/components/ui/input';
 import { InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { getProtocolKey } from '@/lib/protocol-utils';
 import { useProtocolsStore } from '@/stores/protocols/store';
 
 export default function Protocols() {
@@ -58,6 +59,8 @@ export default function Protocols() {
     return protocols.filter((protocol) => protocol.Name.toLowerCase().includes(query) || protocol.Description?.toLowerCase().includes(query) || protocol.Code?.toLowerCase().includes(query));
   }, [protocols, searchQuery]);
 
+  const renderProtocol = React.useCallback(({ item }: { item: (typeof filteredProtocols)[number] }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />, [handleProtocolPress]);
+
   return (
     <>
       <View className="flex-1 bg-gray-50 dark:bg-gray-900">
@@ -81,8 +84,8 @@ export default function Protocols() {
             <FlatList
               testID="protocols-list"
               data={filteredProtocols}
-              keyExtractor={(item, index) => item.ProtocolId || `protocol-${index}`}
-              renderItem={({ item }) => <ProtocolCard protocol={item} onPress={handleProtocolPress} />}
+              keyExtractor={getProtocolKey}
+              renderItem={renderProtocol}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ paddingBottom: 100 }}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}

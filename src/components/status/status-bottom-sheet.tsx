@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { logger } from '@/lib/logging';
 import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { invertColor } from '@/lib/utils';
 import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
@@ -130,13 +131,10 @@ export const StatusBottomSheet = () => {
   const activeStatuses = useCoreStore((state) => state.activeStatuses);
   const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
   const saveUnitStatus = useStatusesStore((state) => state.saveUnitStatus);
-  const latitude = useLocationStore((state) => state.latitude);
-  const longitude = useLocationStore((state) => state.longitude);
-  const heading = useLocationStore((state) => state.heading);
-  const accuracy = useLocationStore((state) => state.accuracy);
-  const speed = useLocationStore((state) => state.speed);
-  const altitude = useLocationStore((state) => state.altitude);
-  const timestamp = useLocationStore((state) => state.timestamp);
+  // NOTE: location is read via useLocationStore.getState() inside handleSubmit
+  // instead of subscribing — this sheet is mounted at the root and subscribing
+  // here re-rendered the whole 900-line component on every GPS fix, even when
+  // the sheet is closed.
 
   const poiTypesById = React.useMemo(() => createPoiTypeMap(availablePoiTypes), [availablePoiTypes]);
 
@@ -410,6 +408,9 @@ export const StatusBottomSheet = () => {
         input.RespondingToType = DestinationEntityTypes.Poi;
       }
 
+      // Read the latest GPS fix imperatively (no render subscription)
+      const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore.getState();
+
       if (latitude !== null && longitude !== null) {
         input.Latitude = latitude.toString();
         input.Longitude = longitude.toString();
@@ -441,21 +442,19 @@ export const StatusBottomSheet = () => {
       showToast('success', t('status.status_saved_successfully'));
       reset();
     } catch (error) {
-      console.error('Failed to save unit status:', error);
+      logger.error({
+        message: 'Failed to save unit status',
+        context: { error },
+      });
       showToast('error', t('status.failed_to_save_status'));
     } finally {
       setIsSubmitting(false);
     }
   }, [
-    accuracy,
     activeCallId,
     activeUnit,
-    altitude,
     getStatusId,
-    heading,
     isSubmitting,
-    latitude,
-    longitude,
     note,
     reset,
     saveUnitStatus,
@@ -466,9 +465,7 @@ export const StatusBottomSheet = () => {
     selectedStatus,
     setActiveCall,
     showToast,
-    speed,
     t,
-    timestamp,
     unitRoleAssignments,
   ]);
 

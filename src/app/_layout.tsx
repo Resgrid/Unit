@@ -1,6 +1,9 @@
 // Import  global CSS file
 import '../../global.css';
 import '../lib/i18n';
+// Side-effect import: registers the full app-data wipe as the session-cleanup
+// handler for every logout path (manual, forced 401, refresh rejection).
+import '@/services/app-reset.service';
 
 import { Env } from '@env';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';

@@ -431,4 +431,4 @@ describe('Protocols Page', () => {
       expect(screen.getByTestId('protocol-card-3')).toBeTruthy();
     });
   });
-}); 
+});

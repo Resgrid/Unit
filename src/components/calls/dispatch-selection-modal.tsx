@@ -21,13 +21,41 @@ interface DispatchSelectionModalProps {
   initialSelection?: DispatchSelection;
 }
 
+const nameIncludesQuery = (name: string | null | undefined, query: string): boolean => name?.toLowerCase().includes(query) ?? false;
+
 export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ isVisible, onClose, onConfirm, initialSelection }) => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
-  const { data, selection, isLoading, error, searchQuery, fetchDispatchData, setSelection, toggleEveryone, toggleUser, toggleGroup, toggleRole, toggleUnit, setSearchQuery, clearSelection, getFilteredData } =
-    useDispatchStore();
+  // Selective subscriptions — a whole-store subscription re-rendered the
+  // entire modal (incl. every recipient card) on each search keystroke.
+  const data = useDispatchStore((state) => state.data);
+  const selection = useDispatchStore((state) => state.selection);
+  const isLoading = useDispatchStore((state) => state.isLoading);
+  const error = useDispatchStore((state) => state.error);
+  const searchQuery = useDispatchStore((state) => state.searchQuery);
+  const fetchDispatchData = useDispatchStore((state) => state.fetchDispatchData);
+  const setSelection = useDispatchStore((state) => state.setSelection);
+  const toggleEveryone = useDispatchStore((state) => state.toggleEveryone);
+  const toggleUser = useDispatchStore((state) => state.toggleUser);
+  const toggleGroup = useDispatchStore((state) => state.toggleGroup);
+  const toggleRole = useDispatchStore((state) => state.toggleRole);
+  const toggleUnit = useDispatchStore((state) => state.toggleUnit);
+  const setSearchQuery = useDispatchStore((state) => state.setSearchQuery);
+  const clearSelection = useDispatchStore((state) => state.clearSelection);
 
-  const filteredData = getFilteredData();
+  // Memoized filtering instead of recomputing getFilteredData() every render
+  const filteredData = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return data;
+    }
+    const query = searchQuery.toLowerCase();
+    return {
+      users: data.users.filter((user) => nameIncludesQuery(user.Name, query)),
+      groups: data.groups.filter((group) => nameIncludesQuery(group.Name, query)),
+      roles: data.roles.filter((role) => nameIncludesQuery(role.Name, query)),
+      units: data.units.filter((unit) => nameIncludesQuery(unit.Name, query)),
+    };
+  }, [data, searchQuery]);
 
   useEffect(() => {
     if (isVisible) {

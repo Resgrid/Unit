@@ -27,6 +27,7 @@ import { UnitTypeStatusesResult } from '@/models/v4/statuses/unitTypeStatusesRes
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
+import { isNetworkError } from '@/utils/network';
 
 import { useStatusBottomSheetStore, useStatusesStore } from '../store';
 
@@ -67,6 +68,9 @@ jest.mock('@/services/offline-event-manager.service', () => ({
     queueUnitStatusEvent: jest.fn(),
   },
 }));
+jest.mock('@/utils/network', () => ({
+  isNetworkError: jest.fn(),
+}));
 jest.mock('@/lib/logging', () => ({
   logger: {
     info: jest.fn(),
@@ -79,6 +83,7 @@ const mockGetSetUnitStatusData = getSetUnitStatusData as jest.MockedFunction<typ
 const mockSaveUnitStatus = saveUnitStatus as jest.MockedFunction<typeof saveUnitStatus>;
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockOfflineEventManager = offlineEventManager as jest.Mocked<typeof offlineEventManager>;
+const mockIsNetworkError = isNetworkError as jest.MockedFunction<typeof isNetworkError>;
 
 describe('StatusBottomSheetStore', () => {
   beforeEach(() => {
@@ -259,7 +264,10 @@ describe('StatusesStore', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
+    // Default: failures are network errors so offline queueing kicks in
+    mockIsNetworkError.mockReturnValue(true);
+
     // Mock the zustand store pattern
     const mockStore = {
       activeUnit: mockActiveUnit,
@@ -302,7 +310,7 @@ describe('StatusesStore', () => {
     expect(result.current.error).toBe(null);
   });
 
-  it('should queue unit status event when direct save fails', async () => {
+  it('should queue unit status event when direct save fails due to a network error', async () => {
     const { result } = renderHook(() => useStatusesStore());
 
     mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
@@ -368,6 +376,30 @@ describe('StatusesStore', () => {
     expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('unit1');
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
+  });
+
+  it('should not queue and should rethrow when the server rejects the save', async () => {
+    const { result } = renderHook(() => useStatusesStore());
+
+    const serverError = new Error('Request failed with status code 400');
+    mockSaveUnitStatus.mockRejectedValue(serverError);
+    mockIsNetworkError.mockReturnValue(false);
+    mockUseCoreStore.mockReturnValue({
+      activeUnit: { UnitId: 'unit1' },
+      setActiveUnitWithFetch: jest.fn(),
+    } as any);
+
+    const input = new SaveUnitStatusInput();
+    input.Id = 'unit1';
+    input.Type = '1';
+
+    await act(async () => {
+      await expect(result.current.saveUnitStatus(input)).rejects.toThrow('Request failed with status code 400');
+    });
+
+    expect(mockOfflineEventManager.queueUnitStatusEvent).not.toHaveBeenCalled();
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe('Failed to save unit status');
   });
 
   it('should handle input without roles when queueing', async () => {

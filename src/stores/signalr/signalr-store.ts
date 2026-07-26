@@ -3,10 +3,10 @@ import { create } from 'zustand';
 import { useAuthStore } from '@/lib';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
-import { signalRService } from '@/services/signalr.service';
+import { SignalRService, signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
-import { securityStore, useSecurityStore } from '../security/store';
+import { securityStore } from '../security/store';
 import { useWeatherAlertsStore } from '../weather-alerts/store';
 
 /** Minimal shape of the SignalR weather alert payload. The server sends
@@ -25,10 +25,32 @@ function extractAlertId(message: unknown): string | undefined {
   return undefined;
 }
 
+/** Update-hub events that carry a per-event timestamp for targeted refetches. */
+export const UPDATE_HUB_EVENTS = [
+  'personnelStatusUpdated',
+  'personnelStaffingUpdated',
+  'unitStatusUpdated',
+  'callsUpdated',
+  'callAdded',
+  'callClosed',
+  'weatherAlertReceived',
+  'weatherAlertUpdated',
+  'weatherAlertExpired',
+] as const;
+
+export type UpdateHubEvent = (typeof UPDATE_HUB_EVENTS)[number];
+
 interface SignalRState {
   isUpdateHubConnected: boolean;
+  /** @deprecated Kept for backward compatibility — mirrors the latest update-hub message. */
   lastUpdateMessage: unknown;
+  /** @deprecated Kept for backward compatibility — mirrors the latest update-hub timestamp. */
   lastUpdateTimestamp: number;
+  /** Per-event timestamps — consumers should subscribe to the events they care about. */
+  lastUpdateTimestamps: Record<string, number>;
+  /** Raw payload of the latest unitStatusUpdated message (no JSON round-trip). */
+  lastUnitStatusMessage: unknown;
+  lastUnitStatusTimestamp: number;
   isGeolocationHubConnected: boolean;
   lastGeolocationMessage: unknown;
   lastGeolocationTimestamp: number;
@@ -39,10 +61,30 @@ interface SignalRState {
   disconnectGeolocationHub: () => Promise<void>;
 }
 
+/** Join the department group on the update hub. Group membership is per-
+ *  connectionId, so this must run after every (re)connect. */
+const joinDepartmentGroup = async (): Promise<void> => {
+  const rawDepartmentId = securityStore.getState().rights?.DepartmentId;
+  const departmentId = parseInt(rawDepartmentId ?? '', 10);
+
+  if (!Number.isFinite(departmentId) || departmentId <= 0) {
+    logger.error({
+      message: 'Cannot join SignalR department group: invalid or missing DepartmentId',
+      context: { rawDepartmentId },
+    });
+    return;
+  }
+
+  await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', departmentId);
+};
+
 export const useSignalRStore = create<SignalRState>((set, get) => ({
   isUpdateHubConnected: false,
   lastUpdateMessage: null,
   lastUpdateTimestamp: 0,
+  lastUpdateTimestamps: {},
+  lastUnitStatusMessage: null,
+  lastUnitStatusTimestamp: 0,
   isGeolocationHubConnected: false,
   lastGeolocationMessage: null,
   lastGeolocationTimestamp: 0,
@@ -69,19 +111,12 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       }
 
       // Remove any previously registered handlers to prevent accumulation
-      // across reconnections or repeated connectUpdateHub calls
-      const updateEvents = [
-        'personnelStatusUpdated',
-        'personnelStaffingUpdated',
-        'unitStatusUpdated',
-        'callsUpdated',
-        'callAdded',
-        'callClosed',
-        'weatherAlertReceived',
-        'weatherAlertUpdated',
-        'weatherAlertExpired',
-        'onConnected',
-      ];
+      // across reconnections or repeated connectUpdateHub calls. Lifecycle
+      // events use hub-scoped names so this never wipes the geo hub's listeners.
+      const updateHubDisconnected = `${SignalRService.HUB_DISCONNECTED_EVENT}:${Env.CHANNEL_HUB_NAME}`;
+      const updateHubReconnecting = `${SignalRService.HUB_RECONNECTING_EVENT}:${Env.CHANNEL_HUB_NAME}`;
+      const updateHubReconnected = `${SignalRService.HUB_RECONNECTED_EVENT}:${Env.CHANNEL_HUB_NAME}`;
+      const updateEvents = [...UPDATE_HUB_EVENTS, 'onConnected', updateHubDisconnected, updateHubReconnecting, updateHubReconnected];
       updateEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Connect to the eventing hub
@@ -89,49 +124,82 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         name: Env.CHANNEL_HUB_NAME,
         eventingUrl: eventingUrl,
         hubName: Env.CHANNEL_HUB_NAME,
-        methods: [
-          'personnelStatusUpdated',
-          'personnelStaffingUpdated',
-          'unitStatusUpdated',
-          'callsUpdated',
-          'callAdded',
-          'callClosed',
-          'weatherAlertReceived',
-          'weatherAlertUpdated',
-          'weatherAlertExpired',
-          'onConnected',
-        ],
+        methods: [...UPDATE_HUB_EVENTS, 'onConnected'],
       });
 
-      await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', parseInt(securityStore.getState().rights?.DepartmentId ?? '0'));
+      await joinDepartmentGroup();
 
-      signalRService.on('personnelStatusUpdated', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+      // Connection lifecycle: clear the connected flag when the hub drops so
+      // connectUpdateHub() can recover, and re-join the department group +
+      // trigger a full state resync after every reconnect (group membership
+      // is per-connectionId and events are missed while disconnected).
+      signalRService.on(updateHubDisconnected, () => {
+        set({ isUpdateHubConnected: false });
       });
 
-      signalRService.on('personnelStaffingUpdated', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+      signalRService.on(updateHubReconnecting, () => {
+        set({ isUpdateHubConnected: false });
       });
 
-      signalRService.on('unitStatusUpdated', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+      signalRService.on(updateHubReconnected, () => {
+        void (async () => {
+          try {
+            await joinDepartmentGroup();
+            set({ isUpdateHubConnected: true, error: null });
+
+            // Bump every event timestamp so subscribed hooks refetch their
+            // data — events were missed while the connection was down.
+            const now = Date.now();
+            const timestamps: Record<string, number> = {};
+            UPDATE_HUB_EVENTS.forEach((event) => {
+              timestamps[event] = now;
+            });
+            set({ lastUpdateTimestamps: timestamps, lastUpdateTimestamp: now });
+
+            logger.info({
+              message: 'Re-joined department group and triggered state resync after SignalR reconnect',
+            });
+          } catch (error) {
+            logger.error({
+              message: 'Failed to re-join department group after SignalR reconnect',
+              context: { error },
+            });
+          }
+        })();
       });
 
-      signalRService.on('callsUpdated', (message) => {
+      // One handler per event: record a per-event timestamp (no JSON.stringify
+      // on the hot path) and keep the deprecated aggregate fields in sync for
+      // legacy consumers.
+      const recordEvent = (event: UpdateHubEvent) => (message: unknown) => {
         const now = Date.now();
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: now });
-      });
+        set((state) => ({
+          lastUpdateMessage: message,
+          lastUpdateTimestamp: now,
+          lastUpdateTimestamps: { ...state.lastUpdateTimestamps, [event]: now },
+        }));
+      };
 
-      signalRService.on('callAdded', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
-      });
+      signalRService.on('personnelStatusUpdated', recordEvent('personnelStatusUpdated'));
+      signalRService.on('personnelStaffingUpdated', recordEvent('personnelStaffingUpdated'));
+      signalRService.on('callsUpdated', recordEvent('callsUpdated'));
+      signalRService.on('callAdded', recordEvent('callAdded'));
+      signalRService.on('callClosed', recordEvent('callClosed'));
 
-      signalRService.on('callClosed', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+      // unitStatusUpdated additionally keeps its raw payload for the status hook
+      signalRService.on('unitStatusUpdated', (message) => {
+        const now = Date.now();
+        set((state) => ({
+          lastUpdateMessage: message,
+          lastUpdateTimestamp: now,
+          lastUpdateTimestamps: { ...state.lastUpdateTimestamps, unitStatusUpdated: now },
+          lastUnitStatusMessage: message,
+          lastUnitStatusTimestamp: now,
+        }));
       });
 
       signalRService.on('weatherAlertReceived', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        recordEvent('weatherAlertReceived')(message);
         const alertId = extractAlertId(message);
         if (alertId) {
           useWeatherAlertsStore.getState().handleAlertReceived(alertId);
@@ -141,7 +209,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       });
 
       signalRService.on('weatherAlertUpdated', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        recordEvent('weatherAlertUpdated')(message);
         const alertId = extractAlertId(message);
         if (alertId) {
           useWeatherAlertsStore.getState().handleAlertUpdated(alertId);
@@ -151,7 +219,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       });
 
       signalRService.on('weatherAlertExpired', (message) => {
-        set({ lastUpdateMessage: JSON.stringify(message), lastUpdateTimestamp: Date.now() });
+        recordEvent('weatherAlertExpired')(message);
         const alertId = extractAlertId(message);
         if (alertId) {
           useWeatherAlertsStore.getState().handleAlertExpired(alertId);
@@ -210,7 +278,8 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       }
 
       // Remove any previously registered handlers to prevent accumulation
-      const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'];
+      const geoHubDisconnected = `${SignalRService.HUB_DISCONNECTED_EVENT}:${Env.REALTIME_GEO_HUB_NAME}`;
+      const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect', geoHubDisconnected];
       geoEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Connect to the geolocation hub
@@ -221,13 +290,16 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         methods: ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'],
       });
 
-      // Set up message handler
-      signalRService.on('onPersonnelLocationUpdated', (message) => {
-        set({ lastGeolocationMessage: JSON.stringify(message), lastGeolocationTimestamp: Date.now() });
-      });
+      // NOTE: no per-message store writes here. Geolocation messages fire per
+      // unit per location cycle and nothing in the app consumes them — writing
+      // them to the store (previously JSON.stringify'd on every message) was
+      // pure CPU/render churn. Register no-op listeners so the hub methods stay
+      // subscribed without store updates.
+      signalRService.on('onPersonnelLocationUpdated', () => {});
+      signalRService.on('onUnitLocationUpdated', () => {});
 
-      signalRService.on('onUnitLocationUpdated', (message) => {
-        set({ lastGeolocationMessage: JSON.stringify(message), lastGeolocationTimestamp: Date.now() });
+      signalRService.on(geoHubDisconnected, () => {
+        set({ isGeolocationHubConnected: false });
       });
 
       signalRService.on('onGeolocationConnect', () => {

@@ -8,16 +8,17 @@ import { logger } from '@/lib/logging';
 import { isWeb } from '@/lib/platform';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
+import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import { isNetworkError } from '@/utils/network';
 
 const LOCATION_TASK_NAME = 'location-updates';
 
 // Helper function to send location to API
 const sendLocationToAPI = async (location: Location.LocationObject): Promise<void> => {
+  const { activeUnitId } = useCoreStore.getState();
   try {
-    const { activeUnitId } = useCoreStore.getState();
-
     if (!activeUnitId) {
       logger.warn({
         message: 'No active unit selected, skipping location API call',
@@ -56,6 +57,27 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
         longitude: location.coords.longitude,
       },
     });
+
+    // Queue the position for offline replay on genuine network failures so the
+    // unit's location on the server does not silently go stale. Server
+    // rejections (4xx) are NOT queued — replaying them would fail forever.
+    if (isNetworkError(error) && activeUnitId) {
+      try {
+        offlineEventManager.queueLocationUpdateEvent(
+          activeUnitId,
+          location.coords.latitude,
+          location.coords.longitude,
+          location.coords.accuracy ?? undefined,
+          location.coords.heading ?? undefined,
+          location.coords.speed ?? undefined
+        );
+      } catch (queueError) {
+        logger.warn({
+          message: 'Failed to queue location update for offline replay',
+          context: { error: queueError },
+        });
+      }
+    }
   }
 };
 

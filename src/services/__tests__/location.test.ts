@@ -16,6 +16,16 @@ jest.mock('@/lib/storage/background-geolocation', () => ({
   loadBackgroundGeolocationState: jest.fn(),
 }));
 
+jest.mock('@/services/offline-event-manager.service', () => ({
+  offlineEventManager: {
+    queueLocationUpdateEvent: jest.fn(),
+  },
+}));
+
+jest.mock('@/utils/network', () => ({
+  isNetworkError: jest.fn(),
+}));
+
 // Create mock store states
 const mockCoreStoreState = {
   activeUnitId: 'unit-123' as string | null,
@@ -88,6 +98,8 @@ import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolo
 import { logger } from '@/lib/logging';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
+import { offlineEventManager } from '@/services/offline-event-manager.service';
+import { isNetworkError } from '@/utils/network';
 
 // Import the service after mocks are set up
 let locationService: any;
@@ -97,6 +109,8 @@ const mockSetUnitLocation = setUnitLocation as jest.MockedFunction<typeof setUni
 const mockRegisterLocationServiceUpdater = registerLocationServiceUpdater as jest.MockedFunction<typeof registerLocationServiceUpdater>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockLoadBackgroundGeolocationState = loadBackgroundGeolocationState as jest.MockedFunction<typeof loadBackgroundGeolocationState>;
+const mockIsNetworkError = isNetworkError as jest.MockedFunction<typeof isNetworkError>;
+const mockQueueLocationUpdateEvent = offlineEventManager.queueLocationUpdateEvent as jest.Mock;
 const mockTaskManager = TaskManager as jest.Mocked<typeof TaskManager>;
 const mockAppState = AppState as jest.Mocked<typeof AppState>;
 const mockLocation = Location as jest.Mocked<typeof Location>;
@@ -185,6 +199,9 @@ describe('LocationService', () => {
 
     // Setup API mock
     mockSetUnitLocation.mockResolvedValue(mockApiResponse);
+
+    // Default: errors are not network errors (no offline queueing)
+    mockIsNetworkError.mockReturnValue(false);
 
     // Reset core store state
     mockCoreStoreState.activeUnitId = 'unit-123';
@@ -569,6 +586,62 @@ describe('LocationService', () => {
           longitude: mockLocationObject.coords.longitude,
         },
       });
+    });
+
+    it('should queue location update for offline replay on network errors', async () => {
+      const networkError = new Error('Network Error');
+      mockSetUnitLocation.mockRejectedValue(networkError);
+      mockIsNetworkError.mockReturnValue(true);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Failed to send location to API',
+        context: {
+          error: 'Network Error',
+          latitude: mockLocationObject.coords.latitude,
+          longitude: mockLocationObject.coords.longitude,
+        },
+      });
+
+      expect(mockQueueLocationUpdateEvent).toHaveBeenCalledWith(
+        'unit-123',
+        mockLocationObject.coords.latitude,
+        mockLocationObject.coords.longitude,
+        mockLocationObject.coords.accuracy,
+        mockLocationObject.coords.heading,
+        mockLocationObject.coords.speed
+      );
+    });
+
+    it('should not queue location update for non-network errors', async () => {
+      const serverError = new Error('Server rejected');
+      mockSetUnitLocation.mockRejectedValue(serverError);
+      mockIsNetworkError.mockReturnValue(false);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockQueueLocationUpdateEvent).not.toHaveBeenCalled();
+    });
+
+    it('should not queue location update on network error when no active unit', async () => {
+      mockCoreStoreState.activeUnitId = null;
+      const networkError = new Error('Network Error');
+      mockSetUnitLocation.mockRejectedValue(networkError);
+      mockIsNetworkError.mockReturnValue(true);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(mockLocationObject);
+
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+      expect(mockQueueLocationUpdateEvent).not.toHaveBeenCalled();
+
+      mockCoreStoreState.activeUnitId = 'unit-123';
     });
 
     it('should log successful API calls', async () => {

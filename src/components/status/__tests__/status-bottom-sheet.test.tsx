@@ -197,8 +197,19 @@ jest.mock('@/stores/app/core-store', () => {
   return { useCoreStore: mockStore };
 });
 
-jest.mock('@/stores/app/location-store', () => ({
-  useLocationStore: jest.fn(),
+jest.mock('@/stores/app/location-store', () => {
+  const mockStore: any = jest.fn();
+  mockStore.getState = jest.fn();
+  return { useLocationStore: mockStore };
+});
+
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 jest.mock('@/stores/roles/store', () => ({
@@ -411,21 +422,25 @@ describe('StatusBottomSheet', () => {
       return defaultRolesStore;
     });
 
+    const defaultLocationState = {
+      latitude: 37.7749,
+      longitude: -122.4194,
+      heading: 0,
+      accuracy: 10,
+      speed: 0,
+      altitude: 0,
+      timestamp: Date.now(),
+    };
+
     mockUseLocationStore.mockImplementation((selector: any) => {
-      const store = {
-        latitude: 37.7749,
-        longitude: -122.4194,
-        heading: 0,
-        accuracy: 10,
-        speed: 0,
-        altitude: 0,
-        timestamp: Date.now(),
-      };
       if (selector) {
-        return selector(store);
+        return selector(defaultLocationState);
       }
-      return store;
+      return defaultLocationState;
     });
+
+    // handleSubmit reads location imperatively via useLocationStore.getState()
+    (mockUseLocationStore as any).getState.mockReturnValue(defaultLocationState);
   });
 
   it('should be importable without error', () => {

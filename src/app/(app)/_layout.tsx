@@ -23,6 +23,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
 import { useAuthStore } from '@/lib/auth';
+import { cacheManager } from '@/lib/cache/cache-manager';
 import { logger } from '@/lib/logging';
 import { useIsFirstTime } from '@/lib/storage';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
@@ -157,22 +158,32 @@ export default function TabLayout() {
     });
 
     try {
-      // Initialize core app data (init() calls fetchConfig() internally)
+      // Initialize core app data first (init() calls fetchConfig() internally) —
+      // config is required for SignalR hub URLs.
       await useCoreStore.getState().init();
-      await useRolesStore.getState().init();
-      await useCallsStore.getState().init();
-      await useWeatherAlertsStore.getState().init();
-      await securityStore.getState().getRights();
 
-      await useSignalRStore.getState().connectUpdateHub();
-      await useSignalRStore.getState().connectGeolocationHub();
+      // These fetches are independent of each other — run in parallel to cut
+      // time-to-interactive (previously 8+ serial network hops).
+      await Promise.all([useRolesStore.getState().init(), useCallsStore.getState().init(), useWeatherAlertsStore.getState().init(), securityStore.getState().getRights()]);
+
+      // SignalR needs config (EventingUrl) and rights (DepartmentId) — both
+      // available now. The two hub connects are independent.
+      await Promise.all([useSignalRStore.getState().connectUpdateHub(), useSignalRStore.getState().connectGeolocationHub()]);
 
       hasInitialized.current = true;
 
-      // Initialize Bluetooth and Audio services (native-only)
+      // Evict expired/capped API cache entries once per cold start.
+      cacheManager.prune();
+
+      // Initialize Bluetooth and Audio services (native-only) — deferred so they
+      // don't block first paint behind the loading overlay.
       if (Platform.OS !== 'web') {
-        await bluetoothAudioService.initialize();
-        await audioService.initialize();
+        void Promise.all([bluetoothAudioService.initialize(), audioService.initialize()]).catch((error) => {
+          logger.warn({
+            message: 'Failed to initialize bluetooth/audio services',
+            context: { error },
+          });
+        });
       }
 
       logger.info({

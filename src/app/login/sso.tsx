@@ -46,7 +46,7 @@ export default function SsoLogin() {
     clientId: ssoConfig?.clientId ?? '',
   });
 
-  const { startSamlLogin, isSamlCallback } = useSamlLogin();
+  const { startSamlLogin, isSamlCallback, validateSamlCallback } = useSamlLogin();
 
   const {
     control,
@@ -97,8 +97,9 @@ export default function SsoLogin() {
   useEffect(() => {
     const subscription = Linking.addEventListener('url', async ({ url }: { url: string }) => {
       if (!isSamlCallback(url)) return;
-      const parsed = Linking.parse(url);
-      const samlResponse = parsed.queryParams?.saml_response as string | undefined;
+      // Validates the RelayState nonce — callbacks not belonging to a flow this
+      // app initiated (login CSRF) are rejected here.
+      const samlResponse = await validateSamlCallback(url);
       if (!samlResponse) {
         setIsSsoLoading(false);
         setIsErrorModalVisible(true);

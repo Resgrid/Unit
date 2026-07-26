@@ -1,9 +1,21 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 
+import { logger } from '@/lib/logging';
+import { subscribeToSharedTicker } from '@/lib/shared-ticker';
 import type { CheckInTimerStatusResultData } from '@/models/v4/checkIn/checkInTimerStatusResultData';
 
 import { CheckInTimerCard } from '../check-in-timer-card';
+
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}));
+
+jest.mock('@/lib/shared-ticker', () => ({
+  subscribeToSharedTicker: jest.fn(() => jest.fn()),
+}));
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -80,6 +92,10 @@ const createMockTimer = (overrides: Partial<CheckInTimerStatusResultData> = {}):
 });
 
 describe('CheckInTimerCard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('should render timer info', () => {
     const timer = createMockTimer();
     const onCheckIn = jest.fn();
@@ -110,6 +126,21 @@ describe('CheckInTimerCard', () => {
     const { queryByText, unmount } = render(<CheckInTimerCard timer={timer} onCheckIn={onCheckIn} showCheckInButton={false} />);
 
     expect(queryByText('check_in.perform_check_in')).toBeNull();
+    unmount();
+  });
+
+  it('should report shared ticker listener errors', () => {
+    const error = new Error('tick failed');
+    const { unmount } = render(<CheckInTimerCard timer={createMockTimer()} onCheckIn={jest.fn()} />);
+    const subscriptionOptions = jest.mocked(subscribeToSharedTicker).mock.calls[0][1];
+
+    subscriptionOptions.onError(error);
+
+    expect(logger.error).toHaveBeenCalledWith({
+      message: 'Shared check-in timer ticker listener failed',
+      operation: 'check_in_timer_tick',
+      context: { error },
+    });
     unmount();
   });
 

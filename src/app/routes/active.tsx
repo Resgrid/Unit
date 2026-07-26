@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Compass, LogOut, Navigation, SkipForward } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, AppState, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 
 import Mapbox from '@/components/maps/mapbox';
 import { RouteDeviationBanner } from '@/components/routes/route-deviation-banner';
@@ -147,6 +147,9 @@ export default function ActiveRouteScreen() {
   useEffect(() => {
     if (!resolvedInstanceId) return;
     const interval = setInterval(() => {
+      // Skip while backgrounded — Android keeps JS timers alive and polling
+      // would burn network/battery for a screen nobody is looking at.
+      if (AppState.currentState !== 'active') return;
       fetchRouteProgress(resolvedInstanceId);
       fetchStopsForInstance(resolvedInstanceId);
       fetchDeviations();

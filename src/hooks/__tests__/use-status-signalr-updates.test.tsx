@@ -1,39 +1,41 @@
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 
-import { getUnitStatus } from '@/api/units/unitStatuses';
+import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 
 import { useStatusSignalRUpdates } from '../use-status-signalr-updates';
 
 // Mock the dependencies
-jest.mock('@/api/units/unitStatuses');
+jest.mock('@/lib/logging');
 jest.mock('@/stores/app/core-store');
 jest.mock('@/stores/signalr/signalr-store');
 
-const mockGetUnitStatus = getUnitStatus as jest.MockedFunction<typeof getUnitStatus>;
+const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockUseCoreStore = useCoreStore as jest.MockedFunction<typeof useCoreStore>;
 const mockUseSignalRStore = useSignalRStore as jest.MockedFunction<typeof useSignalRStore>;
 
 describe('useStatusSignalRUpdates', () => {
-  const mockSetActiveUnitWithFetch = jest.fn();
+  const mockRefreshActiveUnitStatus = jest.fn();
   const mockCoreState = {
-    activeUnitId: '123',
-    setActiveUnitWithFetch: mockSetActiveUnitWithFetch,
+    activeUnitId: '123' as string | null,
+    refreshActiveUnitStatus: mockRefreshActiveUnitStatus,
   } as any;
   const mockSignalRState = {
-    lastUpdateTimestamp: 0,
-    lastUpdateMessage: null,
+    lastUnitStatusTimestamp: 0,
+    lastUnitStatusMessage: null as unknown,
   } as any;
 
   beforeEach(() => {
+    jest.useFakeTimers();
     jest.clearAllMocks();
 
     // Reset state to default values
     mockCoreState.activeUnitId = '123';
-    mockCoreState.setActiveUnitWithFetch = mockSetActiveUnitWithFetch;
-    mockSignalRState.lastUpdateTimestamp = 0;
-    mockSignalRState.lastUpdateMessage = null;
+    mockCoreState.refreshActiveUnitStatus = mockRefreshActiveUnitStatus;
+    mockRefreshActiveUnitStatus.mockResolvedValue(undefined);
+    mockSignalRState.lastUnitStatusTimestamp = 0;
+    mockSignalRState.lastUnitStatusMessage = null;
 
     // Mock core store with selector support
     mockUseCoreStore.mockImplementation((selector) => {
@@ -52,177 +54,200 @@ describe('useStatusSignalRUpdates', () => {
     });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const advancePastDebounce = () => {
+    act(() => {
+      jest.advanceTimersByTime(2000);
+    });
+  };
+
   it('should not process updates when no active unit', () => {
     mockCoreState.activeUnitId = null;
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
   it('should not process updates when timestamp is 0', () => {
-    mockSignalRState.lastUpdateTimestamp = 0;
-    mockSignalRState.lastUpdateMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
+    mockSignalRState.lastUnitStatusTimestamp = 0;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
   it('should not process updates when message is null', () => {
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = null;
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = null;
+
+    renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
+
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
+  });
+
+  it('should process unit status update for active unit after the debounce delay', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     renderHook(useStatusSignalRUpdates);
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    // Debounced — not called before the delay elapses
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
+
+    advancePastDebounce();
+
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
   });
 
-  it('should process unit status update for active unit', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should not process updates for different unit', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '456', State: 'Available' };
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
-    });
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
-  it('should not process updates for different unit', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '456', State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should handle non-object message gracefully', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = 'invalid json';
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
-  it('should handle invalid JSON message gracefully', async () => {
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = 'invalid json';
-
-    renderHook(useStatusSignalRUpdates);
-
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
-  });
-
-  it('should not process the same timestamp twice', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should not process the same timestamp twice', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     const { rerender } = renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
-    });
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
 
-    mockSetActiveUnitWithFetch.mockClear();
+    mockRefreshActiveUnitStatus.mockClear();
 
     // Rerender with same timestamp
     rerender({});
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
-  it('should process new timestamp after initial one', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should process new timestamp after initial one', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     const { rerender } = renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
-    });
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
 
-    mockSetActiveUnitWithFetch.mockClear();
+    mockRefreshActiveUnitStatus.mockClear();
 
     // Update with new timestamp
-    mockSignalRState.lastUpdateTimestamp = 12346;
-    mockSignalRState.lastUpdateMessage = JSON.stringify({ UnitId: '123', State: 'Busy' });
+    mockSignalRState.lastUnitStatusTimestamp = 12346;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Busy' };
 
     rerender({});
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
-    });
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
   });
 
   it('should handle API errors gracefully', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
-
-    mockSetActiveUnitWithFetch.mockRejectedValue(new Error('API Error'));
+    mockRefreshActiveUnitStatus.mockRejectedValue(new Error('API Error'));
 
     renderHook(useStatusSignalRUpdates);
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     // Should not crash the hook
-    expect(mockSetActiveUnitWithFetch).toHaveBeenCalledTimes(1);
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledTimes(1);
+    expect(mockLogger.error).toHaveBeenCalledWith({
+      message: 'Failed to process unit status update',
+      context: { error: expect.any(Error) },
+    });
   });
 
-  it('should handle activeUnitId changes', async () => {
-    const mockMessage = JSON.stringify({ UnitId: '123', State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should handle activeUnitId changes', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
 
     const { rerender } = renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('123');
-    });
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
 
-    mockSetActiveUnitWithFetch.mockClear();
+    mockRefreshActiveUnitStatus.mockClear();
 
     // Change active unit
     mockCoreState.activeUnitId = '456';
 
-    // Same timestamp but different unit in message
-    mockSignalRState.lastUpdateTimestamp = 12346;
-    mockSignalRState.lastUpdateMessage = JSON.stringify({ UnitId: '456', State: 'Available' });
+    // New timestamp with a message for the new unit
+    mockSignalRState.lastUnitStatusTimestamp = 12346;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '456', State: 'Available' };
 
     rerender({});
+    advancePastDebounce();
 
-    await waitFor(() => {
-      expect(mockSetActiveUnitWithFetch).toHaveBeenCalledWith('456');
-    });
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('456');
   });
 
-  it('should handle message with no UnitId', async () => {
-    const mockMessage = JSON.stringify({ State: 'Available' });
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should handle message with no UnitId', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { State: 'Available' };
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
 
-  it('should handle empty message object', async () => {
-    const mockMessage = JSON.stringify({});
-
-    mockSignalRState.lastUpdateTimestamp = 12345;
-    mockSignalRState.lastUpdateMessage = mockMessage;
+  it('should handle empty message object', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = {};
 
     renderHook(useStatusSignalRUpdates);
+    advancePastDebounce();
 
-    expect(mockSetActiveUnitWithFetch).not.toHaveBeenCalled();
+    expect(mockRefreshActiveUnitStatus).not.toHaveBeenCalled();
   });
-}); 
+
+  it('should coalesce a burst of updates into a single refresh', () => {
+    mockSignalRState.lastUnitStatusTimestamp = 12345;
+    mockSignalRState.lastUnitStatusMessage = { UnitId: '123', State: 'Available' };
+
+    const { rerender } = renderHook(useStatusSignalRUpdates);
+
+    // Burst of updates before the debounce elapses
+    mockSignalRState.lastUnitStatusTimestamp = 12346;
+    rerender({});
+    mockSignalRState.lastUnitStatusTimestamp = 12347;
+    rerender({});
+
+    advancePastDebounce();
+
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledTimes(1);
+    expect(mockRefreshActiveUnitStatus).toHaveBeenCalledWith('123');
+  });
+});

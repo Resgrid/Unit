@@ -1,4 +1,5 @@
 import { isAxiosError } from 'axios';
+import { AppState } from 'react-native';
 import { create } from 'zustand';
 
 import { getCheckInHistory, getTimersForCall, getTimerStatuses, performCheckIn, type PerformCheckInInput } from '@/api/check-in-timers/check-in-timers';
@@ -120,6 +121,11 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
     get().fetchTimerStatuses(callId);
 
     const interval = setInterval(() => {
+      // Skip while backgrounded — JS timers keep firing on Android and polling
+      // would burn network/battery with no UI visible.
+      if (AppState.currentState !== 'active') {
+        return;
+      }
       get().fetchTimerStatuses(callId);
     }, intervalMs);
 

@@ -23,6 +23,37 @@ jest.mock('@/lib/storage/app', () => ({
   removeDeviceUuid: jest.fn(),
 }));
 
+// Mock react-query client
+jest.mock('@/api/common/api-provider', () => ({
+  queryClient: {
+    clear: jest.fn(),
+  },
+}));
+
+// Mock session cleanup registration (module registers a handler at import time)
+jest.mock('@/lib/auth/session-cleanup', () => ({
+  registerSessionCleanupHandler: jest.fn(),
+}));
+
+// Mock services used by teardownServices
+jest.mock('@/services/location', () => ({
+  locationService: {
+    stopLocationUpdates: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock('@/services/push-notification', () => ({
+  pushNotificationService: {
+    unregisterFromPushNotifications: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock('@/services/signalr.service', () => ({
+  signalRService: {
+    disconnectAll: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Mock all the store imports
 jest.mock('@/stores/app/core-store', () => ({
   useCoreStore: {
@@ -151,6 +182,48 @@ jest.mock('@/stores/units/store', () => ({
   },
 }));
 
+jest.mock('@/stores/maps/store', () => ({
+  useMapsStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
+jest.mock('@/stores/pois/store', () => ({
+  usePoisStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
+jest.mock('@/stores/routes/store', () => ({
+  useRoutesStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
+jest.mock('@/stores/weather-alerts/store', () => ({
+  useWeatherAlertsStore: {
+    setState: jest.fn(),
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/check-in-timers/store', () => ({
+  useCheckInTimerStore: {
+    setState: jest.fn(),
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/signalr/signalr-store', () => ({
+  useSignalRStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
 import {
   clearAllAppData,
   clearAppStorageItems,
@@ -163,13 +236,17 @@ import {
   INITIAL_DISPATCH_STATE,
   INITIAL_LIVEKIT_STATE,
   INITIAL_LOCATION_STATE,
+  INITIAL_MAPS_STATE,
   INITIAL_NOTES_STATE,
+  INITIAL_POIS_STATE,
   INITIAL_PROTOCOLS_STATE,
   INITIAL_PUSH_NOTIFICATION_MODAL_STATE,
   INITIAL_ROLES_STATE,
+  INITIAL_ROUTES_STATE,
   INITIAL_SECURITY_STATE,
   INITIAL_UNITS_STATE,
   resetAllStores,
+  teardownServices,
 } from '../app-reset.service';
 
 // Get mock references after imports
@@ -182,6 +259,8 @@ const mockOfflineQueueClear = jest.fn();
 const mockLoadingReset = jest.fn();
 const mockAudioCleanup = jest.fn().mockResolvedValue(undefined);
 const mockLiveKitDisconnect = jest.fn().mockResolvedValue(undefined);
+const mockWeatherAlertsReset = jest.fn();
+const mockCheckInTimerReset = jest.fn();
 
 describe('app-reset.service', () => {
   beforeEach(() => {
@@ -193,6 +272,10 @@ describe('app-reset.service', () => {
     const { useLoadingStore } = jest.requireMock('@/stores/app/loading-store');
     const { useOfflineQueueStore } = jest.requireMock('@/stores/offline-queue/store');
     const { useStatusBottomSheetStore } = jest.requireMock('@/stores/status/store');
+    const { useWeatherAlertsStore } = jest.requireMock('@/stores/weather-alerts/store');
+    const { useCheckInTimerStore } = jest.requireMock('@/stores/check-in-timers/store');
+    const { locationService } = jest.requireMock('@/services/location');
+    const { signalRService } = jest.requireMock('@/services/signalr.service');
 
     useLiveKitStore.getState.mockReturnValue({
       isConnected: false,
@@ -214,6 +297,17 @@ describe('app-reset.service', () => {
     useStatusBottomSheetStore.getState.mockReturnValue({
       reset: mockStatusReset,
     });
+
+    useWeatherAlertsStore.getState.mockReturnValue({
+      reset: mockWeatherAlertsReset,
+    });
+
+    useCheckInTimerStore.getState.mockReturnValue({
+      reset: mockCheckInTimerReset,
+    });
+
+    locationService.stopLocationUpdates.mockResolvedValue(undefined);
+    signalRService.disconnectAll.mockResolvedValue(undefined);
   });
 
   describe('Initial State Constants', () => {
@@ -240,8 +334,15 @@ describe('app-reset.service', () => {
         calls: [],
         callPriorities: [],
         callTypes: [],
+        destinationPois: [],
+        poiTypes: [],
+        callDispatches: {},
+        callDispatchesFetchedAt: {},
         isLoading: false,
+        isInitialized: false,
+        isCallFormDataLoaded: false,
         error: null,
+        lastFetchedAt: 0,
       });
     });
 
@@ -284,6 +385,7 @@ describe('app-reset.service', () => {
         unitRoleAssignments: [],
         users: [],
         isLoading: false,
+        isInitialized: false,
         error: null,
       });
     });
@@ -379,6 +481,59 @@ describe('app-reset.service', () => {
         notification: null,
       });
     });
+
+    it('should export INITIAL_MAPS_STATE with correct shape', () => {
+      expect(INITIAL_MAPS_STATE).toEqual({
+        activeLayers: [],
+        layerToggles: {},
+        cachedGeoJSON: {},
+        indoorMaps: [],
+        currentIndoorMap: null,
+        currentFloorId: null,
+        currentFloor: null,
+        currentZonesGeoJSON: null,
+        customMaps: [],
+        currentCustomMap: null,
+        searchResults: [],
+        searchQuery: '',
+        isLoading: false,
+        isLoadingLayers: false,
+        isLoadingGeoJSON: false,
+        error: null,
+      });
+    });
+
+    it('should export INITIAL_POIS_STATE with correct shape', () => {
+      expect(INITIAL_POIS_STATE).toEqual({
+        poiTypes: [],
+        pois: [],
+        destinationPois: [],
+        poiDetails: {},
+        selectedPoi: null,
+        isLoading: false,
+        isLoadingDetail: false,
+        error: null,
+        lastFetchedAt: 0,
+      });
+    });
+
+    it('should export INITIAL_ROUTES_STATE with correct shape', () => {
+      expect(INITIAL_ROUTES_STATE).toEqual({
+        routePlans: [],
+        activePlan: null,
+        activeInstance: null,
+        instanceStops: [],
+        directions: null,
+        deviations: [],
+        routeHistory: [],
+        isTracking: false,
+        isLoading: false,
+        isLoadingStops: false,
+        isLoadingDirections: false,
+        isInitialized: false,
+        error: null,
+      });
+    });
   });
 
   describe('clearAppStorageItems', () => {
@@ -407,6 +562,9 @@ describe('app-reset.service', () => {
       const { useCoreStore } = jest.requireMock('@/stores/app/core-store');
       const { useCallsStore } = jest.requireMock('@/stores/calls/store');
       const { useUnitsStore } = jest.requireMock('@/stores/units/store');
+      const { useMapsStore } = jest.requireMock('@/stores/maps/store');
+      const { usePoisStore } = jest.requireMock('@/stores/pois/store');
+      const { useRoutesStore } = jest.requireMock('@/stores/routes/store');
 
       await resetAllStores();
 
@@ -417,6 +575,11 @@ describe('app-reset.service', () => {
       expect(mockOfflineQueueClear).toHaveBeenCalled();
       expect(mockLoadingReset).toHaveBeenCalled();
       expect(mockAudioCleanup).toHaveBeenCalled();
+      expect(useMapsStore.setState).toHaveBeenCalledWith(INITIAL_MAPS_STATE);
+      expect(usePoisStore.setState).toHaveBeenCalledWith(INITIAL_POIS_STATE);
+      expect(useRoutesStore.setState).toHaveBeenCalledWith(INITIAL_ROUTES_STATE);
+      expect(mockWeatherAlertsReset).toHaveBeenCalled();
+      expect(mockCheckInTimerReset).toHaveBeenCalled();
     });
 
     it('should disconnect from LiveKit room if connected', async () => {
@@ -449,9 +612,59 @@ describe('app-reset.service', () => {
     });
   });
 
+  describe('teardownServices', () => {
+    it('should disconnect SignalR, reset signalr store, stop location and unregister push', async () => {
+      const { signalRService } = jest.requireMock('@/services/signalr.service');
+      const { useSignalRStore } = jest.requireMock('@/stores/signalr/signalr-store');
+      const { locationService } = jest.requireMock('@/services/location');
+      const { pushNotificationService } = jest.requireMock('@/services/push-notification');
+
+      await teardownServices();
+
+      expect(signalRService.disconnectAll).toHaveBeenCalled();
+      expect(useSignalRStore.setState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isUpdateHubConnected: false,
+          isGeolocationHubConnected: false,
+        })
+      );
+      expect(locationService.stopLocationUpdates).toHaveBeenCalled();
+      expect(pushNotificationService.unregisterFromPushNotifications).toHaveBeenCalled();
+    });
+
+    it('should tolerate a missing unregisterFromPushNotifications method', async () => {
+      const { pushNotificationService } = jest.requireMock('@/services/push-notification');
+      const original = pushNotificationService.unregisterFromPushNotifications;
+      delete pushNotificationService.unregisterFromPushNotifications;
+
+      await expect(teardownServices()).resolves.toBeUndefined();
+
+      pushNotificationService.unregisterFromPushNotifications = original;
+    });
+
+    it('should register clearAllAppData as the session cleanup handler at import time', () => {
+      const { registerSessionCleanupHandler } = jest.requireMock('@/lib/auth/session-cleanup');
+      registerSessionCleanupHandler.mockClear();
+
+      jest.isolateModules(() => {
+        require('../app-reset.service');
+      });
+
+      expect(registerSessionCleanupHandler).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('clearAllAppData', () => {
     it('should call all clearing functions in sequence', async () => {
+      const { signalRService } = jest.requireMock('@/services/signalr.service');
+      const { locationService } = jest.requireMock('@/services/location');
+      const { queryClient } = jest.requireMock('@/api/common/api-provider');
+
       await clearAllAppData();
+
+      // Should tear down live services first
+      expect(signalRService.disconnectAll).toHaveBeenCalled();
+      expect(locationService.stopLocationUpdates).toHaveBeenCalled();
 
       // Should clear app storage items
       expect(mockStorageApp.removeActiveUnitId).toHaveBeenCalled();
@@ -461,6 +674,9 @@ describe('app-reset.service', () => {
       // Should clear persisted storage
       expect(mockStorage.getAllKeys).toHaveBeenCalled();
       expect(mockStorage.delete).toHaveBeenCalled();
+
+      // Should clear react-query cache
+      expect(queryClient.clear).toHaveBeenCalled();
     });
 
     it('should throw error if clearing fails', async () => {

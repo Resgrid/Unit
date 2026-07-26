@@ -35,7 +35,6 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
     if (response.status === 200) {
       logger.info({
         message: 'Login successful',
-        context: { username: credentials.username },
       });
 
       return {
@@ -44,9 +43,11 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
         authResponse: response.data,
       };
     } else {
+      // Never log the response object — it carries config.data with the
+      // urlencoded username/password body.
       logger.error({
         message: 'Login failed',
-        context: { response, username: credentials.username },
+        context: { status: response.status },
       });
 
       return {
@@ -56,9 +57,11 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
       };
     }
   } catch (error) {
+    // The sanitizer reduces axios errors to safe summaries (no request bodies).
+    // Never include the username here — it is frequently an email address.
     logger.error({
       message: 'Login failed',
-      context: { error, username: credentials.username },
+      context: { error },
     });
     throw error;
   }
@@ -109,7 +112,7 @@ export const ssoExternalTokenRequest = async (credentials: SsoLoginCredentials):
     if (response.status === 200) {
       logger.info({
         message: 'SSO external token exchange successful',
-        context: { provider: credentials.provider, username: credentials.username },
+        context: { provider: credentials.provider },
       });
 
       return {
@@ -121,14 +124,14 @@ export const ssoExternalTokenRequest = async (credentials: SsoLoginCredentials):
 
     logger.error({
       message: 'SSO external token exchange failed',
-      context: { status: response.status, username: credentials.username },
+      context: { status: response.status, provider: credentials.provider },
     });
 
     return { successful: false, message: 'SSO login failed', authResponse: null };
   } catch (error) {
     logger.error({
       message: 'SSO external token exchange error',
-      context: { error, username: credentials.username },
+      context: { error, provider: credentials.provider },
     });
     throw error;
   }

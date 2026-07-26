@@ -216,8 +216,6 @@ export default function EditCall() {
         data.longitude = selectedLocation.longitude;
       }
 
-      console.log('Updating call with data:', data);
-
       const priority = callPriorities.find((p) => p.Name === data.priority);
       const type = callTypes.find((t) => t.Name === data.type);
 

@@ -105,8 +105,12 @@ export const useLiveKitCallStore = create<LiveKitCallState>((set, get) => ({
                 error: null,
               });
               get().actions._updateParticipants(); // Initial participant list
-              newRoom.localParticipant.setMicrophoneEnabled(true);
-              newRoom.localParticipant.setCameraEnabled(false); // No video
+              newRoom.localParticipant.setMicrophoneEnabled(true).catch((error) => {
+                logger.warn({ message: 'Failed to enable microphone on connect', context: { error, roomId } });
+              });
+              newRoom.localParticipant.setCameraEnabled(false).catch((error) => {
+                logger.warn({ message: 'Failed to disable camera on connect', context: { error, roomId } });
+              }); // No video
 
               bluetoothAudioService.ensurePttInputMonitoring('useLiveKitCallStore connected');
 

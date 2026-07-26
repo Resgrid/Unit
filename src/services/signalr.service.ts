@@ -1,7 +1,6 @@
 import { type HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { Platform } from 'react-native';
 
-import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import useAuthStore from '@/stores/auth/store';
 
@@ -36,8 +35,22 @@ class SignalRService {
   private connectionLocks: Map<string, Promise<void>> = new Map();
   private reconnectingHubs: Set<string> = new Set();
   private hubStates: Map<string, HubConnectingState> = new Map();
-  private readonly MAX_RECONNECT_ATTEMPTS = 5;
-  private readonly RECONNECT_INTERVAL = 5000; // 5 seconds
+  private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private readonly MAX_RECONNECT_ATTEMPTS = 10;
+  private readonly RECONNECT_INTERVAL = 5000; // 5 seconds base (linear backoff to 60s cap)
+
+  /** Internal lifecycle events emitted so stores can react to connection state. */
+  public static readonly HUB_DISCONNECTED_EVENT = '__hubDisconnected';
+  public static readonly HUB_RECONNECTING_EVENT = '__hubReconnecting';
+  public static readonly HUB_RECONNECTED_EVENT = '__hubReconnected';
+
+  /** Emit a lifecycle event for a specific hub — both a generic form (data is
+   *  the hub name) and a hub-scoped form so listeners for one hub can be
+   *  removed without wiping another hub's listeners. */
+  private emitHubLifecycle(event: string, hubName: string): void {
+    this.emit(event, hubName);
+    this.emit(`${event}:${hubName}`, hubName);
+  }
 
   private static instance: SignalRService | null = null;
 
@@ -94,7 +107,17 @@ class SignalRService {
     }
   }
 
+  private clearReconnectTimer(hubName: string): void {
+    const reconnectTimer = this.reconnectTimers.get(hubName);
+    if (reconnectTimer !== undefined) {
+      clearTimeout(reconnectTimer);
+      this.reconnectTimers.delete(hubName);
+    }
+  }
+
   public async connectToHubWithEventingUrl(config: SignalRHubConnectConfig): Promise<void> {
+    this.clearReconnectTimer(config.name);
+
     // Check for existing lock to prevent concurrent connections to the same hub
     const existingLock = this.connectionLocks.get(config.name);
     if (existingLock) {
@@ -160,26 +183,18 @@ class SignalRService {
       // Append the hub name to the path (ensuring a single slash)
       const pathWithHub = url.pathname.endsWith('/') ? `${url.pathname}${config.hubName}` : `${url.pathname}/${config.hubName}`;
 
-      // Reassemble the URL with the hub in the path
+      // Reassemble the URL with the hub in the path, preserving any existing
+      // query parameters. Auth goes via the accessTokenFactory (Authorization
+      // header / SignalR negotiate) — never as an access_token query param,
+      // which would leak bearer tokens into server/proxy access logs.
       let fullUrl = `${url.protocol}//${url.host}${pathWithHub}`;
-
-      // For geolocation hub, add token as URL parameter instead of header
-      const isGeolocationHub = config.hubName === Env.REALTIME_GEO_HUB_NAME;
-
-      // Merge existing query parameters with access_token if needed
-      const queryParams = new URLSearchParams(url.search);
-      if (isGeolocationHub) {
-        queryParams.set('access_token', token);
-      }
-
-      // Add query string if there are any parameters
-      if (queryParams.toString()) {
-        fullUrl = `${fullUrl}?${queryParams.toString()}`;
+      if (url.search) {
+        fullUrl = `${fullUrl}${url.search}`;
       }
 
       logger.info({
         message: `Connecting to hub: ${config.name}`,
-        context: { config, fullUrl: isGeolocationHub ? fullUrl.replace(/access_token=[^&]+/, 'access_token=***') : fullUrl },
+        context: { config, fullUrl },
       });
 
       // Store the config for potential reconnections
@@ -189,14 +204,9 @@ class SignalRService {
       const signalRLogLevel = Platform.OS === 'web' ? LogLevel.Warning : LogLevel.Information;
 
       const connectionBuilder = new HubConnectionBuilder()
-        .withUrl(
-          fullUrl,
-          isGeolocationHub
-            ? {}
-            : {
-                accessTokenFactory: () => token,
-              }
-        )
+        .withUrl(fullUrl, {
+          accessTokenFactory: () => useAuthStore.getState().accessToken ?? token,
+        })
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .configureLogging(signalRLogLevel);
 
@@ -204,10 +214,12 @@ class SignalRService {
 
       // Set up event handlers
       connection.onclose(() => {
+        this.emitHubLifecycle(SignalRService.HUB_DISCONNECTED_EVENT, config.name);
         this.handleConnectionClose(config.name);
       });
 
       connection.onreconnecting((error) => {
+        this.emitHubLifecycle(SignalRService.HUB_RECONNECTING_EVENT, config.name);
         logger.warn({
           message: `Reconnecting to hub: ${config.name}`,
           context: { error },
@@ -215,11 +227,15 @@ class SignalRService {
       });
 
       connection.onreconnected((connectionId) => {
+        this.clearReconnectTimer(config.name);
         logger.info({
           message: `Reconnected to hub: ${config.name}`,
           context: { connectionId },
         });
         this.reconnectAttempts.set(config.name, 0);
+        // Group membership is per-connectionId — subscribers must re-join
+        // their groups and resync state after every reconnect.
+        this.emitHubLifecycle(SignalRService.HUB_RECONNECTED_EVENT, config.name);
       });
 
       // Register all methods
@@ -239,6 +255,7 @@ class SignalRService {
       });
 
       await connection.start();
+      this.clearReconnectTimer(config.name);
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
@@ -261,6 +278,8 @@ class SignalRService {
   }
 
   public async connectToHub(config: SignalRHubConfig): Promise<void> {
+    this.clearReconnectTimer(config.name);
+
     // Check for existing lock to prevent concurrent connections to the same hub
     const existingLock = this.connectionLocks.get(config.name);
     if (existingLock) {
@@ -325,7 +344,7 @@ class SignalRService {
 
       const connection = new HubConnectionBuilder()
         .withUrl(config.url, {
-          accessTokenFactory: () => token,
+          accessTokenFactory: () => useAuthStore.getState().accessToken ?? token,
         })
         .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
         .configureLogging(signalRLogLevel)
@@ -333,10 +352,12 @@ class SignalRService {
 
       // Set up event handlers
       connection.onclose(() => {
+        this.emitHubLifecycle(SignalRService.HUB_DISCONNECTED_EVENT, config.name);
         this.handleConnectionClose(config.name);
       });
 
       connection.onreconnecting((error) => {
+        this.emitHubLifecycle(SignalRService.HUB_RECONNECTING_EVENT, config.name);
         logger.warn({
           message: `Reconnecting to hub: ${config.name}`,
           context: { error },
@@ -344,11 +365,15 @@ class SignalRService {
       });
 
       connection.onreconnected((connectionId) => {
+        this.clearReconnectTimer(config.name);
         logger.info({
           message: `Reconnected to hub: ${config.name}`,
           context: { connectionId },
         });
         this.reconnectAttempts.set(config.name, 0);
+        // Group membership is per-connectionId — subscribers must re-join
+        // their groups and resync state after every reconnect.
+        this.emitHubLifecycle(SignalRService.HUB_RECONNECTED_EVENT, config.name);
       });
 
       // Register all methods
@@ -368,6 +393,7 @@ class SignalRService {
       });
 
       await connection.start();
+      this.clearReconnectTimer(config.name);
       this.connections.set(config.name, connection);
       this.reconnectAttempts.set(config.name, 0);
 
@@ -391,102 +417,8 @@ class SignalRService {
 
   private handleConnectionClose(hubName: string): void {
     const attempts = this.reconnectAttempts.get(hubName) || 0;
-    if (attempts < this.MAX_RECONNECT_ATTEMPTS) {
-      this.reconnectAttempts.set(hubName, attempts + 1);
-      const currentAttempts = attempts + 1;
-
-      const hubConfig = this.hubConfigs.get(hubName);
-      if (hubConfig) {
-        logger.info({
-          message: `Scheduling reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} for hub: ${hubName}`,
-        });
-
-        setTimeout(async () => {
-          try {
-            // Check if the hub config was removed (e.g., by explicit disconnect)
-            const currentHubConfig = this.hubConfigs.get(hubName);
-            if (!currentHubConfig) {
-              logger.debug({
-                message: `Hub ${hubName} config was removed, skipping reconnection attempt`,
-              });
-              return;
-            }
-
-            // If a live connection exists, skip; if it's stale/closed, drop it
-            const existingConn = this.connections.get(hubName);
-            if (existingConn && existingConn.state === HubConnectionState.Connected) {
-              logger.debug({
-                message: `Hub ${hubName} is already connected, skipping reconnection attempt`,
-              });
-              return;
-            }
-
-            // Mark as reconnecting and remove stale entry (if any) to allow a fresh connect
-            this.setHubState(hubName, HubConnectingState.RECONNECTING);
-            if (existingConn) {
-              this.connections.delete(hubName);
-            }
-
-            try {
-              // Refresh authentication token before reconnecting
-              logger.info({
-                message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
-              });
-
-              await useAuthStore.getState().refreshAccessToken();
-
-              // Verify we have a valid token after refresh
-              const token = useAuthStore.getState().accessToken;
-              if (!token) {
-                throw new Error('No valid authentication token available after refresh');
-              }
-
-              logger.info({
-                message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName} (attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
-              });
-
-              // Remove the connection from our maps to allow fresh connection
-              // This is now safe because we have the reconnecting flag set
-              this.connections.delete(hubName);
-
-              await this.connectToHubWithEventingUrl(currentHubConfig);
-
-              // Clear reconnecting state on successful reconnection
-              this.setHubState(hubName, HubConnectingState.IDLE);
-
-              logger.info({
-                message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
-              });
-            } catch (reconnectionError) {
-              // Clear reconnecting state on failed reconnection
-              this.setHubState(hubName, HubConnectingState.IDLE);
-
-              logger.error({
-                message: `Failed to refresh token or reconnect to hub: ${hubName}`,
-                context: { error: reconnectionError, attempts: currentAttempts, maxAttempts: this.MAX_RECONNECT_ATTEMPTS },
-              });
-
-              // Re-throw to trigger the outer catch block
-              throw reconnectionError;
-            }
-          } catch (error) {
-            // This catch block handles the overall reconnection attempt failure
-            // The reconnecting flag has already been cleared in the inner catch block
-            logger.error({
-              message: `Reconnection attempt failed for hub: ${hubName}`,
-              context: { error, attempts: currentAttempts, maxAttempts: this.MAX_RECONNECT_ATTEMPTS },
-            });
-
-            // Don't immediately retry; let the next connection close event trigger another attempt
-            // This prevents rapid retry loops that could overwhelm the server
-          }
-        }, this.RECONNECT_INTERVAL);
-      } else {
-        logger.error({
-          message: `No stored config found for hub: ${hubName}, cannot attempt reconnection`,
-        });
-      }
-    } else {
+    if (attempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      this.clearReconnectTimer(hubName);
       logger.error({
         message: `Max reconnection attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached for hub: ${hubName}`,
       });
@@ -496,7 +428,111 @@ class SignalRService {
       this.reconnectAttempts.delete(hubName);
       this.hubConfigs.delete(hubName);
       this.setHubState(hubName, HubConnectingState.IDLE);
+      return;
     }
+
+    const hubConfig = this.hubConfigs.get(hubName);
+    if (!hubConfig) {
+      logger.error({
+        message: `No stored config found for hub: ${hubName}, cannot attempt reconnection`,
+      });
+      return;
+    }
+
+    const currentAttempts = attempts + 1;
+    this.reconnectAttempts.set(hubName, currentAttempts);
+
+    // Exponential backoff capped at 60s: 5s, 10s, 20s, 40s, 60s, ...
+    const delay = Math.min(this.RECONNECT_INTERVAL * currentAttempts, 60000);
+
+    logger.info({
+      message: `Scheduling reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} for hub: ${hubName} in ${delay}ms`,
+    });
+
+    this.clearReconnectTimer(hubName);
+    const reconnectTimer = setTimeout(async () => {
+      if (this.reconnectTimers.get(hubName) === reconnectTimer) {
+        this.reconnectTimers.delete(hubName);
+      }
+
+      try {
+        // Check if the hub config was removed (e.g., by explicit disconnect)
+        const currentHubConfig = this.hubConfigs.get(hubName);
+        if (!currentHubConfig) {
+          logger.debug({
+            message: `Hub ${hubName} config was removed, skipping reconnection attempt`,
+          });
+          return;
+        }
+
+        // If a live connection exists, skip; if it's stale/closed, drop it
+        const existingConn = this.connections.get(hubName);
+        if (existingConn && existingConn.state === HubConnectionState.Connected) {
+          logger.debug({
+            message: `Hub ${hubName} is already connected, skipping reconnection attempt`,
+          });
+          this.reconnectAttempts.set(hubName, 0);
+          return;
+        }
+
+        // Mark as reconnecting and remove stale entry (if any) to allow a fresh connect
+        this.setHubState(hubName, HubConnectingState.RECONNECTING);
+        if (existingConn) {
+          this.connections.delete(hubName);
+        }
+
+        // Refresh authentication token before reconnecting
+        logger.info({
+          message: `Refreshing authentication token before reconnecting to hub: ${hubName}`,
+        });
+
+        await useAuthStore.getState().refreshAccessToken();
+
+        // Verify we have a valid token after refresh — if the session is gone
+        // (refresh rejected), stop reconnecting instead of retrying forever.
+        const token = useAuthStore.getState().accessToken;
+        if (!token) {
+          logger.warn({
+            message: `No valid authentication token after refresh, aborting reconnect for hub: ${hubName}`,
+          });
+          this.setHubState(hubName, HubConnectingState.IDLE);
+          this.reconnectAttempts.delete(hubName);
+          this.hubConfigs.delete(hubName);
+          return;
+        }
+
+        logger.info({
+          message: `Token refreshed successfully, attempting to reconnect to hub: ${hubName} (attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`,
+        });
+
+        this.connections.delete(hubName);
+
+        await this.connectToHubWithEventingUrl(currentHubConfig);
+
+        // Clear reconnecting state on successful reconnection
+        this.setHubState(hubName, HubConnectingState.IDLE);
+        this.reconnectAttempts.set(hubName, 0);
+
+        logger.info({
+          message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
+        });
+      } catch (error) {
+        // Attempt failed — the old connection object is gone, so no further
+        // onclose event will fire. We MUST reschedule here or the hub stays
+        // dead until the next app background/resume cycle.
+        this.setHubState(hubName, HubConnectingState.IDLE);
+
+        logger.error({
+          message: `Reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed for hub: ${hubName}`,
+          context: { error },
+        });
+
+        // Reschedule (attempt count was already incremented when this attempt
+        // was scheduled); handleConnectionClose enforces the max-attempt cap.
+        this.handleConnectionClose(hubName);
+      }
+    }, delay);
+    this.reconnectTimers.set(hubName, reconnectTimer);
   }
 
   private handleMessage(_hubName: string, method: string, data: unknown): void {
@@ -505,6 +541,8 @@ class SignalRService {
   }
 
   public async disconnectFromHub(hubName: string): Promise<void> {
+    this.clearReconnectTimer(hubName);
+
     // Wait for any ongoing connection attempt to complete
     const existingLock = this.connectionLocks.get(hubName);
     if (existingLock) {
@@ -522,10 +560,15 @@ class SignalRService {
       }
     }
 
+    // A connection attempt may have scheduled a reconnect while we waited.
+    this.clearReconnectTimer(hubName);
+
     const connection = this.connections.get(hubName);
     if (connection) {
       try {
         await connection.stop();
+        // stop() may invoke onclose and schedule a reconnect before resolving.
+        this.clearReconnectTimer(hubName);
         this.connections.delete(hubName);
         this.reconnectAttempts.delete(hubName);
         this.hubConfigs.delete(hubName);
@@ -534,6 +577,7 @@ class SignalRService {
           message: `Disconnected from hub: ${hubName}`,
         });
       } catch (error) {
+        this.clearReconnectTimer(hubName);
         logger.error({
           message: `Error disconnecting from hub: ${hubName}`,
           context: { error },
@@ -595,7 +639,8 @@ class SignalRService {
   }
 
   public async disconnectAll(): Promise<void> {
-    const disconnectPromises = Array.from(this.connections.keys()).map((hubName) => this.disconnectFromHub(hubName));
+    const hubNames = new Set([...this.connections.keys(), ...this.hubConfigs.keys(), ...this.reconnectTimers.keys()]);
+    const disconnectPromises = Array.from(hubNames).map((hubName) => this.disconnectFromHub(hubName));
     await Promise.all(disconnectPromises);
   }
 
@@ -618,7 +663,18 @@ class SignalRService {
   }
 
   private emit(event: string, data: unknown): void {
-    this.eventListeners.get(event)?.forEach((callback) => callback(data));
+    // Isolate listener failures — one throwing callback must not prevent the
+    // remaining listeners from receiving the event.
+    this.eventListeners.get(event)?.forEach((callback) => {
+      try {
+        callback(data);
+      } catch (error) {
+        logger.error({
+          message: `SignalR event listener threw for event: ${event}`,
+          context: { error },
+        });
+      }
+    });
   }
 }
 
