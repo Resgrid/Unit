@@ -46,6 +46,9 @@ extract_release_notes() {
     notes="$cleaned_body"
   fi
   
+  # Replace standalone "PR" with "Release" for release notes text
+  notes="$(printf '%s\n' "$notes" | sed -E 's/\bPR\b/Release/g')"
+
   # Final trim
   notes="$(printf '%s\n' "$notes" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
   

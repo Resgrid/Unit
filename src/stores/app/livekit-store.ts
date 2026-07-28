@@ -1,7 +1,7 @@
 import { AudioSession } from '@livekit/react-native';
 import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
-import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { getRecordingPermissionsAsync } from 'expo-audio';
 import { Audio, InterruptionModeIOS } from 'expo-av';
 import * as Device from 'expo-device';
 import { Room, RoomEvent } from 'livekit-client';
@@ -397,23 +397,27 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         });
         return true;
       } else if (Platform.OS === 'ios') {
+        // NOTE: expo-audio's requestRecordingPermissionsAsync activates
+        // AVAudioSession in record mode, which deadlocks against expo-av's
+        // active session and freezes the app. Only perform the
+        // non-activating status check here; WebRTC triggers the native mic
+        // prompt itself when a track is published.
         const micPermission = await getRecordingPermissionsAsync();
 
         if (!micPermission.granted) {
-          const result = await requestRecordingPermissionsAsync();
-          if (!result.granted) {
-            logger.error({
-              message: 'Microphone permission not granted',
+          if (!micPermission.canAskAgain) {
+            logger.warn({
+              message: 'Microphone permission permanently denied',
               context: { platform: Platform.OS },
             });
             return false;
           }
+          logger.info({
+            message: 'Microphone permission not yet granted - WebRTC will prompt on publish',
+            context: { platform: Platform.OS },
+          });
         }
 
-        logger.info({
-          message: 'Microphone permission granted successfully',
-          context: { platform: Platform.OS },
-        });
         return true;
       }
       return true; // Web/other platforms don't need runtime permissions
@@ -963,20 +967,21 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         }
         return true;
       } else if (Platform.OS === 'ios') {
+        // Non-activating check only — see requestPermissions for why
+        // requestRecordingPermissionsAsync must not be called on iOS.
         const mic = await getRecordingPermissionsAsync();
-        if (mic.granted) return true;
-
-        logger.info({
-          message: 'Requesting microphone permission before opening voice UI',
-          context: { platform: Platform.OS },
-        });
-        const result = await requestRecordingPermissionsAsync();
-        if (!result.granted) {
-          logger.warn({
-            message: 'Microphone permission denied - voice UI will still open but joining will fail',
+        if (!mic.granted) {
+          if (!mic.canAskAgain) {
+            logger.warn({
+              message: 'Microphone permission permanently denied',
+              context: { platform: Platform.OS },
+            });
+            return false;
+          }
+          logger.info({
+            message: 'Microphone permission not yet granted - WebRTC will prompt on publish',
             context: { platform: Platform.OS },
           });
-          return false;
         }
         return true;
       }

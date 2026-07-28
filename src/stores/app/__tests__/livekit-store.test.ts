@@ -118,6 +118,7 @@ jest.mock('expo-audio', () => ({
 jest.mock('../../../lib/logging', () => ({
   logger: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
   },
@@ -259,17 +260,8 @@ describe('LiveKit Store - Permission Management', () => {
       (Platform as any).OS = 'ios';
     });
 
-    it('should successfully request permissions on iOS', async () => {
-      // Mock initial permission check - not granted
+    it('should return true on iOS without requesting when permission already granted', async () => {
       mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: true,
-        expires: 'never',
-        status: 'undetermined',
-      } as any);
-
-      // Mock permission request - granted
-      mockRequestRecordingPermissionsAsync.mockResolvedValueOnce({
         granted: true,
         canAskAgain: true,
         expires: 'never',
@@ -277,18 +269,17 @@ describe('LiveKit Store - Permission Management', () => {
       } as any);
 
       const { requestPermissions } = useLiveKitStore.getState();
-      await requestPermissions();
+      const result = await requestPermissions();
 
+      expect(result).toBe(true);
       expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockLogger.info).toHaveBeenCalledWith({
-        message: 'Microphone permission granted successfully',
-        context: { platform: 'ios' },
-      });
+      expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled();
     });
 
-    it('should handle iOS permission denial', async () => {
-      // Mock initial permission check - not granted
+    it('should never call session-activating request on iOS, even when not granted', async () => {
+      // expo-audio's requestRecordingPermissionsAsync activates AVAudioSession
+      // and deadlocks against expo-av — the store must only perform the
+      // non-activating check and let WebRTC prompt natively on publish.
       mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
         granted: false,
         canAskAgain: false,
@@ -296,21 +287,14 @@ describe('LiveKit Store - Permission Management', () => {
         status: 'denied',
       } as any);
 
-      // Mock permission request - still denied
-      mockRequestRecordingPermissionsAsync.mockResolvedValueOnce({
-        granted: false,
-        canAskAgain: false,
-        expires: 'never',
-        status: 'denied',
-      } as any);
-
       const { requestPermissions } = useLiveKitStore.getState();
-      await requestPermissions();
+      const result = await requestPermissions();
 
+      expect(result).toBe(false);
       expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockRequestRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
-      expect(mockLogger.error).toHaveBeenCalledWith({
-        message: 'Microphone permission not granted',
+      expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled();
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Microphone permission permanently denied',
         context: { platform: 'ios' },
       });
     });
