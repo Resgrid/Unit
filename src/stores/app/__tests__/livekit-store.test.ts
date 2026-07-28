@@ -118,6 +118,7 @@ jest.mock('expo-audio', () => ({
 jest.mock('../../../lib/logging', () => ({
   logger: {
     info: jest.fn(),
+    warn: jest.fn(),
     error: jest.fn(),
     debug: jest.fn(),
   },
@@ -289,11 +290,11 @@ describe('LiveKit Store - Permission Management', () => {
       const { requestPermissions } = useLiveKitStore.getState();
       const result = await requestPermissions();
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
       expect(mockGetRecordingPermissionsAsync).toHaveBeenCalledTimes(1);
       expect(mockRequestRecordingPermissionsAsync).not.toHaveBeenCalled();
-      expect(mockLogger.info).toHaveBeenCalledWith({
-        message: 'Microphone permission not yet granted - WebRTC will prompt on publish',
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Microphone permission permanently denied',
         context: { platform: 'ios' },
       });
     });

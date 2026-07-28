@@ -405,6 +405,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         const micPermission = await getRecordingPermissionsAsync();
 
         if (!micPermission.granted) {
+          if (!micPermission.canAskAgain) {
+            logger.warn({
+              message: 'Microphone permission permanently denied',
+              context: { platform: Platform.OS },
+            });
+            return false;
+          }
           logger.info({
             message: 'Microphone permission not yet granted - WebRTC will prompt on publish',
             context: { platform: Platform.OS },
@@ -964,6 +971,13 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         // requestRecordingPermissionsAsync must not be called on iOS.
         const mic = await getRecordingPermissionsAsync();
         if (!mic.granted) {
+          if (!mic.canAskAgain) {
+            logger.warn({
+              message: 'Microphone permission permanently denied',
+              context: { platform: Platform.OS },
+            });
+            return false;
+          }
           logger.info({
             message: 'Microphone permission not yet granted - WebRTC will prompt on publish',
             context: { platform: Platform.OS },
