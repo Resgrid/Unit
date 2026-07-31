@@ -11,6 +11,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   cssInterop: jest.fn(),
   useColorScheme: () => ({ colorScheme: 'light' }),
 }));

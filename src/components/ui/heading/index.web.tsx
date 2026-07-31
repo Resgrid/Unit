@@ -1,14 +1,18 @@
-import type { VariantProps } from '@gluestack-ui/nativewind-utils';
+import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import React, { forwardRef, memo } from 'react';
+
+import { toDomProps } from '@/components/ui/utils/dom-props';
 
 import { headingStyle } from './styles';
 type IHeadingProps = VariantProps<typeof headingStyle> &
   React.ComponentPropsWithoutRef<'h1'> & {
     as?: React.ElementType;
+    testID?: string;
   };
 
 const MappedHeading = memo(
   forwardRef<HTMLHeadingElement, IHeadingProps>(function MappedHeading({ size, className, isTruncated, bold, underline, strikeThrough, sub, italic, highlight, ...props }, ref) {
+    const domProps = toDomProps(props);
     switch (size) {
       case '5xl':
       case '4xl':
@@ -26,7 +30,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -44,7 +48,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -62,7 +66,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -80,7 +84,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -98,7 +102,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -117,7 +121,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -135,7 +139,7 @@ const MappedHeading = memo(
               highlight,
               class: className,
             })}
-            {...props}
+            {...domProps}
             ref={ref}
           />
         );
@@ -161,7 +165,7 @@ const Heading = memo(
             highlight,
             class: className,
           })}
-          {...props}
+          {...toDomProps(props)}
           ref={ref}
         />
       );

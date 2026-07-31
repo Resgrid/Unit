@@ -32,7 +32,7 @@ export const StopCard: React.FC<StopCardProps> = ({ stop, isCurrent = false, onC
   const config = statusConfig[stop.Status as RouteStopStatus] || statusConfig[RouteStopStatus.Pending];
 
   return (
-    <Box className={`mb-2 rounded-xl p-4 shadow-sm ${isCurrent ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-800'}`}>
+    <Box className={`mb-2 rounded-xl p-4 shadow-xs ${isCurrent ? 'border-2 border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'bg-white dark:bg-gray-800'}`}>
       <HStack className="items-start justify-between">
         <HStack className="flex-1 items-start space-x-3">
           <Box className="mt-1 items-center justify-center rounded-full p-1" style={{ backgroundColor: config.color + '20' }}>

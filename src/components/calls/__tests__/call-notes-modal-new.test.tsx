@@ -16,7 +16,8 @@ jest.mock('@/hooks/use-analytics', () => ({
 }));
 
 // Mock navigation
-jest.mock('@react-navigation/native', () => ({
+jest.mock('expo-router', () => ({
+  ...jest.requireActual('expo-router'),
   useIsFocused: () => true,
   useNavigation: () => ({
     navigate: jest.fn(),
@@ -25,6 +26,7 @@ jest.mock('@react-navigation/native', () => ({
 
 // Mock nativewind
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({ colorScheme: 'light' }),
   cssInterop: jest.fn(),
 }));

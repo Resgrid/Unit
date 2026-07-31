@@ -304,7 +304,7 @@ export default function ActiveRouteScreen() {
 
         {/* Progress indicator */}
         {activeInstance ? (
-          <Box className="absolute bottom-2 left-3 rounded-lg bg-white/90 px-3 py-1.5 shadow-sm dark:bg-gray-800/90">
+          <Box className="absolute bottom-2 left-3 rounded-lg bg-white/90 px-3 py-1.5 shadow-xs dark:bg-gray-800/90">
             <Text className="text-xs font-medium text-gray-700 dark:text-gray-300">
               {progressPercent}% {t('routes.completed')}
             </Text>

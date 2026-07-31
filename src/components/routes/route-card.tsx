@@ -32,7 +32,7 @@ export const RouteCard: React.FC<RouteCardProps> = ({ route, isActive = false, u
     return `${minutes}m`;
   };
 
-  const bgClass = isMyUnit ? 'mb-2 rounded-xl bg-blue-50 p-4 shadow-sm dark:bg-blue-900/20' : 'mb-2 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800';
+  const bgClass = isMyUnit ? 'mb-2 rounded-xl bg-blue-50 p-4 shadow-xs dark:bg-blue-900/20' : 'mb-2 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800';
 
   const borderColor = isMyUnit ? '#3b82f6' : route.RouteColor || '#94a3b8';
 

@@ -57,7 +57,7 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
       style={{
         backgroundColor: getColor(call, priority),
       }}
-      className={`mb-2 rounded-xl p-2 shadow-sm`}
+      className={`mb-2 rounded-xl p-2 shadow-xs`}
     >
       {/* Header with Call Number and Priority */}
       <HStack className="mb-4 items-center justify-between">
@@ -157,7 +157,7 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
               }
 
               return (
-                <HStack key={`${d.Id || index}-${d.Name}`} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }} className="items-center">
+                <HStack key={`${d.Id || 'noid'}-${d.Name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }} className="items-center">
                   <Box style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }} className="items-center justify-center">
                     <Text style={{ color: '#fff' }} className="text-xs font-bold">
                       {typeLetter}

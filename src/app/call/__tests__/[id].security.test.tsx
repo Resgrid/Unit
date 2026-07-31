@@ -6,6 +6,10 @@ jest.mock('react-native', () => ({
   Platform: {
     OS: 'ios',
   },
+  TurboModuleRegistry: {
+    get: jest.fn(() => null),
+    getEnforcing: jest.fn(() => ({})),
+  },
   ScrollView: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   StyleSheet: {
     create: (styles: any) => styles,
@@ -18,10 +22,19 @@ jest.mock('react-native', () => ({
   },
   useWindowDimensions: () => ({ width: 375, height: 812 }),
   View: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  Text: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  Modal: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  TouchableOpacity: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  Pressable: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+  ActivityIndicator: (props: any) => <div {...props} />,
 }));
 
 // Mock expo-router
 jest.mock('expo-router', () => ({
+  useFocusEffect: jest.fn((callback: () => void) => {
+    const React = require('react');
+    React.useEffect(callback, []);
+  }),
   router: {
     push: jest.fn(),
     back: jest.fn(),
@@ -164,16 +177,11 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({ colorScheme: 'light' }),
 }));
 
 // Mock navigation hook
-jest.mock('@react-navigation/native', () => ({
-  useFocusEffect: jest.fn((callback: () => void) => {
-    const React = require('react');
-    React.useEffect(callback, []);
-  }),
-}));
 
 // Mock components
 jest.mock('@/components/common/loading', () => ({
@@ -192,6 +200,11 @@ jest.mock('@/components/common/zero-state', () => ({
 jest.mock('@/components/maps/static-map', () => ({
   __esModule: true,
   default: () => <div data-testid="static-map">Map</div>,
+}));
+
+jest.mock('@/components/maps/full-screen-map', () => ({
+  __esModule: true,
+  FullScreenMap: () => <div data-testid="full-screen-map">Map</div>,
 }));
 
 jest.mock('@/components/check-in-timers/check-in-tab-content', () => ({

@@ -158,9 +158,6 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
         srcDoc={fullHtml}
         sandbox={sandboxValue}
         title="html-content"
-        // @ts-expect-error -- allowTransparency is a valid HTML attribute but not in React's iframe types
-        // eslint-disable-next-line react/no-unknown-property
-        allowTransparency="true"
         style={iframeStyle}
       />
     </View>

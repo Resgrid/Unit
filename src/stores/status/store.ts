@@ -56,6 +56,18 @@ const hasFreshDestinationData = (lastFetchedAt: number): boolean => {
   return lastFetchedAt > 0 && Date.now() - lastFetchedAt <= STORE_TTL_MS;
 };
 
+// GetSetUnitStatusData includes server-side sentinel entries (e.g. "No Call",
+// "No Station") that must not be shown as selectable destinations.
+const isSentinel = (id: string | undefined | null, name: string | undefined | null, sentinelName: string): boolean => {
+  const normalizedId = id?.trim() ?? '';
+  const normalizedName = name?.trim().toLowerCase() ?? '';
+  return normalizedId === '' || normalizedId === '0' || normalizedName === sentinelName;
+};
+
+const isNoCallSentinel = (call: CallResultData): boolean => isSentinel(call.CallId, call.Name, 'no call');
+
+const isNoStationSentinel = (station: GroupResultData): boolean => isSentinel(station.GroupId, station.Name, 'no station');
+
 const toStatusNumber = (value: unknown): number => {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -135,7 +147,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       const response = await getSetUnitStatusData(unitId);
       const data = response.Data;
       const lastFetchedAt = Date.now();
-      const availableCalls = data?.Calls ?? [];
+      const availableCalls = (data?.Calls ?? []).filter((call) => !isNoCallSentinel(call));
 
       useCallsStore.setState({
         calls: availableCalls,
@@ -144,7 +156,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
 
       set({
         availableCalls,
-        availableStations: data?.Stations ?? [],
+        availableStations: (data?.Stations ?? []).filter((station) => !isNoStationSentinel(station)),
         availablePois: data?.DestinationPois ?? [],
         availablePoiTypes: data?.PoiTypes ?? [],
         lastFetchedAt,

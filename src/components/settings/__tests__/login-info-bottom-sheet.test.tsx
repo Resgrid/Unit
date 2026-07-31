@@ -17,6 +17,7 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({
     colorScheme: 'light',
   }),
@@ -215,7 +216,7 @@ describe('LoginInfoBottomSheet', () => {
     render(<LoginInfoBottomSheet {...defaultProps} />);
 
     const cancelButton = screen.getByText('common.cancel').parent;
-    fireEvent.press(cancelButton);
+    fireEvent.press(cancelButton!);
 
     expect(mockOnClose).toHaveBeenCalled();
   });

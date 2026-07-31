@@ -23,6 +23,7 @@ jest.mock('lucide-react-native', () => {
 });
 
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({ colorScheme: 'light' }),
 }));
 

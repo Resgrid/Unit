@@ -24,6 +24,7 @@ jest.mock('@/services/callkeep.service.ios', () => ({
 
 // Mock React Native and NativeWind
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({ colorScheme: 'light' }),
   cssInterop: jest.fn(),
 }));

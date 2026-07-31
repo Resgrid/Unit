@@ -121,7 +121,7 @@ export default function PoiDetailScreen() {
             ) : null}
           </VStack>
 
-          <Box className="rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+          <Box className="rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
             <VStack space="md">
               {poi.Address ? (
                 <VStack space="xs">

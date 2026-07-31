@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Clock, MapPin, Navigation, RefreshCcwDotIcon } from 'lucide-react-native';
 import React, { useCallback } from 'react';
@@ -96,7 +96,7 @@ export default function RouteHistory() {
 
     return (
       <Pressable onPress={() => handleInstancePress(item)}>
-        <Box className="mb-3 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+        <Box className="mb-3 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
           <HStack className="items-start justify-between">
             <VStack className="flex-1 space-y-1">
               {/* Date */}

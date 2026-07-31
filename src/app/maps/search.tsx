@@ -173,7 +173,7 @@ export default function MapSearch() {
           {SEGMENTS.map((segment) => {
             const isActive = segment.value === activeFilter;
             return (
-              <Pressable key={segment.value} onPress={() => handleFilterChange(segment.value)} className={`flex-1 items-center rounded-md px-3 py-2 ${isActive ? 'bg-white shadow-sm dark:bg-gray-600' : ''}`}>
+              <Pressable key={segment.value} onPress={() => handleFilterChange(segment.value)} className={`flex-1 items-center rounded-md px-3 py-2 ${isActive ? 'bg-white shadow-xs dark:bg-gray-600' : ''}`}>
                 <Text className={`text-sm font-medium ${isActive ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>{t(segment.labelKey)}</Text>
               </Pressable>
             );

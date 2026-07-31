@@ -43,3 +43,4 @@ opencode.json
 /.dual-graph-pro
 .DS_Store
 /docs
+.env.development

@@ -7,7 +7,7 @@ import { Redirect, SplashScreen, Tabs } from 'expo-router';
 import { CloudAlert, Contact, ListTree, Map, Megaphone, Menu, Navigation, Notebook, Settings } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, type ColorValue, Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NotificationButton } from '@/components/notifications/NotificationButton';
@@ -368,14 +368,14 @@ export default function TabLayout() {
   const handleCloseNotifications = useCallback(() => setIsNotificationsOpen(false), []);
 
   // Memoize per-screen tab bar icon renderers to prevent new functions every render
-  const mapIcon = useCallback(({ color }: { color: string }) => <Icon as={Map} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
-  const callsIcon = useCallback(({ color }: { color: string }) => <Icon as={Megaphone} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
-  const contactsIcon = useCallback(({ color }: { color: string }) => <Icon as={Contact} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
-  const notesIcon = useCallback(({ color }: { color: string }) => <Icon as={Notebook} stroke={color} />, []);
-  const routesIcon = useCallback(({ color }: { color: string }) => <Icon as={Navigation} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
-  const weatherAlertsIcon = useCallback(({ color }: { color: string }) => <Icon as={CloudAlert} stroke={color} className="text-primary-500 dark:text-primary-400" />, []);
-  const protocolsIcon = useCallback(({ color }: { color: string }) => <Icon as={ListTree} stroke={color} />, []);
-  const settingsIcon = useCallback(({ color }: { color: string }) => <Icon as={Settings} stroke={color} />, []);
+  const mapIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Map} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const callsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Megaphone} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const contactsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Contact} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const notesIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Notebook} stroke={color as string} />, []);
+  const routesIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Navigation} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const weatherAlertsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={CloudAlert} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const protocolsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={ListTree} stroke={color as string} />, []);
+  const settingsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Settings} stroke={color as string} />, []);
 
   // Memoize header left/right renders
   const headerLeftMap = useCallback(() => <CreateDrawerMenuButton setIsOpen={setIsOpen} isLandscape={isLandscape} />, [isLandscape]);
@@ -619,7 +619,7 @@ const styles = StyleSheet.create({
     backgroundColor: Platform.OS === 'web' ? '#ffffff' : undefined,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...(StyleSheet.absoluteFill as object),
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Platform.OS === 'web' ? '#ffffff' : 'rgba(255,255,255,0.95)',

@@ -240,23 +240,25 @@ export const StatusBottomSheet = () => {
     setSelectedDestinationType('call');
   }, [activeCallCandidate, detailLevel, isOpen, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedCall, setSelectedDestinationType]);
 
+  // Auto-pick the initial tab when the sheet opens or the status changes.
+  // After that the user's manual tab taps must win — recomputing the preferred
+  // tab on every selection change snaps the view back to the Calls tab.
   React.useEffect(() => {
-    if (destinationTabs.length === 0) {
+    if (!isOpen || destinationTabs.length === 0) {
       return;
     }
 
-    const preferredTab = getPreferredDestinationTab({
-      tabs: destinationTabs,
-      selectedDestinationType,
-      hasSelectedCall: !!selectedCall,
-      hasSelectedStation: !!selectedStation,
-      hasSelectedPoi: !!selectedPoi,
-    });
-
-    if (preferredTab !== selectedTab) {
-      setSelectedTab(preferredTab);
-    }
-  }, [destinationTabs, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedTab]);
+    setSelectedTab(
+      getPreferredDestinationTab({
+        tabs: destinationTabs,
+        selectedDestinationType,
+        hasSelectedCall: !!selectedCall,
+        hasSelectedStation: !!selectedStation,
+        hasSelectedPoi: !!selectedPoi,
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, selectedStatus]);
 
   const getStatusDetailDescription = React.useCallback(
     (detail: number): string | null => {

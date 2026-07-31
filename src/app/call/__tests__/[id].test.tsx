@@ -163,6 +163,9 @@ jest.mock('@/lib/storage', () => ({
 
 // Mock all the dependencies
 jest.mock('expo-router', () => ({
+  useIsFocused: jest.fn(() => true),
+  useNavigation: jest.fn(),
+  useFocusEffect: jest.fn(),
   Stack: {
     Screen: ({ children }: { children: React.ReactNode }) => children,
   },
@@ -416,12 +419,7 @@ jest.mock('expo-navigation-bar', () => ({
   getBehaviorAsync: jest.fn(),
 }));
 
-// Mock @react-navigation/native
-jest.mock('@react-navigation/native', () => ({
-  useIsFocused: jest.fn(() => true),
-  useNavigation: jest.fn(),
-  useFocusEffect: jest.fn(),
-}));
+// Mock expo-router focus hook
 
 // Mock react-native-edge-to-edge
 jest.mock('react-native-edge-to-edge', () => ({

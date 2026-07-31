@@ -188,7 +188,7 @@ export default function StopDetailScreen() {
       />
       <ScrollView className={`flex-1 ${colorScheme === 'dark' ? 'bg-neutral-950' : 'bg-neutral-50'}`}>
         {/* Header */}
-        <Box className={`p-4 shadow-sm ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
+        <Box className={`p-4 shadow-xs ${colorScheme === 'dark' ? 'bg-neutral-900' : 'bg-white'}`}>
           <Heading size="lg">{stop.Name}</Heading>
           {stop.Address ? <Text className="mt-1 text-sm text-typography-500">{stop.Address}</Text> : null}
 
