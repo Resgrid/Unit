@@ -170,6 +170,16 @@ export default function TabLayout() {
       // available now. The two hub connects are independent.
       await Promise.all([useSignalRStore.getState().connectUpdateHub(), useSignalRStore.getState().connectGeolocationHub()]);
 
+      // Connect the realtime chat hub (best-effort; chat may be disabled per department)
+      try {
+        await useSignalRStore.getState().connectChatHub();
+      } catch (error) {
+        logger.warn({
+          message: 'Failed to connect SignalR chat hub during initialization',
+          context: { error, platform: Platform.OS },
+        });
+      }
+
       hasInitialized.current = true;
 
       // Evict expired/capped API cache entries once per cold start.
@@ -478,6 +488,11 @@ export default function TabLayout() {
     [t, settingsIcon]
   );
 
+  // Chat and the assistant are reached from the sidebar, not the bottom tab bar,
+  // so they are registered as hidden routes (href: null) that render their own header.
+  const chatOptions = useMemo(() => ({ href: null, headerShown: false as const }), []);
+  const chatbotOptions = useMemo(() => ({ href: null, headerShown: false as const }), []);
+
   if (isFirstTime) {
     return <Redirect href="/onboarding" />;
   }
@@ -535,6 +550,10 @@ export default function TabLayout() {
             <Tabs.Screen name="protocols" options={protocolsOptions} />
 
             <Tabs.Screen name="settings" options={settingsOptions} />
+
+            <Tabs.Screen name="chat" options={chatOptions} />
+
+            <Tabs.Screen name="chatbot" options={chatbotOptions} />
           </Tabs>
 
           {/* NotificationInbox positioned within the tab content area — only after init and Novu is ready */}

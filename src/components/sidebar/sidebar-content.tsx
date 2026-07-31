@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Settings } from 'lucide-react-native';
+import { MessagesSquare, Settings, Sparkles } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
@@ -35,6 +35,16 @@ const Sidebar = ({ onClose }: SidebarProps) => {
     router.push('/settings');
   };
 
+  const handleNavigateToChat = () => {
+    onClose?.();
+    router.push('/chat');
+  };
+
+  const handleNavigateToAssistant = () => {
+    onClose?.();
+    router.push('/chatbot');
+  };
+
   return (
     <ScrollView className="size-full pt-4" contentContainerStyle={{ flexGrow: 1 }}>
       <VStack space="md" className="w-full flex-1 p-2">
@@ -52,6 +62,18 @@ const Sidebar = ({ onClose }: SidebarProps) => {
 
         {/* Check-in timer widget */}
         <CheckInSidebarWidget />
+
+        {/* Chat + Assistant navigation */}
+        <HStack space="md">
+          <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToChat}>
+            <MessagesSquare size={18} color="#2563eb" />
+            <ButtonText className="ml-2">{t('tabs.chat')}</ButtonText>
+          </Button>
+          <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToAssistant}>
+            <Sparkles size={18} color="#7c3aed" />
+            <ButtonText className="ml-2">{t('tabs.assistant')}</ButtonText>
+          </Button>
+        </HStack>
 
         {/* Third row - Status buttons or empty state */}
         {isActiveStatusesEmpty ? (

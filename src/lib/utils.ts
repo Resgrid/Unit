@@ -3,6 +3,8 @@ import { Linking } from 'react-native';
 import { Platform } from 'react-native';
 import type { StoreApi, UseBoundStore } from 'zustand';
 
+import { getBaseApiUrl } from './storage/app';
+
 /**
  * Parses an API UTC timestamp. Server "*Utc" fields arrive WITHOUT a timezone
  * designator (e.g. "2025-08-06T17:30:00") and `new Date()` would parse those as
@@ -99,6 +101,11 @@ export function uuidv4() {
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
+}
+
+/** Absolute URL for a person's avatar image, served by the Resgrid API. */
+export function getAvatarUrl(userId: string) {
+  return getBaseApiUrl() + '/Avatars/Get?id=' + userId;
 }
 
 /**
