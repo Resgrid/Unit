@@ -56,21 +56,17 @@ const hasFreshDestinationData = (lastFetchedAt: number): boolean => {
   return lastFetchedAt > 0 && Date.now() - lastFetchedAt <= STORE_TTL_MS;
 };
 
-// GetSetUnitStatusData includes a server-side sentinel "No Call" entry
-// (empty CallId / name "No Call") that must not be shown as a selectable call.
-const isNoCallSentinel = (call: CallResultData): boolean => {
-  const id = call.CallId?.trim() ?? '';
-  const name = call.Name?.trim().toLowerCase() ?? '';
-  return id === '' || id === '0' || name === 'no call';
+// GetSetUnitStatusData includes server-side sentinel entries (e.g. "No Call",
+// "No Station") that must not be shown as selectable destinations.
+const isSentinel = (id: string | undefined | null, name: string | undefined | null, sentinelName: string): boolean => {
+  const normalizedId = id?.trim() ?? '';
+  const normalizedName = name?.trim().toLowerCase() ?? '';
+  return normalizedId === '' || normalizedId === '0' || normalizedName === sentinelName;
 };
 
-// Same API also includes a sentinel "No Station" group entry that must not
-// be shown as a selectable station.
-const isNoStationSentinel = (station: GroupResultData): boolean => {
-  const id = station.GroupId?.trim() ?? '';
-  const name = station.Name?.trim().toLowerCase() ?? '';
-  return id === '' || id === '0' || name === 'no station';
-};
+const isNoCallSentinel = (call: CallResultData): boolean => isSentinel(call.CallId, call.Name, 'no call');
+
+const isNoStationSentinel = (station: GroupResultData): boolean => isSentinel(station.GroupId, station.Name, 'no station');
 
 const toStatusNumber = (value: unknown): number => {
   const parsed = Number(value);
