@@ -1,5 +1,7 @@
-import type { VariantProps } from '@gluestack-ui/nativewind-utils';
+import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import React from 'react';
+
+import { toDomProps } from '@/components/ui/utils/dom-props';
 
 import { skeletonStyle, skeletonTextStyle } from './styles';
 
@@ -7,6 +9,7 @@ type ISkeletonProps = React.ComponentPropsWithoutRef<'div'> &
   VariantProps<typeof skeletonStyle> & {
     startColor?: string;
     isLoaded?: boolean;
+    testID?: string;
   };
 
 const Skeleton = React.forwardRef<HTMLDivElement, ISkeletonProps>(({ className, variant = 'rounded', children, speed = 2, startColor = 'bg-background-200', isLoaded = false, ...props }, ref) => {
@@ -19,7 +22,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, ISkeletonProps>(({ className, 
           speed,
           class: className,
         })}`}
-        {...props}
+        {...toDomProps(props)}
       />
     );
   } else {
@@ -32,6 +35,7 @@ type ISkeletonTextProps = React.ComponentPropsWithoutRef<'div'> &
     _lines?: number;
     isLoaded?: boolean;
     startColor?: string;
+    testID?: string;
   };
 
 const SkeletonText = React.forwardRef<HTMLDivElement, ISkeletonTextProps>(({ className, _lines, isLoaded = false, startColor = 'bg-background-200', gap = 2, children, ...props }, ref) => {
@@ -50,7 +54,7 @@ const SkeletonText = React.forwardRef<HTMLDivElement, ISkeletonTextProps>(({ cla
               className={`animate-pulse ${startColor} ${skeletonTextStyle({
                 class: className,
               })}`}
-              {...props}
+              {...toDomProps(props)}
             />
           ))}
         </div>
@@ -62,7 +66,7 @@ const SkeletonText = React.forwardRef<HTMLDivElement, ISkeletonTextProps>(({ cla
           className={`animate-pulse ${startColor} ${skeletonTextStyle({
             class: className,
           })}`}
-          {...props}
+          {...toDomProps(props)}
         />
       );
     }

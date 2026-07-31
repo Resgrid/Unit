@@ -1,5 +1,6 @@
 // Mock nativewind before any imports
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   cssInterop: jest.fn((Component: any) => Component),
   useColorScheme: jest.fn(() => ({
     colorScheme: 'light',
@@ -30,15 +31,6 @@ jest.mock('@/services/location');
 jest.mock('@/hooks/use-map-signalr-updates', () => ({
   useMapSignalRUpdates: jest.fn(),
 }));
-jest.mock('@react-navigation/native', () => ({
-  useIsFocused: jest.fn(() => true),
-  useNavigation: jest.fn(() => ({
-    navigate: jest.fn(),
-    push: jest.fn(),
-    replace: jest.fn(),
-    goBack: jest.fn(),
-  })),
-}));
 jest.mock('@/api/mapping/mapping', () => ({
   getMapDataAndMarkers: jest.fn().mockResolvedValue({
     Data: { MapMakerInfos: [] }
@@ -60,6 +52,13 @@ jest.mock('@rnmapbox/maps', () => ({
   },
 }));
 jest.mock('expo-router', () => ({
+  useIsFocused: jest.fn(() => true),
+  useNavigation: jest.fn(() => ({
+    navigate: jest.fn(),
+    push: jest.fn(),
+    replace: jest.fn(),
+    goBack: jest.fn(),
+  })),
   Stack: {
     Screen: ({ children, ...props }: any) => children,
   },

@@ -23,7 +23,7 @@ export const PoiCard: React.FC<PoiCardProps> = ({ poi, poiTypeLabel, displayName
 
   return (
     <Pressable onPress={onPress}>
-      <Box className="mb-3 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+      <Box className="mb-3 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
         <HStack className="items-start justify-between gap-3">
           <VStack className="flex-1">
             <Text className="text-base font-semibold text-gray-900 dark:text-white">{displayName}</Text>

@@ -241,6 +241,11 @@ export const MapView = forwardRef<any, MapViewProps>(
           style: styleURL,
           center: startCenter,
           zoom: startZoom,
+          // v12 styles (Mapbox Standard) default to globe projection in GL JS v3.
+          // Globe ray-casting crashes on clicks where the ray misses the sphere
+          // ("Cannot read properties of undefined (reading '0')" in coordinateLocation).
+          // Mercator also matches the native SDK rendering.
+          projection: 'mercator',
           attributionControl: attributionEnabled,
           logoPosition: logoEnabled ? 'bottom-left' : undefined,
           dragRotate: rotateEnabled,
@@ -264,6 +269,13 @@ export const MapView = forwardRef<any, MapViewProps>(
         }
 
         newMap.on('load', () => {
+          // Style JSON (e.g. streets-v12) may re-apply globe projection on load,
+          // overriding the constructor option. Re-assert mercator.
+          try {
+            newMap.setProjection({ name: 'mercator' });
+          } catch {
+            // ignore — older mapbox-gl versions
+          }
           setIsLoaded(true);
           onDidFinishLoadingMap?.();
         });
@@ -326,6 +338,20 @@ export const MapView = forwardRef<any, MapViewProps>(
           };
         }
 
+        // Patch the internal _updateProjection method — globe ray-casting can
+        // return undefined for clicks where the ray misses the sphere, crashing
+        // coordinateLocation with "Cannot read properties of undefined (reading '0')".
+        const origUpdateProjection = newMap._updateProjection;
+        if (typeof origUpdateProjection === 'function') {
+          newMap._updateProjection = function (...args: unknown[]) {
+            try {
+              return origUpdateProjection.apply(this, args);
+            } catch {
+              return this;
+            }
+          };
+        }
+
         // Suppress non-fatal mapbox-gl error events
         newMap.on('error', (e: { error?: Error }) => {
           const msg = e.error?.message ?? '';
@@ -372,6 +398,14 @@ export const MapView = forwardRef<any, MapViewProps>(
     useEffect(() => {
       if (map.current && styleURL) {
         map.current.setStyle(styleURL);
+        // Style JSON may re-apply globe projection — keep mercator.
+        map.current.once('style.load', () => {
+          try {
+            map.current?.setProjection({ name: 'mercator' });
+          } catch {
+            // ignore
+          }
+        });
       }
     }, [styleURL]);
 

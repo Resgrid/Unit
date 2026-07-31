@@ -1,4 +1,4 @@
-import type { VariantProps } from '@gluestack-ui/nativewind-utils';
+import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import React, { forwardRef, useEffect, useRef } from 'react';
 import { Animated, Easing, Platform, View } from 'react-native';
 

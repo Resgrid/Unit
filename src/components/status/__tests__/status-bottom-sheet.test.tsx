@@ -110,6 +110,7 @@ jest.mock('@expo/html-elements', () => {
 });
 
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: jest.fn(() => ({ colorScheme: 'light' })),
   cssInterop: jest.fn((component: any) => component),
 }));
@@ -909,7 +910,7 @@ describe('StatusBottomSheet', () => {
     const buttons = screen.getAllByTestId('button');
     const submitButton = buttons.find(button => {
       try {
-        const textElements = button.findAllByType('Text');
+        const textElements = button.findAllByType('Text' as any);
         return textElements.some((text: any) => text.props.children === 'Submit');
       } catch (e) {
         return false;
@@ -946,7 +947,7 @@ describe('StatusBottomSheet', () => {
     const buttons = screen.getAllByTestId('button');
     const submitButton = buttons.find(button => {
       try {
-        const textElements = button.findAllByType('Text');
+        const textElements = button.findAllByType('Text' as any);
         return textElements.some((text: any) => text.props.children === 'Submit');
       } catch (e) {
         return false;
@@ -1541,6 +1542,9 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
+    // Stations tab is active (station selected) — switch to the Calls tab first
+    fireEvent.press(screen.getByText('Calls'));
+
     // Select call - should clear station selection
     const callOption = screen.getByText('C001 - Emergency Call');
     fireEvent.press(callOption);
@@ -2040,7 +2044,7 @@ describe('StatusBottomSheet', () => {
     const selectedStatus = {
       Id: 'status-1',
       Text: 'Responding',
-      Detail: 2, // Show calls
+      Detail: 1, // Stations (calls not allowed)
       Note: 0,
     };
 
@@ -2058,7 +2062,7 @@ describe('StatusBottomSheet', () => {
         availableCalls: [activeCall],
         isLoading: false,
         selectedCall: null,
-        selectedDestinationType: 'station', // Not 'none', so should not change selection
+        selectedDestinationType: 'call', // Not valid for a stations-only status and not 'none', so should be cleared
       };
       if (selector) {
         return selector(store);

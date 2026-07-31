@@ -4,6 +4,7 @@ import React from 'react';
 // Mock nativewind useColorScheme — default to light mode
 let mockColorScheme = 'light';
 jest.mock('nativewind', () => ({
+  styled: jest.fn((Component: any) => Component),
   useColorScheme: () => ({ colorScheme: mockColorScheme }),
   cssInterop: jest.fn(),
 }));

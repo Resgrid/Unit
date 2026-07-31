@@ -191,7 +191,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
     <VStack className="p-4" space="md" testID="incident-command-tab-panel">
       {/* Unit assignment card */}
       {assignment ? (
-        <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-assignment-card">
+        <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-assignment-card">
           <Heading size="sm">{t('incident_command.my_assignment')}</Heading>
           <HStack className="mt-2 items-center">
             <Box className="mr-2 size-3 rounded-full" style={{ backgroundColor: assignment.Color || '#6B7280' }} testID="incident-command-lane-color" />
@@ -235,7 +235,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
       ) : null}
 
       {/* Incident info card */}
-      <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-info-card">
+      <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-info-card">
         <Heading size="sm">{t('incident_command.incident_info')}</Heading>
         <VStack className="mt-2 space-y-3">
           {view.Commander ? <ContactRow label={t('incident_command.commander')} contact={view.Commander} testID="incident-command-commander" /> : null}
@@ -265,7 +265,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
       </Box>
 
       {/* Objectives */}
-      <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-objectives">
+      <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-objectives">
         <Heading size="sm">{t('incident_command.objectives')}</Heading>
         {view.Objectives.length > 0 ? (
           <VStack className="mt-2 space-y-3">
@@ -290,7 +290,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
       </Box>
 
       {/* Needs */}
-      <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-needs">
+      <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-needs">
         <Heading size="sm">{t('incident_command.needs')}</Heading>
         {view.Needs.length > 0 ? (
           <VStack className="mt-2 space-y-3">
@@ -315,7 +315,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
       </Box>
 
       {/* Notes */}
-      <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-notes">
+      <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-notes">
         <Heading size="sm">{t('incident_command.notes')}</Heading>
         {notes.length > 0 ? (
           <VStack className="mt-2 space-y-3">
@@ -333,7 +333,7 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
       </Box>
 
       {/* Attachments */}
-      <Box className={`rounded-lg p-4 shadow-sm ${cardClass}`} testID="incident-command-attachments">
+      <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-attachments">
         <Heading size="sm">{t('incident_command.attachments')}</Heading>
         {attachments.length > 0 ? (
           <VStack className="mt-2 space-y-3">

@@ -42,7 +42,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   orientation: 'default',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
   updates: {
     fallbackToCacheTimeout: 0,
   },
@@ -134,6 +133,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['react-native-edge-to-edge'],
     'expo-web-browser',
     'expo-secure-store',
+    'expo-image',
+    'expo-sharing',
+    'expo-status-bar',
     [
       '@rnmapbox/maps',
       {
@@ -179,7 +181,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         android: {
           extraProguardRules: '-keep class expo.modules.location.** { *; }',
           extraMavenRepos: ['../../node_modules/@notifee/react-native/android/libs'],
-          targetSdkVersion: 35,
+          targetSdkVersion: 36,
         },
         ios: {
           deploymentTarget: '18.1',

@@ -1,7 +1,7 @@
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, StyleSheet } from 'react-native';
+import { Image, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
@@ -27,6 +27,7 @@ interface StaticMapProps {
 const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoom = 15, height = 200, showUserLocation = false }) => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
+  const { width: windowWidth } = useWindowDimensions();
 
   const imageUrl = React.useMemo(() => {
     if (!latitude || !longitude) {
@@ -47,8 +48,13 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
       }
     }
 
-    return `https://api.mapbox.com/styles/v1/${styleId}/static/${pins.join(',')}/${position}/800x${Math.round(height)}@2x?access_token=${Env.UNIT_MAPBOX_PUBKEY}&logo=false&attribution=false`;
-  }, [latitude, longitude, zoom, height, showUserLocation, colorScheme]);
+    // Match the requested image width to the actual view width (capped at the
+    // Static Images API max of 1280) so the 'auto' viewport fits the rendered
+    // aspect ratio — otherwise wide landscape views crop the pins off-center.
+    const width = Math.min(Math.max(Math.round(windowWidth), 1), 1280);
+
+    return `https://api.mapbox.com/styles/v1/${styleId}/static/${pins.join(',')}/${position}/${width}x${Math.round(height)}@2x?access_token=${Env.UNIT_MAPBOX_PUBKEY}&logo=false&attribution=false`;
+  }, [latitude, longitude, zoom, height, showUserLocation, colorScheme, windowWidth]);
 
   if (!imageUrl) {
     return (

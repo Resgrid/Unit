@@ -230,7 +230,7 @@ export default function RouteViewScreen() {
 
         <Box className="px-4 pt-4">
           {/* Route header */}
-          <Box className="rounded-xl bg-white p-5 shadow-sm dark:bg-gray-800" style={{ borderLeftWidth: 4, borderLeftColor: markerColor }}>
+          <Box className="rounded-xl bg-white p-5 shadow-xs dark:bg-gray-800" style={{ borderLeftWidth: 4, borderLeftColor: markerColor }}>
             <HStack className="items-center gap-2">
               <Icon as={Navigation} size="md" className="text-blue-500" />
               <Text className="text-xl font-bold text-gray-900 dark:text-white">{activePlan.Name}</Text>
@@ -276,7 +276,7 @@ export default function RouteViewScreen() {
 
           {/* Warning when route is assigned to a different unit */}
           {activePlan.UnitId && String(activePlan.UnitId) !== String(activeUnitId) ? (
-            <Box className="mt-4 rounded-xl bg-amber-50 p-4 shadow-sm dark:bg-amber-900/20">
+            <Box className="mt-4 rounded-xl bg-amber-50 p-4 shadow-xs dark:bg-amber-900/20">
               <HStack className="items-center gap-2">
                 <Icon as={Info} size="sm" className="text-amber-500" />
                 <Text className="flex-1 text-sm text-amber-700 dark:text-amber-300">{t('routes.assigned_other_unit')}</Text>
@@ -285,7 +285,7 @@ export default function RouteViewScreen() {
           ) : null}
 
           {/* Stops list */}
-          <Box className="mt-4 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+          <Box className="mt-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
             <Text className="mb-2 text-lg font-bold text-gray-900 dark:text-white">
               {t('routes.stops')} ({sortedStops.length})
             </Text>

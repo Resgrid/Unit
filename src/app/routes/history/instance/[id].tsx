@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { AlertTriangle, CheckCircle, Clock, MapPin, Navigation, SkipForward, XCircle } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -305,7 +305,7 @@ export default function RouteInstanceDetail() {
         </Box>
 
         {/* Summary Stats */}
-        <Box className="mx-4 mt-4 rounded-xl bg-white p-4 shadow-sm dark:bg-gray-800">
+        <Box className="mx-4 mt-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
           <HStack className="items-center justify-between">
             <Text className="text-lg font-bold text-gray-900 dark:text-gray-100">{activeInstance.RoutePlanName || t('routes.route_summary')}</Text>
             <Badge style={{ backgroundColor: statusColor }} className="rounded-full">
@@ -404,7 +404,7 @@ function StopCard({ stop }: { stop: RouteInstanceStopResultData }) {
   const StopIcon = getStopIcon(stop.Status);
 
   return (
-    <Box className="mb-2 rounded-lg bg-white p-3 shadow-sm dark:bg-gray-800">
+    <Box className="mb-2 rounded-lg bg-white p-3 shadow-xs dark:bg-gray-800">
       <HStack className="items-center space-x-3">
         <Box className="size-8 items-center justify-center rounded-full" style={{ backgroundColor: statusColor + '20' }}>
           <Icon as={StopIcon} size="xs" style={{ color: statusColor }} />

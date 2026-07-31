@@ -1,5 +1,5 @@
-import { NavigationContext, useIsFocused } from '@react-navigation/native';
 import * as NavigationBar from 'expo-navigation-bar';
+import { useIsFocused } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Platform, StatusBar } from 'react-native';
@@ -23,15 +23,10 @@ function FocusAwareStatusBarInner({ hidden = false }: Props) {
         StatusBar.setBackgroundColor('transparent');
         StatusBar.setTranslucent(true);
 
-        // Set navigation bar to be transparent and use overlay behavior
-        NavigationBar.setBackgroundColorAsync('transparent')
-          .then(() => NavigationBar.setBehaviorAsync('overlay-swipe'))
-          .catch(() => {
-            // Fallback to hiding navigation bar if overlay behavior is not supported
-            NavigationBar.setVisibilityAsync('hidden').catch(() => {
-              // Silently handle errors if NavigationBar API is not available
-            });
-          });
+        // Edge-to-edge is always on in SDK 56; only visibility APIs remain.
+        NavigationBar.setVisibilityAsync('hidden').catch(() => {
+          // Silently handle errors if NavigationBar API is not available
+        });
 
         // Set the system UI flags to hide navigation bar
         if (hidden) {
@@ -66,12 +61,9 @@ function FocusAwareStatusBarInner({ hidden = false }: Props) {
   if (Platform.OS === 'web') return null;
 
   // Only render SystemBars when focused and on supported platforms
-  return isFocused && (Platform.OS === 'android' || Platform.OS === 'ios') ? <SystemBars style={colorScheme} hidden={{ statusBar: hidden, navigationBar: true }} /> : null;
+  return isFocused && (Platform.OS === 'android' || Platform.OS === 'ios') ? <SystemBars style={colorScheme === 'dark' ? 'dark' : 'light'} hidden={{ statusBar: hidden, navigationBar: true }} /> : null;
 }
 
-// Public export — guards against missing navigation context (e.g. during initial tab pre-render)
 export const FocusAwareStatusBar = (props: Props) => {
-  const navContext = React.useContext(NavigationContext);
-  if (!navContext) return null;
   return <FocusAwareStatusBarInner {...props} />;
 };

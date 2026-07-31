@@ -56,6 +56,22 @@ const hasFreshDestinationData = (lastFetchedAt: number): boolean => {
   return lastFetchedAt > 0 && Date.now() - lastFetchedAt <= STORE_TTL_MS;
 };
 
+// GetSetUnitStatusData includes a server-side sentinel "No Call" entry
+// (empty CallId / name "No Call") that must not be shown as a selectable call.
+const isNoCallSentinel = (call: CallResultData): boolean => {
+  const id = call.CallId?.trim() ?? '';
+  const name = call.Name?.trim().toLowerCase() ?? '';
+  return id === '' || id === '0' || name === 'no call';
+};
+
+// Same API also includes a sentinel "No Station" group entry that must not
+// be shown as a selectable station.
+const isNoStationSentinel = (station: GroupResultData): boolean => {
+  const id = station.GroupId?.trim() ?? '';
+  const name = station.Name?.trim().toLowerCase() ?? '';
+  return id === '' || id === '0' || name === 'no station';
+};
+
 const toStatusNumber = (value: unknown): number => {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -135,7 +151,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       const response = await getSetUnitStatusData(unitId);
       const data = response.Data;
       const lastFetchedAt = Date.now();
-      const availableCalls = data?.Calls ?? [];
+      const availableCalls = (data?.Calls ?? []).filter((call) => !isNoCallSentinel(call));
 
       useCallsStore.setState({
         calls: availableCalls,
@@ -144,7 +160,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
 
       set({
         availableCalls,
-        availableStations: data?.Stations ?? [],
+        availableStations: (data?.Stations ?? []).filter((station) => !isNoStationSentinel(station)),
         availablePois: data?.DestinationPois ?? [],
         availablePoiTypes: data?.PoiTypes ?? [],
         lastFetchedAt,

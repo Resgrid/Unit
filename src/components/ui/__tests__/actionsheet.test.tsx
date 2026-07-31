@@ -4,7 +4,7 @@ import { Text } from 'react-native';
 
 const mockUIActionsheet = jest.fn();
 
-jest.mock('@gluestack-ui/actionsheet', () => ({
+jest.mock('@gluestack-ui/core/actionsheet/creator', () => ({
   createActionsheet: () => {
     const mockReact = require('react');
 
@@ -33,7 +33,8 @@ jest.mock('@gluestack-ui/actionsheet', () => ({
 }));
 
 jest.mock('nativewind', () => ({
-  cssInterop: jest.fn(),
+  styled: jest.fn((Component: any) => Component),
+  useColorScheme: jest.fn(() => ({ colorScheme: 'light' })),
 }));
 
 import { Actionsheet } from '../actionsheet';

@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { router } from 'expo-router';
 import { CloudOff, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
 import React, { useCallback, useMemo, useState } from 'react';

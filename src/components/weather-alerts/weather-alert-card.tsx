@@ -22,7 +22,7 @@ const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) =
   const expiresDate = parseWeatherAlertDate(alert.ExpiresUtc);
 
   return (
-    <Box style={{ borderLeftWidth: 4, borderLeftColor: severityColor }} className="mb-2 rounded-xl bg-white p-3 shadow-sm dark:bg-gray-800">
+    <Box style={{ borderLeftWidth: 4, borderLeftColor: severityColor }} className="mb-2 rounded-xl bg-white p-3 shadow-xs dark:bg-gray-800">
       {/* Header */}
       <HStack className="mb-2 items-center justify-between">
         <HStack className="flex-1 items-center" space="sm">

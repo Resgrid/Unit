@@ -570,7 +570,7 @@ function MapContent() {
           {locationLatitude != null && locationLongitude != null ? (
             <Mapbox.PointAnnotation id="userLocation" coordinate={[locationLongitude, locationLatitude]} anchor={{ x: 0.5, y: 0.5 }}>
               <Animated.View style={[styles.markerContainer, Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] }]}>
-                <View style={[styles.markerOuterRing, Platform.OS === 'web' && styles.markerOuterRingPulseWeb]} />
+                <View style={styles.markerOuterRing} className={Platform.OS === 'web' ? 'pulse-ring' : undefined} />
                 <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
                   <View style={styles.markerDot} />
                   {locationHeading != null ? (
@@ -745,18 +745,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // elevation and shadow properties are handled by themedStyles
   },
-  // Web-only CSS pulse animation (replaces Animated.loop which falls back to JS driver on web)
+  // Web-only CSS pulse animation (replaces Animated.loop which falls back to JS driver on web).
+  // Applied via the global `.pulse-ring` CSS class — react-native-web rejects
+  // `animationName` as an inline style property.
   markerPulseWeb: {
     // No JS-driven transform on web — the outer ring animates via CSS instead
   } as any,
-  markerOuterRingPulseWeb:
-    Platform.OS === 'web'
-      ? {
-          // @ts-ignore — web-only CSS animation properties
-          animationName: 'pulse-ring',
-          animationDuration: '2s',
-          animationIterationCount: 'infinite',
-          animationTimingFunction: 'ease-in-out',
-        }
-      : ({} as any),
 });
