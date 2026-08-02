@@ -21,6 +21,7 @@ import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallsStore } from '@/stores/calls/store';
+import { useChatStore } from '@/stores/chat/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { useContactsStore } from '@/stores/contacts/store';
 import { useDispatchStore } from '@/stores/dispatch/store';
@@ -316,6 +317,9 @@ export const resetAllStores = async (): Promise<void> => {
   // would otherwise keep fetching the OLD call's timers under the NEW user's
   // credentials after re-login.
   useCheckInTimerStore.getState().reset();
+
+  // Chat store — clears channels/messages/outbox and stops typing/outbox timers.
+  useChatStore.getState().reset();
 };
 
 /**
