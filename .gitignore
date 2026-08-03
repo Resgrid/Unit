@@ -44,3 +44,4 @@ opencode.json
 .DS_Store
 /docs
 .env.development
+.claude/settings.local.json

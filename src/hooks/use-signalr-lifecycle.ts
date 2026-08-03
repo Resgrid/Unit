@@ -64,12 +64,13 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
       // Use getState() to access store actions without subscribing to store changes
       const store = useSignalRStore.getState();
       // Use Promise.allSettled to prevent one failure from blocking the other
-      const results = await Promise.allSettled([store.disconnectUpdateHub(), store.disconnectGeolocationHub()]);
+      const hubNames = ['UpdateHub', 'GeolocationHub', 'ChatHub'];
+      const results = await Promise.allSettled([store.disconnectUpdateHub(), store.disconnectGeolocationHub(), store.disconnectChatHub()]);
 
       // Log any failures without throwing
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const hubName = index === 0 ? 'UpdateHub' : 'GeolocationHub';
+          const hubName = hubNames[index] ?? 'Hub';
           logger.error({
             message: `Failed to disconnect ${hubName} on app background`,
             context: { error: result.reason },
@@ -120,12 +121,13 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
       // Use getState() to access store actions without subscribing to store changes
       const store = useSignalRStore.getState();
       // Use Promise.allSettled to prevent one failure from blocking the other
-      const results = await Promise.allSettled([store.connectUpdateHub(), store.connectGeolocationHub()]);
+      const hubNames = ['UpdateHub', 'GeolocationHub', 'ChatHub'];
+      const results = await Promise.allSettled([store.connectUpdateHub(), store.connectGeolocationHub(), store.connectChatHub()]);
 
       // Log any failures without throwing
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const hubName = index === 0 ? 'UpdateHub' : 'GeolocationHub';
+          const hubName = hubNames[index] ?? 'Hub';
           logger.error({
             message: `Failed to reconnect ${hubName} on app resume`,
             context: { error: result.reason },

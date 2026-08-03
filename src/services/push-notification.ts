@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
+import { routerPushWithRetry } from '@/lib/navigation';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { getAppliedNotificationSoundMode, getModernNotificationSoundsEnabled, setAppliedNotificationSoundMode } from '@/lib/storage/notification-prefs';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -30,6 +31,22 @@ export interface PushNotificationData {
   title?: string;
   body?: string;
   data?: Record<string, unknown>;
+}
+
+/**
+ * Handles chat push deep-links. Chat notifications carry an eventCode of
+ * "t:{channelId}" (direct message) or "g:{channelId}" (group/channel); both
+ * navigate to the chat conversation route.
+ */
+export function handleChatDeepLink(eventCode: string): boolean {
+  const match = /^([tg]):(.+)$/.exec(eventCode);
+  if (!match) return false;
+  const channelId = match[2];
+  if (/[/\\?#]/.test(channelId)) return false;
+  void routerPushWithRetry({ pathname: '/chat/[channelId]', params: { channelId } }, { maxAttempts: 20, retryDelayMs: 250 }).catch((error) => {
+    logger.error({ message: 'Failed to deep-link to chat channel', context: { error, eventCode } });
+  });
+  return true;
 }
 
 // Configure how notifications are presented while the app is in the foreground.
@@ -258,6 +275,11 @@ class PushNotificationService {
 
     // Delay so the React tree is mounted and the modal store is ready.
     setTimeout(() => {
+      // Deep-link chat notifications: eventCode "t:{channelId}" (DM) / "g:{channelId}" (group).
+      const eventCode = data?.eventCode;
+      if (typeof eventCode === 'string' && handleChatDeepLink(eventCode)) {
+        return;
+      }
       this.showModalForData(data, content.title, content.body);
     }, delayMs);
   }

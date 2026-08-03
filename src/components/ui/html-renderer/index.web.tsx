@@ -153,13 +153,7 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
 
   return (
     <View style={flatStyle} key={rendererKey}>
-      <iframe
-        ref={iframeRef}
-        srcDoc={fullHtml}
-        sandbox={sandboxValue}
-        title="html-content"
-        style={iframeStyle}
-      />
+      <iframe ref={iframeRef} srcDoc={fullHtml} sandbox={sandboxValue} title="html-content" style={iframeStyle} />
     </View>
   );
 };
