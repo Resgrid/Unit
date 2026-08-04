@@ -239,6 +239,16 @@ jest.mock('nativewind', () => ({
   __esModule: true,
 }));
 
+// Avoid loading expo-video's native module in component tests.
+jest.mock('expo-video', () => ({
+  VideoView: 'VideoView',
+  useVideoPlayer: jest.fn(() => ({
+    play: jest.fn(),
+    pause: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+  })),
+}));
+
 // Mock zod globally to avoid validation schema issues in tests
 jest.mock('zod', () => ({
   z: {

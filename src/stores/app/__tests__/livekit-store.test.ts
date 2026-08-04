@@ -1,17 +1,8 @@
-// Mock expo-asset and expo-av first (before any imports)
+// Mock expo-asset first (before any imports)
 jest.mock('expo-asset', () => ({
   Asset: {
     fromModule: jest.fn(),
     loadAsync: jest.fn(),
-  },
-}));
-
-jest.mock('expo-av', () => ({
-  Audio: {
-    setAudioModeAsync: jest.fn(),
-    getStatusAsync: jest.fn(),
-    loadAsync: jest.fn(),
-    createAsync: jest.fn(),
   },
 }));
 
@@ -112,6 +103,7 @@ jest.mock('../../../api/voice', () => ({
 jest.mock('expo-audio', () => ({
   getRecordingPermissionsAsync: jest.fn(),
   requestRecordingPermissionsAsync: jest.fn(),
+  setAudioModeAsync: jest.fn(),
 }));
 
 // Mock logger
@@ -277,9 +269,8 @@ describe('LiveKit Store - Permission Management', () => {
     });
 
     it('should never call session-activating request on iOS, even when not granted', async () => {
-      // expo-audio's requestRecordingPermissionsAsync activates AVAudioSession
-      // and deadlocks against expo-av — the store must only perform the
-      // non-activating check and let WebRTC prompt natively on publish.
+      // The store performs a non-activating check and lets WebRTC prompt
+      // natively on publish so it cannot race the active call audio session.
       mockGetRecordingPermissionsAsync.mockResolvedValueOnce({
         granted: false,
         canAskAgain: false,

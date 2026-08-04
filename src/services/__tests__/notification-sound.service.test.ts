@@ -7,29 +7,21 @@ jest.mock('react-native', () => ({
   },
 }));
 
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 
 import { notificationSoundService } from '../notification-sound.service';
 
-// Mock expo-av
-jest.mock('expo-av', () => ({
-  Audio: {
-    Sound: {
-      createAsync: jest.fn(() =>
-        Promise.resolve({
-          sound: {
-            setPositionAsync: jest.fn(() => Promise.resolve()),
-            playAsync: jest.fn(() => Promise.resolve()),
-            unloadAsync: jest.fn(() => Promise.resolve()),
-          },
-        })
-      ),
-    },
-    setAudioModeAsync: jest.fn(() => Promise.resolve()),
-  },
-  InterruptionModeIOS: {
-    DuckOthers: 1,
-  },
+// Mock expo-audio
+jest.mock('expo-audio', () => ({
+  createAudioPlayer: jest.fn(() => ({
+    isLoaded: true,
+    loop: false,
+    volume: 1,
+    seekTo: jest.fn(() => Promise.resolve()),
+    play: jest.fn(),
+    remove: jest.fn(),
+  })),
+  setAudioModeAsync: jest.fn(() => Promise.resolve()),
 }));
 
 // Mock expo-asset
@@ -68,16 +60,16 @@ describe('NotificationSoundService', () => {
 
   describe('initialization', () => {
     it('should initialize audio mode when initialize() is called', async () => {
-      // Initialization is lazy, so Audio.setAudioModeAsync should not be called until initialize() is called
+      // Initialization is lazy, so setAudioModeAsync should not be called until initialize() is called
       await notificationSoundService.initialize();
-      expect(Audio.setAudioModeAsync).toHaveBeenCalled();
+      expect(setAudioModeAsync).toHaveBeenCalled();
     });
 
     it('should preload and load audio assets', async () => {
       await notificationSoundService.initialize();
 
       // Verify sounds are created (called during initialization)
-      expect(Audio.Sound.createAsync).toHaveBeenCalled();
+      expect(createAudioPlayer).toHaveBeenCalled();
     });
 
     it('should not initialize multiple times concurrently', async () => {
@@ -89,7 +81,7 @@ describe('NotificationSoundService', () => {
       ]);
 
       // Should only initialize once
-      expect(Audio.setAudioModeAsync).toHaveBeenCalledTimes(1);
+      expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
     });
   });
 

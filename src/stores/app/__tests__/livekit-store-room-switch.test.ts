@@ -34,15 +34,7 @@ jest.mock('@notifee/react-native', () => ({
 jest.mock('expo-audio', () => ({
   getRecordingPermissionsAsync: jest.fn(),
   requestRecordingPermissionsAsync: jest.fn(),
-}));
-
-jest.mock('expo-av', () => ({
-  Audio: {
-    setAudioModeAsync: jest.fn(),
-  },
-  InterruptionModeIOS: {
-    MixWithOthers: 0,
-  },
+  setAudioModeAsync: jest.fn(),
 }));
 
 jest.mock('expo-device', () => ({

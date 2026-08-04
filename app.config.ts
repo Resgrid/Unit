@@ -229,6 +229,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         microphonePermission: 'Allow Resgrid Unit to access the microphone for audio input used in PTT and calls.',
       },
     ],
+    'expo-video',
     'react-native-ble-manager',
     '@livekit/react-native-expo-plugin',
     '@config-plugins/react-native-webrtc',
