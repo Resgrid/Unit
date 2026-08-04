@@ -1,4 +1,4 @@
-import { ResizeMode, Video } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { CopyIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,19 @@ interface VideoPlayerModalProps {
   onCopyUrl: (feed: CallVideoFeedResultData) => void;
 }
 
+interface NativeVideoPlayerProps {
+  uri: string;
+  contentType: 'hls' | 'dash';
+}
+
+const NativeVideoPlayer: React.FC<NativeVideoPlayerProps> = ({ uri, contentType }) => {
+  const player = useVideoPlayer({ uri, contentType }, (videoPlayer) => {
+    videoPlayer.play();
+  });
+
+  return <VideoView player={player} style={styles.video} nativeControls contentFit="contain" />;
+};
+
 export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onClose, feed, onCopyUrl }) => {
   const { t } = useTranslation();
 
@@ -40,7 +53,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
     switch (feed.FeedFormat) {
       case FeedFormat.HLS:
       case FeedFormat.DASH:
-        return <Video source={{ uri: feed.Url }} style={styles.video} useNativeControls resizeMode={ResizeMode.CONTAIN} shouldPlay />;
+        return <NativeVideoPlayer key={`${feed.FeedFormat}:${feed.Url}`} uri={feed.Url} contentType={feed.FeedFormat === FeedFormat.HLS ? 'hls' : 'dash'} />;
 
       case FeedFormat.YouTubeLive:
       case FeedFormat.Embed:

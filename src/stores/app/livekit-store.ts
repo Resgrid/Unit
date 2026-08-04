@@ -1,8 +1,7 @@
 import { AudioSession } from '@livekit/react-native';
 import { RTCAudioSession } from '@livekit/react-native-webrtc';
 import notifee, { AndroidForegroundServiceType, AndroidImportance } from '@notifee/react-native';
-import { getRecordingPermissionsAsync } from 'expo-audio';
-import { Audio, InterruptionModeIOS } from 'expo-av';
+import { getRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 import * as Device from 'expo-device';
 import { Room, RoomEvent } from 'livekit-client';
 import { Alert, Linking, NativeModules, PermissionsAndroid, Platform } from 'react-native';
@@ -54,7 +53,7 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
           });
         } catch (routeError) {
           logger.warn({
-            message: 'Failed to apply Android route via InCallAudioModule, falling back to Audio.setAudioModeAsync',
+            message: 'Failed to apply Android route via InCallAudioModule, falling back to setAudioModeAsync',
             context: { deviceType: normalizedDeviceType, error: routeError },
           });
         }
@@ -62,18 +61,17 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
 
       // On Android, we use RTCAudioSession for precise control
       // First, ensure the audio session is configured correctly
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        shouldPlayInBackground: true,
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
         // For speaker, we want false (speaker). For others, simple routing.
-        playThroughEarpieceAndroid: normalizedDeviceType !== 'speaker',
-        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+        shouldRouteThroughEarpiece: normalizedDeviceType !== 'speaker',
       });
 
       // Use RTCAudioSession to force route selection for WebRTC (Not available on Android in this package)
-      // We rely on Audio.setAudioModeAsync and system behavior.
+      // We rely on setAudioModeAsync and system behavior.
       /*
       const RTCAudioSessionAny = RTCAudioSession as any;
       if (RTCAudioSessionAny.getAudioDevices && RTCAudioSessionAny.selectAudioDevice) {
@@ -85,19 +83,18 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
       }
       */
       logger.info({
-        message: 'Android audio routing applied via Audio.setAudioModeAsync',
+        message: 'Android audio routing applied via setAudioModeAsync',
         context: { deviceType: normalizedDeviceType },
       });
     } else {
-      // iOS handling (Expo AV is usually sufficient, but CallKeep handles the session)
+      // iOS handling (expo-audio configures the mode while CallKeep handles the session)
       // Just ensure the mode is correct
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: true,
-        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        shouldPlayInBackground: true,
+        playsInSilentMode: true,
+        interruptionMode: 'mixWithOthers',
+        shouldRouteThroughEarpiece: true,
       });
     }
   } catch (error) {
@@ -397,11 +394,9 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         });
         return true;
       } else if (Platform.OS === 'ios') {
-        // NOTE: expo-audio's requestRecordingPermissionsAsync activates
-        // AVAudioSession in record mode, which deadlocks against expo-av's
-        // active session and freezes the app. Only perform the
-        // non-activating status check here; WebRTC triggers the native mic
-        // prompt itself when a track is published.
+        // Keep permission handling separate from audio-session configuration so
+        // it cannot race LiveKit or CallKeep while a call session is active.
+        // WebRTC triggers the native mic prompt when a track is published.
         const micPermission = await getRecordingPermissionsAsync();
 
         if (!micPermission.granted) {

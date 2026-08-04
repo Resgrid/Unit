@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { Audio, InterruptionModeIOS } from 'expo-av';
+import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { NativeModules, Platform } from 'react-native';
 
 import { logger } from '@/lib/logging';
@@ -7,12 +7,12 @@ import { logger } from '@/lib/logging';
 class AudioService {
   private static instance: AudioService;
 
-  // Expo AV Sound objects
-  private startTransmittingSound: Audio.Sound | null = null;
-  private stopTransmittingSound: Audio.Sound | null = null;
-  private connectedDeviceSound: Audio.Sound | null = null;
-  private connectToAudioRoomSound: Audio.Sound | null = null;
-  private disconnectedFromAudioRoomSound: Audio.Sound | null = null;
+  // Expo Audio player objects
+  private startTransmittingSound: AudioPlayer | null = null;
+  private stopTransmittingSound: AudioPlayer | null = null;
+  private connectedDeviceSound: AudioPlayer | null = null;
+  private connectToAudioRoomSound: AudioPlayer | null = null;
+  private disconnectedFromAudioRoomSound: AudioPlayer | null = null;
 
   private isInitialized = false;
 
@@ -43,13 +43,12 @@ class AudioService {
     }
 
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        staysActiveInBackground: true,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false,
-        interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+      await setAudioModeAsync({
+        allowsRecording: true,
+        shouldPlayInBackground: true,
+        playsInSilentMode: true,
+        shouldRouteThroughEarpiece: false,
+        interruptionMode: 'mixWithOthers',
       });
 
       // Initialize Native In-Call Audio Module on Android
@@ -106,10 +105,12 @@ class AudioService {
     }
   }
 
-  private async loadSound(module: any): Promise<Audio.Sound | null> {
+  private async loadSound(module: number): Promise<AudioPlayer | null> {
     try {
-      const { sound } = await Audio.Sound.createAsync(module);
-      return sound;
+      const player = createAudioPlayer(module, { keepAudioSessionActive: true });
+      player.loop = false;
+      player.volume = 1.0;
+      return player;
     } catch (error) {
       logger.error({
         message: 'Error loading sound',
@@ -148,7 +149,7 @@ class AudioService {
     }
   }
 
-  private async playSound(sound: Audio.Sound | null, name: string): Promise<void> {
+  private async playSound(sound: AudioPlayer | null, name: string): Promise<void> {
     if (Platform.OS === 'android') {
       const InCallAudioModule = NativeModules.InCallAudioModule;
       if (InCallAudioModule) {
@@ -160,7 +161,10 @@ class AudioService {
 
     if (!sound) return;
     try {
-      await sound.replayAsync();
+      if (sound.isLoaded) {
+        await sound.seekTo(0);
+      }
+      sound.play();
       logger.debug({ message: 'Sound played successfully', context: { soundName: name } });
     } catch (error) {
       logger.warn({
@@ -197,7 +201,7 @@ class AudioService {
       await Promise.all(
         sounds.map(async (sound) => {
           if (sound) {
-            await sound.unloadAsync();
+            sound.remove();
           }
         })
       );

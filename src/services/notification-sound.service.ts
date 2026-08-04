@@ -1,5 +1,5 @@
 import { Asset } from 'expo-asset';
-import { Audio, type AVPlaybackSource, InterruptionModeIOS } from 'expo-av';
+import { type AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Platform } from 'react-native';
 
 import { logger } from '@/lib/logging';
@@ -7,11 +7,11 @@ import type { NotificationType } from '@/stores/push-notification/store';
 
 class NotificationSoundService {
   private static instance: NotificationSoundService;
-  private callSound: Audio.Sound | null = null;
-  private messageSound: Audio.Sound | null = null;
-  private chatSound: Audio.Sound | null = null;
-  private groupChatSound: Audio.Sound | null = null;
-  private defaultSound: Audio.Sound | null = null;
+  private callSound: AudioPlayer | null = null;
+  private messageSound: AudioPlayer | null = null;
+  private chatSound: AudioPlayer | null = null;
+  private groupChatSound: AudioPlayer | null = null;
+  private defaultSound: AudioPlayer | null = null;
   private isInitialized = false;
   private initializationPromise: Promise<void> | null = null;
 
@@ -55,13 +55,12 @@ class NotificationSoundService {
 
     try {
       // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        staysActiveInBackground: false,
-        playsInSilentModeIOS: true,
-        shouldDuckAndroid: true,
-        playThroughEarpieceAndroid: false,
-        interruptionModeIOS: InterruptionModeIOS.DuckOthers,
+      await setAudioModeAsync({
+        allowsRecording: false,
+        shouldPlayInBackground: false,
+        playsInSilentMode: true,
+        interruptionMode: 'duckOthers',
+        shouldRouteThroughEarpiece: false,
       });
 
       // Pre-load audio assets
@@ -109,20 +108,17 @@ class NotificationSoundService {
    * Helper method to load a sound asset from a require path
    * @param assetRequire - The required asset module
    * @param soundName - Name of the sound for logging purposes
-   * @returns The created Audio.Sound or null on failure
+   * @returns The created AudioPlayer or null on failure
    */
-  private async loadSound(assetRequire: number, soundName: string): Promise<Audio.Sound | null> {
+  private async loadSound(assetRequire: number, soundName: string): Promise<AudioPlayer | null> {
     try {
       const asset = Asset.fromModule(assetRequire);
       await asset.downloadAsync();
 
-      const { sound } = await Audio.Sound.createAsync({ uri: asset.localUri || asset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
-
-      return sound;
+      const player = createAudioPlayer({ uri: asset.localUri || asset.uri }, { keepAudioSessionActive: true });
+      player.loop = false;
+      player.volume = 1.0;
+      return player;
     } catch (error) {
       logger.error({
         message: `Failed to load sound: ${soundName}`,
@@ -147,11 +143,9 @@ class NotificationSoundService {
       this.chatSound = await this.loadSound(require('@assets/audio/newchat.wav'), 'chat');
 
       // Group chat uses the same sound as regular chat
-      const { sound: groupChatSound } = await Audio.Sound.createAsync({ uri: chatSoundAsset.localUri || chatSoundAsset.uri } as AVPlaybackSource, {
-        shouldPlay: false,
-        isLooping: false,
-        volume: 1.0,
-      });
+      const groupChatSound = createAudioPlayer({ uri: chatSoundAsset.localUri || chatSoundAsset.uri }, { keepAudioSessionActive: true });
+      groupChatSound.loop = false;
+      groupChatSound.volume = 1.0;
       this.groupChatSound = groupChatSound;
 
       // Load default notification sound
@@ -168,7 +162,7 @@ class NotificationSoundService {
     }
   }
 
-  private async playSound(sound: Audio.Sound | null, soundName: string): Promise<void> {
+  private async playSound(sound: AudioPlayer | null, soundName: string): Promise<void> {
     try {
       // Notification sounds are native-only; return silently on web
       if (Platform.OS === 'web') {
@@ -188,8 +182,10 @@ class NotificationSoundService {
       }
 
       // Reset to start and play
-      await sound.setPositionAsync(0);
-      await sound.playAsync();
+      if (sound.isLoaded) {
+        await sound.seekTo(0);
+      }
+      sound.play();
 
       logger.debug({
         message: 'Notification sound played successfully',
@@ -245,27 +241,27 @@ class NotificationSoundService {
     try {
       // Unload all sounds
       if (this.callSound) {
-        await this.callSound.unloadAsync();
+        this.callSound.remove();
         this.callSound = null;
       }
 
       if (this.messageSound) {
-        await this.messageSound.unloadAsync();
+        this.messageSound.remove();
         this.messageSound = null;
       }
 
       if (this.chatSound) {
-        await this.chatSound.unloadAsync();
+        this.chatSound.remove();
         this.chatSound = null;
       }
 
       if (this.groupChatSound) {
-        await this.groupChatSound.unloadAsync();
+        this.groupChatSound.remove();
         this.groupChatSound = null;
       }
 
       if (this.defaultSound) {
-        await this.defaultSound.unloadAsync();
+        this.defaultSound.remove();
         this.defaultSound = null;
       }
 
