@@ -37,6 +37,8 @@ interface AudioStreamState {
   cleanup: () => Promise<void>;
 }
 
+let latestPlayRequestId = 0;
+
 export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
   availableStreams: [],
   isLoadingStreams: false,
@@ -83,6 +85,17 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
       return;
     }
 
+    const streamUrl = stream?.Url?.trim();
+    if (!streamUrl) {
+      logger.error({
+        message: 'Cannot play audio stream without a URL',
+        context: { streamId: stream?.Id, streamName: stream?.Name },
+      });
+      return;
+    }
+
+    const requestId = ++latestPlayRequestId;
+
     try {
       const { soundObject: currentSound, stopStream } = get();
 
@@ -95,7 +108,7 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
 
       logger.debug({
         message: 'Starting audio stream',
-        context: { streamName: stream.Name, streamUrl: stream.Url },
+        context: { streamName: stream.Name, streamUrl },
       });
 
       // Configure audio mode for streaming
@@ -107,7 +120,7 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
         shouldRouteThroughEarpiece: false,
       });
 
-      const sound = createAudioPlayer(stream.Url, {
+      const sound = createAudioPlayer(streamUrl, {
         updateInterval: 1000,
         keepAudioSessionActive: true,
         preferredForwardBufferDuration: 5,
@@ -193,6 +206,10 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
         context: { error, streamName: stream.Name },
       });
 
+      if (requestId !== latestPlayRequestId) {
+        return;
+      }
+
       const { soundObject } = get();
       if (soundObject) {
         try {
@@ -217,26 +234,29 @@ export const useAudioStreamStore = create<AudioStreamState>((set, get) => ({
       const { soundObject, currentStream } = get();
 
       if (soundObject) {
-        soundObject.pause();
-        soundObject.remove();
+        try {
+          soundObject.pause();
+        } finally {
+          soundObject.remove();
+        }
 
         logger.info({
           message: 'Audio stream stopped',
           context: { streamName: currentStream?.Name },
         });
       }
-
+    } catch (error) {
+      logger.error({
+        message: 'Failed to stop audio stream',
+        context: { error },
+      });
+    } finally {
       set({
         soundObject: null,
         currentStream: null,
         isPlaying: false,
         isLoading: false,
         isBuffering: false,
-      });
-    } catch (error) {
-      logger.error({
-        message: 'Failed to stop audio stream',
-        context: { error },
       });
     }
   },
