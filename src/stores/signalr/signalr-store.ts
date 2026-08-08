@@ -7,6 +7,7 @@ import { SignalRService, signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
 import { useChatStore } from '../chat/store';
+import { FeatureFlagKeys, featureFlagsStore } from '../feature-flags/store';
 import { securityStore } from '../security/store';
 import { useWeatherAlertsStore } from '../weather-alerts/store';
 
@@ -378,6 +379,12 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   },
   connectChatHub: async () => {
     try {
+      // Guard here so every call path (init, app-resume reconnect) honors the flag.
+      if (!featureFlagsStore.getState().isEnabled(FeatureFlagKeys.ChatSystem)) {
+        logger.info({ message: 'Chat disabled by feature flag; skipping chat hub connection' });
+        return;
+      }
+
       if (get().isChatHubConnected) {
         return;
       }

@@ -9,6 +9,7 @@ import { HStack } from '@/components/ui/hstack';
 import { VStack } from '@/components/ui/vstack';
 import { invertColor } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
+import { useIsChatEnabled } from '@/stores/feature-flags/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 
 import ZeroState from '../common/zero-state';
@@ -25,6 +26,7 @@ interface SidebarProps {
 const Sidebar = ({ onClose }: SidebarProps) => {
   const activeStatuses = useCoreStore((state) => state.activeStatuses);
   const setIsOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
+  const isChatEnabled = useIsChatEnabled();
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -63,17 +65,19 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         {/* Check-in timer widget */}
         <CheckInSidebarWidget />
 
-        {/* Chat + Assistant navigation */}
-        <HStack space="md">
-          <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToChat}>
-            <MessagesSquare size={18} color="#2563eb" />
-            <ButtonText className="ml-2">{t('tabs.chat')}</ButtonText>
-          </Button>
-          <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToAssistant}>
-            <Sparkles size={18} color="#7c3aed" />
-            <ButtonText className="ml-2">{t('tabs.assistant')}</ButtonText>
-          </Button>
-        </HStack>
+        {/* Chat + Assistant navigation (hidden when the Chat.System feature flag is off) */}
+        {isChatEnabled && (
+          <HStack space="md">
+            <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToChat}>
+              <MessagesSquare size={18} color="#2563eb" />
+              <ButtonText className="ml-2">{t('tabs.chat')}</ButtonText>
+            </Button>
+            <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToAssistant}>
+              <Sparkles size={18} color="#7c3aed" />
+              <ButtonText className="ml-2">{t('tabs.assistant')}</ButtonText>
+            </Button>
+          </HStack>
+        )}
 
         {/* Third row - Status buttons or empty state */}
         {isActiveStatusesEmpty ? (

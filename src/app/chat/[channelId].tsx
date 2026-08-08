@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { type Href, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { type Href, Redirect, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Circle } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +28,7 @@ import { ChatChannelType, ChatMessagePriority, type ChatMessageResultData, ChatM
 import { useCoreStore } from '@/stores/app/core-store';
 import useAuthStore from '@/stores/auth/store';
 import { useChatStore } from '@/stores/chat/store';
+import { useChatSystemStatus } from '@/stores/feature-flags/store';
 import { securityStore } from '@/stores/security/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -38,6 +39,8 @@ export default function ChannelConversationScreen() {
   const channelId = Array.isArray(params.channelId) ? params.channelId[0] : params.channelId;
 
   const currentUserId = useAuthStore((s) => s.userId);
+  const chatStatus = useChatSystemStatus();
+  const isChatEnabled = chatStatus === 'enabled';
   const isModerator = !!securityStore((s) => s.rights)?.IsAdmin;
   // Unit-app chat identity: messages post as the active unit ("Engine 6").
   const activeUnit = useCoreStore((s) => s.activeUnit);
@@ -67,7 +70,7 @@ export default function ChannelConversationScreen() {
   // Mount: activate channel, join hub, load history and members.
   useFocusEffect(
     useCallback(() => {
-      if (!channelId) return;
+      if (!channelId || !isChatEnabled) return;
       const store = useChatStore.getState();
       store.setActiveChannel(channelId);
       void store.joinChannel(channelId);
@@ -76,7 +79,7 @@ export default function ChannelConversationScreen() {
       return () => {
         useChatStore.getState().setActiveChannel(null);
       };
-    }, [channelId])
+    }, [channelId, isChatEnabled])
   );
 
   // Fetch presence for the channel members (for the header online dot).
@@ -238,6 +241,21 @@ export default function ChannelConversationScreen() {
   }, [channelId]);
 
   const title = channel ? getChannelDisplayName(channel, t) : t('chat.title');
+
+  // Chat.System flag not yet resolved: wait instead of redirecting away from a valid deep link.
+  if (chatStatus === 'unknown') {
+    return (
+      <Box className="size-full flex-1 items-center justify-center bg-background-0">
+        <Stack.Screen options={{ title, headerShown: true, headerBackTitle: '' }} />
+        <Spinner />
+      </Box>
+    );
+  }
+
+  // Chat.System feature flag off: block deep links into conversations.
+  if (chatStatus === 'disabled') {
+    return <Redirect href="/(app)" />;
+  }
 
   return (
     <Box className="size-full flex-1 bg-background-0">

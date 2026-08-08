@@ -48,6 +48,16 @@ jest.mock('../../app/core-store', () => {
   };
 });
 
+// Feature flags: default the chat flag to enabled so connectChatHub is not short-circuited.
+jest.mock('../../feature-flags/store', () => ({
+  FeatureFlagKeys: { ChatSystem: 'Chat.System' },
+  featureFlagsStore: {
+    getState: jest.fn(() => ({
+      isEnabled: jest.fn(() => true),
+    })),
+  },
+}));
+
 jest.mock('../../security/store', () => ({
   securityStore: {
     getState: jest.fn(() => ({

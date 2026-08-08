@@ -25,6 +25,7 @@ import { useChatStore } from '@/stores/chat/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { useContactsStore } from '@/stores/contacts/store';
 import { useDispatchStore } from '@/stores/dispatch/store';
+import { featureFlagsStore } from '@/stores/feature-flags/store';
 import { useMapsStore } from '@/stores/maps/store';
 import { useNotesStore } from '@/stores/notes/store';
 import { useOfflineQueueStore } from '@/stores/offline-queue/store';
@@ -142,6 +143,13 @@ export const INITIAL_DISPATCH_STATE = {
 export const INITIAL_SECURITY_STATE = {
   error: null,
   rights: null,
+};
+
+export const INITIAL_FEATURE_FLAGS_STATE = {
+  flags: {},
+  isLoaded: false,
+  error: null,
+  identityKey: null,
 };
 
 export const INITIAL_LOCATION_STATE = {
@@ -266,6 +274,11 @@ export const resetAllStores = async (): Promise<void> => {
   useProtocolsStore.setState(INITIAL_PROTOCOLS_STATE);
   useDispatchStore.setState(INITIAL_DISPATCH_STATE);
   securityStore.setState(INITIAL_SECURITY_STATE);
+
+  // Feature flags — clearPersistedStorage() wipes MMKV but not in-memory zustand state;
+  // reset here so the next session starts unknown and fails closed until fetchFlags
+  // resolves, instead of gating on the previous identity's flags.
+  featureFlagsStore.setState(INITIAL_FEATURE_FLAGS_STATE);
 
   // Stores with existing reset/clear methods
   useStatusBottomSheetStore.getState().reset();
@@ -431,6 +444,7 @@ export default {
   INITIAL_PROTOCOLS_STATE,
   INITIAL_DISPATCH_STATE,
   INITIAL_SECURITY_STATE,
+  INITIAL_FEATURE_FLAGS_STATE,
   INITIAL_LOCATION_STATE,
   INITIAL_LIVEKIT_STATE,
   INITIAL_AUDIO_STREAM_STATE,
