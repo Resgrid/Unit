@@ -32,6 +32,7 @@ import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { usePushNotifications } from '@/services/push-notification';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
+import { FeatureFlagKeys, featureFlagsStore } from '@/stores/feature-flags/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
@@ -164,19 +165,27 @@ export default function TabLayout() {
 
       // These fetches are independent of each other — run in parallel to cut
       // time-to-interactive (previously 8+ serial network hops).
-      await Promise.all([useRolesStore.getState().init(), useCallsStore.getState().init(), useWeatherAlertsStore.getState().init(), securityStore.getState().getRights()]);
+      await Promise.all([useRolesStore.getState().init(), useCallsStore.getState().init(), useWeatherAlertsStore.getState().init(), securityStore.getState().getRights(), featureFlagsStore.getState().fetchFlags()]);
 
       // SignalR needs config (EventingUrl) and rights (DepartmentId) — both
       // available now. The two hub connects are independent.
       await Promise.all([useSignalRStore.getState().connectUpdateHub(), useSignalRStore.getState().connectGeolocationHub()]);
 
-      // Connect the realtime chat hub (best-effort; chat may be disabled per department)
-      try {
-        await useSignalRStore.getState().connectChatHub();
-      } catch (error) {
-        logger.warn({
-          message: 'Failed to connect SignalR chat hub during initialization',
-          context: { error, platform: Platform.OS },
+      // Connect the realtime chat hub only when the Chat.System feature flag is on for
+      // this department; when it is off every chat surface stays hidden.
+      if (featureFlagsStore.getState().isEnabled(FeatureFlagKeys.ChatSystem)) {
+        // Best-effort: chat hub failure should not block app initialization.
+        try {
+          await useSignalRStore.getState().connectChatHub();
+        } catch (error) {
+          logger.warn({
+            message: 'Failed to connect SignalR chat hub during initialization',
+            context: { error, platform: Platform.OS },
+          });
+        }
+      } else {
+        logger.info({
+          message: 'Chat disabled by feature flag; skipping chat hub connection',
         });
       }
 
