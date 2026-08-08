@@ -28,7 +28,7 @@ import { ChatChannelType, ChatMessagePriority, type ChatMessageResultData, ChatM
 import { useCoreStore } from '@/stores/app/core-store';
 import useAuthStore from '@/stores/auth/store';
 import { useChatStore } from '@/stores/chat/store';
-import { useIsChatEnabled } from '@/stores/feature-flags/store';
+import { useChatSystemStatus } from '@/stores/feature-flags/store';
 import { securityStore } from '@/stores/security/store';
 import { useToastStore } from '@/stores/toast/store';
 
@@ -39,7 +39,8 @@ export default function ChannelConversationScreen() {
   const channelId = Array.isArray(params.channelId) ? params.channelId[0] : params.channelId;
 
   const currentUserId = useAuthStore((s) => s.userId);
-  const isChatEnabled = useIsChatEnabled();
+  const chatStatus = useChatSystemStatus();
+  const isChatEnabled = chatStatus === 'enabled';
   const isModerator = !!securityStore((s) => s.rights)?.IsAdmin;
   // Unit-app chat identity: messages post as the active unit ("Engine 6").
   const activeUnit = useCoreStore((s) => s.activeUnit);
@@ -241,8 +242,18 @@ export default function ChannelConversationScreen() {
 
   const title = channel ? getChannelDisplayName(channel, t) : t('chat.title');
 
+  // Chat.System flag not yet resolved: wait instead of redirecting away from a valid deep link.
+  if (chatStatus === 'unknown') {
+    return (
+      <Box className="size-full flex-1 items-center justify-center bg-background-0">
+        <Stack.Screen options={{ title, headerShown: true, headerBackTitle: '' }} />
+        <Spinner />
+      </Box>
+    );
+  }
+
   // Chat.System feature flag off: block deep links into conversations.
-  if (!isChatEnabled) {
+  if (chatStatus === 'disabled') {
     return <Redirect href="/(app)" />;
   }
 

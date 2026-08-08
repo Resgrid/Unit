@@ -168,6 +168,13 @@ jest.mock('@/stores/security/store', () => ({
   },
 }));
 
+jest.mock('@/stores/feature-flags/store', () => ({
+  featureFlagsStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
 jest.mock('@/stores/status/store', () => ({
   useStatusBottomSheetStore: {
     setState: jest.fn(),
@@ -217,6 +224,15 @@ jest.mock('@/stores/check-in-timers/store', () => ({
   },
 }));
 
+// Mocked so the real chat store's module chain (chat api -> auth store ->
+// lib/auth/api axios setup) is never loaded in this suite.
+jest.mock('@/stores/chat/store', () => ({
+  useChatStore: {
+    setState: jest.fn(),
+    getState: jest.fn(),
+  },
+}));
+
 jest.mock('@/stores/signalr/signalr-store', () => ({
   useSignalRStore: {
     setState: jest.fn(),
@@ -234,6 +250,7 @@ import {
   INITIAL_CONTACTS_STATE,
   INITIAL_CORE_STATE,
   INITIAL_DISPATCH_STATE,
+  INITIAL_FEATURE_FLAGS_STATE,
   INITIAL_LIVEKIT_STATE,
   INITIAL_LOCATION_STATE,
   INITIAL_MAPS_STATE,
@@ -261,6 +278,7 @@ const mockAudioCleanup = jest.fn().mockResolvedValue(undefined);
 const mockLiveKitDisconnect = jest.fn().mockResolvedValue(undefined);
 const mockWeatherAlertsReset = jest.fn();
 const mockCheckInTimerReset = jest.fn();
+const mockChatReset = jest.fn();
 
 describe('app-reset.service', () => {
   beforeEach(() => {
@@ -274,6 +292,7 @@ describe('app-reset.service', () => {
     const { useStatusBottomSheetStore } = jest.requireMock('@/stores/status/store');
     const { useWeatherAlertsStore } = jest.requireMock('@/stores/weather-alerts/store');
     const { useCheckInTimerStore } = jest.requireMock('@/stores/check-in-timers/store');
+    const { useChatStore } = jest.requireMock('@/stores/chat/store');
     const { locationService } = jest.requireMock('@/services/location');
     const { signalRService } = jest.requireMock('@/services/signalr.service');
 
@@ -304,6 +323,10 @@ describe('app-reset.service', () => {
 
     useCheckInTimerStore.getState.mockReturnValue({
       reset: mockCheckInTimerReset,
+    });
+
+    useChatStore.getState.mockReturnValue({
+      reset: mockChatReset,
     });
 
     locationService.stopLocationUpdates.mockResolvedValue(undefined);
@@ -426,6 +449,15 @@ describe('app-reset.service', () => {
       expect(INITIAL_SECURITY_STATE).toEqual({
         error: null,
         rights: null,
+      });
+    });
+
+    it('should export INITIAL_FEATURE_FLAGS_STATE with correct shape', () => {
+      expect(INITIAL_FEATURE_FLAGS_STATE).toEqual({
+        flags: {},
+        isLoaded: false,
+        error: null,
+        identityKey: null,
       });
     });
 
@@ -565,12 +597,15 @@ describe('app-reset.service', () => {
       const { useMapsStore } = jest.requireMock('@/stores/maps/store');
       const { usePoisStore } = jest.requireMock('@/stores/pois/store');
       const { useRoutesStore } = jest.requireMock('@/stores/routes/store');
+      const { featureFlagsStore } = jest.requireMock('@/stores/feature-flags/store');
 
       await resetAllStores();
 
       expect(useCoreStore.setState).toHaveBeenCalledWith(INITIAL_CORE_STATE);
       expect(useCallsStore.setState).toHaveBeenCalledWith(INITIAL_CALLS_STATE);
       expect(useUnitsStore.setState).toHaveBeenCalledWith(INITIAL_UNITS_STATE);
+      // Logout must clear flags, resolution and identity so the next session fails closed.
+      expect(featureFlagsStore.setState).toHaveBeenCalledWith(INITIAL_FEATURE_FLAGS_STATE);
       expect(mockStatusReset).toHaveBeenCalled();
       expect(mockOfflineQueueClear).toHaveBeenCalled();
       expect(mockLoadingReset).toHaveBeenCalled();
@@ -580,6 +615,7 @@ describe('app-reset.service', () => {
       expect(useRoutesStore.setState).toHaveBeenCalledWith(INITIAL_ROUTES_STATE);
       expect(mockWeatherAlertsReset).toHaveBeenCalled();
       expect(mockCheckInTimerReset).toHaveBeenCalled();
+      expect(mockChatReset).toHaveBeenCalled();
     });
 
     it('should disconnect from LiveKit room if connected', async () => {

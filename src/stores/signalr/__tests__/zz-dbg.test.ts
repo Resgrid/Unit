@@ -31,6 +31,10 @@ jest.mock('@/stores/security/store', () => {
   console.log('ALIAS security mock factory ran');
   return { securityStore: mockSecurityStore };
 });
+jest.mock('../../feature-flags/store', () => ({
+  FeatureFlagKeys: { ChatSystem: 'Chat.System' },
+  featureFlagsStore: { getState: jest.fn(() => ({ isEnabled: jest.fn(() => true) })) },
+}));
 jest.mock('@/lib/logging', () => ({ logger: { info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn(), trace: jest.fn(), fatal: jest.fn() } }));
 jest.mock('@/lib/env', () => ({ Env: { CHANNEL_HUB_NAME: 'eventingHub', REALTIME_GEO_HUB_NAME: 'geolocationHub' } }));
 jest.mock('@/lib', () => ({ useAuthStore: { getState: jest.fn(() => ({ accessToken: 'mock-token' })) } }));
