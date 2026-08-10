@@ -142,6 +142,8 @@ export class IncidentChatChannels {
   public LeadsChannelId?: string | null = null;
   /** The caller's own lane channel, when they are assigned to a lane. */
   public LaneChannelId?: string | null = null;
+  /** The incident's line to the dispatch desk — open to everyone on the incident. */
+  public DispatchChannelId?: string | null = null;
   /** True once the incident is closed: readable, but frozen as a point-in-time record. */
   public IsFrozen: boolean = false;
 }
