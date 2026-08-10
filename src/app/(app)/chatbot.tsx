@@ -67,7 +67,14 @@ export default function ChatbotScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: ChatMessageResultData }) => (
-      <MessageBubble message={item} isOwn={!!item.SenderUserId && item.SenderUserId === currentUserId} showSender={false} currentUserId={currentUserId} onLongPress={setActionsMessage} onToggleReaction={() => undefined} />
+      <MessageBubble
+        message={item}
+        isOwn={!!item.SenderUserId && item.SenderUserId === currentUserId}
+        showSender={false}
+        currentUserId={currentUserId}
+        onLongPress={setActionsMessage}
+        onToggleReaction={() => undefined}
+      />
     ),
     [currentUserId]
   );
@@ -117,7 +124,9 @@ export default function ChatbotScreen() {
         ) : (
           <FlatList
             data={ordered}
-            maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
+            // autoscrollToBottomThreshold is off by default in FlashList v2; without it a
+            // new answer lands below the viewport, hidden behind the input row.
+            maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 0.2 }}
             keyExtractor={(item: ChatMessageResultData) => item.ChatMessageId}
             renderItem={renderItem}
             contentContainerStyle={{ paddingVertical: 8 }}

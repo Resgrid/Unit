@@ -22,6 +22,9 @@ export interface SignalRMessage {
   data: unknown;
 }
 
+/** Hub events can carry multiple positional arguments; listeners receive all of them. */
+export type SignalREventListener = (...data: unknown[]) => void;
+
 export enum HubConnectingState {
   IDLE = 'idle',
   RECONNECTING = 'reconnecting',
@@ -245,12 +248,12 @@ class SignalRService {
           context: { method },
         });
 
-        connection.on(method, (data) => {
+        connection.on(method, (...args: unknown[]) => {
           logger.debug({
             message: `Received ${method} message from hub: ${config.name}`,
-            context: { method, data },
+            context: { method, args },
           });
-          this.handleMessage(config.name, method, data);
+          this.handleMessage(config.name, method, args);
         });
       });
 
@@ -383,12 +386,12 @@ class SignalRService {
           context: { method },
         });
 
-        connection.on(method, (data) => {
+        connection.on(method, (...args: unknown[]) => {
           logger.debug({
             message: `Received ${method} message from hub: ${config.name}`,
-            context: { method, data },
+            context: { method, args },
           });
-          this.handleMessage(config.name, method, data);
+          this.handleMessage(config.name, method, args);
         });
       });
 
@@ -535,9 +538,11 @@ class SignalRService {
     this.reconnectTimers.set(hubName, reconnectTimer);
   }
 
-  private handleMessage(_hubName: string, method: string, data: unknown): void {
-    // Emit event for subscribers using the method name as the event name
-    this.emit(method, data);
+  private handleMessage(_hubName: string, method: string, args: unknown[]): void {
+    // Emit event for subscribers using the method name as the event name. Hub methods
+    // can send more than one argument (chatPresenceChanged sends `userId, isOnline`),
+    // so forward every argument to the listeners.
+    this.emit(method, ...args);
   }
 
   public async disconnectFromHub(hubName: string): Promise<void> {
@@ -645,16 +650,16 @@ class SignalRService {
   }
 
   // Event emitter methods
-  private eventListeners: Map<string, Set<(data: unknown) => void>> = new Map();
+  private eventListeners: Map<string, Set<SignalREventListener>> = new Map();
 
-  public on(event: string, callback: (data: unknown) => void): void {
+  public on(event: string, callback: SignalREventListener): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set());
     }
     this.eventListeners.get(event)?.add(callback);
   }
 
-  public off(event: string, callback: (data: unknown) => void): void {
+  public off(event: string, callback: SignalREventListener): void {
     this.eventListeners.get(event)?.delete(callback);
   }
 
@@ -662,12 +667,12 @@ class SignalRService {
     this.eventListeners.delete(event);
   }
 
-  private emit(event: string, data: unknown): void {
+  private emit(event: string, ...data: unknown[]): void {
     // Isolate listener failures — one throwing callback must not prevent the
     // remaining listeners from receiving the event.
     this.eventListeners.get(event)?.forEach((callback) => {
       try {
-        callback(data);
+        callback(...data);
       } catch (error) {
         logger.error({
           message: `SignalR event listener threw for event: ${event}`,

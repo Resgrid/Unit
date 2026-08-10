@@ -50,9 +50,15 @@ const navigationIntegration = Sentry.reactNavigationIntegration({
   enableTimeToInitialDisplay: false,
 });
 
+// Sentry's own logger is off by default: watchdog-termination tracking rewrites the
+// native scope on every RNSentry turbo-module call, so `debug` floods the Metro
+// console with hundreds of "Writing tags to disk" lines a second. Flip to `__DEV__`
+// temporarily when diagnosing Sentry itself.
+const SENTRY_DEBUG = false;
+
 Sentry.init({
   dsn: Env.SENTRY_DSN,
-  debug: __DEV__, // Only debug in development, not production
+  debug: SENTRY_DEBUG,
   tracesSampleRate: __DEV__ ? 0.1 : 0.2, // 10% in dev (low to avoid setTimeout wrapping overhead), 20% in production
   profilesSampleRate: __DEV__ ? 0.1 : 0.2, // 10% in dev, 20% in production
   sendDefaultPii: false,
