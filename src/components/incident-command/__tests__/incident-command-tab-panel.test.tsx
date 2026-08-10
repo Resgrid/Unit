@@ -26,6 +26,23 @@ jest.mock('lucide-react-native', () => ({
     const { View } = require('react-native');
     return <View testID="phone-icon" />;
   },
+  // Icons used by the incident chat section rendered inside the panel.
+  MessageCircle: () => {
+    const { View } = require('react-native');
+    return <View testID="message-icon" />;
+  },
+  MessagesSquare: () => {
+    const { View } = require('react-native');
+    return <View testID="messages-icon" />;
+  },
+  ShieldCheck: () => {
+    const { View } = require('react-native');
+    return <View testID="shield-icon" />;
+  },
+  Users: () => {
+    const { View } = require('react-native');
+    return <View testID="users-icon" />;
+  },
 }));
 
 jest.mock('@/lib/logging', () => ({
