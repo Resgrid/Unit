@@ -120,7 +120,7 @@ interface ChatState {
   handleChatbotMessageReceived: (raw: unknown) => void;
   handleChatbotTyping: (raw: unknown) => void;
   handleTyping: (raw: unknown) => void;
-  handlePresenceChanged: (raw: unknown) => void;
+  handlePresenceChanged: (raw: unknown, isOnlineArg?: unknown) => void;
   handleChatConnected: () => void;
 
   reset: () => void;
@@ -159,6 +159,16 @@ function activeUnitIdNumber(): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+/**
+ * Name broadcast with typing signals; the hub echoes it to the other participants.
+ * The active unit is this app's chat identity, so it wins over the signed-in user.
+ */
+function currentDisplayName(): string | null {
+  const unitName = useCoreStore.getState().activeUnit?.Name;
+  if (unitName) return unitName;
+  return useAuthStore.getState().profile?.name ?? null;
+}
+
 function parseEventData<T>(raw: unknown): T | null {
   if (raw == null) return null;
   if (typeof raw === 'string') {
@@ -182,6 +192,18 @@ function compareMessages(a: ChatMessageResultData, b: ChatMessageResultData): nu
   return new Date(a.SentOn).getTime() - new Date(b.SentOn).getTime();
 }
 
+/** The realtime payloads omit empty collections even though the DTO types them as
+ * required, so every stored message is normalized on the way in — the UI iterates
+ * Reactions/Attachments directly. An existing value always wins over a missing one
+ * so a partial hub update can never drop reactions already on screen. */
+function withCollections(incoming: ChatMessageResultData, existing?: ChatMessageResultData): ChatMessageResultData {
+  return {
+    ...incoming,
+    Reactions: incoming.Reactions ?? existing?.Reactions ?? [],
+    Attachments: incoming.Attachments ?? existing?.Attachments ?? [],
+  };
+}
+
 /** Insert or replace a message in an ascending-by-sequence list, de-duplicated
  * by ChatMessageId and ClientMessageId (so optimistic sends reconcile). */
 function upsertMessage(list: ChatMessageResultData[], incoming: ChatMessageResultData): ChatMessageResultData[] {
@@ -189,9 +211,9 @@ function upsertMessage(list: ChatMessageResultData[], incoming: ChatMessageResul
   const idx = next.findIndex((m) => m.ChatMessageId === incoming.ChatMessageId || (!!incoming.ClientMessageId && !!m.ClientMessageId && m.ClientMessageId === incoming.ClientMessageId));
   if (idx >= 0) {
     const existing = next[idx];
-    next[idx] = { ...existing, ...incoming };
+    next[idx] = withCollections({ ...existing, ...incoming }, existing);
   } else {
-    next.push(incoming);
+    next.push(withCollections(incoming));
   }
   next.sort(compareMessages);
   return next;
@@ -547,7 +569,10 @@ export const useChatStore = create<ChatState>()(
 
         // Read pointer is recorded against the active unit identity in the Unit app.
         const asUnitId = activeUnitIdNumber();
-        void safeInvoke('MarkRead', channelId, seq, ...(asUnitId != null ? [asUnitId] : []));
+        // Hub signature: MarkRead(channelId, seq, asUnitId). SignalR binds hub arguments
+        // positionally and rejects an invocation that supplies fewer than the method
+        // declares, so asUnitId is always sent — null when there is no active unit.
+        void safeInvoke('MarkRead', channelId, seq, asUnitId ?? null);
         try {
           await chatApi.markRead(channelId, { Seq: seq, AsUnitId: asUnitId });
         } catch (error) {
@@ -664,7 +689,10 @@ export const useChatStore = create<ChatState>()(
       joinChannel: async (channelId: string) => {
         // Join as the active unit so hub-side membership resolves to the unit.
         const asUnitId = activeUnitIdNumber();
-        await safeInvoke('JoinChannel', channelId, ...(asUnitId != null ? [asUnitId] : []));
+        // Hub signature: JoinChannel(channelId, asUnitId). Omitting the optional argument
+        // makes SignalR reject the invocation, which leaves the connection outside the
+        // channel group and the channel permanently silent.
+        await safeInvoke('JoinChannel', channelId, asUnitId ?? null);
       },
 
       sendTyping: (channelId: string, isTyping: boolean) => {
@@ -677,7 +705,10 @@ export const useChatStore = create<ChatState>()(
           lastTypingSentAt.delete(channelId);
         }
         const asUnitId = activeUnitIdNumber();
-        void safeInvoke('Typing', channelId, isTyping, ...(asUnitId != null ? [asUnitId] : []));
+        // Hub signature: Typing(channelId, displayName, isTyping, asUnitId). The previous
+        // call put isTyping in the displayName slot and dropped two arguments, so the hub
+        // rejected every typing signal.
+        void safeInvoke('Typing', channelId, currentDisplayName(), isTyping, asUnitId ?? null);
       },
 
       // ------------------------------------------------------------------
@@ -782,8 +813,10 @@ export const useChatStore = create<ChatState>()(
       },
 
       handleTyping: (raw: unknown) => {
-        const obj = (typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}) as Record<string, unknown>;
-        const channelId = (obj.ChatChannelId ?? obj.chatChannelId ?? obj.ChannelId) as string | undefined;
+        // The hub payload uses ChannelId (not ChatChannelId) and its casing depends on the
+        // server's JSON naming policy, so accept both spellings of every field.
+        const obj = (parseEventData<Record<string, unknown>>(raw) ?? {}) as Record<string, unknown>;
+        const channelId = (obj.ChatChannelId ?? obj.chatChannelId ?? obj.ChannelId ?? obj.channelId) as string | undefined;
         const userId = (obj.UserId ?? obj.userId) as string | undefined;
         const displayName = (obj.DisplayName ?? obj.displayName) as string | undefined;
         const isTyping = (obj.IsTyping ?? obj.isTyping) as boolean | undefined;
@@ -797,10 +830,12 @@ export const useChatStore = create<ChatState>()(
         addTyping(set, channelId, { userId, displayName, expiresAt: Date.now() + TYPING_EXPIRY_MS });
       },
 
-      handlePresenceChanged: (raw: unknown) => {
+      handlePresenceChanged: (raw: unknown, isOnlineArg?: unknown) => {
+        // The hub sends `chatPresenceChanged` as two positional args (userId, isOnline);
+        // keep the object form working in case a future producer sends a DTO.
         const obj = (typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}) as Record<string, unknown>;
-        const userId = (obj.UserId ?? obj.userId) as string | undefined;
-        const isOnline = (obj.IsOnline ?? obj.isOnline) as boolean | undefined;
+        const userId = typeof raw === 'string' ? raw : ((obj.UserId ?? obj.userId) as string | undefined);
+        const isOnline = typeof raw === 'string' ? Boolean(isOnlineArg) : ((obj.IsOnline ?? obj.isOnline) as boolean | undefined);
         if (!userId) return;
         set((s) => {
           const presence = new Set(s.presence);

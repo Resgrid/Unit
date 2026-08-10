@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 
 import { getPresence, uploadAttachment } from '@/api/chat/chat';
 import { AckBanner } from '@/components/chat/ack-banner';
-import { copyToClipboard, getChannelDisplayName, getImageMimeType } from '@/components/chat/chat-utils';
+import { buildGifMetadata, buildLocationMetadata, copyToClipboard, getChannelDisplayName, getImageMimeType } from '@/components/chat/chat-utils';
 import { GifPickerSheet } from '@/components/chat/gif-picker-sheet';
 import { MessageActionsSheet } from '@/components/chat/message-actions-sheet';
 import { MessageBubble } from '@/components/chat/message-bubble';
@@ -155,7 +155,7 @@ export default function ChannelConversationScreen() {
   const handleSendGif = useCallback(
     (gif: GifResultData) => {
       if (!channelId) return;
-      const metadata = JSON.stringify({ GifUrl: gif.GifUrl, PreviewUrl: gif.PreviewUrl, Width: gif.Width, Height: gif.Height, Title: gif.Title });
+      const metadata = buildGifMetadata(gif);
       void useChatStore.getState().sendMessage({ channelId, body: gif.Title ?? 'GIF', messageType: ChatMessageType.Gif, metadataJson: metadata });
     },
     [channelId]
@@ -164,7 +164,7 @@ export default function ChannelConversationScreen() {
   const handleSendLocation = useCallback(
     (latitude: number, longitude: number, urgent: boolean) => {
       if (!channelId) return;
-      const metadata = JSON.stringify({ Latitude: latitude, Longitude: longitude });
+      const metadata = buildLocationMetadata(latitude, longitude);
       void useChatStore.getState().sendMessage({
         channelId,
         body: t('chat.shared_location'),
@@ -312,7 +312,9 @@ export default function ChannelConversationScreen() {
         ) : (
           <FlatList
             data={ordered}
-            maintainVisibleContentPosition={{ startRenderingFromBottom: true }}
+            // autoscrollToBottomThreshold is off by default in FlashList v2; without it a
+            // sent/incoming message lands below the viewport, hidden behind the composer.
+            maintainVisibleContentPosition={{ startRenderingFromBottom: true, autoscrollToBottomThreshold: 0.2 }}
             keyExtractor={keyExtractor}
             renderItem={renderItem}
             onStartReached={handleStartReached}
@@ -354,7 +356,7 @@ export default function ChannelConversationScreen() {
           handleToggleReaction(
             m,
             emoji,
-            m.Reactions.some((r) => r.Emoji === emoji && r.UserId === currentUserId)
+            (m.Reactions ?? []).some((r) => r.Emoji === emoji && r.UserId === currentUserId)
           )
         }
         onReply={openThread}
