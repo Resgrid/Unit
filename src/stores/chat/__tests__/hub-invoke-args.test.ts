@@ -8,6 +8,7 @@
  *   JoinChannel(string channelId, int? asUnitId)
  *   Typing(string channelId, string displayName, bool isTyping, int? asUnitId)
  *   MarkRead(string channelId, long seq, int? asUnitId)
+ *   SetActiveChannel(string channelId, int? asUnitId)
  */
 const mockInvoke = jest.fn().mockResolvedValue(undefined);
 
@@ -73,6 +74,18 @@ describe('chat hub invocations', () => {
     await useChatStore.getState().joinChannel('channel-1');
 
     expect(mockInvoke).toHaveBeenCalledWith('chatHub', 'JoinChannel', 'channel-1', 42);
+  });
+
+  it('sends both SetActiveChannel arguments', () => {
+    useChatStore.getState().setActiveChannel('channel-1');
+
+    expect(mockInvoke).toHaveBeenCalledWith('chatHub', 'SetActiveChannel', 'channel-1', 42);
+  });
+
+  it('clears the active channel marker with a null channelId and the unit id', () => {
+    useChatStore.getState().setActiveChannel(null);
+
+    expect(mockInvoke).toHaveBeenCalledWith('chatHub', 'SetActiveChannel', null, 42);
   });
 
   it('sends all four Typing arguments in hub order', () => {

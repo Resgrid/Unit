@@ -23,6 +23,12 @@ jest.mock('react-native', () => ({
   },
 }));
 
+// Mock the navigation lib — the real module imports expo-router, whose import chain
+// needs far more of react-native/expo than the minimal stubs above provide.
+jest.mock('@/lib/navigation', () => ({
+  routerPushWithRetry: jest.fn().mockResolvedValue(undefined),
+}));
+
 // Mock other dependencies
 jest.mock('@/lib/logging', () => ({
   logger: {
