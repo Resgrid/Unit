@@ -1,5 +1,5 @@
 import { format } from 'date-fns';
-import { MailIcon, PhoneIcon } from 'lucide-react-native';
+import { MailIcon, MessageCircle, PhoneIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,9 +13,12 @@ import { Pressable } from '@/components/ui/pressable';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useDirectMessage } from '@/hooks/use-direct-message';
 import { logger } from '@/lib/logging';
 import { type IncidentContactInfo, IncidentNeedStatus, type TacticalObjective, TacticalObjectiveStatus } from '@/models/v4/incidentCommand/resourceIncidentView';
 import { useIncidentCommandStore } from '@/stores/calls/incident-command-store';
+
+import { IncidentChatSection } from './incident-chat-section';
 
 interface IncidentCommandTabPanelProps {
   callId: string;
@@ -102,6 +105,9 @@ interface ContactRowProps {
 }
 
 const ContactRow: React.FC<ContactRowProps> = ({ label, contact, testID }) => {
+  const { t } = useTranslation();
+  const { openDirectMessage } = useDirectMessage();
+
   return (
     <Box className="border-b border-outline-100 pb-2" testID={testID}>
       <Text className="text-sm text-gray-500">{label}</Text>
@@ -119,6 +125,15 @@ const ContactRow: React.FC<ContactRowProps> = ({ label, contact, testID }) => {
           <HStack className="mt-1 items-center">
             <MailIcon size={14} color="#3B82F6" />
             <Text className="ml-1 text-sm text-blue-500">{contact.Email}</Text>
+          </HStack>
+        </Pressable>
+      ) : null}
+      {/* External contacts carry a name and phone but no Resgrid account, so there is nobody to message. */}
+      {contact.UserId ? (
+        <Pressable onPress={() => void openDirectMessage(contact.UserId)} testID={`${testID}-message`}>
+          <HStack className="mt-1 items-center">
+            <MessageCircle size={14} color="#3B82F6" />
+            <Text className="ml-1 text-sm text-blue-500">{t('incident_command.send_message')}</Text>
           </HStack>
         </Pressable>
       ) : null}
@@ -263,6 +278,9 @@ export const IncidentCommandTabPanel: React.FC<IncidentCommandTabPanelProps> = (
           ) : null}
         </VStack>
       </Box>
+
+      {/* Incident chat: the channels this responder may open, plus who they can reach 1:1. */}
+      <IncidentChatSection view={view} />
 
       {/* Objectives */}
       <Box className={`rounded-lg p-4 shadow-xs ${cardClass}`} testID="incident-command-objectives">

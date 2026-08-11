@@ -121,6 +121,33 @@ export class ResourceLaneAssignmentView {
   public LinkedNeed?: IncidentNeed | null = null;
 }
 
+/** Who holds an ICS position on the incident, with the contact details to reach them. */
+export class IncidentRoleContactInfo {
+  /** Maps to IncidentRoleType. */
+  public RoleType: number = 0;
+  public Contact?: IncidentContactInfo | null = null;
+}
+
+/**
+ * The incident's chat channels, already filtered by the server to the ones this caller may open.
+ * A null id means "not available to you" — not command staff, not a lane lead, or not provisioned.
+ * Never infer access from anything else: if the id isn't here, the channel will reject you.
+ */
+export class IncidentChatChannels {
+  /** Call-wide incident channel (everyone on the call). */
+  public IncidentChannelId?: string | null = null;
+  /** Private command channel — command staff (IC or an ICS role holder) only. */
+  public CommandChannelId?: string | null = null;
+  /** "All Leads" channel — the IC and lane primary/secondary leads only. */
+  public LeadsChannelId?: string | null = null;
+  /** The caller's own lane channel, when they are assigned to a lane. */
+  public LaneChannelId?: string | null = null;
+  /** The incident's line to the dispatch desk — open to everyone on the incident. */
+  public DispatchChannelId?: string | null = null;
+  /** True once the incident is closed: readable, but frozen as a point-in-time record. */
+  public IsFrozen: boolean = false;
+}
+
 export class ResourceIncidentView {
   public IncidentCommandId: string = '';
   public CallId: number = 0;
@@ -136,4 +163,8 @@ export class ResourceIncidentView {
   public Notes: IncidentNote[] = [];
   public Attachments: IncidentAttachment[] = [];
   public MyAssignment?: ResourceLaneAssignmentView | null = null;
+  /** ICS positions filled on this incident, so a crew can reach the right person directly. */
+  public Roles?: IncidentRoleContactInfo[] = [];
+  /** Chat channels this caller may open. */
+  public Chat?: IncidentChatChannels | null = null;
 }
