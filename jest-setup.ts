@@ -1,5 +1,24 @@
 import '@testing-library/react-native/extend-expect';
 
+// Mock react-native-safe-area-context — its source build reads StyleSheet at import time,
+// which explodes in suites that stub react-native with a minimal factory (e.g. navigation tests).
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react');
+
+  const SafeAreaView = ({ children }: any) => React.createElement(React.Fragment, null, children);
+
+  return {
+    SafeAreaView,
+    SafeAreaProvider: ({ children }: any) => children,
+    useSafeAreaInsets: jest.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
+    useSafeAreaFrame: jest.fn(() => ({ x: 0, y: 0, width: 375, height: 667 })),
+    initialWindowMetrics: {
+      insets: { top: 0, bottom: 0, left: 0, right: 0 },
+      frame: { x: 0, y: 0, width: 375, height: 667 },
+    },
+  };
+});
+
 // Mock @sentry/react-native — native module (RNSentry) is unavailable in Jest
 jest.mock('@sentry/react-native', () => ({
   captureException: jest.fn(),

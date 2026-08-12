@@ -2,6 +2,16 @@ import { Platform, Linking } from 'react-native';
 import { describe, expect, it, beforeEach, afterEach } from '@jest/globals';
 import { openMapsWithDirections, openMapsWithAddress } from '../navigation';
 
+// Mock expo-router — the real module pulls in its vendored react-navigation tree, which
+// needs far more of react-native than the minimal stub below provides.
+jest.mock('expo-router', () => ({
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    navigate: jest.fn(),
+  },
+}));
+
 // Mock React Native modules
 jest.mock('react-native', () => ({
   Platform: {
