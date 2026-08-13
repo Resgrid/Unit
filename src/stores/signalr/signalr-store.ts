@@ -6,6 +6,7 @@ import { logger } from '@/lib/logging';
 import { SignalRService, signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
+import { useIncidentCommandStore } from '../calls/incident-command-store';
 import { useChatStore } from '../chat/store';
 import { FeatureFlagKeys, featureFlagsStore } from '../feature-flags/store';
 import { securityStore } from '../security/store';
@@ -160,6 +161,26 @@ function extractAlertId(message: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * The affected incident's call id. Core sends it as a bare string — the eventing worker forwards the
+ * topic's ItemId, which is CallId.ToString() — with object payloads tolerated for safety.
+ */
+function extractCommandCallId(message: unknown): string | undefined {
+  if (typeof message === 'string') {
+    const trimmed = message.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (typeof message === 'number' && Number.isFinite(message)) {
+    return String(message);
+  }
+  if (message !== null && typeof message === 'object') {
+    const m = message as { CallId?: string | number; callId?: string | number };
+    const id = m.CallId ?? m.callId;
+    return id !== undefined && id !== null && String(id).trim().length > 0 ? String(id).trim() : undefined;
+  }
+  return undefined;
+}
+
 /** Update-hub events that carry a per-event timestamp for targeted refetches. */
 export const UPDATE_HUB_EVENTS = [
   'personnelStatusUpdated',
@@ -171,6 +192,7 @@ export const UPDATE_HUB_EVENTS = [
   'weatherAlertReceived',
   'weatherAlertUpdated',
   'weatherAlertExpired',
+  'incidentCommandUpdated',
 ] as const;
 
 export type UpdateHubEvent = (typeof UPDATE_HUB_EVENTS)[number];
@@ -364,6 +386,16 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
           useWeatherAlertsStore.getState().handleAlertExpired(alertId);
         } else {
           logger.warn({ message: 'weatherAlertExpired: could not extract alertId from message', context: { message } });
+        }
+      });
+
+      signalRService.on('incidentCommandUpdated', (message) => {
+        recordEvent('incidentCommandUpdated')(message);
+        const callId = extractCommandCallId(message);
+        if (callId) {
+          useIncidentCommandStore.getState().handleIncidentCommandUpdated(callId);
+        } else {
+          logger.warn({ message: 'incidentCommandUpdated: could not extract callId from message', context: { message } });
         }
       });
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@/lib/logging';
+import { useIncidentCommandStore } from '@/stores/calls/incident-command-store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 
 import { useAppLifecycle } from './use-app-lifecycle';
@@ -134,6 +135,17 @@ export function useSignalRLifecycle({ isSignedIn, hasInitialized }: UseSignalRLi
           });
         }
       });
+
+      // The hubs replay nothing pushed while the app was away, so incident command changes made
+      // during the gap would stay invisible. Reconnecting restores the feed; this backfills it.
+      // connectUpdateHub swallows its own errors, so a fulfilled result alone does not mean the
+      // hub is up — the store's connected flag is the real signal.
+      if (results[0]?.status === 'fulfilled' && useSignalRStore.getState().isUpdateHubConnected) {
+        const openCallId = useIncidentCommandStore.getState().callId;
+        if (openCallId) {
+          useIncidentCommandStore.getState().handleIncidentCommandUpdated(openCallId);
+        }
+      }
     } catch (error) {
       logger.error({
         message: 'Unexpected error during SignalR reconnect on app resume',
