@@ -326,4 +326,82 @@ describe('useIncidentCommandStore', () => {
       unmount();
     });
   });
+
+  describe('handleIncidentCommandUpdated (realtime)', () => {
+    /**
+     * The IC moving resources pushes incidentCommandUpdated for the call; the crew's panel has to
+     * follow along without blanking, so this refetches in place rather than via fetchIncidentView.
+     */
+    it('refreshes the view in place for the call being viewed', async () => {
+      const mockView = createMockView();
+      mockGetResourceIncidentView.mockResolvedValue({ Data: mockView, Status: 'Ok' } as any);
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      await act(async () => {
+        await result.current.fetchIncidentView('call123');
+      });
+
+      const updated = { ...mockView, ImportantInformation: 'Structure now unstable' };
+      mockGetResourceIncidentView.mockResolvedValue({ Data: updated, Status: 'Ok' } as any);
+
+      act(() => {
+        result.current.handleIncidentCommandUpdated('call123');
+      });
+
+      await waitFor(() => {
+        expect(result.current.view).toEqual(updated);
+      });
+      // The view must never blank while refreshing.
+      expect(result.current.isLoading).toBe(false);
+
+      unmount();
+    });
+
+    it('ignores an update for a different call', async () => {
+      const mockView = createMockView();
+      mockGetResourceIncidentView.mockResolvedValue({ Data: mockView, Status: 'Ok' } as any);
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      await act(async () => {
+        await result.current.fetchIncidentView('call123');
+      });
+      mockGetResourceIncidentView.mockClear();
+
+      act(() => {
+        result.current.handleIncidentCommandUpdated('other-call');
+      });
+
+      expect(mockGetResourceIncidentView).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('keeps the current view when the refresh fails', async () => {
+      const mockView = createMockView();
+      mockGetResourceIncidentView.mockResolvedValue({ Data: mockView, Status: 'Ok' } as any);
+
+      const { result, unmount } = renderHook(() => useIncidentCommandStore());
+
+      await act(async () => {
+        await result.current.fetchIncidentView('call123');
+      });
+
+      mockGetResourceIncidentView.mockRejectedValue(new Error('network down'));
+
+      act(() => {
+        result.current.handleIncidentCommandUpdated('call123');
+      });
+
+      await waitFor(() => {
+        expect(mockGetResourceIncidentView).toHaveBeenCalledTimes(2);
+      });
+      // A failed background refresh must not wipe what the crew is reading.
+      expect(result.current.view).toEqual(mockView);
+
+      unmount();
+    });
+  });
+
 });
