@@ -85,13 +85,11 @@ export const useCoreStore = create<CoreState>()(
         set({ isLoading: true, isInitializing: true, error: null });
 
         try {
-          // Fetch config first before anything else - this is critical for SignalR connections
+          // Fetch config first before anything else - this is critical for SignalR connections.
+          // fetchConfig rethrows, so a failure aborts init here with the original
+          // error intact — callers upstream classify it with isNetworkError, which
+          // a synthetic replacement Error would defeat.
           await get().fetchConfig();
-
-          // If config fetch failed, don't continue initialization
-          if (get().error) {
-            throw new Error('Config fetch failed, cannot continue initialization');
-          }
 
           const activeUnitId = getActiveUnitId();
           const activeCallId = getActiveCallId();
