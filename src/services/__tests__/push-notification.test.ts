@@ -78,6 +78,15 @@ jest.mock('@/stores/app/location-store', () => ({
   },
 }));
 
+// The hook gates registration on auth state; the service tests never render it,
+// but the module-level import still has to resolve without the real store.
+jest.mock('@/stores/auth/store', () => {
+  const state = { status: 'signedIn', accessToken: 'test-access-token' };
+  const store: any = (selector: any) => (selector ? selector(state) : state);
+  store.getState = () => state;
+  return { __esModule: true, default: store };
+});
+
 // Mock expo-notifications (the push transport)
 const mockReceivedRemove = jest.fn();
 const mockResponseRemove = jest.fn();

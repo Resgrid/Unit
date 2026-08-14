@@ -11,6 +11,7 @@ import { getDeviceUuid } from '@/lib/storage/app';
 import { getAppliedNotificationSoundMode, getModernNotificationSoundsEnabled, setAppliedNotificationSoundMode } from '@/lib/storage/notification-prefs';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import useAuthStore from '@/stores/auth/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 import { securityStore } from '@/stores/security/store';
@@ -546,11 +547,19 @@ export const pushNotificationService = PushNotificationService.getInstance();
 export const usePushNotifications = () => {
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const rights = securityStore((state) => state.rights);
+  const authStatus = useAuthStore((state) => state.status);
   const previousUnitIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Push notifications are native-only; skip on web
     if (Platform.OS === 'web') return;
+
+    // Don't register until auth has settled. On a cold start (especially a
+    // background wake) the persisted activeUnitId and rights hydrate before
+    // token validity is known, so registering here sends a request with a
+    // stale token: the 401 forces a refresh and, if the refresh token has
+    // expired, logs the user out.
+    if (authStatus !== 'signedIn' || !useAuthStore.getState().accessToken) return;
 
     // Only register if we have an active unit ID and it's different from the previous one
     if (rights && activeUnitId && activeUnitId !== previousUnitIdRef.current) {
@@ -558,6 +567,11 @@ export const usePushNotifications = () => {
         .registerForPushNotifications(activeUnitId, rights.DepartmentCode)
         .then((token) => {
           if (token) {
+            // Only mark the unit as registered on success. Marking it
+            // unconditionally meant a single transient failure (401 during
+            // hydration, offline, 5xx) permanently disabled push for the rest
+            // of the app session, since the ref then matched forever.
+            previousUnitIdRef.current = activeUnitId;
             logger.info({
               message: 'Successfully registered for push notifications',
               context: { unitId: activeUnitId },
@@ -570,15 +584,13 @@ export const usePushNotifications = () => {
             context: { error },
           });
         });
-
-      previousUnitIdRef.current = activeUnitId;
     }
 
     // Cleanup function
     return () => {
       // No need to clean up here as the service handles its own cleanup
     };
-  }, [activeUnitId, rights]);
+  }, [activeUnitId, rights, authStatus]);
 
   return {
     pushToken: pushNotificationService.getPushToken(),

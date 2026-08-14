@@ -7,6 +7,7 @@ jest.mock('@/lib/hooks/use-background-geolocation', () => ({
 }));
 jest.mock('@/lib/logging', () => ({
   logger: {
+    debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
@@ -661,6 +662,176 @@ describe('LocationService', () => {
           longitude: mockLocationObject.coords.longitude,
         },
       });
+    });
+  });
+
+  describe('Unavailable sensor values', () => {
+    // iOS reports -1 for course, speed and the accuracy fields when the value
+    // is unavailable, which a stationary unit does on every fix.
+    const locationWithSentinels: Location.LocationObject = {
+      coords: {
+        latitude: 52.08197889841628,
+        longitude: -4.68186865536404,
+        altitude: -3.5,
+        accuracy: -1,
+        altitudeAccuracy: -1,
+        heading: -1,
+        speed: -1,
+      },
+      timestamp: 1_755_176_389_981,
+    };
+
+    it('sends 0 instead of the iOS -1 sentinel values', async () => {
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(locationWithSentinels);
+
+      expect(mockSetUnitLocation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          Accuracy: '0',
+          AltitudeAccuracy: '0',
+          Speed: '0',
+          Heading: '0',
+        })
+      );
+    });
+
+    it('preserves a legitimately negative altitude', async () => {
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(locationWithSentinels);
+
+      expect(mockSetUnitLocation).toHaveBeenCalledWith(expect.objectContaining({ Altitude: '-3.5' }));
+    });
+
+    it('does not queue the -1 sentinels for offline replay', async () => {
+      mockSetUnitLocation.mockRejectedValue(new Error('Network Error'));
+      mockIsNetworkError.mockReturnValue(true);
+
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls[0][1] as Function;
+      await locationCallback(locationWithSentinels);
+
+      expect(mockQueueLocationUpdateEvent).toHaveBeenCalledWith('unit-123', locationWithSentinels.coords.latitude, locationWithSentinels.coords.longitude, undefined, undefined, undefined);
+    });
+  });
+
+  describe('Server rejection backoff', () => {
+    // Unit IDs here are deliberately distinct from 'unit-123': the backoff
+    // state lives in the module, and a rejection recorded for one unit must
+    // not leak into the other tests in this file.
+    const createAxiosError = (status: number, data: unknown = { Message: 'Invalid location' }) =>
+      Object.assign(new Error(`Request failed with status code ${status}`), {
+        isAxiosError: true,
+        response: { status, data },
+      });
+
+    let nowSpy: jest.SpyInstance;
+    let now = 1_700_000_000_000;
+
+    beforeEach(() => {
+      now = 1_700_000_000_000;
+      nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    });
+
+    afterEach(() => {
+      nowSpy.mockRestore();
+      mockCoreStoreState.activeUnitId = 'unit-123';
+    });
+
+    const sendLocation = async (): Promise<void> => {
+      await locationService.startLocationUpdates();
+      const locationCallback = mockLocation.watchPositionAsync.mock.calls.at(-1)![1] as Function;
+      await locationCallback(mockLocationObject);
+    };
+
+    it('logs the response status and body so the rejection can be diagnosed', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-status';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400, { Message: 'Heading out of range' }));
+
+      await sendLocation();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Failed to send location to API',
+        context: {
+          error: 'Request failed with status code 400',
+          status: 400,
+          response: { Message: 'Heading out of range' },
+          latitude: mockLocationObject.coords.latitude,
+          longitude: mockLocationObject.coords.longitude,
+        },
+      });
+    });
+
+    it('stops sending for the backoff window after a 4xx and resumes once it elapses', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-backoff';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400));
+
+      await sendLocation();
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(1);
+
+      // Well inside the 30s window — the next fix must not hit the API.
+      now += 10_000;
+      await sendLocation();
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(1);
+      expect(mockLogger.debug).toHaveBeenCalledWith(expect.objectContaining({ message: 'Skipping location API call while backing off after server rejection' }));
+
+      now += 25_000;
+      await sendLocation();
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(2);
+    });
+
+    it('escalates the backoff on repeated rejections', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-escalate';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400));
+
+      await sendLocation();
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Backing off location updates after server rejection', context: expect.objectContaining({ backoffMs: 30_000 }) }));
+
+      now += 31_000;
+      await sendLocation();
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Backing off location updates after server rejection', context: expect.objectContaining({ backoffMs: 60_000 }) }));
+    });
+
+    it('clears the backoff when the active unit changes', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-switch-a';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400));
+
+      await sendLocation();
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(1);
+
+      // Same instant, different unit: the previous rejection says nothing
+      // about this one.
+      mockCoreStoreState.activeUnitId = 'unit-reject-switch-b';
+      await sendLocation();
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears the backoff after a successful send', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-recover';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400));
+      await sendLocation();
+
+      now += 31_000;
+      mockSetUnitLocation.mockResolvedValue(mockApiResponse);
+      await sendLocation();
+
+      mockLogger.warn.mockClear();
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(400));
+      await sendLocation();
+
+      // Counter restarted, so this is a first rejection again, not a third.
+      expect(mockLogger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Backing off location updates after server rejection', context: expect.objectContaining({ consecutiveRejections: 1, backoffMs: 30_000 }) }));
+    });
+
+    it('does not back off on server errors, which are transient', async () => {
+      mockCoreStoreState.activeUnitId = 'unit-reject-5xx';
+      mockSetUnitLocation.mockRejectedValue(createAxiosError(503));
+
+      await sendLocation();
+      await sendLocation();
+
+      expect(mockSetUnitLocation).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -72,6 +72,23 @@ export const sanitizeLogContext = (context: LogContext | undefined): LogContext 
   return sanitizeObject(context as Record<string, unknown>, 2);
 };
 
+/**
+ * Rebuilds a bare Error carrying only name/message/stack so Sentry groups the
+ * issue by the real exception and shows the originating frames.
+ *
+ * The original is never handed to Sentry directly: `captureException` serializes
+ * an error's own enumerable properties into the event, which for an AxiosError
+ * means `config.data` — the urlencoded password/token bodies `summarizeAxiosError`
+ * exists to strip. Copying three fields keeps the grouping win without the leak.
+ */
+const toCaptureableError = (value: unknown): Error | null => {
+  if (!(value instanceof Error)) return null;
+  const stripped = new Error(value.message);
+  stripped.name = value.name;
+  stripped.stack = value.stack;
+  return stripped;
+};
+
 // On web, async: true wraps every log call in setTimeout which — combined with
 // Sentry's setTimeout instrumentation — creates unbounded memory growth.
 // Setting async: false on web prevents this. Severity stays 'debug' in dev
@@ -159,14 +176,20 @@ class LogService {
   public error(entry: LogEntry): void {
     this.log('error', entry);
     if (!isJest) {
+      // Read the error BEFORE sanitizing: sanitizeLogContext replaces every
+      // Error with a plain object, so testing the sanitized value for
+      // `instanceof Error` never matched and every logger.error was reported as
+      // a message fingerprinted on LogService#error — no exception type and no
+      // originating stack on any issue in the project.
+      const rawError = entry.context?.error;
       const sanitized = sanitizeLogContext({
         ...entry.context,
         ...(entry.operation ? { operation: entry.operation } : {}),
         ...(entry.trace_id ? { trace_id: entry.trace_id } : {}),
       });
-      const err = sanitized.error;
-      if (err instanceof Error) {
-        Sentry.captureException(err, { extra: { message: entry.message, ...sanitized } });
+      const captureable = toCaptureableError(rawError);
+      if (captureable) {
+        Sentry.captureException(captureable, { extra: { message: entry.message, ...sanitized } });
       } else {
         Sentry.captureMessage(entry.message, { level: 'error', extra: sanitized });
       }

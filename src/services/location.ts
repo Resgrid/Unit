@@ -1,3 +1,4 @@
+import axios from 'axios';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { AppState, type AppStateStatus } from 'react-native';
@@ -15,6 +16,31 @@ import { isNetworkError } from '@/utils/network';
 
 const LOCATION_TASK_NAME = 'location-updates';
 
+// A 4xx from SetUnitLocation is deterministic: the same unit sending the same
+// shape of payload will be rejected again on the next fix. Foreground updates
+// arrive every 15s, so without a backoff a single rejected unit produces a
+// failed request — and a log line — indefinitely.
+const REJECTION_BACKOFF_BASE_MS = 30 * 1000;
+const REJECTION_BACKOFF_MAX_MS = 15 * 60 * 1000;
+
+let rejectedUnitId: string | null = null;
+let consecutiveRejections = 0;
+let nextAttemptAtMs = 0;
+
+const resetRejectionBackoff = (): void => {
+  rejectedUnitId = null;
+  consecutiveRejections = 0;
+  nextAttemptAtMs = 0;
+};
+
+/**
+ * iOS reports -1 for course, speed and the accuracy fields when the value is
+ * unavailable — a stationary unit (parked at the station, screen off) reports
+ * it on every single fix. Returns undefined for those sentinels so they are
+ * never sent to the API or queued for offline replay.
+ */
+const nonNegativeOrUndefined = (value: number | null | undefined): number | undefined => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined);
+
 // Helper function to send location to API
 const sendLocationToAPI = async (location: Location.LocationObject): Promise<void> => {
   const { activeUnitId } = useCoreStore.getState();
@@ -26,18 +52,38 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
       return;
     }
 
+    // A rejection only tells us about the unit it was recorded for; switching
+    // units is a fresh start.
+    if (rejectedUnitId !== null && rejectedUnitId !== activeUnitId) {
+      resetRejectionBackoff();
+    }
+
+    if (nextAttemptAtMs > Date.now()) {
+      logger.debug({
+        message: 'Skipping location API call while backing off after server rejection',
+        context: { unitId: activeUnitId, consecutiveRejections, nextAttemptAtMs },
+      });
+      return;
+    }
+
+    const { latitude, longitude, altitude, accuracy, altitudeAccuracy, speed, heading } = location.coords;
+
     const locationInput = new SaveUnitLocationInput();
     locationInput.UnitId = activeUnitId;
     locationInput.Timestamp = new Date(location.timestamp).toISOString();
-    locationInput.Latitude = location.coords.latitude.toString();
-    locationInput.Longitude = location.coords.longitude.toString();
-    locationInput.Accuracy = location.coords.accuracy?.toString() || '0';
-    locationInput.Altitude = location.coords.altitude?.toString() || '0';
-    locationInput.AltitudeAccuracy = location.coords.altitudeAccuracy?.toString() || '0';
-    locationInput.Speed = location.coords.speed?.toString() || '0';
-    locationInput.Heading = location.coords.heading?.toString() || '0';
+    locationInput.Latitude = latitude.toString();
+    locationInput.Longitude = longitude.toString();
+    locationInput.Accuracy = nonNegativeOrUndefined(accuracy)?.toString() ?? '0';
+    // Altitude is legitimately negative below sea level, so only non-finite
+    // values are replaced.
+    locationInput.Altitude = typeof altitude === 'number' && Number.isFinite(altitude) ? altitude.toString() : '0';
+    locationInput.AltitudeAccuracy = nonNegativeOrUndefined(altitudeAccuracy)?.toString() ?? '0';
+    locationInput.Speed = nonNegativeOrUndefined(speed)?.toString() ?? '0';
+    locationInput.Heading = nonNegativeOrUndefined(heading)?.toString() ?? '0';
 
     const result = await setUnitLocation(locationInput);
+
+    resetRejectionBackoff();
 
     logger.info({
       message: 'Location successfully sent to API',
@@ -49,14 +95,32 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
       },
     });
   } catch (error) {
+    // The axios message is only "Request failed with status code 400"; without
+    // the status and response body there is no way to tell why the server
+    // rejected the payload.
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+
     logger.warn({
       message: 'Failed to send location to API',
       context: {
         error: error instanceof Error ? error.message : String(error),
+        ...(status !== undefined ? { status, response: axios.isAxiosError(error) ? error.response?.data : undefined } : {}),
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       },
     });
+
+    if (status !== undefined && status >= 400 && status < 500 && activeUnitId) {
+      rejectedUnitId = activeUnitId;
+      consecutiveRejections += 1;
+      const backoffMs = Math.min(REJECTION_BACKOFF_BASE_MS * 2 ** (consecutiveRejections - 1), REJECTION_BACKOFF_MAX_MS);
+      nextAttemptAtMs = Date.now() + backoffMs;
+
+      logger.warn({
+        message: 'Backing off location updates after server rejection',
+        context: { unitId: activeUnitId, status, consecutiveRejections, backoffMs },
+      });
+    }
 
     // Queue the position for offline replay on genuine network failures so the
     // unit's location on the server does not silently go stale. Server
@@ -67,9 +131,9 @@ const sendLocationToAPI = async (location: Location.LocationObject): Promise<voi
           activeUnitId,
           location.coords.latitude,
           location.coords.longitude,
-          location.coords.accuracy ?? undefined,
-          location.coords.heading ?? undefined,
-          location.coords.speed ?? undefined
+          nonNegativeOrUndefined(location.coords.accuracy),
+          nonNegativeOrUndefined(location.coords.heading),
+          nonNegativeOrUndefined(location.coords.speed)
         );
       } catch (queueError) {
         logger.warn({
