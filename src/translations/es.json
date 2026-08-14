@@ -312,7 +312,8 @@
     "what3words_invalid_format": "Formato what3words inválido. Use el formato: palabra.palabra.palabra",
     "what3words_not_found": "Dirección what3words no encontrada, intente con otra dirección",
     "what3words_placeholder": "Introduce dirección what3words (ej: filled.count.soap)",
-    "what3words_required": "Por favor introduce una dirección what3words para buscar"
+    "what3words_required": "Por favor introduce una dirección what3words para buscar",
+    "required_fields_missing": "Tu departamento exige estos campos antes de poder crear un aviso: {{fields}}"
   },
   "chat": {
     "ack_pending_count": "Tienes {{count}} mensajes urgentes por confirmar",
@@ -974,6 +975,7 @@
     "general": "General",
     "generale": "General",
     "german": "Alemán",
+    "greek": "Griego",
     "github": "Github",
     "help_center": "Centro de ayuda",
     "italian": "Italiano",
@@ -990,6 +992,8 @@
     "modern_notification_sounds_description": "Usa el nuevo conjunto de sonidos modernos para las notificaciones push. Desactívalo para usar los sonidos clásicos.",
     "more": "Más",
     "no_units_available": "No hay unidades disponibles",
+    "no_units_available_help": "No tienes unidades asignadas. Pide al administrador de tu departamento que te añada al grupo de estación de una unidad.",
+    "units_load_failed": "No se pudieron cargar las unidades. Comprueba tu conexión e inténtalo de nuevo.",
     "none_selected": "Ninguna seleccionada",
     "notifications": "Notificaciones push",
     "notifications_description": "Activa las notificaciones para recibir alertas y actualizaciones",

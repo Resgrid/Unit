@@ -255,10 +255,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any) : {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any);
 
     mockUseToastStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({ showToast: mockShowToast }) : { showToast: mockShowToast });
@@ -289,10 +293,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: true,
+      error: null,
+      hasLoaded: false,
     } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: true,
+      error: null,
+      hasLoaded: false,
     } as any);
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
@@ -306,10 +314,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any) : {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any);
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
@@ -324,10 +336,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any) : {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any);
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
@@ -445,14 +461,19 @@ describe('UnitSelectionBottomSheet', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => { });
     const errorFetchUnits = jest.fn().mockRejectedValue(new Error('Network error'));
 
+    // Nothing loaded yet, so opening the sheet triggers the fetch that then fails.
     mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
       units: [],
       fetchUnits: errorFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any) : {
       units: [],
       fetchUnits: errorFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any);
 
     render(<UnitSelectionBottomSheet {...mockProps} />);

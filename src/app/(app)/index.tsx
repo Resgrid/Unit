@@ -28,6 +28,7 @@ import { useMapsStore } from '@/stores/maps/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
+import { getDepartmentMapCenter } from '@/lib/map-center';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
@@ -124,7 +125,7 @@ function MapContent() {
 
     // Fallback: default US center when location hasn't arrived yet
     return {
-      centerCoordinate: [-98.5795, 39.8283] as [number, number],
+      centerCoordinate: [getDepartmentMapCenter().longitude, getDepartmentMapCenter().latitude] as [number, number],
       zoomLevel: 4,
       heading: 0,
       pitch: 0,

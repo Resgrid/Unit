@@ -312,7 +312,8 @@
     "what3words_invalid_format": "Ungültiges what3words-Format. Bitte Format verwenden: wort.wort.wort",
     "what3words_not_found": "what3words-Adresse nicht gefunden, bitte eine andere Adresse versuchen",
     "what3words_placeholder": "what3words-Adresse eingeben (z. B. filled.count.soap)",
-    "what3words_required": "Bitte eine what3words-Adresse zum Suchen eingeben"
+    "what3words_required": "Bitte eine what3words-Adresse zum Suchen eingeben",
+    "required_fields_missing": "Ihre Abteilung benötigt diese Felder, bevor ein Einsatz angelegt werden kann: {{fields}}"
   },
   "chat": {
     "ack_pending_count": "Sie haben {{count}} dringende Nachrichten zu bestätigen",
@@ -974,6 +975,7 @@
     "general": "Allgemein",
     "generale": "Allgemein",
     "german": "Deutsch",
+    "greek": "Griechisch",
     "github": "Github",
     "help_center": "Hilfecenter",
     "italian": "Italienisch",
@@ -990,6 +992,8 @@
     "modern_notification_sounds_description": "Verwende das neue moderne Sound-Set für Push-Benachrichtigungen. Deaktiviere diese Option, um die klassischen Töne zu verwenden.",
     "more": "Mehr",
     "no_units_available": "Keine Einheiten verfügbar",
+    "no_units_available_help": "Ihnen sind keine Einheiten zugewiesen. Bitten Sie Ihren Abteilungsadministrator, Sie der Stationsgruppe einer Einheit hinzuzufügen.",
+    "units_load_failed": "Einheiten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "none_selected": "Keine ausgewählt",
     "notifications": "Push-Benachrichtigungen",
     "notifications_description": "Benachrichtigungen aktivieren, um Warnungen und Updates zu erhalten",

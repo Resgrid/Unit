@@ -23,7 +23,8 @@ const PinMarker: React.FC<PinMarkerProps> = React.memo(({ imagePath, poiImage, t
   // with final fallback to default 'call' icon
   const resolvedPath = poiImage || imagePath;
   const iconKey = resolvedPath?.toLowerCase() as MapIconKey;
-  const icon = iconKey && MAP_ICONS[iconKey] ? MAP_ICONS[iconKey] : MAP_ICONS['call'];
+  // Unknown markers fall back to a neutral pin, not the call icon -- that one is a flame.
+  const icon = iconKey && MAP_ICONS[iconKey] ? MAP_ICONS[iconKey] : MAP_ICONS['flag'];
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>

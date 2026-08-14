@@ -13,6 +13,8 @@ import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } f
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
 import { removeItem, setItem, zustandStorage } from '../../lib/storage';
+import { cacheManager } from '@/lib/cache/cache-manager';
+import { clearCacheScope, setCacheScope } from '@/lib/cache/cache-scope';
 
 const useAuthStore = create<AuthState>()(
   persist(
@@ -152,6 +154,9 @@ const useAuthStore = create<AuthState>()(
           status: 'signedOut',
           error: null,
           profile: null,
+          // Clearing the user id is what drops the API cache scope; leaving it set keeps this user's
+          // cache keys live for whoever signs in next on the same device.
+          userId: null,
           isFirstTime: true,
           refreshTimeoutId: null,
         });
@@ -391,5 +396,33 @@ const useAuthStore = create<AuthState>()(
 const sanitizeJson = (json: string) => {
   return json.replace(/[\u0000]+/g, '');
 };
+
+// Keep the API cache scoped to whoever is signed in. Cache keys embed this identity, so stamping it
+// here means a second user on the same device can never be served the first user's cached rosters,
+// units or contacts -- and signing out drops the scope so nothing leaks into an anonymous session.
+useAuthStore.subscribe((state, previousState) => {
+  if (state.userId === previousState.userId) {
+    return;
+  }
+
+  try {
+    // Drop everything the previous identity cached before the new scope goes live, so nothing from
+    // the old account can be read back even if a key were to collide.
+    cacheManager.clear();
+
+    if (state.userId) {
+      setCacheScope({ userId: state.userId });
+    } else {
+      clearCacheScope();
+    }
+  } catch (error) {
+    // Cache hygiene must never be able to break sign-in or sign-out. The scope is still correct
+    // in memory for this session, and a stale entry expires on its own.
+    logger.warn({
+      message: 'Failed to reset the API cache scope on identity change',
+      context: { error },
+    });
+  }
+});
 
 export default useAuthStore;

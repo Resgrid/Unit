@@ -14,11 +14,17 @@ jest.mock('@/lib/storage/app', () => ({
   getBaseApiUrl: jest.fn(() => 'https://api.test'),
 }));
 
+// Cache keys are scoped to the signed-in identity as well as the server, so a second user on the
+// same device can never read the first user's cached rosters.
+jest.mock('@/lib/cache/cache-scope', () => ({
+  getCacheScopeKey: jest.fn(() => '7_user-1'),
+}));
+
 const mockedDelete = storage.delete as jest.Mock;
 const mockedGetAllKeys = storage.getAllKeys as jest.Mock;
 const mockedGetString = storage.getString as jest.Mock;
 
-const CACHE_KEY = 'api_cache_https://api.test_/test';
+const CACHE_KEY = 'api_cache_https://api.test_7_user-1_/test';
 
 describe('CacheManager', () => {
   beforeEach(() => {

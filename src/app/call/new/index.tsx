@@ -33,6 +33,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { type DispatchSelection } from '@/stores/dispatch/store';
+import { useNewCallFieldPolicy } from '@/hooks/use-new-call-field-policy';
+import { NewCallFieldKeys } from '@/models/v4/calls/newCallFieldPolicyResultData';
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -132,6 +134,10 @@ export default function NewCall() {
     roles: [],
     units: [],
   });
+
+  // The department's new-call field policy: hides fields it does not use and blocks submission
+  // until the ones it marked required have values. Unconfigured departments see the stock form.
+  const fieldPolicy = useNewCallFieldPolicy();
   const [selectedLocation, setSelectedLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -184,6 +190,30 @@ export default function NewCall() {
 
   const onSubmit = async (data: FormValues) => {
     try {
+      // The department may require fields beyond the built-in mandatory four. Enforced here for a
+      // clear message, and again on the server so an old build cannot slip an incomplete call past.
+      // Form shapes differ slightly between the apps (not every one offers scheduling or a
+      // destination POI), so the optional fields are read through a loose view.
+      const policyValues = data as Record<string, unknown>;
+      const missingFields = fieldPolicy.missingRequired({
+        [NewCallFieldKeys.Address]: policyValues.address,
+        [NewCallFieldKeys.Geolocation]: data.latitude && data.longitude ? `${data.latitude},${data.longitude}` : '',
+        [NewCallFieldKeys.What3Words]: policyValues.what3words,
+        [NewCallFieldKeys.PlusCode]: policyValues.plusCode,
+        [NewCallFieldKeys.Note]: policyValues.note,
+        [NewCallFieldKeys.ContactName]: policyValues.contactName,
+        [NewCallFieldKeys.ContactInfo]: policyValues.contactInfo,
+        [NewCallFieldKeys.DestinationPoi]: policyValues.destinationPoiId,
+        [NewCallFieldKeys.DispatchOn]: policyValues.scheduledOn,
+        [NewCallFieldKeys.DispatchList]:
+          dispatchSelection.everyone || dispatchSelection.units.length > 0 || dispatchSelection.users.length > 0 || dispatchSelection.groups.length > 0 || dispatchSelection.roles.length > 0,
+      });
+
+      if (missingFields.length > 0) {
+        toast.error(t('calls.required_fields_missing', { fields: missingFields.join(', ') }));
+        return;
+      }
+
       // If we have latitude and longitude, add them to the data
       if (selectedLocation?.latitude && selectedLocation?.longitude) {
         data.latitude = selectedLocation.latitude;
@@ -713,26 +743,28 @@ export default function NewCall() {
               </FormControl>
             </Card>
 
-            <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.note')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="note"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Textarea>
-                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.note_placeholder')} />
-                    </Textarea>
-                  )}
-                />
-              </FormControl>
-            </Card>
+            {fieldPolicy.isVisible(NewCallFieldKeys.Note) ? (
+              <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.note')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="note"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Textarea>
+                        <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.note_placeholder')} />
+                      </Textarea>
+                    )}
+                  />
+                </FormControl>
+              </Card>
+            ) : null}
 
             <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
               <Text className="mb-4 text-lg font-semibold">{t('calls.call_location')}</Text>
-
+                          
               {/* Address Field */}
               <FormControl className="mb-4">
                 <FormControlLabel>
@@ -755,7 +787,7 @@ export default function NewCall() {
                   )}
                 />
               </FormControl>
-
+                          
               {/* GPS Coordinates Field */}
               <FormControl className="mb-4">
                 <FormControlLabel>
@@ -778,7 +810,7 @@ export default function NewCall() {
                   )}
                 />
               </FormControl>
-
+                          
               {/* what3words Field */}
               <FormControl className="mb-4">
                 <FormControlLabel>
@@ -801,7 +833,7 @@ export default function NewCall() {
                   )}
                 />
               </FormControl>
-
+                          
               {/* Plus Code Field */}
               <FormControl className="mb-4">
                 <FormControlLabel>
@@ -824,7 +856,7 @@ export default function NewCall() {
                   )}
                 />
               </FormControl>
-
+                          
               {/* Map Preview */}
               <Box className="mb-4">
                 {selectedLocation ? (
@@ -835,7 +867,7 @@ export default function NewCall() {
                   </Button>
                 )}
               </Box>
-
+                          
               <Controller
                 control={control}
                 name="destinationPoiId"
@@ -851,22 +883,24 @@ export default function NewCall() {
               />
             </Card>
 
-            <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.contact_name')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="contactName"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.contact_name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
-                  )}
-                />
-              </FormControl>
-            </Card>
+            {fieldPolicy.isVisible(NewCallFieldKeys.ContactName) ? (
+              <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
+                <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.contact_name')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="contactName"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Input>
+                        <InputField placeholder={t('calls.contact_name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                      </Input>
+                    )}
+                  />
+                </FormControl>
+              </Card>
+            ) : null}
 
             <Card className={`mb-8 rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-900' : 'border-neutral-200 bg-white'}`}>
               <FormControl>

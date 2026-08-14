@@ -312,7 +312,8 @@
     "what3words_invalid_format": "Ogiltigt what3words-format. Använd formatet: ord.ord.ord",
     "what3words_not_found": "what3words-adress hittades inte, försök med en annan adress",
     "what3words_placeholder": "Ange what3words-adress (t.ex. filled.count.soap)",
-    "what3words_required": "Ange en what3words-adress att söka efter"
+    "what3words_required": "Ange en what3words-adress att söka efter",
+    "required_fields_missing": "Din avdelning kräver dessa fält innan ett ärende kan skapas: {{fields}}"
   },
   "chat": {
     "ack_pending_count": "Du har {{count}} brådskande meddelanden att bekräfta",
@@ -974,6 +975,7 @@
     "general": "Allmänt",
     "generale": "Allmänt",
     "german": "Tyska",
+    "greek": "Grekiska",
     "github": "Github",
     "help_center": "Hjälpcenter",
     "italian": "Italienska",
@@ -990,6 +992,8 @@
     "modern_notification_sounds_description": "Använd den nya moderna ljuduppsättningen för push-aviseringar. Stäng av för att använda de klassiska ljuden.",
     "more": "Mer",
     "no_units_available": "Inga enheter tillgängliga",
+    "no_units_available_help": "Inga enheter är tilldelade dig. Be din avdelningsadministratör lägga till dig i en enhets stationsgrupp.",
+    "units_load_failed": "Det gick inte att läsa in enheter. Kontrollera anslutningen och försök igen.",
     "none_selected": "Ingen vald",
     "notifications": "Push-aviseringar",
     "notifications_description": "Aktivera aviseringar för att ta emot varningar och uppdateringar",

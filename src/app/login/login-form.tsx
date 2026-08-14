@@ -59,6 +59,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
       { label: translate('settings.spanish'), value: 'es' },
       { label: translate('settings.swedish'), value: 'sv' },
       { label: translate('settings.german'), value: 'de' },
+      { label: translate('settings.greek'), value: 'el' },
       { label: translate('settings.french'), value: 'fr' },
       { label: translate('settings.italian'), value: 'it' },
       { label: translate('settings.polish'), value: 'pl' },

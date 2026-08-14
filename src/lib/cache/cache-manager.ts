@@ -2,6 +2,8 @@ import { logger } from '@/lib/logging';
 import { storage } from '@/lib/storage';
 import { getBaseApiUrl } from '@/lib/storage/app';
 
+import { getCacheScopeKey } from './cache-scope';
+
 interface CacheItem<T> {
   data: T;
   timestamp: number;
@@ -37,9 +39,11 @@ export class CacheManager {
   private getCacheKey(endpoint: string, params?: Record<string, unknown>): string {
     const queryString = params ? `?${new URLSearchParams(params as Record<string, string>)}` : '';
     // Scope by server base URL so cached data from one environment is never
-    // served against another after a server-URL switch.
+    // served against another after a server-URL switch, and by the signed-in
+    // identity so a second user (or a department switch) on the same device is
+    // never served the previous account's rosters, units or contacts.
     const scope = getBaseApiUrl();
-    return `api_cache_${scope}_${endpoint}${queryString}`;
+    return `api_cache_${scope}_${getCacheScopeKey()}_${endpoint}${queryString}`;
   }
 
   private isExpired(timestamp: number, expiresIn: number): boolean {

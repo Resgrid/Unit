@@ -10,6 +10,7 @@ import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHan
 import { createRoot } from 'react-dom/client';
 
 import { Env } from '@/lib/env';
+import { getDepartmentMapCenter } from '@/lib/map-center';
 
 // Set the access token globally
 mapboxgl.accessToken = Env.UNIT_MAPBOX_PUBKEY;
@@ -233,7 +234,7 @@ export const MapView = forwardRef<any, MapViewProps>(
       try {
         // Use initialCenter/initialZoom if provided so the map starts at the
         // correct position without needing a programmatic camera move later.
-        const startCenter = initialCenter && isFinite(initialCenter[0]) && isFinite(initialCenter[1]) ? initialCenter : ([-98.5795, 39.8283] as [number, number]); // Default US center
+        const startCenter = initialCenter && isFinite(initialCenter[0]) && isFinite(initialCenter[1]) ? initialCenter : ([getDepartmentMapCenter().longitude, getDepartmentMapCenter().latitude] as [number, number]); // Default US center
         const startZoom = initialZoom != null && isFinite(initialZoom) ? initialZoom : 4;
 
         const newMap = new mapboxgl.Map({

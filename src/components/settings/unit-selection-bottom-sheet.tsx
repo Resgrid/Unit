@@ -60,14 +60,17 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
   const units = useUnitsStore((state) => state.units);
   const fetchUnits = useUnitsStore((state) => state.fetchUnits);
   const isLoadingUnits = useUnitsStore((state) => state.isLoading);
+  const unitsError = useUnitsStore((state) => state.error);
+  const hasLoadedUnits = useUnitsStore((state) => state.hasLoaded);
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const setActiveUnit = useCoreStore((state) => state.setActiveUnit);
   const showToast = useToastStore((state) => state.showToast);
   const isProcessingRef = React.useRef(false);
 
-  // Fetch units when sheet opens
+  // Fetch units when sheet opens. Keyed on hasLoaded rather than units.length: an empty list is a
+  // real answer, and re-fetching on every open turned a genuinely empty result into a request storm.
   React.useEffect(() => {
-    if (isOpen && units.length === 0) {
+    if (isOpen && !hasLoadedUnits) {
       fetchUnits().catch((error) => {
         logger.error({
           message: 'Failed to fetch units',
@@ -75,7 +78,17 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
         });
       });
     }
-  }, [isOpen, units.length, fetchUnits]);
+  }, [isOpen, hasLoadedUnits, fetchUnits]);
+
+  const handleRetryFetch = React.useCallback(() => {
+    // Bypass the cache: a retry exists because the cached answer (or the lack of one) was wrong.
+    fetchUnits(true).catch((error) => {
+      logger.error({
+        message: 'Failed to fetch units',
+        context: { error },
+      });
+    });
+  }, [fetchUnits]);
 
   const handleClose = React.useCallback(() => {
     if (isLoading || isProcessingRef.current) {
@@ -184,6 +197,18 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
                   <Center className="py-8">
                     <Spinner size="large" />
                   </Center>
+                ) : unitsError ? (
+                  // A failed load is not an empty department. Saying "no units available" when the
+                  // request 401'd or timed out sends the crew to their administrator over a problem
+                  // that a retry fixes.
+                  <Center className="py-8">
+                    <VStack space="md" className="items-center px-4">
+                      <Text className="text-center text-error-600">{t('settings.units_load_failed')}</Text>
+                      <Button variant="outline" onPress={handleRetryFetch} testID="retry-units-button">
+                        <ButtonText>{t('common.retry')}</ButtonText>
+                      </Button>
+                    </VStack>
+                  </Center>
                 ) : units.length > 0 ? (
                   <VStack space="sm">
                     {units.map((unit) => (
@@ -192,7 +217,12 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
                   </VStack>
                 ) : (
                   <Center className="py-8">
-                    <Text className="text-center text-typography-500">{t('settings.no_units_available')}</Text>
+                    <VStack space="xs" className="items-center px-4">
+                      <Text className="text-center text-typography-500">{t('settings.no_units_available')}</Text>
+                      <Text size="sm" className="text-center text-typography-400">
+                        {t('settings.no_units_available_help')}
+                      </Text>
+                    </VStack>
                   </Center>
                 )}
               </ScrollView>

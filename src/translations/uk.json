@@ -312,7 +312,8 @@
     "what3words_invalid_format": "Неправильний формат what3words. Використовуйте формат: слово.слово.слово",
     "what3words_not_found": "Адресу what3words не знайдено, спробуйте іншу адресу",
     "what3words_placeholder": "Введіть адресу what3words (напр. filled.count.soap)",
-    "what3words_required": "Введіть адресу what3words для пошуку"
+    "what3words_required": "Введіть адресу what3words для пошуку",
+    "required_fields_missing": "Ваш відділ вимагає ці поля перед створенням виклику: {{fields}}"
   },
   "chat": {
     "ack_pending_count": "У вас є {{count}} термінових повідомлень для підтвердження",
@@ -974,6 +975,7 @@
     "general": "Загальне",
     "generale": "Загальне",
     "german": "Німецька",
+    "greek": "Грецька",
     "github": "Github",
     "help_center": "Центр допомоги",
     "italian": "Італійська",
@@ -990,6 +992,8 @@
     "modern_notification_sounds_description": "Використовуйте новий сучасний набір звуків для push-сповіщень. Вимкніть, щоб використовувати класичні звуки.",
     "more": "Більше",
     "no_units_available": "Немає доступних підрозділів",
+    "no_units_available_help": "Вам не призначено жодного підрозділу. Попросіть адміністратора вашого відділу додати вас до групи станції підрозділу.",
+    "units_load_failed": "Не вдалося завантажити підрозділи. Перевірте з'єднання та спробуйте ще раз.",
     "none_selected": "Нічого не вибрано",
     "notifications": "Push-сповіщення",
     "notifications_description": "Увімкніть сповіщення для отримання попереджень та оновлень",

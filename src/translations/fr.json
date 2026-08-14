@@ -312,7 +312,8 @@
     "what3words_invalid_format": "Format what3words invalide. Veuillez utiliser le format : mot.mot.mot",
     "what3words_not_found": "Adresse what3words introuvable, veuillez essayer une autre adresse",
     "what3words_placeholder": "Saisir l'adresse what3words (ex. filled.count.soap)",
-    "what3words_required": "Veuillez saisir une adresse what3words à rechercher"
+    "what3words_required": "Veuillez saisir une adresse what3words à rechercher",
+    "required_fields_missing": "Votre service exige ces champs avant qu'une intervention puisse être créée : {{fields}}"
   },
   "chat": {
     "ack_pending_count": "Vous avez {{count}} messages urgents à confirmer",
@@ -974,6 +975,7 @@
     "general": "Général",
     "generale": "Général",
     "german": "Allemand",
+    "greek": "Grec",
     "github": "Github",
     "help_center": "Centre d'aide",
     "italian": "Italien",
@@ -990,6 +992,8 @@
     "modern_notification_sounds_description": "Utiliser le nouvel ensemble de sons modernes pour les notifications push. Désactivez cette option pour utiliser les sons classiques.",
     "more": "Plus",
     "no_units_available": "Aucune unité disponible",
+    "no_units_available_help": "Aucune unité ne vous est attribuée. Demandez à votre administrateur de service de vous ajouter au groupe de caserne d'une unité.",
+    "units_load_failed": "Impossible de charger les unités. Vérifiez votre connexion et réessayez.",
     "none_selected": "Aucune sélectionnée",
     "notifications": "Notifications push",
     "notifications_description": "Activez les notifications pour recevoir des alertes et des mises à jour",

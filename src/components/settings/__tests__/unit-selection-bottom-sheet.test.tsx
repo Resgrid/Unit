@@ -6,6 +6,9 @@ jest.mock('react-i18next', () => ({
         'settings.select_unit': 'Select Unit',
         'settings.current_unit': 'Current Unit',
         'settings.no_units_available': 'No units available',
+        'settings.no_units_available_help': 'No units are assigned to you.',
+        'settings.units_load_failed': "Couldn't load units.",
+        'common.retry': 'Retry',
         'common.cancel': 'Cancel',
         'settings.unit_selected_successfully': `${options?.unitName || 'Unit'} selected successfully`,
         'settings.unit_selection_failed': 'Failed to select unit. Please try again.',
@@ -316,10 +319,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any) : {
       units: mockUnits,
       fetchUnits: mockFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: true,
     } as any);
 
     // Mock the roles store
@@ -381,19 +388,42 @@ describe('UnitSelectionBottomSheet', () => {
   });
 
   it('displays empty state when no units available', () => {
-    mockUseUnitsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
+    const state = {
       units: [],
       fetchUnits: jest.fn().mockResolvedValue(undefined),
       isLoading: false,
-    } as any) : {
-      units: [],
-      fetchUnits: jest.fn().mockResolvedValue(undefined),
-      isLoading: false,
-    } as any);
+      error: null,
+      hasLoaded: true,
+    };
+    mockUseUnitsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(state as any) : (state as any)));
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
     expect(screen.getByText('No units available')).toBeTruthy();
+  });
+
+  it('shows a retry instead of the empty state when the load failed', async () => {
+    const retryFetch = jest.fn().mockResolvedValue(undefined);
+    const state = {
+      units: [],
+      fetchUnits: retryFetch,
+      isLoading: false,
+      error: 'Request failed with status code 401',
+      hasLoaded: true,
+    };
+    mockUseUnitsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(state as any) : (state as any)));
+
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    expect(screen.getByText("Couldn't load units.")).toBeTruthy();
+    expect(screen.queryByText('No units available')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('retry-units-button'));
+
+    await waitFor(() => {
+      // Retrying has to bypass the cache — the cached answer is what was wrong.
+      expect(retryFetch).toHaveBeenCalledWith(true);
+    });
   });
 
   it('fetches units when sheet opens and no units are loaded', async () => {
@@ -403,10 +433,14 @@ describe('UnitSelectionBottomSheet', () => {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any) : {
       units: [],
       fetchUnits: spyFetchUnits,
       isLoading: false,
+      error: null,
+      hasLoaded: false,
     } as any);
 
     render(<UnitSelectionBottomSheet {...mockProps} />);
@@ -416,7 +450,7 @@ describe('UnitSelectionBottomSheet', () => {
     });
   });
 
-  it('does not fetch units when sheet opens and units are already loaded', () => {
+  it('does not fetch units when the sheet opens after a completed load', () => {
     render(<UnitSelectionBottomSheet {...mockProps} />);
 
     expect(mockFetchUnits).not.toHaveBeenCalled();
