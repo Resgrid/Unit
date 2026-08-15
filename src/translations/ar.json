@@ -246,6 +246,7 @@
     "edit_call": "تعديل المكالمة",
     "edit_call_description": "تحديث معلومات المكالمة",
     "everyone": "الجميع",
+    "field_policy_loading": "لا يزال يتم تحميل إعدادات البلاغات في قسمك، يرجى المحاولة مرة أخرى بعد لحظات",
     "files": {
       "no_files": "لا توجد ملفات متاحة",
       "no_files_description": "لم تتم إضافة أي ملفات إلى هذه المكالمة بعد",
@@ -283,6 +284,7 @@
     "plus_code_required": "يرجى إدخال رمز Plus للبحث",
     "priority": "الأولوية",
     "priority_placeholder": "اختر أولوية المكالمة",
+    "required_fields_missing": "يطلب قسمك هذه الحقول قبل إنشاء البلاغ: {{fields}}",
     "roles": "الأدوار",
     "search": "البحث في المكالمات...",
     "select_active_call": "اختر مكالمة نشطة",
@@ -312,9 +314,7 @@
     "what3words_invalid_format": "تنسيق what3words غير صحيح. استخدم التنسيق: كلمة.كلمة.كلمة",
     "what3words_not_found": "لم يتم العثور على عنوان what3words، جرب عنوان آخر",
     "what3words_placeholder": "أدخل عنوان what3words (مثال: filled.count.soap)",
-    "what3words_required": "يرجى إدخال عنوان what3words للبحث",
-    "required_fields_missing": "يطلب قسمك هذه الحقول قبل إنشاء البلاغ: {{fields}}",
-    "field_policy_loading": "لا يزال يتم تحميل إعدادات البلاغات في قسمك، يرجى المحاولة مرة أخرى بعد لحظات"
+    "what3words_required": "يرجى إدخال عنوان what3words للبحث"
   },
   "chat": {
     "ack_pending_count": "لديك {{count}} رسائل عاجلة للإقرار بها",
@@ -751,7 +751,7 @@
     "title": "الملاحظات"
   },
   "onboarding": {
-    "message": "مرحبًا بك في تطبيق obytes"
+    "message": "مرحبًا بك في تطبيق Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -976,8 +976,8 @@
     "general": "عام",
     "generale": "عام",
     "german": "الألمانية",
-    "greek": "اليونانية",
     "github": "جيثب",
+    "greek": "اليونانية",
     "help_center": "مركز المساعدة",
     "italian": "الإيطالية",
     "keep_alive": "إبقاء الجهاز نشطاً",
@@ -994,7 +994,6 @@
     "more": "المزيد",
     "no_units_available": "لا توجد وحدات متاحة",
     "no_units_available_help": "لم يتم تعيين أي وحدات لك. اطلب من مسؤول القسم إضافتك إلى مجموعة محطة إحدى الوحدات.",
-    "units_load_failed": "تعذر تحميل الوحدات. تحقق من اتصالك وحاول مرة أخرى.",
     "none_selected": "لم يتم اختيار أي شيء",
     "notifications": "الإشعارات",
     "notifications_description": "تفعيل الإشعارات لتلقي التنبيهات والتحديثات",
@@ -1028,6 +1027,7 @@
     "unit_selected_successfully": "تم اختيار {{unitName}} بنجاح",
     "unit_selection": "اختيار الوحدة",
     "unit_selection_failed": "فشل في اختيار الوحدة. يرجى المحاولة مرة أخرى.",
+    "units_load_failed": "تعذر تحميل الوحدات. تحقق من اتصالك وحاول مرة أخرى.",
     "username": "اسم المستخدم",
     "version": "الإصدار",
     "website": "الموقع الإلكتروني"
@@ -1192,5 +1192,5 @@
       "unknown": "غير معروف"
     }
   },
-  "welcome": "مرحبًا بك في موقع تطبيق obytes"
+  "welcome": "مرحبًا بك في موقع تطبيق Resgrid Unit"
 }

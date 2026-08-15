@@ -246,6 +246,7 @@
     "edit_call": "Anruf bearbeiten",
     "edit_call_description": "Anrufinformationen aktualisieren",
     "everyone": "Alle",
+    "field_policy_loading": "Die Einsatzeinstellungen Ihrer Abteilung werden noch geladen, bitte versuchen Sie es gleich erneut",
     "files": {
       "no_files": "Keine Dateien verfügbar",
       "no_files_description": "Diesem Anruf wurden noch keine Dateien hinzugefügt",
@@ -283,6 +284,7 @@
     "plus_code_required": "Bitte einen Plus-Code zum Suchen eingeben",
     "priority": "Priorität",
     "priority_placeholder": "Priorität des Anrufs auswählen",
+    "required_fields_missing": "Ihre Abteilung benötigt diese Felder, bevor ein Einsatz angelegt werden kann: {{fields}}",
     "roles": "Rollen",
     "search": "Anrufe suchen...",
     "select_active_call": "Aktiven Anruf auswählen",
@@ -312,9 +314,7 @@
     "what3words_invalid_format": "Ungültiges what3words-Format. Bitte Format verwenden: wort.wort.wort",
     "what3words_not_found": "what3words-Adresse nicht gefunden, bitte eine andere Adresse versuchen",
     "what3words_placeholder": "what3words-Adresse eingeben (z. B. filled.count.soap)",
-    "what3words_required": "Bitte eine what3words-Adresse zum Suchen eingeben",
-    "required_fields_missing": "Ihre Abteilung benötigt diese Felder, bevor ein Einsatz angelegt werden kann: {{fields}}",
-    "field_policy_loading": "Die Einsatzeinstellungen Ihrer Abteilung werden noch geladen, bitte versuchen Sie es gleich erneut"
+    "what3words_required": "Bitte eine what3words-Adresse zum Suchen eingeben"
   },
   "chat": {
     "ack_pending_count": "Sie haben {{count}} dringende Nachrichten zu bestätigen",
@@ -751,7 +751,7 @@
     "title": "Notizen"
   },
   "onboarding": {
-    "message": "Willkommen bei obytes app site"
+    "message": "Willkommen bei Resgrid Unit app site"
   },
   "protocols": {
     "details": {
@@ -976,8 +976,8 @@
     "general": "Allgemein",
     "generale": "Allgemein",
     "german": "Deutsch",
-    "greek": "Griechisch",
     "github": "Github",
+    "greek": "Griechisch",
     "help_center": "Hilfecenter",
     "italian": "Italienisch",
     "keep_alive": "Keep Alive",
@@ -994,7 +994,6 @@
     "more": "Mehr",
     "no_units_available": "Keine Einheiten verfügbar",
     "no_units_available_help": "Ihnen sind keine Einheiten zugewiesen. Bitten Sie Ihren Abteilungsadministrator, Sie der Stationsgruppe einer Einheit hinzuzufügen.",
-    "units_load_failed": "Einheiten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "none_selected": "Keine ausgewählt",
     "notifications": "Push-Benachrichtigungen",
     "notifications_description": "Benachrichtigungen aktivieren, um Warnungen und Updates zu erhalten",
@@ -1028,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} erfolgreich ausgewählt",
     "unit_selection": "Einheitenauswahl",
     "unit_selection_failed": "Einheit konnte nicht ausgewählt werden. Bitte erneut versuchen.",
+    "units_load_failed": "Einheiten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "username": "Benutzername",
     "version": "Version",
     "website": "Website"
@@ -1192,5 +1192,5 @@
       "unknown": "Unbekannt"
     }
   },
-  "welcome": "Willkommen bei obytes app site"
+  "welcome": "Willkommen bei Resgrid Unit app site"
 }

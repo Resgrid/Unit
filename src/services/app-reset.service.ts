@@ -81,6 +81,9 @@ export const INITIAL_UNITS_STATE = {
   unitStatuses: [] as never[],
   isLoading: false,
   error: null,
+  // setState merges, so omitting this leaves the previous session's "already fetched" flag in place.
+  // The unit picker only fetches when it is false, and would show the emptied list as "no units".
+  hasLoaded: false,
 };
 
 export const INITIAL_CONTACTS_STATE = {

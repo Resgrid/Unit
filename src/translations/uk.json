@@ -246,6 +246,7 @@
     "edit_call": "Редагувати виклик",
     "edit_call_description": "Оновити інформацію про виклик",
     "everyone": "Всі",
+    "field_policy_loading": "Налаштування викликів вашого відділу ще завантажуються, спробуйте ще раз за мить",
     "files": {
       "no_files": "Немає доступних файлів",
       "no_files_description": "До цього виклику ще не додано файлів",
@@ -283,6 +284,7 @@
     "plus_code_required": "Введіть plus code для пошуку",
     "priority": "Пріоритет",
     "priority_placeholder": "Виберіть пріоритет виклику",
+    "required_fields_missing": "Ваш відділ вимагає ці поля перед створенням виклику: {{fields}}",
     "roles": "Ролі",
     "search": "Пошук викликів...",
     "select_active_call": "Вибрати активний виклик",
@@ -312,9 +314,7 @@
     "what3words_invalid_format": "Неправильний формат what3words. Використовуйте формат: слово.слово.слово",
     "what3words_not_found": "Адресу what3words не знайдено, спробуйте іншу адресу",
     "what3words_placeholder": "Введіть адресу what3words (напр. filled.count.soap)",
-    "what3words_required": "Введіть адресу what3words для пошуку",
-    "required_fields_missing": "Ваш відділ вимагає ці поля перед створенням виклику: {{fields}}",
-    "field_policy_loading": "Налаштування викликів вашого відділу ще завантажуються, спробуйте ще раз за мить"
+    "what3words_required": "Введіть адресу what3words для пошуку"
   },
   "chat": {
     "ack_pending_count": "У вас є {{count}} термінових повідомлень для підтвердження",
@@ -751,7 +751,7 @@
     "title": "Примітки"
   },
   "onboarding": {
-    "message": "Ласкаво просимо до додатку obytes"
+    "message": "Ласкаво просимо до додатку Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -976,8 +976,8 @@
     "general": "Загальне",
     "generale": "Загальне",
     "german": "Німецька",
-    "greek": "Грецька",
     "github": "Github",
+    "greek": "Грецька",
     "help_center": "Центр допомоги",
     "italian": "Італійська",
     "keep_alive": "Keep Alive",
@@ -994,7 +994,6 @@
     "more": "Більше",
     "no_units_available": "Немає доступних підрозділів",
     "no_units_available_help": "Вам не призначено жодного підрозділу. Попросіть адміністратора вашого відділу додати вас до групи станції підрозділу.",
-    "units_load_failed": "Не вдалося завантажити підрозділи. Перевірте з'єднання та спробуйте ще раз.",
     "none_selected": "Нічого не вибрано",
     "notifications": "Push-сповіщення",
     "notifications_description": "Увімкніть сповіщення для отримання попереджень та оновлень",
@@ -1028,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} успішно вибрано",
     "unit_selection": "Вибір підрозділу",
     "unit_selection_failed": "Не вдалося вибрати підрозділ. Спробуйте ще раз.",
+    "units_load_failed": "Не вдалося завантажити підрозділи. Перевірте з'єднання та спробуйте ще раз.",
     "username": "Ім'я користувача",
     "version": "Версія",
     "website": "Веб-сайт"
@@ -1192,5 +1192,5 @@
       "unknown": "Невідомий"
     }
   },
-  "welcome": "Ласкаво просимо до додатку obytes"
+  "welcome": "Ласкаво просимо до додатку Resgrid Unit"
 }

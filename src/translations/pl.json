@@ -246,6 +246,7 @@
     "edit_call": "Edytuj zgłoszenie",
     "edit_call_description": "Zaktualizuj informacje o zgłoszeniu",
     "everyone": "Wszyscy",
+    "field_policy_loading": "Ustawienia zgłoszeń Twojej jednostki są jeszcze wczytywane, spróbuj ponownie za chwilę",
     "files": {
       "no_files": "Brak dostępnych plików",
       "no_files_description": "Do tego zgłoszenia nie dodano jeszcze żadnych plików",
@@ -283,6 +284,7 @@
     "plus_code_required": "Wpisz plus code do wyszukania",
     "priority": "Priorytet",
     "priority_placeholder": "Wybierz priorytet zgłoszenia",
+    "required_fields_missing": "Twoja jednostka wymaga tych pól przed utworzeniem zgłoszenia: {{fields}}",
     "roles": "Role",
     "search": "Szukaj zgłoszeń...",
     "select_active_call": "Wybierz aktywne zgłoszenie",
@@ -312,9 +314,7 @@
     "what3words_invalid_format": "Nieprawidłowy format what3words. Użyj formatu: słowo.słowo.słowo",
     "what3words_not_found": "Adres what3words nie znaleziony, spróbuj innego adresu",
     "what3words_placeholder": "Wpisz adres what3words (np. filled.count.soap)",
-    "what3words_required": "Wpisz adres what3words do wyszukania",
-    "required_fields_missing": "Twoja jednostka wymaga tych pól przed utworzeniem zgłoszenia: {{fields}}",
-    "field_policy_loading": "Ustawienia zgłoszeń Twojej jednostki są jeszcze wczytywane, spróbuj ponownie za chwilę"
+    "what3words_required": "Wpisz adres what3words do wyszukania"
   },
   "chat": {
     "ack_pending_count": "Masz {{count}} pilnych wiadomości do potwierdzenia",
@@ -751,7 +751,7 @@
     "title": "Notatki"
   },
   "onboarding": {
-    "message": "Witamy w aplikacji obytes"
+    "message": "Witamy w aplikacji Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -976,8 +976,8 @@
     "general": "Ogólne",
     "generale": "Ogólne",
     "german": "Niemiecki",
-    "greek": "Grecki",
     "github": "Github",
+    "greek": "Grecki",
     "help_center": "Centrum pomocy",
     "italian": "Włoski",
     "keep_alive": "Keep Alive",
@@ -994,7 +994,6 @@
     "more": "Więcej",
     "no_units_available": "Brak dostępnych jednostek",
     "no_units_available_help": "Nie przypisano Ci żadnych jednostek. Poproś administratora jednostki o dodanie Cię do grupy stacji.",
-    "units_load_failed": "Nie udało się wczytać jednostek. Sprawdź połączenie i spróbuj ponownie.",
     "none_selected": "Nic nie wybrano",
     "notifications": "Powiadomienia push",
     "notifications_description": "Włącz powiadomienia, aby otrzymywać alerty i aktualizacje",
@@ -1028,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} wybrana pomyślnie",
     "unit_selection": "Wybór jednostki",
     "unit_selection_failed": "Nie udało się wybrać jednostki. Spróbuj ponownie.",
+    "units_load_failed": "Nie udało się wczytać jednostek. Sprawdź połączenie i spróbuj ponownie.",
     "username": "Nazwa użytkownika",
     "version": "Wersja",
     "website": "Strona internetowa"
@@ -1192,5 +1192,5 @@
       "unknown": "Nieznany"
     }
   },
-  "welcome": "Witamy w aplikacji obytes"
+  "welcome": "Witamy w aplikacji Resgrid Unit"
 }

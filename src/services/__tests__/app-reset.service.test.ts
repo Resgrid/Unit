@@ -375,6 +375,8 @@ describe('app-reset.service', () => {
         unitStatuses: [],
         isLoading: false,
         error: null,
+        // Without this the next session inherits "already fetched" and never refills the unit list.
+        hasLoaded: false,
       });
     });
 

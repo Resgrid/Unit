@@ -20,6 +20,7 @@ import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
+import { getDepartmentMapCenter } from '@/lib/map-center';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -28,7 +29,6 @@ import { useMapsStore } from '@/stores/maps/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
-import { getDepartmentMapCenter } from '@/lib/map-center';
 
 Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 

@@ -36,14 +36,25 @@ export class CacheManager {
     return CacheManager.instance;
   }
 
-  private getCacheKey(endpoint: string, params?: Record<string, unknown>): string {
-    const queryString = params ? `?${new URLSearchParams(params as Record<string, string>)}` : '';
+  /**
+   * The namespace entries are currently written under: server base URL plus signed-in identity.
+   *
+   * Callers that await a request before storing its result read this before and after the await:
+   * the namespace can move mid-flight (sign-out, department switch, server-URL change), and the
+   * response belongs to the identity that asked for it, not to whoever the device belongs to by
+   * the time it lands.
+   */
+  getScopeIdentity(): string {
     // Scope by server base URL so cached data from one environment is never
     // served against another after a server-URL switch, and by the signed-in
     // identity so a second user (or a department switch) on the same device is
     // never served the previous account's rosters, units or contacts.
-    const scope = getBaseApiUrl();
-    return `api_cache_${scope}_${getCacheScopeKey()}_${endpoint}${queryString}`;
+    return `${getBaseApiUrl()}_${getCacheScopeKey()}`;
+  }
+
+  private getCacheKey(endpoint: string, params?: Record<string, unknown>): string {
+    const queryString = params ? `?${new URLSearchParams(params as Record<string, string>)}` : '';
+    return `api_cache_${this.getScopeIdentity()}_${endpoint}${queryString}`;
   }
 
   private isExpired(timestamp: number, expiresIn: number): boolean {

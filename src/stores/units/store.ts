@@ -16,6 +16,11 @@ interface UnitsState {
   fetchUnits: (forceRefresh?: boolean) => Promise<void>;
 }
 
+// Fetches can overlap: the picker opens while a retry is already in flight, or two consumers ask at
+// once. Each fetch claims a generation and only writes if it is still the newest — otherwise a slow
+// cached answer, or a late failure, lands on top of the fresher result that already arrived.
+let fetchGeneration = 0;
+
 export const useUnitsStore = create<UnitsState>((set) => ({
   units: [],
   unitStatuses: [],
@@ -23,10 +28,17 @@ export const useUnitsStore = create<UnitsState>((set) => ({
   error: null,
   hasLoaded: false,
   fetchUnits: async (forceRefresh = false) => {
+    const generation = ++fetchGeneration;
     set({ isLoading: true, error: null });
     try {
       const unitsResponse = await getUnits(forceRefresh);
       const unitStatusesResponse = await getAllUnitStatuses();
+
+      if (generation !== fetchGeneration) {
+        // A newer fetch owns the state, including isLoading — it will clear that when it lands.
+        return;
+      }
+
       set({
         units: unitsResponse.Data ?? [],
         unitStatuses: unitStatusesResponse.Data ?? [],
@@ -40,6 +52,12 @@ export const useUnitsStore = create<UnitsState>((set) => ({
         message: 'Failed to fetch units',
         context: { error },
       });
+
+      if (generation !== fetchGeneration) {
+        // Reporting a superseded failure would replace the units a newer fetch just delivered.
+        return;
+      }
+
       set({
         error: error instanceof Error ? error.message : 'Failed to fetch units',
         isLoading: false,

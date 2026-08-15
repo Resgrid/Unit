@@ -246,6 +246,7 @@
     "edit_call": "Edit Call",
     "edit_call_description": "Update call information",
     "everyone": "Everyone",
+    "field_policy_loading": "Still loading your department's call settings, please try again in a moment",
     "files": {
       "no_files": "No files available",
       "no_files_description": "No files have been added to this call yet",
@@ -283,6 +284,7 @@
     "plus_code_required": "Please enter a plus code to search",
     "priority": "Priority",
     "priority_placeholder": "Select the priority of the call",
+    "required_fields_missing": "Your department requires these fields before a call can be created: {{fields}}",
     "roles": "Roles",
     "search": "Search calls...",
     "select_active_call": "Select Active Call",
@@ -312,9 +314,7 @@
     "what3words_invalid_format": "Invalid what3words format. Please use format: word.word.word",
     "what3words_not_found": "what3words address not found, please try a different address",
     "what3words_placeholder": "Enter what3words address (e.g., filled.count.soap)",
-    "what3words_required": "Please enter a what3words address to search",
-    "required_fields_missing": "Your department requires these fields before a call can be created: {{fields}}",
-    "field_policy_loading": "Still loading your department's call settings, please try again in a moment"
+    "what3words_required": "Please enter a what3words address to search"
   },
   "chat": {
     "ack_pending_count": "You have {{count}} urgent messages to acknowledge",
@@ -751,7 +751,7 @@
     "title": "Notes"
   },
   "onboarding": {
-    "message": "Welcome to obytes app site"
+    "message": "Welcome to Resgrid Unit app site"
   },
   "protocols": {
     "details": {
@@ -976,8 +976,8 @@
     "general": "General",
     "generale": "General",
     "german": "German",
-    "greek": "Greek",
     "github": "Github",
+    "greek": "Greek",
     "help_center": "Help Center",
     "italian": "Italian",
     "keep_alive": "Keep Alive",
@@ -994,7 +994,6 @@
     "more": "More",
     "no_units_available": "No units available",
     "no_units_available_help": "No units are assigned to you. Ask your department administrator to add you to a unit's station group.",
-    "units_load_failed": "Couldn't load units. Check your connection and try again.",
     "none_selected": "None Selected",
     "notifications": "Push Notifications",
     "notifications_description": "Enable notifications to receive alerts and updates",
@@ -1028,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} selected successfully",
     "unit_selection": "Unit Selection",
     "unit_selection_failed": "Failed to select unit. Please try again.",
+    "units_load_failed": "Couldn't load units. Check your connection and try again.",
     "username": "Username",
     "version": "Version",
     "website": "Website"
@@ -1192,5 +1192,5 @@
       "unknown": "Unknown"
     }
   },
-  "welcome": "Welcome to obytes app site"
+  "welcome": "Welcome to Resgrid Unit app site"
 }

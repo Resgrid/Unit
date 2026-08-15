@@ -3,6 +3,8 @@ import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { cacheManager } from '@/lib/cache/cache-manager';
+import { clearCacheScope, setCacheScope } from '@/lib/cache/cache-scope';
 import { logger } from '@/lib/logging';
 
 import { loginRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
@@ -13,8 +15,6 @@ import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } f
 import { type ProfileModel } from '../../lib/auth/types';
 import { getAuth } from '../../lib/auth/utils';
 import { removeItem, setItem, zustandStorage } from '../../lib/storage';
-import { cacheManager } from '@/lib/cache/cache-manager';
-import { clearCacheScope, setCacheScope } from '@/lib/cache/cache-scope';
 
 const useAuthStore = create<AuthState>()(
   persist(

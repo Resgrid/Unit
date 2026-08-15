@@ -69,8 +69,10 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
 
   // Fetch units when sheet opens. Keyed on hasLoaded rather than units.length: an empty list is a
   // real answer, and re-fetching on every open turned a genuinely empty result into a request storm.
+  // A fetch already in flight -- started by a retry here, or by another consumer of the store --
+  // answers this open too, so opening on top of one must not queue a second.
   React.useEffect(() => {
-    if (isOpen && !hasLoadedUnits) {
+    if (isOpen && !hasLoadedUnits && !isLoadingUnits) {
       fetchUnits().catch((error) => {
         logger.error({
           message: 'Failed to fetch units',
@@ -78,7 +80,7 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
         });
       });
     }
-  }, [isOpen, hasLoadedUnits, fetchUnits]);
+  }, [isOpen, hasLoadedUnits, isLoadingUnits, fetchUnits]);
 
   const handleRetryFetch = React.useCallback(() => {
     // Bypass the cache: a retry exists because the cached answer (or the lack of one) was wrong.

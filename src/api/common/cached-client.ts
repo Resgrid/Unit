@@ -32,6 +32,10 @@ const isEmptyPayload = (payload: unknown): boolean => {
     return false;
   }
 
+  if (Array.isArray(payload)) {
+    return payload.length === 0;
+  }
+
   const body = payload as { Data?: unknown; Status?: unknown };
 
   if (typeof body.Status === 'string' && body.Status.toLowerCase() === 'not_found') {
@@ -72,7 +76,19 @@ export const createCachedApiEndpoint = (endpoint: string, cacheConfig: CacheConf
         }
       }
 
+      // Cache keys are namespaced by server URL and signed-in identity, and both can change while
+      // this request is in flight — a sign-out, a department switch, a server-URL change. Capture
+      // the namespace up front: the write below recomputes it, so a response fetched as one
+      // identity would otherwise be filed under, or evict an entry belonging to, the next one.
+      const scopeAtRequest = cacheManager.getScopeIdentity();
+
       const response = await api.get<T>(params);
+
+      if (cacheManager.getScopeIdentity() !== scopeAtRequest) {
+        // Hand the answer back to the caller that asked for it, but leave the new identity's cache
+        // untouched — this data is not theirs.
+        return response;
+      }
 
       if (isEmptyPayload(response.data)) {
         // A previously cached non-empty answer must not outlive an empty one, or the next read
