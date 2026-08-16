@@ -9,6 +9,7 @@ import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Env } from '@/lib/env';
+import { getDepartmentMapCenter } from '@/lib/map-center';
 
 // Ensure Mapbox access token is set before using any Mapbox components
 if (!Env.UNIT_MAPBOX_PUBKEY) {
@@ -17,11 +18,8 @@ if (!Env.UNIT_MAPBOX_PUBKEY) {
   Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 }
 
-// Default location (center of USA) used when user location is unavailable
-const DEFAULT_LOCATION = {
-  latitude: 39.8283,
-  longitude: -98.5795,
-};
+// Falls back to the department's configured map center rather than a hardcoded point, so a
+// department outside the US does not open every picker on the middle of Kansas.
 
 // Timeout for location fetching (in milliseconds)
 const LOCATION_TIMEOUT = 10000;
@@ -44,7 +42,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
   const [currentLocation, setCurrentLocation] = useState<{
     latitude: number;
     longitude: number;
-  }>(initialLocation || DEFAULT_LOCATION);
+  }>(initialLocation || getDepartmentMapCenter());
   const [isLocating, setIsLocating] = useState(false);
   const [hasUserLocation, setHasUserLocation] = useState(!!initialLocation);
 

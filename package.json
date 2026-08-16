@@ -43,7 +43,7 @@
     "test:ci": "yarn run test --coverage",
     "test:watch": "yarn run test --watch",
     "install-maestro": "curl -Ls 'https://get.maestro.mobile.dev' | bash",
-    "e2e-test": "maestro test .maestro/ -e APP_ID=com.obytes.development",
+    "e2e-test": "maestro test .maestro/ -e APP_ID=com.resgrid.unit.development",
     "web:build": "cross-env EXPO_NO_DOTENV=1 expo export --platform web",
     "web:staging": "cross-env APP_ENV=staging yarn run web",
     "web:production": "cross-env APP_ENV=production yarn run web",

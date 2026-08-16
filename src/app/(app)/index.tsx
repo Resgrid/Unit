@@ -20,6 +20,7 @@ import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
+import { getDepartmentMapCenter } from '@/lib/map-center';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -124,7 +125,7 @@ function MapContent() {
 
     // Fallback: default US center when location hasn't arrived yet
     return {
-      centerCoordinate: [-98.5795, 39.8283] as [number, number],
+      centerCoordinate: [getDepartmentMapCenter().longitude, getDepartmentMapCenter().latitude] as [number, number],
       zoomLevel: 4,
       heading: 0,
       pitch: 0,

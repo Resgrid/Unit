@@ -4,12 +4,12 @@ import { type GetSystemConfigResult } from '@/models/v4/configs/getSystemConfigR
 import { createCachedApiEndpoint } from '../common/cached-client';
 
 const getConfigApi = createCachedApiEndpoint('/Config/GetConfig', {
-  ttl: 60 * 1000 * 1440, // Cache for 1 days
+  ttl: 15 * 60 * 1000, // Cache for 15 minutes -- operational data, must not go stale
   enabled: false,
 });
 
 const getSystemConfigApi = createCachedApiEndpoint('/Config/GetSystemConfig', {
-  ttl: 60 * 1000 * 1440, // Cache for 1 days
+  ttl: 15 * 60 * 1000, // Cache for 15 minutes -- operational data, must not go stale
   enabled: false,
 });
 

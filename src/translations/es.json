@@ -246,6 +246,7 @@
     "edit_call": "Editar llamada",
     "edit_call_description": "Actualizar información de la llamada",
     "everyone": "Todos",
+    "field_policy_loading": "Aún se están cargando los ajustes de avisos de tu departamento, inténtalo de nuevo en un momento",
     "files": {
       "no_files": "No hay archivos disponibles",
       "no_files_description": "No se han agregado archivos a esta llamada aún",
@@ -283,6 +284,7 @@
     "plus_code_required": "Por favor ingrese un código plus para buscar",
     "priority": "Prioridad",
     "priority_placeholder": "Selecciona la prioridad de la llamada",
+    "required_fields_missing": "Tu departamento exige estos campos antes de poder crear un aviso: {{fields}}",
     "roles": "Roles",
     "search": "Buscar llamadas...",
     "select_active_call": "Seleccionar llamada activa",
@@ -749,7 +751,7 @@
     "title": "Notas"
   },
   "onboarding": {
-    "message": "Bienvenido al sitio de la aplicación obytes"
+    "message": "Bienvenido al sitio de la aplicación Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -975,6 +977,7 @@
     "generale": "General",
     "german": "Alemán",
     "github": "Github",
+    "greek": "Griego",
     "help_center": "Centro de ayuda",
     "italian": "Italiano",
     "keep_alive": "Mantener Activo",
@@ -990,6 +993,7 @@
     "modern_notification_sounds_description": "Usa el nuevo conjunto de sonidos modernos para las notificaciones push. Desactívalo para usar los sonidos clásicos.",
     "more": "Más",
     "no_units_available": "No hay unidades disponibles",
+    "no_units_available_help": "No tienes unidades asignadas. Pide al administrador de tu departamento que te añada al grupo de estación de una unidad.",
     "none_selected": "Ninguna seleccionada",
     "notifications": "Notificaciones push",
     "notifications_description": "Activa las notificaciones para recibir alertas y actualizaciones",
@@ -1023,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} seleccionada exitosamente",
     "unit_selection": "Selección de unidad",
     "unit_selection_failed": "Error al seleccionar la unidad. Inténtalo de nuevo.",
+    "units_load_failed": "No se pudieron cargar las unidades. Comprueba tu conexión e inténtalo de nuevo.",
     "username": "Nombre de usuario",
     "version": "Versión",
     "website": "Sitio web"
@@ -1187,5 +1192,5 @@
       "unknown": "Desconocido"
     }
   },
-  "welcome": "Bienvenido al sitio de la aplicación obytes"
+  "welcome": "Bienvenido al sitio de la aplicación Resgrid Unit"
 }

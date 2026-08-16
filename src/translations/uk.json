@@ -246,6 +246,7 @@
     "edit_call": "Редагувати виклик",
     "edit_call_description": "Оновити інформацію про виклик",
     "everyone": "Всі",
+    "field_policy_loading": "Налаштування викликів вашого відділу ще завантажуються, спробуйте ще раз за мить",
     "files": {
       "no_files": "Немає доступних файлів",
       "no_files_description": "До цього виклику ще не додано файлів",
@@ -283,6 +284,7 @@
     "plus_code_required": "Введіть plus code для пошуку",
     "priority": "Пріоритет",
     "priority_placeholder": "Виберіть пріоритет виклику",
+    "required_fields_missing": "Ваш відділ вимагає ці поля перед створенням виклику: {{fields}}",
     "roles": "Ролі",
     "search": "Пошук викликів...",
     "select_active_call": "Вибрати активний виклик",
@@ -749,7 +751,7 @@
     "title": "Примітки"
   },
   "onboarding": {
-    "message": "Ласкаво просимо до додатку obytes"
+    "message": "Ласкаво просимо до додатку Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -975,6 +977,7 @@
     "generale": "Загальне",
     "german": "Німецька",
     "github": "Github",
+    "greek": "Грецька",
     "help_center": "Центр допомоги",
     "italian": "Італійська",
     "keep_alive": "Keep Alive",
@@ -990,6 +993,7 @@
     "modern_notification_sounds_description": "Використовуйте новий сучасний набір звуків для push-сповіщень. Вимкніть, щоб використовувати класичні звуки.",
     "more": "Більше",
     "no_units_available": "Немає доступних підрозділів",
+    "no_units_available_help": "Вам не призначено жодного підрозділу. Попросіть адміністратора вашого відділу додати вас до групи станції підрозділу.",
     "none_selected": "Нічого не вибрано",
     "notifications": "Push-сповіщення",
     "notifications_description": "Увімкніть сповіщення для отримання попереджень та оновлень",
@@ -1023,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} успішно вибрано",
     "unit_selection": "Вибір підрозділу",
     "unit_selection_failed": "Не вдалося вибрати підрозділ. Спробуйте ще раз.",
+    "units_load_failed": "Не вдалося завантажити підрозділи. Перевірте з'єднання та спробуйте ще раз.",
     "username": "Ім'я користувача",
     "version": "Версія",
     "website": "Веб-сайт"
@@ -1187,5 +1192,5 @@
       "unknown": "Невідомий"
     }
   },
-  "welcome": "Ласкаво просимо до додатку obytes"
+  "welcome": "Ласкаво просимо до додатку Resgrid Unit"
 }

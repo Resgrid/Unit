@@ -246,6 +246,7 @@
     "edit_call": "Anruf bearbeiten",
     "edit_call_description": "Anrufinformationen aktualisieren",
     "everyone": "Alle",
+    "field_policy_loading": "Die Einsatzeinstellungen Ihrer Abteilung werden noch geladen, bitte versuchen Sie es gleich erneut",
     "files": {
       "no_files": "Keine Dateien verfügbar",
       "no_files_description": "Diesem Anruf wurden noch keine Dateien hinzugefügt",
@@ -283,6 +284,7 @@
     "plus_code_required": "Bitte einen Plus-Code zum Suchen eingeben",
     "priority": "Priorität",
     "priority_placeholder": "Priorität des Anrufs auswählen",
+    "required_fields_missing": "Ihre Abteilung benötigt diese Felder, bevor ein Einsatz angelegt werden kann: {{fields}}",
     "roles": "Rollen",
     "search": "Anrufe suchen...",
     "select_active_call": "Aktiven Anruf auswählen",
@@ -749,7 +751,7 @@
     "title": "Notizen"
   },
   "onboarding": {
-    "message": "Willkommen bei obytes app site"
+    "message": "Willkommen bei Resgrid Unit app site"
   },
   "protocols": {
     "details": {
@@ -975,6 +977,7 @@
     "generale": "Allgemein",
     "german": "Deutsch",
     "github": "Github",
+    "greek": "Griechisch",
     "help_center": "Hilfecenter",
     "italian": "Italienisch",
     "keep_alive": "Keep Alive",
@@ -990,6 +993,7 @@
     "modern_notification_sounds_description": "Verwende das neue moderne Sound-Set für Push-Benachrichtigungen. Deaktiviere diese Option, um die klassischen Töne zu verwenden.",
     "more": "Mehr",
     "no_units_available": "Keine Einheiten verfügbar",
+    "no_units_available_help": "Ihnen sind keine Einheiten zugewiesen. Bitten Sie Ihren Abteilungsadministrator, Sie der Stationsgruppe einer Einheit hinzuzufügen.",
     "none_selected": "Keine ausgewählt",
     "notifications": "Push-Benachrichtigungen",
     "notifications_description": "Benachrichtigungen aktivieren, um Warnungen und Updates zu erhalten",
@@ -1023,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} erfolgreich ausgewählt",
     "unit_selection": "Einheitenauswahl",
     "unit_selection_failed": "Einheit konnte nicht ausgewählt werden. Bitte erneut versuchen.",
+    "units_load_failed": "Einheiten konnten nicht geladen werden. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "username": "Benutzername",
     "version": "Version",
     "website": "Website"
@@ -1187,5 +1192,5 @@
       "unknown": "Unbekannt"
     }
   },
-  "welcome": "Willkommen bei obytes app site"
+  "welcome": "Willkommen bei Resgrid Unit app site"
 }

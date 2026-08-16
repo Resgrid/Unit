@@ -246,6 +246,7 @@
     "edit_call": "Modifica chiamata",
     "edit_call_description": "Aggiorna le informazioni della chiamata",
     "everyone": "Tutti",
+    "field_policy_loading": "Le impostazioni delle chiamate del tuo dipartimento sono ancora in caricamento, riprova tra un momento",
     "files": {
       "no_files": "Nessun file disponibile",
       "no_files_description": "Nessun file aggiunto a questa chiamata",
@@ -283,6 +284,7 @@
     "plus_code_required": "Inserisci un plus code da cercare",
     "priority": "Priorità",
     "priority_placeholder": "Seleziona la priorità della chiamata",
+    "required_fields_missing": "Il tuo dipartimento richiede questi campi prima di poter creare una chiamata: {{fields}}",
     "roles": "Ruoli",
     "search": "Cerca chiamate...",
     "select_active_call": "Seleziona chiamata attiva",
@@ -749,7 +751,7 @@
     "title": "Note"
   },
   "onboarding": {
-    "message": "Benvenuto nell'app obytes"
+    "message": "Benvenuto nell'app Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -975,6 +977,7 @@
     "generale": "Generale",
     "german": "Tedesco",
     "github": "Github",
+    "greek": "Greco",
     "help_center": "Centro assistenza",
     "italian": "Italiano",
     "keep_alive": "Keep Alive",
@@ -990,6 +993,7 @@
     "modern_notification_sounds_description": "Usa il nuovo set di suoni moderni per le notifiche push. Disattiva questa opzione per usare i suoni classici.",
     "more": "Altro",
     "no_units_available": "Nessuna unità disponibile",
+    "no_units_available_help": "Non ti è assegnata alcuna unità. Chiedi all'amministratore del dipartimento di aggiungerti al gruppo di stazione di un'unità.",
     "none_selected": "Nessuno selezionato",
     "notifications": "Notifiche push",
     "notifications_description": "Abilita le notifiche per ricevere avvisi e aggiornamenti",
@@ -1023,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} selezionata con successo",
     "unit_selection": "Selezione unità",
     "unit_selection_failed": "Impossibile selezionare l'unità. Riprovare.",
+    "units_load_failed": "Impossibile caricare le unità. Controlla la connessione e riprova.",
     "username": "Nome utente",
     "version": "Versione",
     "website": "Sito web"
@@ -1187,5 +1192,5 @@
       "unknown": "Sconosciuto"
     }
   },
-  "welcome": "Benvenuto nell'app obytes"
+  "welcome": "Benvenuto nell'app Resgrid Unit"
 }

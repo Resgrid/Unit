@@ -246,6 +246,7 @@
     "edit_call": "Edytuj zgłoszenie",
     "edit_call_description": "Zaktualizuj informacje o zgłoszeniu",
     "everyone": "Wszyscy",
+    "field_policy_loading": "Ustawienia zgłoszeń Twojej jednostki są jeszcze wczytywane, spróbuj ponownie za chwilę",
     "files": {
       "no_files": "Brak dostępnych plików",
       "no_files_description": "Do tego zgłoszenia nie dodano jeszcze żadnych plików",
@@ -283,6 +284,7 @@
     "plus_code_required": "Wpisz plus code do wyszukania",
     "priority": "Priorytet",
     "priority_placeholder": "Wybierz priorytet zgłoszenia",
+    "required_fields_missing": "Twoja jednostka wymaga tych pól przed utworzeniem zgłoszenia: {{fields}}",
     "roles": "Role",
     "search": "Szukaj zgłoszeń...",
     "select_active_call": "Wybierz aktywne zgłoszenie",
@@ -749,7 +751,7 @@
     "title": "Notatki"
   },
   "onboarding": {
-    "message": "Witamy w aplikacji obytes"
+    "message": "Witamy w aplikacji Resgrid Unit"
   },
   "protocols": {
     "details": {
@@ -975,6 +977,7 @@
     "generale": "Ogólne",
     "german": "Niemiecki",
     "github": "Github",
+    "greek": "Grecki",
     "help_center": "Centrum pomocy",
     "italian": "Włoski",
     "keep_alive": "Keep Alive",
@@ -990,6 +993,7 @@
     "modern_notification_sounds_description": "Używaj nowego, nowoczesnego zestawu dźwięków powiadomień push. Wyłącz, aby używać klasycznych dźwięków.",
     "more": "Więcej",
     "no_units_available": "Brak dostępnych jednostek",
+    "no_units_available_help": "Nie przypisano Ci żadnych jednostek. Poproś administratora jednostki o dodanie Cię do grupy stacji.",
     "none_selected": "Nic nie wybrano",
     "notifications": "Powiadomienia push",
     "notifications_description": "Włącz powiadomienia, aby otrzymywać alerty i aktualizacje",
@@ -1023,6 +1027,7 @@
     "unit_selected_successfully": "{{unitName}} wybrana pomyślnie",
     "unit_selection": "Wybór jednostki",
     "unit_selection_failed": "Nie udało się wybrać jednostki. Spróbuj ponownie.",
+    "units_load_failed": "Nie udało się wczytać jednostek. Sprawdź połączenie i spróbuj ponownie.",
     "username": "Nazwa użytkownika",
     "version": "Wersja",
     "website": "Strona internetowa"
@@ -1187,5 +1192,5 @@
       "unknown": "Nieznany"
     }
   },
-  "welcome": "Witamy w aplikacji obytes"
+  "welcome": "Witamy w aplikacji Resgrid Unit"
 }
