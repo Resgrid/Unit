@@ -162,21 +162,35 @@ function extractAlertId(message: unknown): string | undefined {
 }
 
 /**
- * The affected incident's call id. Core sends it as a bare string — the eventing worker forwards the
- * topic's ItemId, which is CallId.ToString() — with object payloads tolerated for safety.
+ * A call id is a non-empty string or a finite number and nothing else. Anything looser gets
+ * stringified into a plausible-looking id — an array of one becomes its element, an object becomes
+ * "[object Object]" — and would be treated as a real incident instead of falling through to the
+ * fallback path.
  */
-function extractCommandCallId(message: unknown): string | undefined {
-  if (typeof message === 'string') {
-    const trimmed = message.trim();
+function toCallId(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
-  if (typeof message === 'number' && Number.isFinite(message)) {
-    return String(message);
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value);
+  }
+  return undefined;
+}
+
+/**
+ * The affected incident's call id. Core sends it as a bare string — the eventing worker forwards the
+ * topic's ItemId, which is CallId.ToString() — with object payloads tolerated so a producer sending a
+ * richer message keeps working.
+ */
+function extractCommandCallId(message: unknown): string | undefined {
+  const scalar = toCallId(message);
+  if (scalar !== undefined) {
+    return scalar;
   }
   if (message !== null && typeof message === 'object') {
-    const m = message as { CallId?: string | number; callId?: string | number };
-    const id = m.CallId ?? m.callId;
-    return id !== undefined && id !== null && String(id).trim().length > 0 ? String(id).trim() : undefined;
+    const m = message as { CallId?: unknown; callId?: unknown };
+    return toCallId(m.CallId ?? m.callId);
   }
   return undefined;
 }
@@ -223,6 +237,19 @@ interface SignalRState {
 
 /** Join the department group on the update hub. Group membership is per-
  *  connectionId, so this must run after every (re)connect. */
+// Rejoining the department group after an update-hub reconnect.
+const UPDATE_REJOIN_RETRY_MS = 5000;
+const UPDATE_REJOIN_MAX_ATTEMPTS = 3;
+let updateRejoinTimer: ReturnType<typeof setTimeout> | null = null;
+let updateRejoinAttempts = 0;
+
+function stopUpdateRejoinRetry(): void {
+  if (updateRejoinTimer) {
+    clearTimeout(updateRejoinTimer);
+    updateRejoinTimer = null;
+  }
+}
+
 const joinDepartmentGroup = async (): Promise<void> => {
   const rawDepartmentId = securityStore.getState().rights?.DepartmentId;
   const departmentId = parseInt(rawDepartmentId ?? '', 10);
@@ -295,6 +322,9 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       // trigger a full state resync after every reconnect (group membership
       // is per-connectionId and events are missed while disconnected).
       signalRService.on(updateHubDisconnected, () => {
+        // A dropped transport supersedes any rejoin still pending against the old connection.
+        stopUpdateRejoinRetry();
+        updateRejoinAttempts = 0;
         set({ isUpdateHubConnected: false });
       });
 
@@ -302,7 +332,7 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         set({ isUpdateHubConnected: false });
       });
 
-      signalRService.on(updateHubReconnected, () => {
+      const rejoinAfterReconnect = () => {
         void (async () => {
           try {
             await joinDepartmentGroup();
@@ -320,13 +350,38 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
             logger.info({
               message: 'Re-joined department group and triggered state resync after SignalR reconnect',
             });
+            stopUpdateRejoinRetry();
+            updateRejoinAttempts = 0;
           } catch (error) {
+            updateRejoinAttempts += 1;
             logger.error({
               message: 'Failed to re-join department group after SignalR reconnect',
-              context: { error },
+              context: { error, attempt: updateRejoinAttempts, maxAttempts: UPDATE_REJOIN_MAX_ATTEMPTS },
             });
+
+            // A failed rejoin is silent and total: the socket is up but the connection belongs to no
+            // group, so nothing arrives until something rebuilds it. Retry a bounded number of times
+            // rather than waiting for a background/resume cycle.
+            if (updateRejoinAttempts < UPDATE_REJOIN_MAX_ATTEMPTS) {
+              stopUpdateRejoinRetry();
+              updateRejoinTimer = setTimeout(() => {
+                updateRejoinTimer = null;
+                rejoinAfterReconnect();
+              }, UPDATE_REJOIN_RETRY_MS);
+            } else {
+              logger.error({
+                message: 'Giving up re-joining the department group; the next connectUpdateHub will rebuild the session',
+                context: { attempts: updateRejoinAttempts },
+              });
+            }
           }
         })();
+      };
+
+      signalRService.on(updateHubReconnected, () => {
+        stopUpdateRejoinRetry();
+        updateRejoinAttempts = 0;
+        rejoinAfterReconnect();
       });
 
       // One handler per event: record a per-event timestamp (no JSON.stringify
@@ -416,6 +471,8 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   },
   disconnectUpdateHub: async () => {
     try {
+      stopUpdateRejoinRetry();
+      updateRejoinAttempts = 0;
       await signalRService.disconnectFromHub(Env.CHANNEL_HUB_NAME);
       set({ isUpdateHubConnected: false, lastUpdateMessage: null });
     } catch (error) {

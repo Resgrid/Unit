@@ -3,7 +3,6 @@ import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { logger } from '@/lib/logging';
@@ -864,13 +863,11 @@ export const StatusBottomSheet = () => {
           ) : null}
 
           {currentStep === 'add-note' ? (
-            <KeyboardAwareScrollView
-              style={{ width: '100%', flexGrow: 0, flexShrink: 1 }}
-              contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              bottomOffset={120}
-            >
+            /* Plain ScrollView on purpose: the sheet already slides above the keyboard via
+               the ActionsheetContent paddingBottom. KeyboardAwareScrollView also reacts to
+               the keyboard (its events are window-agnostic), so it compensated a second
+               time and pushed the note field out of the sheet's visible area. */
+            <ScrollView style={{ width: '100%', flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <VStack space="md" className="w-full">
                 <VStack space="sm">
                   <Text className="font-medium">{t('status.selected_status')}:</Text>
@@ -912,7 +909,7 @@ export const StatusBottomSheet = () => {
                   </Button>
                 </HStack>
               </VStack>
-            </KeyboardAwareScrollView>
+            </ScrollView>
           ) : null}
         </VStack>
       </ActionsheetContent>
