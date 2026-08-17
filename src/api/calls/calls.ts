@@ -14,7 +14,7 @@ const callsApi = createCachedApiEndpoint('/Calls/GetActiveCalls', {
 const getCallApi = createApiEndpoint('/Calls/GetCall');
 const getCallExtraDataApi = createApiEndpoint('/Calls/GetCallExtraData');
 const createCallApi = createApiEndpoint('/Calls/SaveCall');
-const updateCallApi = createApiEndpoint('/Calls/UpdateCall');
+const updateCallApi = createApiEndpoint('/Calls/EditCall');
 const closeCallApi = createApiEndpoint('/Calls/CloseCall');
 
 export const getCalls = async () => {
@@ -96,16 +96,16 @@ const buildDispatchList = (data: { dispatchEveryone?: boolean; dispatchUsers?: s
   const dispatchEntries: string[] = [];
 
   if (data.dispatchUsers) {
-    dispatchEntries.push(...data.dispatchUsers);
+    dispatchEntries.push(...data.dispatchUsers.map((user) => `P:${user}`));
   }
   if (data.dispatchGroups) {
-    dispatchEntries.push(...data.dispatchGroups);
+    dispatchEntries.push(...data.dispatchGroups.map((group) => `G:${group}`));
   }
   if (data.dispatchRoles) {
-    dispatchEntries.push(...data.dispatchRoles);
+    dispatchEntries.push(...data.dispatchRoles.map((role) => `R:${role}`));
   }
   if (data.dispatchUnits) {
-    dispatchEntries.push(...data.dispatchUnits);
+    dispatchEntries.push(...data.dispatchUnits.map((unit) => `U:${unit}`));
   }
 
   return dispatchEntries.join('|');
@@ -147,7 +147,7 @@ export const updateCall = async (callData: UpdateCallRequest) => {
   const dispatchList = buildDispatchList(callData);
 
   const data = {
-    CallId: callData.callId,
+    Id: callData.callId,
     Name: callData.name,
     Nature: callData.nature,
     Note: callData.note || '',
@@ -163,7 +163,7 @@ export const updateCall = async (callData: UpdateCallRequest) => {
     DispatchList: dispatchList,
   };
 
-  const response = await updateCallApi.post<SaveCallResult>(data);
+  const response = await updateCallApi.put<SaveCallResult>(data);
 
   // Invalidate cache after successful mutation
   try {
