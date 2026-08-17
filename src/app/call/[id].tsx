@@ -426,9 +426,9 @@ export default function CallDetail() {
             {callExtraData?.Protocols && callExtraData.Protocols.length > 0 ? (
               <VStack className="space-y-3">
                 {callExtraData.Protocols.map((protocol, index) => (
-                  <Box key={index} className="rounded-lg bg-gray-50 p-3">
+                  <Box key={index} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
                     <Text className="font-semibold">{protocol.Name}</Text>
-                    <Text className="text-sm text-gray-600">{protocol.Description}</Text>
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">{protocol.Description}</Text>
                     <Box>
                       <HtmlRenderer html={protocol.ProtocolText ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
                     </Box>

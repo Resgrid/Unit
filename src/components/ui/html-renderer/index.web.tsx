@@ -2,6 +2,8 @@ import { useColorScheme } from 'nativewind';
 import React, { useCallback, useMemo, useRef } from 'react';
 import { Linking, type StyleProp, StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { sanitizeHtmlContent } from '@/utils/html-sanitizer';
+
 /** Light / dark theme color tokens used when no explicit override is provided */
 const THEME_COLORS = {
   light: { text: '#1F2937', background: 'transparent' }, // gray-800
@@ -100,7 +102,7 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({ html, style, scrollE
           ${customCSS}
         </style>
       </head>
-      <body>${html}${linkScript}</body>
+      <body>${sanitizeHtmlContent(html)}${linkScript}</body>
     </html>
   `,
     [html, scrollEnabled, showsVerticalScrollIndicator, resolvedTextColor, resolvedBgColor, customCSS, linkScript]

@@ -3,6 +3,8 @@ import React from 'react';
 import { Linking, type StyleProp, StyleSheet, type ViewStyle } from 'react-native';
 import WebView from 'react-native-webview';
 
+import { sanitizeHtmlContent } from '@/utils/html-sanitizer';
+
 /** Light / dark theme color tokens used when no explicit override is provided */
 const THEME_COLORS = {
   light: { text: '#1F2937', background: 'transparent' }, // gray-800
@@ -83,7 +85,7 @@ export const HtmlRenderer: React.FC<HtmlRendererProps> = ({
           ${customCSS}
         </style>
       </head>
-      <body>${html}</body>
+      <body>${sanitizeHtmlContent(html)}</body>
     </html>
   `;
 

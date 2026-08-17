@@ -1,7 +1,7 @@
 import { AlertTriangle, MapPin, Phone, Timer } from 'lucide-react-native';
 import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, ScrollView, StyleSheet } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
@@ -174,11 +174,14 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
       </VStack>
 
       {/* Nature of Call */}
-      {call.Nature && (
-        <Box className="mt-4 rounded-lg bg-white/50 p-3">
+      {call.Nature ? (
+        // Android's WebView claims the touch stream (requestDisallowInterceptTouchEvent),
+        // so a drag starting on it never reaches the surrounding list — kill its pointer
+        // events there and let the list scroll. iOS nests scrolling fine, leave it alone.
+        <Box className="mt-4 rounded-lg bg-white/50 p-3" pointerEvents={Platform.OS === 'android' ? 'none' : 'auto'}>
           <HtmlRenderer html={call.Nature} style={StyleSheet.flatten([styles.container, { height: 80 }])} textColor={textColor} />
         </Box>
-      )}
+      ) : null}
     </Box>
   );
 });

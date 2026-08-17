@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
+import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { logger } from '@/lib/logging';
 import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { invertColor } from '@/lib/utils';
@@ -93,6 +94,7 @@ const getPreferredDestinationTab = ({
 export const StatusBottomSheet = () => {
   const { t } = useTranslation();
   const { colorScheme } = useColorScheme();
+  const keyboardHeight = useKeyboardHeight();
   const [selectedTab, setSelectedTab] = React.useState<DestinationTab>('call');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const showToast = useToastStore((state) => state.showToast);
@@ -618,12 +620,16 @@ export const StatusBottomSheet = () => {
   return (
     <Actionsheet isOpen={isOpen} onClose={handleClose} snapPoints={[90]}>
       <ActionsheetBackdrop />
-      <ActionsheetContent className="bg-white dark:bg-gray-900">
+      {/* The sheet renders inside a native Modal, so keyboard-controller's window-bound
+          avoidance never moves it — padding by the keyboard height reserves the covered
+          strip instead. shrink on the column lets the step content compress into the
+          remaining space so its scrollview actually scrolls rather than Yoga clipping it. */}
+      <ActionsheetContent className="bg-white dark:bg-gray-900" style={{ paddingBottom: keyboardHeight }}>
         <ActionsheetDragIndicatorWrapper>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 
-        <VStack space="md" className="w-full p-4">
+        <VStack space="md" className="w-full shrink p-4">
           <HStack space="sm" className="mb-2 justify-center">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
               {t('common.step')} {getStepNumber()} {t('common.of')} {getTotalSteps()}
@@ -858,7 +864,13 @@ export const StatusBottomSheet = () => {
           ) : null}
 
           {currentStep === 'add-note' ? (
-            <KeyboardAwareScrollView style={{ width: '100%' }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" bottomOffset={120}>
+            <KeyboardAwareScrollView
+              style={{ width: '100%', flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              bottomOffset={120}
+            >
               <VStack space="md" className="w-full">
                 <VStack space="sm">
                   <Text className="font-medium">{t('status.selected_status')}:</Text>
