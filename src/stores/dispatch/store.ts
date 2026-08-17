@@ -75,16 +75,23 @@ export const useDispatchStore = create<DispatchState>((set, get) => ({
       const categorizedRoles: RecipientsResultData[] = [];
       const categorizedUnits: RecipientsResultData[] = [];
 
+      // The recipients endpoint hands back wire ids ("P:<userId>", "R:12"). The selection is keyed on
+      // bare ids so it lines up with the ids a call's existing dispatches come back as, and the
+      // prefixes are put back on in the calls API when the dispatch list is built.
+      const stripPrefix = (id: string) => (id ? id.replace(/^[PGRU]:/, '') : id);
+
       // Categorize recipients based on Type field
       recipients.Data.forEach((recipient) => {
+        const entry = { ...recipient, Id: stripPrefix(recipient.Id) };
+
         if (recipient.Type === 'Personnel') {
-          categorizedUsers.push(recipient);
+          categorizedUsers.push(entry);
         } else if (recipient.Type === 'Groups') {
-          categorizedGroups.push(recipient);
+          categorizedGroups.push(entry);
         } else if (recipient.Type === 'Roles') {
-          categorizedRoles.push(recipient);
+          categorizedRoles.push(entry);
         } else if (recipient.Type === 'Unit') {
-          categorizedUnits.push(recipient);
+          categorizedUnits.push(entry);
         }
       });
 

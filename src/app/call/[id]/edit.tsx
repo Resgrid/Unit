@@ -88,6 +88,7 @@ export default function EditCall() {
   const callDataError = useCallsStore((state) => state.error);
   const fetchCallFormData = useCallsStore((state) => state.fetchCallFormData);
   const call = useCallDetailStore((state) => state.call);
+  const callExtraData = useCallDetailStore((state) => state.callExtraData);
   const callDetailLoading = useCallDetailStore((state) => state.isLoading);
   const callDetailError = useCallDetailStore((state) => state.error);
   const fetchCallDetail = useCallDetailStore((state) => state.fetchCallDetail);
@@ -158,7 +159,35 @@ export default function EditCall() {
   useEffect(() => {
     if (call) {
       const priority = callPriorities.find((p) => p.Id === call.Priority);
-      const type = callTypes.find((t) => t.Id === call.Type);
+      // Call.Type is the type's text, not its id -- matching on Id left the picker blank on every edit.
+      const type = callTypes.find((t) => t.Name === call.Type);
+
+      // Seed the picker with who the call already went to. Without this the edit posted an empty
+      // dispatch list, which the API reads as "dispatch the whole department".
+      const initialDispatch: DispatchSelection = {
+        everyone: false,
+        users: [],
+        groups: [],
+        roles: [],
+        units: [],
+      };
+
+      if (callExtraData?.Dispatches) {
+        callExtraData.Dispatches.forEach((dispatch) => {
+          const dispatchType = (dispatch.Type || '').toLowerCase();
+          if (dispatchType === 'personnel' || dispatchType === 'p' || dispatchType === 'user') {
+            initialDispatch.users.push(dispatch.Id);
+          } else if (dispatchType === 'group' || dispatchType === 'groups' || dispatchType === 'g') {
+            initialDispatch.groups.push(dispatch.Id);
+          } else if (dispatchType === 'role' || dispatchType === 'roles' || dispatchType === 'r') {
+            initialDispatch.roles.push(dispatch.Id);
+          } else if (dispatchType === 'unit' || dispatchType === 'units' || dispatchType === 'u') {
+            initialDispatch.units.push(dispatch.Id);
+          }
+        });
+      }
+
+      setDispatchSelection(initialDispatch);
 
       reset({
         name: call.Name || '',
@@ -175,13 +204,7 @@ export default function EditCall() {
         type: type?.Name || '',
         contactName: call.ContactName || '',
         contactInfo: call.ContactInfo || '',
-        dispatchSelection: {
-          everyone: false,
-          users: [],
-          groups: [],
-          roles: [],
-          units: [],
-        },
+        dispatchSelection: initialDispatch,
       });
 
       // Set selected location if coordinates exist
@@ -193,7 +216,7 @@ export default function EditCall() {
         });
       }
     }
-  }, [call, callPriorities, callTypes, reset]);
+  }, [call, callExtraData, callPriorities, callTypes, reset]);
 
   // Track when edit call view is rendered
   useEffect(() => {
@@ -226,7 +249,8 @@ export default function EditCall() {
         name: data.name,
         nature: data.nature,
         priority: priority?.Id || 0,
-        type: type?.Id || '',
+        // The API matches the call type by its text, not its id.
+        type: type?.Name || '',
         note: data.note,
         address: data.address,
         latitude: data.latitude,
