@@ -150,6 +150,23 @@ jest.mock('nativewind', () => ({
   cssInterop: jest.fn(),
 }));
 
+// The modal is now a gluestack Actionsheet bottom sheet; render its parts as
+// plain views so the sheet's content is reachable in the test tree.
+jest.mock('@/components/ui/actionsheet', () => {
+  const { View } = require('react-native');
+  return {
+    Actionsheet: ({ isOpen, children, testID }: any) => (isOpen ? <View testID={testID ?? 'actionsheet'}>{children}</View> : null),
+    ActionsheetBackdrop: ({ children }: any) => <View testID="actionsheet-backdrop">{children}</View>,
+    ActionsheetContent: ({ children, style }: any) => (
+      <View testID="actionsheet-content" style={style}>
+        {children}
+      </View>
+    ),
+    ActionsheetDragIndicator: () => <View testID="actionsheet-drag-indicator" />,
+    ActionsheetDragIndicatorWrapper: ({ children }: any) => <View testID="actionsheet-drag-indicator-wrapper">{children}</View>,
+  };
+});
+
 // Mock translations
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
