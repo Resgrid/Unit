@@ -22,6 +22,7 @@ import { Text } from '@/components/ui/text';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
+import { getAppTabBarHeight } from '@/lib/app-shell-layout';
 import { useAuthStore } from '@/lib/auth';
 import { cacheManager } from '@/lib/cache/cache-manager';
 import { logger } from '@/lib/logging';
@@ -393,7 +394,7 @@ export default function TabLayout() {
       tabBarStyle: {
         paddingBottom: Math.max(insets.bottom, 5),
         paddingTop: 5,
-        height: isLandscape ? 65 : Math.max(60 + insets.bottom, 60),
+        height: getAppTabBarHeight(insets.bottom, isLandscape),
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: -1 },
