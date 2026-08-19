@@ -204,6 +204,14 @@ jobs:
           printf '%s' "$UNIT_ANDROID_KS" | base64 -d > "$RUNNER_TEMP/keystore.jks"
           chmod 600 "$RUNNER_TEMP/keystore.jks"
 
+      - name: 📋 Ensure jq exists
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "Installing jq..."
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
       - name: 📋 Create Credentials File
         if: ${{ matrix.platform == 'android' }}
         run: |
