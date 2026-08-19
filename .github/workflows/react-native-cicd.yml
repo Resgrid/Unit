@@ -195,6 +195,16 @@ jobs:
         run: |
           echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
 
+      - name: 📋 Create Android Keystore
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          echo $UNIT_ANDROID_KS | base64 -d > keystore.jks
+
+      - name: 📋 Create Credentials File
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          echo $CREDENTIALS_JSON_BASE64 | base64 -d > credentials.json
+
       - name: 📋 Create Google Json File for iOS
         if: ${{ matrix.platform == 'ios' }}
         run: |
@@ -275,7 +285,7 @@ jobs:
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-aab'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production --local --non-interactive --output=./ResgridUnit-prod.aab
+          eas build --platform android --profile production-aab --local --non-interactive --output=./ResgridUnit-prod.aab
         env:
           NODE_ENV: production
 
