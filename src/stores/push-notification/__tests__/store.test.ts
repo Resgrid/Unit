@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logging';
 import { notificationSoundService } from '@/services/notification-sound.service';
-import { usePushNotificationModalStore } from '../store';
+import { parseNotificationData, usePushNotificationModalStore } from '../store';
 
 // Mock logger service
 jest.mock('@/lib/logging', () => ({
@@ -365,6 +365,60 @@ describe('usePushNotificationModalStore', () => {
       expect(parsed.type).toBe('unknown');
       expect(parsed.id).toBe('');
       expect(parsed.eventCode).toBe('');
+    });
+  });
+
+  describe('parseNotificationData (colon-form event codes)', () => {
+    it.each([
+      ['C:1234', 'call', '1234'],
+      ['M:5678', 'message', '5678'],
+      ['T:9101', 'chat', '9101'],
+      ['G:1121', 'group-chat', '1121'],
+      // New chat system sends lowercase prefixes WITH a colon.
+      ['t:chan-abc', 'chat', 'chan-abc'],
+      ['g:group-xyz', 'group-chat', 'group-xyz'],
+      ['c:42', 'call', '42'],
+      ['m:7', 'message', '7'],
+    ])('parses %s as %s with id %s', (eventCode, type, id) => {
+      const parsed = parseNotificationData({ eventCode });
+
+      expect(parsed.type).toBe(type);
+      expect(parsed.id).toBe(id);
+      expect(parsed.eventCode).toBe(eventCode);
+    });
+
+    it('splits on the first colon only so an id containing a colon survives intact', () => {
+      const parsed = parseNotificationData({ eventCode: 'T:9:10' });
+
+      expect(parsed.type).toBe('chat');
+      expect(parsed.id).toBe('9:10');
+    });
+
+    it('parses an unknown colon prefix as unknown but keeps the id', () => {
+      const parsed = parseNotificationData({ eventCode: 'X:9999' });
+
+      expect(parsed.type).toBe('unknown');
+      expect(parsed.id).toBe('9999');
+    });
+
+    it('still parses the legacy colon-less form', () => {
+      const parsed = parseNotificationData({ eventCode: 'C1234' });
+
+      expect(parsed.type).toBe('call');
+      expect(parsed.id).toBe('1234');
+    });
+
+    it('carries title, body and data through unchanged', () => {
+      const parsed = parseNotificationData({
+        eventCode: 'C:1',
+        title: 'Call',
+        body: 'Dispatch',
+        data: { eventCode: 'C:1', extra: 'x' },
+      });
+
+      expect(parsed.title).toBe('Call');
+      expect(parsed.body).toBe('Dispatch');
+      expect(parsed.data).toEqual({ eventCode: 'C:1', extra: 'x' });
     });
   });
 });

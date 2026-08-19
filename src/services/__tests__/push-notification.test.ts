@@ -1,9 +1,18 @@
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 
-// Mock the store
+// Mock the store — keep the real (pure) parseNotificationData so the service's
+// tap routing decisions are exercised against the actual parser.
 jest.mock('@/stores/push-notification/store', () => ({
+  parseNotificationData: jest.requireActual('@/stores/push-notification/store').parseNotificationData,
   usePushNotificationModalStore: {
     getState: jest.fn(),
+  },
+}));
+
+// The real store module pulls in the sound service (expo-audio); stub it out.
+jest.mock('@/services/notification-sound.service', () => ({
+  notificationSoundService: {
+    playNotificationSound: jest.fn(() => Promise.resolve()),
   },
 }));
 
@@ -443,6 +452,7 @@ describe('Push Notification Service Integration', () => {
 
   describe('cold-start tap dedupe', () => {
     let pushNotificationService: typeof import('../push-notification').pushNotificationService;
+    let freshRouterPushWithRetry: jest.Mock;
 
     beforeEach(() => {
       jest.clearAllMocks();
@@ -458,6 +468,10 @@ describe('Push Notification Service Integration', () => {
       (freshStore.getState as jest.Mock).mockReturnValue({
         showNotificationModal: mockShowNotificationModal,
       });
+
+      // Same story for the navigation mock the fresh service module captured.
+      freshRouterPushWithRetry = require('@/lib/navigation').routerPushWithRetry as jest.Mock;
+      freshRouterPushWithRetry.mockResolvedValue(undefined);
     });
 
     afterEach(() => {
@@ -489,8 +503,10 @@ describe('Push Notification Service Integration', () => {
       await Promise.resolve();
       jest.advanceTimersByTime(1000);
 
-      expect(mockShowNotificationModal).toHaveBeenCalledTimes(1);
-      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'C:77' }));
+      // A call tap deep-links to the call detail exactly once; no modal fallback.
+      expect(freshRouterPushWithRetry).toHaveBeenCalledTimes(1);
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '77' } }, expect.objectContaining({ maxAttempts: 40, retryDelayMs: 250 }));
+      expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
 
     it('still handles distinct notification taps separately', async () => {
@@ -509,7 +525,128 @@ describe('Push Notification Service Integration', () => {
       responseHandler(makeResponse('tap-b', 'C:2'));
       jest.advanceTimersByTime(400);
 
-      expect(mockShowNotificationModal).toHaveBeenCalledTimes(2);
+      expect(freshRouterPushWithRetry).toHaveBeenCalledTimes(2);
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '1' } }, expect.anything());
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '2' } }, expect.anything());
+    });
+  });
+
+  describe('tap deep-linking', () => {
+    let pushNotificationService: typeof import('../push-notification').pushNotificationService;
+    let freshRouterPushWithRetry: jest.Mock;
+    let responseHandler: (r: unknown) => void;
+
+    const makeResponse = (id: string, data: Record<string, unknown> | undefined, triggerPayload?: Record<string, unknown>): unknown => ({
+      actionIdentifier: 'default',
+      notification: {
+        request: {
+          identifier: id,
+          content: { title: 'T', body: 'B', data },
+          trigger: triggerPayload === undefined ? { type: 'push' } : { type: 'push', payload: triggerPayload },
+        },
+      },
+    });
+
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      jest.resetModules();
+
+      jest.unmock('../push-notification');
+      const module = require('../push-notification');
+      pushNotificationService = module.pushNotificationService;
+
+      const freshStore = require('@/stores/push-notification/store').usePushNotificationModalStore;
+      (freshStore.getState as jest.Mock).mockReturnValue({
+        showNotificationModal: mockShowNotificationModal,
+      });
+
+      freshRouterPushWithRetry = require('@/lib/navigation').routerPushWithRetry as jest.Mock;
+      freshRouterPushWithRetry.mockResolvedValue(undefined);
+
+      jest.useFakeTimers();
+      await pushNotificationService.initialize();
+      responseHandler = (mockAddNotificationResponseReceivedListener.mock.calls as unknown[][])[0]?.[0] as (r: unknown) => void;
+    });
+
+    afterEach(() => {
+      pushNotificationService.cleanup();
+      jest.useRealTimers();
+    });
+
+    it('navigates to the call detail for a call tap', () => {
+      responseHandler(makeResponse('tap-call', { eventCode: 'C:123' }));
+      jest.advanceTimersByTime(400);
+
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '123' } }, expect.objectContaining({ maxAttempts: 40, retryDelayMs: 250 }));
+      expect(mockShowNotificationModal).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['t:chan-1', 'chan-1'],
+      ['g:group-2', 'group-2'],
+      ['T:chan-3', 'chan-3'],
+      ['G:group-4', 'group-4'],
+    ])('navigates to the chat conversation for %s', (eventCode, channelId) => {
+      responseHandler(makeResponse(`tap-${eventCode}`, { eventCode }));
+      jest.advanceTimersByTime(400);
+
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/chat/[channelId]', params: { channelId } }, expect.objectContaining({ maxAttempts: 40, retryDelayMs: 250 }));
+      expect(mockShowNotificationModal).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the modal for a message tap', () => {
+      responseHandler(makeResponse('tap-msg', { eventCode: 'M:5' }));
+      jest.advanceTimersByTime(400);
+
+      expect(freshRouterPushWithRetry).not.toHaveBeenCalled();
+      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'M:5' }));
+    });
+
+    it('falls back to the modal when the call id is not a safe route param', () => {
+      responseHandler(makeResponse('tap-bad-call', { eventCode: 'C:1/2' }));
+      jest.advanceTimersByTime(400);
+
+      expect(freshRouterPushWithRetry).not.toHaveBeenCalled();
+      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'C:1/2' }));
+    });
+
+    it('routes an iOS tap whose eventCode only exists on the raw trigger payload', () => {
+      responseHandler(makeResponse('tap-ios', {}, { aps: { alert: {} }, eventCode: 'C:55' }));
+      jest.advanceTimersByTime(400);
+
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '55' } }, expect.anything());
+      expect(mockShowNotificationModal).not.toHaveBeenCalled();
+    });
+
+    describe('notifee press events', () => {
+      const getNotifeeForegroundHandler = (): ((event: unknown) => Promise<void>) => (mockOnForegroundEvent.mock.calls as unknown[][])[0]?.[0] as (event: unknown) => Promise<void>;
+
+      const makePressEvent = (data: Record<string, unknown>): unknown => ({
+        // EventType.PRESS
+        type: 1,
+        detail: { notification: { id: 'notifee-1', title: 'T', body: 'B', data } },
+      });
+
+      it('deep-links a notifee press with a chat eventCode', async () => {
+        await getNotifeeForegroundHandler()(makePressEvent({ eventCode: 'g:room-1' }));
+
+        expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/chat/[channelId]', params: { channelId: 'room-1' } }, expect.anything());
+        expect(mockShowNotificationModal).not.toHaveBeenCalled();
+      });
+
+      it('deep-links a notifee press with a call eventCode', async () => {
+        await getNotifeeForegroundHandler()(makePressEvent({ eventCode: 'C:42' }));
+
+        expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '42' } }, expect.anything());
+        expect(mockShowNotificationModal).not.toHaveBeenCalled();
+      });
+
+      it('shows the modal for a notifee press without a routable eventCode', async () => {
+        await getNotifeeForegroundHandler()(makePressEvent({ eventCode: 'M:9' }));
+
+        expect(freshRouterPushWithRetry).not.toHaveBeenCalled();
+        expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'M:9' }));
+      });
     });
   });
 

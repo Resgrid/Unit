@@ -1,0 +1,206 @@
+import { router } from 'expo-router';
+
+import { logger } from '@/lib/logging';
+
+import { extractPushNotificationData, handleChatDeepLink } from '../push-notification';
+
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn() },
+}));
+
+jest.mock('expo-device', () => ({
+  isDevice: true,
+}));
+
+jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(() => Promise.resolve(null)),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ status: 'granted' })),
+  getDevicePushTokenAsync: jest.fn(() => Promise.resolve({ data: 'test-token' })),
+  setBadgeCountAsync: jest.fn(() => Promise.resolve()),
+  dismissAllNotificationsAsync: jest.fn(() => Promise.resolve()),
+}));
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: {
+    createChannel: jest.fn(() => Promise.resolve()),
+    deleteChannel: jest.fn(() => Promise.resolve()),
+    setNotificationCategories: jest.fn(() => Promise.resolve()),
+    requestPermission: jest.fn(() => Promise.resolve({ authorizationStatus: 1 })),
+    onForegroundEvent: jest.fn(() => jest.fn()),
+    onBackgroundEvent: jest.fn(),
+    cancelAllNotifications: jest.fn(() => Promise.resolve()),
+  },
+  AndroidImportance: { HIGH: 4 },
+  AndroidVisibility: { PUBLIC: 1 },
+  AuthorizationStatus: { AUTHORIZED: 1, DENIED: 2 },
+  EventType: { PRESS: 1, ACTION_PRESS: 2 },
+}));
+
+jest.mock('@/api/devices/push', () => ({
+  registerUnitDevice: jest.fn(),
+}));
+
+jest.mock('@/stores/auth/store', () => {
+  // handleChatDeepLink gates the cold-start push on a hydrated session, so the mock has to
+  // answer getState() as well as being callable as a selector hook.
+  const state = { status: 'signedIn', accessToken: 'test-access-token' };
+  const store: any = jest.fn((selector: any) => (selector ? selector(state) : state));
+  store.getState = () => state;
+  return { __esModule: true, default: store };
+});
+
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+  },
+}));
+
+jest.mock('@/lib/storage/app', () => ({
+  getDeviceUuid: jest.fn(() => 'test-uuid'),
+  getBaseApiUrl: jest.fn(() => ''),
+}));
+
+jest.mock('@/lib/storage/notification-prefs', () => ({
+  getModernNotificationSoundsEnabled: jest.fn(() => true),
+  getAppliedNotificationSoundMode: jest.fn(() => undefined),
+  setAppliedNotificationSoundMode: jest.fn(),
+}));
+
+jest.mock('@/stores/app/core-store', () => ({
+  useCoreStore: Object.assign(
+    jest.fn((selector: any) => {
+      const state = { activeUnitId: 'test-unit', activeCall: null, activeUnit: null };
+      return selector ? selector(state) : state;
+    }),
+    { getState: jest.fn(() => ({ activeCall: null, activeUnit: null })) }
+  ),
+}));
+
+jest.mock('@/stores/app/location-store', () => ({
+  useLocationStore: {
+    getState: jest.fn(() => ({ latitude: null, longitude: null })),
+  },
+}));
+
+jest.mock('@/stores/check-in-timers/store', () => ({
+  useCheckInTimerStore: {
+    getState: jest.fn(() => ({ performCheckIn: jest.fn() })),
+  },
+}));
+
+jest.mock('@/stores/security/store', () => ({
+  securityStore: jest.fn((selector: any) => {
+    const state = { rights: { DepartmentCode: 'TEST' } };
+    return selector ? selector(state) : state;
+  }),
+}));
+
+// The real push-notification store pulls in the sound service (expo-audio); stub it out.
+jest.mock('@/services/notification-sound.service', () => ({
+  notificationSoundService: {
+    playNotificationSound: jest.fn(() => Promise.resolve()),
+  },
+}));
+
+describe('handleChatDeepLink', () => {
+  const push = router.push as jest.Mock;
+  const logError = logger.error as jest.Mock;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    push.mockReset();
+    logError.mockClear();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it.each([
+    ['t:channel-1', 'channel-1'],
+    ['g:9101', '9101'],
+    ['T:channel-1', 'channel-1'],
+    ['G:9101', '9101'],
+  ])('navigates with explicit route params for %s', (eventCode, channelId) => {
+    expect(handleChatDeepLink(eventCode)).toBe(true);
+    expect(push).toHaveBeenCalledWith({ pathname: '/chat/[channelId]', params: { channelId } });
+  });
+
+  it.each(['t:a/b', 't:a\\b', 'g:a?x=1', 'g:a#fragment', 'x:123', 't:', 'notacode', ':missingprefix'])('rejects invalid payload %s', (eventCode) => {
+    expect(handleChatDeepLink(eventCode)).toBe(false);
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('retries navigation when the router is not ready yet', async () => {
+    push
+      .mockImplementationOnce(() => {
+        throw new Error('router not ready');
+      })
+      .mockImplementationOnce(() => undefined);
+
+    expect(handleChatDeepLink('t:channel-1')).toBe(true);
+    expect(push).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(300);
+
+    expect(push).toHaveBeenCalledTimes(2);
+    expect(logError).not.toHaveBeenCalled();
+  });
+
+  it('logs an error after exhausting navigation retries', async () => {
+    push.mockImplementation(() => {
+      throw new Error('router not ready');
+    });
+
+    expect(handleChatDeepLink('t:channel-1')).toBe(true);
+
+    // Budget is 40 attempts x 250ms so a cold start has ~10s to mount and hydrate.
+    await jest.advanceTimersByTimeAsync(250 * 40);
+
+    expect(push).toHaveBeenCalledTimes(40);
+    expect(logError).toHaveBeenCalledWith(expect.objectContaining({ message: 'Failed to deep-link to chat channel' }));
+  });
+});
+
+describe('extractPushNotificationData', () => {
+  const makeRequest = (data: unknown, triggerPayload?: unknown): any => ({
+    identifier: 'req-1',
+    content: { title: 'T', body: 'B', data },
+    trigger: triggerPayload === undefined ? { type: 'push' } : { type: 'push', payload: triggerPayload },
+  });
+
+  it('reads eventCode from content.data (Android FCM path)', () => {
+    const { eventCode, data } = extractPushNotificationData(makeRequest({ eventCode: 'g:123', other: 1 }));
+    expect(eventCode).toBe('g:123');
+    expect(data).toEqual({ eventCode: 'g:123', other: 1 });
+  });
+
+  it('falls back to a top-level trigger payload key (iOS APNs custom key)', () => {
+    const { eventCode } = extractPushNotificationData(makeRequest(undefined, { aps: { alert: {} }, eventCode: 't:abc', type: '13' }));
+    expect(eventCode).toBe('t:abc');
+  });
+
+  it('falls back to the trigger payload body dict (iOS expo-style body key)', () => {
+    const { eventCode } = extractPushNotificationData(makeRequest(null, { aps: {}, body: { eventCode: 'C:55' } }));
+    expect(eventCode).toBe('C:55');
+  });
+
+  it('falls back to an aps-nested eventCode (FCM-relayed APNs override)', () => {
+    const { eventCode } = extractPushNotificationData(makeRequest({}, { aps: { category: 'chats', eventCode: 'g:77' } }));
+    expect(eventCode).toBe('g:77');
+  });
+
+  it('returns undefined when no eventCode exists anywhere', () => {
+    const { eventCode, data } = extractPushNotificationData(makeRequest({ foo: 'bar' }, { aps: {} }));
+    expect(eventCode).toBeUndefined();
+    expect(data).toEqual({ foo: 'bar' });
+  });
+});
