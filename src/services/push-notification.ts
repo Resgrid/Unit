@@ -1,19 +1,20 @@
 import notifee, { AndroidImportance, AndroidVisibility, AuthorizationStatus, EventType } from '@notifee/react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import type { Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
 import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
-import { routerPushWithRetry } from '@/lib/navigation';
+import { type RouterPushRetryOptions, routerPushWithRetry } from '@/lib/navigation';
 import { getDeviceUuid } from '@/lib/storage/app';
 import { getAppliedNotificationSoundMode, getModernNotificationSoundsEnabled, setAppliedNotificationSoundMode } from '@/lib/storage/notification-prefs';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import useAuthStore from '@/stores/auth/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
-import { usePushNotificationModalStore } from '@/stores/push-notification/store';
+import { isSafeRouteId, parseNotificationData, usePushNotificationModalStore } from '@/stores/push-notification/store';
 import { securityStore } from '@/stores/security/store';
 
 // Numeric values for the CheckInType field expected by the API.
@@ -35,29 +36,88 @@ export interface PushNotificationData {
 }
 
 /**
- * Handles chat push deep-links. Chat notifications carry an eventCode of
- * "t:{channelId}" (direct message) or "g:{channelId}" (group/channel); both
- * navigate to the chat conversation route.
+ * Pulls the Resgrid eventCode (and the data record that carried it) out of a
+ * notification request. On Android the FCM data payload is surfaced as
+ * content.data, but on iOS expo-notifications only maps the APNs custom key
+ * "body" to content.data — Core sends eventCode as a top-level custom key (or
+ * nested under aps for FCM-relayed APNs), so content.data is empty there and we
+ * must fall back to the raw push payload exposed on the trigger.
  */
-export function handleChatDeepLink(eventCode: string): boolean {
-  const match = /^([tg]):(.+)$/.exec(eventCode);
-  if (!match) return false;
-  const channelId = match[2];
-  if (/[/\\?#]/.test(channelId)) return false;
-  void routerPushWithRetry(
-    { pathname: '/chat/[channelId]', params: { channelId } },
-    {
-      maxAttempts: 40,
-      retryDelayMs: 250,
-      // On a cold start the session is still hydrating. Pushing a protected route before
-      // it settles gets the route replaced by the auth guard, which is indistinguishable
-      // from the tap doing nothing at all.
-      waitUntil: () => useAuthStore.getState().status === 'signedIn',
+export function extractPushNotificationData(request: Notifications.NotificationRequest): { eventCode: string | undefined; data: Record<string, unknown> } {
+  const contentData = request.content.data;
+  if (contentData && typeof contentData === 'object' && typeof (contentData as Record<string, unknown>).eventCode === 'string') {
+    return { eventCode: (contentData as Record<string, unknown>).eventCode as string, data: contentData as Record<string, unknown> };
+  }
+
+  const trigger = request.trigger as { payload?: Record<string, unknown> } | null | undefined;
+  const payload = trigger && typeof trigger === 'object' ? trigger.payload : undefined;
+  if (payload && typeof payload === 'object') {
+    const candidates = [payload, payload.body, payload.aps];
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === 'object' && typeof (candidate as Record<string, unknown>).eventCode === 'string') {
+        return { eventCode: (candidate as Record<string, unknown>).eventCode as string, data: candidate as Record<string, unknown> };
+      }
     }
-  ).catch((error) => {
-    logger.error({ message: 'Failed to deep-link to chat channel', context: { error, eventCode } });
-  });
-  return true;
+  }
+
+  return {
+    eventCode: undefined,
+    data: contentData && typeof contentData === 'object' ? (contentData as Record<string, unknown>) : {},
+  };
+}
+
+/**
+ * Recognises chat push deep-links. Chat notifications carry an eventCode of
+ * "t:{channelId}" (direct message) or "g:{channelId}" (group/channel); both
+ * navigate to the chat conversation route. Case-insensitive so the legacy
+ * uppercase prefixes deep-link too. Returns the channel id, or null when the
+ * eventCode is not a chat deep-link.
+ */
+export function parseChatDeepLink(eventCode: string): string | null {
+  const match = /^([tg]):(.+)$/i.exec(eventCode);
+  if (!match) return null;
+  const channelId = match[2];
+  if (!isSafeRouteId(channelId)) return null;
+  return channelId;
+}
+
+/**
+ * Retry budget for every push deep-link: 40 x 250ms gives a cold start ~10s to mount the
+ * root layout and hydrate the session before the push is given up on.
+ *
+ * On a cold start the session is still hydrating. Pushing a protected route before
+ * it settles gets the route replaced by the auth guard, which is indistinguishable
+ * from the tap doing nothing at all.
+ */
+const DEEP_LINK_RETRY_OPTIONS: RouterPushRetryOptions = {
+  maxAttempts: 40,
+  retryDelayMs: 250,
+  waitUntil: () => useAuthStore.getState().status === 'signedIn',
+};
+
+/**
+ * Resolves true when the push landed on its route, false once the retry budget is spent so
+ * the caller can fall back to the modal.
+ */
+async function deepLinkWithRetry(href: Href, failureMessage: string, eventCode: string): Promise<boolean> {
+  try {
+    await routerPushWithRetry(href, DEEP_LINK_RETRY_OPTIONS);
+    return true;
+  } catch (error) {
+    logger.error({ message: failureMessage, context: { error, eventCode } });
+    return false;
+  }
+}
+
+/**
+ * Resolves true when the tap was navigated, false when it was not a chat deep-link or the
+ * navigation never landed. A false result means the caller still owes the user a fallback —
+ * silently giving up leaves the app sitting on whatever screen it opened to.
+ */
+export async function handleChatDeepLink(eventCode: string): Promise<boolean> {
+  const channelId = parseChatDeepLink(eventCode);
+  if (!channelId) return false;
+  return deepLinkWithRetry({ pathname: '/chat/[channelId]', params: { channelId } }, 'Failed to deep-link to chat channel', eventCode);
 }
 
 // Configure how notifications are presented while the app is in the foreground.
@@ -238,13 +298,41 @@ class PushNotificationService {
     void usePushNotificationModalStore.getState().showNotificationModal(notificationData);
   }
 
+  /**
+   * Deep-links a tapped notification straight to its screen when the eventCode
+   * routes somewhere: chat ("t:"/"g:") to the conversation, calls ("C:{id}") to
+   * the call detail. Resolves true only once the navigation has landed, so a
+   * deep-link that never arrives (cold start where the session never hydrates)
+   * still leaves the caller its modal fallback instead of a logged no-op.
+   */
+  private async tryDeepLinkForData(data: Record<string, unknown> | undefined): Promise<boolean> {
+    const eventCode = data?.eventCode;
+    if (typeof eventCode !== 'string') {
+      return false;
+    }
+
+    // Chat notifications: eventCode "t:{channelId}" (DM) / "g:{channelId}" (group).
+    if (parseChatDeepLink(eventCode)) {
+      return handleChatDeepLink(eventCode);
+    }
+
+    const parsed = parseNotificationData({ eventCode, data });
+    if (parsed.type === 'call' && isSafeRouteId(parsed.id)) {
+      return deepLinkWithRetry({ pathname: '/call/[id]', params: { id: parsed.id } }, 'Failed to deep-link to call from push notification', eventCode);
+    }
+
+    return false;
+  }
+
   // Foreground push received via expo-notifications.
   private handleNotificationReceived = (notification: Notifications.Notification): void => {
-    const data = notification.request.content.data as Record<string, unknown> | undefined;
+    // iOS remote pushes don't surface Core's custom keys on content.data — pull
+    // the eventCode out of the raw trigger payload so the modal still shows.
+    const { eventCode, data } = extractPushNotificationData(notification.request);
 
     logger.info({
       message: 'Notification received',
-      context: { data },
+      context: { eventCode },
     });
 
     this.showModalForData(data, notification.request.content.title, notification.request.content.body);
@@ -277,21 +365,24 @@ class PushNotificationService {
     }
 
     const content = request.content;
-    const data = content.data as Record<string, unknown> | undefined;
+    // iOS remote pushes don't surface Core's custom keys on content.data — the
+    // extractor falls back to the raw trigger payload so taps still route.
+    const { eventCode, data } = extractPushNotificationData(request);
 
     logger.info({
       message: 'Notification response received (tap)',
-      context: { data, actionIdentifier: response.actionIdentifier, source },
+      context: { eventCode, actionIdentifier: response.actionIdentifier, source },
     });
 
     // Delay so the React tree is mounted and the modal store is ready.
     setTimeout(() => {
-      // Deep-link chat notifications: eventCode "t:{channelId}" (DM) / "g:{channelId}" (group).
-      const eventCode = data?.eventCode;
-      if (typeof eventCode === 'string' && handleChatDeepLink(eventCode)) {
-        return;
-      }
-      this.showModalForData(data, content.title, content.body);
+      // Deep-link chat and call notifications straight to their screen; anything
+      // else — and any deep-link that never lands — falls back to the persistent modal.
+      void this.tryDeepLinkForData(data).then((navigated) => {
+        if (!navigated) {
+          this.showModalForData(data, content.title, content.body);
+        }
+      });
     }, delayMs);
   }
 
@@ -314,9 +405,11 @@ class PushNotificationService {
         await this.handleCheckInAction();
       }
 
-      // Handle notification press → modal
+      // Handle notification press → deep link when the eventCode routes somewhere, modal otherwise
       if (type === EventType.PRESS && detail.notification) {
-        this.showModalForData(detail.notification.data, detail.notification.title, detail.notification.body);
+        if (!(await this.tryDeepLinkForData(detail.notification.data))) {
+          this.showModalForData(detail.notification.data, detail.notification.title, detail.notification.body);
+        }
       }
     });
 
@@ -331,7 +424,9 @@ class PushNotificationService {
       }
 
       if (type === EventType.PRESS && detail.notification) {
-        this.showModalForData(detail.notification.data, detail.notification.title, detail.notification.body);
+        if (!(await this.tryDeepLinkForData(detail.notification.data))) {
+          this.showModalForData(detail.notification.data, detail.notification.title, detail.notification.body);
+        }
       }
     });
   }
