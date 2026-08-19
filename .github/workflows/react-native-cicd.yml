@@ -193,22 +193,22 @@ jobs:
       - name: 📋 Create Google Json File
         if: ${{ matrix.platform == 'android' }}
         run: |
-          echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
+          printf '%s' "$UNIT_GOOGLE_SERVICES" | base64 -d > google-services.json
 
       - name: 📋 Create Android Keystore
         if: ${{ matrix.platform == 'android' }}
         run: |
-          echo $UNIT_ANDROID_KS | base64 -d > keystore.jks
+          printf '%s' "$UNIT_ANDROID_KS" | base64 -d > keystore.jks
 
       - name: 📋 Create Credentials File
         if: ${{ matrix.platform == 'android' }}
         run: |
-          echo $CREDENTIALS_JSON_BASE64 | base64 -d > credentials.json
+          printf '%s' "$CREDENTIALS_JSON_BASE64" | base64 -d > credentials.json
 
       - name: 📋 Create Google Json File for iOS
         if: ${{ matrix.platform == 'ios' }}
         run: |
-          echo $UNIT_IOS_GOOGLE_SERVICES | base64 -d > GoogleService-Info.plist
+          printf '%s' "$UNIT_IOS_GOOGLE_SERVICES" | base64 -d > GoogleService-Info.plist
 
       - name: 📋 Update package.json Versions
         run: |
@@ -254,7 +254,7 @@ jobs:
 
       - name: 📋 Create iOS Cert
         run: |
-          echo $UNIT_IOS_CERT | base64 -d > AuthKey_HRBP5FNJN6.p8
+          printf '%s' "$UNIT_IOS_CERT" | base64 -d > AuthKey_HRBP5FNJN6.p8
 
       - name: 📋 Restore gradle.properties
         env:
@@ -262,7 +262,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ~/.gradle/
-          echo ${GRADLE_PROPERTIES} > ~/.gradle/gradle.properties
+          printf '%s\n' "$GRADLE_PROPERTIES" > ~/.gradle/gradle.properties
 
       - name: 📱 Build Development APK
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'dev'))
@@ -312,6 +312,10 @@ jobs:
           eas build --platform ios --profile production --local --non-interactive --output=./ResgridUnit-ios-prod.ipa
         env:
           NODE_ENV: production
+
+      - name: 🧹 Remove signing materials
+        if: always()
+        run: rm -f keystore.jks credentials.json AuthKey_HRBP5FNJN6.p8
 
       - name: 📦 Upload build artifacts to GitHub
         uses: actions/upload-artifact@v4

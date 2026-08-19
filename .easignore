@@ -27,3 +27,4 @@ expo-env.d.ts
 # Include a file not in source control
 !google-services.json
 !credentials.json
+!keystore.jks
