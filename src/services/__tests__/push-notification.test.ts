@@ -1,9 +1,9 @@
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
 
-// Mock the store — keep the real (pure) parseNotificationData so the service's
-// tap routing decisions are exercised against the actual parser.
+// Mock the store — keep the real (pure) parseNotificationData and isSafeRouteId so the
+// service's tap routing decisions are exercised against the actual parser and validation.
 jest.mock('@/stores/push-notification/store', () => ({
-  parseNotificationData: jest.requireActual('@/stores/push-notification/store').parseNotificationData,
+  ...jest.requireActual('@/stores/push-notification/store'),
   usePushNotificationModalStore: {
     getState: jest.fn(),
   },
@@ -594,20 +594,42 @@ describe('Push Notification Service Integration', () => {
       expect(mockShowNotificationModal).not.toHaveBeenCalled();
     });
 
-    it('falls back to the modal for a message tap', () => {
+    // The tap handler awaits the deep-link before falling back, so the modal lands a
+    // microtask after the timer — advanceTimersByTimeAsync flushes both.
+    it('falls back to the modal for a message tap', async () => {
       responseHandler(makeResponse('tap-msg', { eventCode: 'M:5' }));
-      jest.advanceTimersByTime(400);
+      await jest.advanceTimersByTimeAsync(400);
 
       expect(freshRouterPushWithRetry).not.toHaveBeenCalled();
       expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'M:5' }));
     });
 
-    it('falls back to the modal when the call id is not a safe route param', () => {
+    it('falls back to the modal when the call id is not a safe route param', async () => {
       responseHandler(makeResponse('tap-bad-call', { eventCode: 'C:1/2' }));
-      jest.advanceTimersByTime(400);
+      await jest.advanceTimersByTimeAsync(400);
 
       expect(freshRouterPushWithRetry).not.toHaveBeenCalled();
       expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'C:1/2' }));
+    });
+
+    it('falls back to the modal when the call deep-link never lands', async () => {
+      freshRouterPushWithRetry.mockRejectedValueOnce(new Error('navigation never became ready'));
+
+      responseHandler(makeResponse('tap-call-failed', { eventCode: 'C:123' }));
+      await jest.advanceTimersByTimeAsync(400);
+
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/call/[id]', params: { id: '123' } }, expect.objectContaining({ maxAttempts: 40 }));
+      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'C:123' }));
+    });
+
+    it('falls back to the modal when the chat deep-link never lands', async () => {
+      freshRouterPushWithRetry.mockRejectedValueOnce(new Error('navigation never became ready'));
+
+      responseHandler(makeResponse('tap-chat-failed', { eventCode: 'g:group-9' }));
+      await jest.advanceTimersByTimeAsync(400);
+
+      expect(freshRouterPushWithRetry).toHaveBeenCalledWith({ pathname: '/chat/[channelId]', params: { channelId: 'group-9' } }, expect.objectContaining({ maxAttempts: 40 }));
+      expect(mockShowNotificationModal).toHaveBeenCalledWith(expect.objectContaining({ eventCode: 'g:group-9' }));
     });
 
     it('routes an iOS tap whose eventCode only exists on the raw trigger payload', () => {
