@@ -266,6 +266,7 @@ jobs:
           eas --version
 
       - name: 📋 Create iOS Cert
+        if: ${{ matrix.platform == 'ios' }}
         run: |
           printf '%s' "$UNIT_IOS_CERT" | base64 -d > AuthKey_HRBP5FNJN6.p8
 
@@ -328,7 +329,7 @@ jobs:
 
       - name: 🧹 Remove signing materials
         if: always()
-        run: rm -f credentials.json AuthKey_HRBP5FNJN6.p8 "$RUNNER_TEMP/keystore.jks"
+        run: rm -f credentials.json AuthKey_HRBP5FNJN6.p8 "$RUNNER_TEMP/keystore.jks" ~/.gradle/gradle.properties
 
       - name: 📦 Upload build artifacts to GitHub
         uses: actions/upload-artifact@v4
