@@ -193,12 +193,35 @@ jobs:
       - name: 📋 Create Google Json File
         if: ${{ matrix.platform == 'android' }}
         run: |
-          echo $UNIT_GOOGLE_SERVICES | base64 -d > google-services.json
+          printf '%s' "$UNIT_GOOGLE_SERVICES" | base64 -d > google-services.json
+
+      # Keystore is decoded OUTSIDE the project root so it can never be picked up
+      # by the EAS build archive or any artifact globs; credentials.json points to
+      # it via an absolute path (supported by EAS for local credentials).
+      - name: 📋 Create Android Keystore
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          printf '%s' "$UNIT_ANDROID_KS" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+          chmod 600 "$RUNNER_TEMP/keystore.jks"
+
+      - name: 📋 Ensure jq exists
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then
+            echo "Installing jq..."
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
+
+      - name: 📋 Create Credentials File
+        if: ${{ matrix.platform == 'android' }}
+        run: |
+          printf '%s' "$CREDENTIALS_JSON_BASE64" | base64 -d \
+            | jq --arg ks "$RUNNER_TEMP/keystore.jks" '.android.keystore.keystorePath = $ks' > credentials.json
 
       - name: 📋 Create Google Json File for iOS
         if: ${{ matrix.platform == 'ios' }}
         run: |
-          echo $UNIT_IOS_GOOGLE_SERVICES | base64 -d > GoogleService-Info.plist
+          printf '%s' "$UNIT_IOS_GOOGLE_SERVICES" | base64 -d > GoogleService-Info.plist
 
       - name: 📋 Update package.json Versions
         run: |
@@ -243,8 +266,9 @@ jobs:
           eas --version
 
       - name: 📋 Create iOS Cert
+        if: ${{ matrix.platform == 'ios' }}
         run: |
-          echo $UNIT_IOS_CERT | base64 -d > AuthKey_HRBP5FNJN6.p8
+          printf '%s' "$UNIT_IOS_CERT" | base64 -d > AuthKey_HRBP5FNJN6.p8
 
       - name: 📋 Restore gradle.properties
         env:
@@ -252,7 +276,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ~/.gradle/
-          echo ${GRADLE_PROPERTIES} > ~/.gradle/gradle.properties
+          printf '%s\n' "$GRADLE_PROPERTIES" > ~/.gradle/gradle.properties
 
       - name: 📱 Build Development APK
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'dev'))
@@ -275,7 +299,7 @@ jobs:
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'prod-aab'))
         run: |
           export NODE_OPTIONS="--openssl-legacy-provider --max_old_space_size=4096"
-          eas build --platform android --profile production --local --non-interactive --output=./ResgridUnit-prod.aab
+          eas build --platform android --profile production-aab --local --non-interactive --output=./ResgridUnit-prod.aab
         env:
           NODE_ENV: production
 
@@ -302,6 +326,10 @@ jobs:
           eas build --platform ios --profile production --local --non-interactive --output=./ResgridUnit-ios-prod.ipa
         env:
           NODE_ENV: production
+
+      - name: 🧹 Remove signing materials
+        if: always()
+        run: rm -f credentials.json AuthKey_HRBP5FNJN6.p8 "$RUNNER_TEMP/keystore.jks" ~/.gradle/gradle.properties
 
       - name: 📦 Upload build artifacts to GitHub
         uses: actions/upload-artifact@v4

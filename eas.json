@@ -19,8 +19,13 @@
         "FLIPPER_DISABLE": "1"
       }
     },
+    "production-aab": {
+      "extends": "production",
+      "credentialsSource": "local"
+    },
     "production-apk": {
       "distribution": "store",
+      "credentialsSource": "local",
       "yarn": "1.22.22",
       "ios": {
         "image": "latest"
