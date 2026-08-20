@@ -215,8 +215,14 @@ jobs:
       - name: 📋 Create Credentials File
         if: ${{ matrix.platform == 'android' }}
         run: |
+          set -euo pipefail
+          # eas-cli validates the whole credentials.json even for a single-platform
+          # build, so drop the unused .ios block rather than let it fail the schema.
           printf '%s' "$CREDENTIALS_JSON_BASE64" | base64 -d \
-            | jq --arg ks "$RUNNER_TEMP/keystore.jks" '.android.keystore.keystorePath = $ks' > credentials.json
+            | jq --arg ks "$RUNNER_TEMP/keystore.jks" \
+                 'del(.ios) | .android.keystore.keystorePath = $ks' > credentials.json
+          jq -e '.android.keystore | .keystorePath and .keystorePassword and .keyAlias and .keyPassword' \
+            credentials.json > /dev/null
 
       - name: 📋 Create Google Json File for iOS
         if: ${{ matrix.platform == 'ios' }}
