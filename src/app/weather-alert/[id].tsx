@@ -37,7 +37,7 @@ export default function WeatherAlertDetail() {
   }, [alertId, fetchAlertDetail]);
 
   const severityColor = useMemo(() => (alert ? getSeverityColor(alert.Severity) : '#9E9E9E'), [alert]);
-  const CategoryIcon = useMemo(() => (alert ? getCategoryIcon(alert.Category) : null), [alert]);
+  const CategoryIcon = useMemo(() => (alert ? getCategoryIcon(alert.AlertCategory) : null), [alert]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return t('call_detail.not_available');
@@ -90,19 +90,19 @@ export default function WeatherAlertDetail() {
           {alert.EffectiveUtc ? (
             <HStack className="justify-between">
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('weather_alerts.detail.effective')}</Text>
-              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.EffectiveUtc)}</Text>
+              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.EffectiveOnUtc || alert.EffectiveUtc)}</Text>
             </HStack>
           ) : null}
           {alert.OnsetUtc ? (
             <HStack className="justify-between">
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('weather_alerts.detail.onset')}</Text>
-              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.OnsetUtc)}</Text>
+              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.OnsetOnUtc || alert.OnsetUtc)}</Text>
             </HStack>
           ) : null}
           {alert.ExpiresUtc ? (
             <HStack className="justify-between">
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('weather_alerts.detail.expires')}</Text>
-              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.ExpiresUtc)}</Text>
+              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{formatDate(alert.ExpiresOnUtc || alert.ExpiresUtc)}</Text>
             </HStack>
           ) : null}
         </VStack>
@@ -125,10 +125,10 @@ export default function WeatherAlertDetail() {
       ) : null}
 
       {/* Instructions */}
-      {alert.Instructions ? (
+      {alert.Instruction ? (
         <Box style={{ borderLeftWidth: 3, borderLeftColor: severityColor }} className="rounded-lg bg-amber-50 p-3 dark:bg-amber-900/20">
           <Text className="mb-1 text-sm font-semibold text-gray-700 dark:text-gray-300">{t('weather_alerts.detail.instructions')}</Text>
-          <Text className="text-sm text-gray-700 dark:text-gray-300">{alert.Instructions}</Text>
+          <Text className="text-sm text-gray-700 dark:text-gray-300">{alert.Instruction}</Text>
         </Box>
       ) : null}
 
@@ -143,10 +143,10 @@ export default function WeatherAlertDetail() {
       {/* Metadata */}
       <Box className="rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
         <VStack space="sm">
-          {alert.SenderName ? (
+          {alert.Sender ? (
             <HStack className="justify-between">
               <Text className="text-sm text-gray-500 dark:text-gray-400">{t('weather_alerts.detail.sender')}</Text>
-              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{alert.SenderName}</Text>
+              <Text className="text-sm font-medium text-gray-900 dark:text-gray-100">{alert.Sender}</Text>
             </HStack>
           ) : null}
           <HStack className="justify-between">
