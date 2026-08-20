@@ -17,9 +17,11 @@ interface WeatherAlertCardProps {
 const WeatherAlertCardComponent: React.FC<WeatherAlertCardProps> = ({ alert }) => {
   const { t } = useTranslation();
   const severityColor = getSeverityColor(alert.Severity);
-  const CategoryIcon = getCategoryIcon(alert.Category);
-  const effectiveDate = parseWeatherAlertDate(alert.EffectiveUtc);
-  const expiresDate = parseWeatherAlertDate(alert.ExpiresUtc);
+  const CategoryIcon = getCategoryIcon(alert.AlertCategory);
+  // Prefer the real UTC instants; the *Utc strings are department-local display values that
+  // read hours off when treated as timestamps. Older servers only send the display strings.
+  const effectiveDate = parseWeatherAlertDate(alert.EffectiveOnUtc || alert.EffectiveUtc);
+  const expiresDate = parseWeatherAlertDate(alert.ExpiresOnUtc || alert.ExpiresUtc);
 
   return (
     <Box style={{ borderLeftWidth: 4, borderLeftColor: severityColor }} className="mb-2 rounded-xl bg-white p-3 shadow-xs dark:bg-gray-800">
