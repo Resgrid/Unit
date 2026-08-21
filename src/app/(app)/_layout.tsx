@@ -37,6 +37,7 @@ import { FeatureFlagKeys, featureFlagsStore } from '@/stores/feature-flags/store
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
+import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 import { isNetworkError } from '@/utils/network';
 
@@ -89,6 +90,8 @@ export default function TabLayout() {
   // over can no longer connect hubs or mark the app initialized.
   const initGeneration = useRef(0);
   const hasHiddenSplash = useRef(false);
+  // Guards the "initialization failed" toast so a failure streak surfaces it once.
+  const hasShownInitFailureToast = useRef(false);
   const parentRef = useRef(null);
 
   // Render counting for diagnostics (web only)
@@ -298,6 +301,7 @@ export default function TabLayout() {
     // initializing".
     initGeneration.current += 1;
     isInitializing.current = false;
+    hasShownInitFailureToast.current = false;
 
     if (initRetryCount > 0) {
       setInitRetryCount(0);
@@ -313,7 +317,17 @@ export default function TabLayout() {
     const isAppInBackground = Platform.OS !== 'web' && appState === 'background';
     const shouldInitialize = status === 'signedIn' && !isAppInBackground && !hasInitialized.current && !isInitializing.current && initRetryCount < MAX_INIT_RETRIES;
 
-    if (shouldInitialize) {
+    if (!shouldInitialize) {
+      // Retry budget exhausted: surface the failure instead of giving up silently.
+      // Foregrounding the app still retries via the app-resume effect below.
+      if (status === 'signedIn' && !isAppInBackground && !hasInitialized.current && initRetryCount >= MAX_INIT_RETRIES && !hasShownInitFailureToast.current) {
+        hasShownInitFailureToast.current = true;
+        useToastStore.getState().showToast('error', t('app.initialization_failed'));
+      }
+      return;
+    }
+
+    if (initRetryCount === 0) {
       logger.info({
         message: 'Triggering app initialization',
         context: {
@@ -322,8 +336,24 @@ export default function TabLayout() {
         },
       });
       initializeApp();
+      return;
     }
-  }, [status, initializeApp, initRetryCount, appState]);
+
+    // Exponential backoff between retries (1s, 3s, 9s) — without it a failed
+    // initialization re-fires its full multi-request burst back-to-back.
+    const backoffMs = 1000 * Math.pow(3, initRetryCount - 1);
+    logger.info({
+      message: 'Scheduling app initialization retry',
+      context: {
+        initRetryCount,
+        backoffMs,
+      },
+    });
+    const retryTimer = setTimeout(() => {
+      initializeApp();
+    }, backoffMs);
+    return () => clearTimeout(retryTimer);
+  }, [status, initializeApp, initRetryCount, appState, t]);
 
   // Handle app resuming from background - separate from initialization
   useEffect(() => {
@@ -595,7 +625,7 @@ export default function TabLayout() {
           </Tabs>
 
           {/* NotificationInbox positioned within the tab content area — only after init and Novu is ready */}
-          {isInitComplete && novuReady && <NotificationInbox isOpen={isNotificationsOpen} onClose={handleCloseNotifications} />}
+          {isInitComplete && novuReady ? <NotificationInbox isOpen={isNotificationsOpen} onClose={handleCloseNotifications} /> : null}
         </View>
       </View>
     </View>

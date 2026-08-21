@@ -6,71 +6,74 @@ import { DispatchSelectionModal } from '../dispatch-selection-modal';
 
 // Mock dependencies
 jest.mock('@/stores/dispatch/store', () => ({
-  useDispatchStore: (selector: any) => typeof selector === 'function' ? selector({
-    data: {
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    },
-    selection: {
-      everyone: false,
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    },
-    isLoading: false,
-    error: null,
-    searchQuery: '',
-    fetchDispatchData: jest.fn(),
-    setSelection: jest.fn(),
-    toggleEveryone: jest.fn(),
-    toggleUser: jest.fn(),
-    toggleGroup: jest.fn(),
-    toggleRole: jest.fn(),
-    toggleUnit: jest.fn(),
-    setSearchQuery: jest.fn(),
-    clearSelection: jest.fn(),
-    getFilteredData: () => ({
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    }),
-  }) : {
-    data: {
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    },
-    selection: {
-      everyone: false,
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    },
-    isLoading: false,
-    error: null,
-    searchQuery: '',
-    fetchDispatchData: jest.fn(),
-    setSelection: jest.fn(),
-    toggleEveryone: jest.fn(),
-    toggleUser: jest.fn(),
-    toggleGroup: jest.fn(),
-    toggleRole: jest.fn(),
-    toggleUnit: jest.fn(),
-    setSearchQuery: jest.fn(),
-    clearSelection: jest.fn(),
-    getFilteredData: () => ({
-      users: [],
-      groups: [],
-      roles: [],
-      units: [],
-    }),
-  },
+  useDispatchStore: (selector: any) =>
+    typeof selector === 'function'
+      ? selector({
+          data: {
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          },
+          selection: {
+            everyone: false,
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          },
+          isLoading: false,
+          error: null,
+          searchQuery: '',
+          fetchDispatchData: jest.fn(),
+          setSelection: jest.fn(),
+          toggleEveryone: jest.fn(),
+          toggleUser: jest.fn(),
+          toggleGroup: jest.fn(),
+          toggleRole: jest.fn(),
+          toggleUnit: jest.fn(),
+          setSearchQuery: jest.fn(),
+          clearSelection: jest.fn(),
+          getFilteredData: () => ({
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          }),
+        })
+      : {
+          data: {
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          },
+          selection: {
+            everyone: false,
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          },
+          isLoading: false,
+          error: null,
+          searchQuery: '',
+          fetchDispatchData: jest.fn(),
+          setSelection: jest.fn(),
+          toggleEveryone: jest.fn(),
+          toggleUser: jest.fn(),
+          toggleGroup: jest.fn(),
+          toggleRole: jest.fn(),
+          toggleUnit: jest.fn(),
+          setSearchQuery: jest.fn(),
+          clearSelection: jest.fn(),
+          getFilteredData: () => ({
+            users: [],
+            groups: [],
+            roles: [],
+            units: [],
+          }),
+        },
 }));
 
 jest.mock('nativewind', () => ({
@@ -96,6 +99,15 @@ jest.mock('@/components/ui/actionsheet', () => {
     ),
     ActionsheetDragIndicator: () => <View testID="actionsheet-drag-indicator" />,
     ActionsheetDragIndicatorWrapper: ({ children }: any) => <View testID="actionsheet-drag-indicator-wrapper">{children}</View>,
+    // The recipient list is virtualized (FlashList); render every row so the
+    // sheet's content stays reachable in the test tree.
+    ActionsheetFlatList: ({ data, renderItem, keyExtractor, testID }: any) => (
+      <View testID={testID}>
+        {(data ?? []).map((item: any, index: number) => (
+          <View key={keyExtractor ? keyExtractor(item, index) : index}>{renderItem({ item, index })}</View>
+        ))}
+      </View>
+    ),
   };
 });
 
@@ -120,9 +132,7 @@ describe('DispatchSelectionModal', () => {
   });
 
   it('should not render when not visible', () => {
-    const { queryByText } = render(
-      <DispatchSelectionModal {...mockProps} isVisible={false} />
-    );
+    const { queryByText } = render(<DispatchSelectionModal {...mockProps} isVisible={false} />);
 
     expect(queryByText('calls.select_dispatch_recipients')).toBeNull();
   });
@@ -139,4 +149,4 @@ describe('DispatchSelectionModal', () => {
     expect(screen.getByText('common.confirm')).toBeTruthy();
     expect(screen.getByText('common.cancel')).toBeTruthy();
   });
-}); 
+});

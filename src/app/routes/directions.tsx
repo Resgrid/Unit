@@ -107,10 +107,10 @@ const congestionColor = (level: string): string => {
   }
 };
 
-/** Derive a human-readable driving condition summary from congestion data */
-const deriveDrivingCondition = (congestion: CongestionSegment[]): { label: string; color: string; icon: typeof TrafficConeIcon } => {
+/** Derive a driving condition summary from congestion data; labelKey is an i18n key resolved at render time */
+export const deriveDrivingCondition = (congestion: CongestionSegment[]): { labelKey: string; color: string; icon: typeof TrafficConeIcon } => {
   if (congestion.length === 0) {
-    return { label: 'No traffic data', color: '#9ca3af', icon: TrafficConeIcon };
+    return { labelKey: 'routes.traffic_no_data', color: '#9ca3af', icon: TrafficConeIcon };
   }
 
   const counts = { low: 0, moderate: 0, heavy: 0, severe: 0 };
@@ -120,15 +120,15 @@ const deriveDrivingCondition = (congestion: CongestionSegment[]): { label: strin
   const total = congestion.length;
 
   if (counts.severe / total > 0.15) {
-    return { label: 'Severe traffic', color: '#ef4444', icon: AlertTriangleIcon };
+    return { labelKey: 'routes.traffic_severe', color: '#ef4444', icon: AlertTriangleIcon };
   }
   if (counts.heavy / total > 0.2) {
-    return { label: 'Heavy traffic', color: '#f97316', icon: AlertTriangleIcon };
+    return { labelKey: 'routes.traffic_heavy', color: '#f97316', icon: AlertTriangleIcon };
   }
   if (counts.moderate / total > 0.3) {
-    return { label: 'Moderate traffic', color: '#eab308', icon: TrafficConeIcon };
+    return { labelKey: 'routes.traffic_moderate', color: '#eab308', icon: TrafficConeIcon };
   }
-  return { label: 'Light traffic', color: '#22c55e', icon: TrafficConeIcon };
+  return { labelKey: 'routes.traffic_light', color: '#22c55e', icon: TrafficConeIcon };
 };
 
 // ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ const deriveDrivingCondition = (congestion: CongestionSegment[]): { label: strin
  * Returns parsed route geometry, durations, and congestion data, or null
  * on failure (e.g., missing API key, network error).
  */
-async function fetchMapboxDirections(waypoints: [number, number][]): Promise<RouteDirectionsInfo | null> {
+export async function fetchMapboxDirections(waypoints: [number, number][], language: string = 'en'): Promise<RouteDirectionsInfo | null> {
   if (waypoints.length < 2) return null;
 
   const token = Env.UNIT_MAPBOX_PUBKEY;
@@ -154,7 +154,14 @@ async function fetchMapboxDirections(waypoints: [number, number][]): Promise<Rou
   const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(';');
 
   const url =
-    `${MAPBOX_DIRECTIONS_API}/${coords}` + `?access_token=${token}` + `&geometries=geojson` + `&overview=full` + `&annotations=congestion,duration,distance` + `&steps=true` + `&continue_straight=true` + `&language=en`;
+    `${MAPBOX_DIRECTIONS_API}/${coords}` +
+    `?access_token=${token}` +
+    `&geometries=geojson` +
+    `&overview=full` +
+    `&annotations=congestion,duration,distance` +
+    `&steps=true` +
+    `&continue_straight=true` +
+    `&language=${encodeURIComponent(language)}`;
 
   try {
     const response = await fetch(url);
@@ -371,7 +378,7 @@ const markerStyles = StyleSheet.create({
 // ---------------------------------------------------------------------------
 
 export default function RouteDirectionsScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { instanceId } = useLocalSearchParams<{ instanceId: string }>();
   const { colorScheme } = useColorScheme();
   const cameraRef = useRef<any>(null);
@@ -416,6 +423,9 @@ export default function RouteDirectionsScreen() {
     return validStops.slice(1, -1);
   }, [validStops]);
 
+  // Directions in the user's locale (Mapbox expects a primary language subtag, e.g. "en" from "en-US")
+  const directionsLanguage = i18n.language?.split('-')[0] || 'en';
+
   // Fetch real driving directions from Mapbox API
   useEffect(() => {
     if (validStops.length < 2) return;
@@ -426,7 +436,7 @@ export default function RouteDirectionsScreen() {
       setIsFetchingDirections(true);
       const waypoints: [number, number][] = validStops.map((s) => [s.Longitude, s.Latitude]);
 
-      const result = await fetchMapboxDirections(waypoints);
+      const result = await fetchMapboxDirections(waypoints, directionsLanguage);
 
       if (!cancelled) {
         setMapboxDirections(result);
@@ -439,7 +449,7 @@ export default function RouteDirectionsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [validStops]);
+  }, [validStops, directionsLanguage]);
 
   // Build the route GeoJSON: prefer Mapbox directions, fallback to backend, then straight-line
   const routeGeoJson = useMemo((): GeoJSON.Feature | null => {
@@ -743,7 +753,7 @@ export default function RouteDirectionsScreen() {
               <VStack className="items-center">
                 <HStack className="items-center gap-1">
                   <TrafficConeIcon size={12} color={drivingCondition.color} />
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: drivingCondition.color }}>{drivingCondition.label}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: drivingCondition.color }}>{t(drivingCondition.labelKey)}</Text>
                 </HStack>
                 {trafficDelaySeconds != null && trafficDelaySeconds > 0 ? (
                   <Text className="text-[10px] text-typography-400">

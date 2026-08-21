@@ -58,7 +58,6 @@ export interface AuthState {
   ssoLogin: (credentials: SsoLoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
-  hydrate: () => void;
   isFirstTime: boolean;
   isAuthenticated: () => boolean;
   setIsOnboarding: () => void;

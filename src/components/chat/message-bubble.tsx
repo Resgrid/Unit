@@ -27,7 +27,7 @@ interface MessageBubbleProps {
   onPressImage?: (uri: string) => void;
 }
 
-export function MessageBubble({ message, isOwn, showSender, currentUserId, onLongPress, onToggleReaction, onOpenThread, onRetry, onPressImage }: MessageBubbleProps) {
+function MessageBubbleComponent({ message, isOwn, showSender, currentUserId, onLongPress, onToggleReaction, onOpenThread, onRetry, onPressImage }: MessageBubbleProps) {
   const { t } = useTranslation();
 
   // Realtime payloads omit empty collections; the store normalizes them, but messages
@@ -42,6 +42,10 @@ export function MessageBubble({ message, isOwn, showSender, currentUserId, onLon
     }
     return Array.from(map.entries());
   }, [message.Reactions, currentUserId]);
+
+  // Linkify is regex work over the body; cache it so re-renders (reactions, status
+  // changes elsewhere in the list) don't re-scan every visible bubble.
+  const linkSegments = useMemo(() => linkifySegments(message.Body ?? ''), [message.Body]);
 
   // System message: centered, subtle.
   if (message.MessageType === ChatMessageType.System) {
@@ -102,7 +106,7 @@ export function MessageBubble({ message, isOwn, showSender, currentUserId, onLon
     }
 
     // Text (with inline links).
-    const segments = linkifySegments(message.Body ?? '');
+    const segments = linkSegments;
     if (segments.length === 0) return <Text className={textTone}>{message.Body}</Text>;
     return (
       <Text className={textTone}>
@@ -183,3 +187,8 @@ export function MessageBubble({ message, isOwn, showSender, currentUserId, onLon
     </HStack>
   );
 }
+
+// Memoized: the conversation list re-renders on every store update (typing, presence,
+// reactions); unchanged bubbles must not re-render. Callers must pass stable handlers.
+export const MessageBubble = React.memo(MessageBubbleComponent);
+MessageBubble.displayName = 'MessageBubble';

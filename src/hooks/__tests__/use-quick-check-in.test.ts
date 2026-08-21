@@ -40,14 +40,18 @@ jest.mock('@/stores/app/core-store', () => ({
   ),
 }));
 
-jest.mock('@/stores/app/location-store', () => ({
-  useLocationStore: jest.fn((selector: any) =>
-    selector({
-      latitude: 40.7128,
-      longitude: -74.006,
-    })
-  ),
-}));
+// The hook reads location via getState() inside quickCheckIn rather than subscribing,
+// so the mock has to expose getState alongside the selector call signature.
+const mockLocationState = {
+  latitude: 40.7128,
+  longitude: -74.006,
+};
+
+jest.mock('@/stores/app/location-store', () => {
+  const useLocationStore: any = jest.fn((selector: any) => selector(mockLocationState));
+  useLocationStore.getState = jest.fn(() => mockLocationState);
+  return { useLocationStore };
+});
 
 jest.mock('@/stores/toast/store', () => ({
   useToastStore: jest.fn((selector: any) =>

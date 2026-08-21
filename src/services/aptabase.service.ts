@@ -57,6 +57,11 @@ class CountlyService {
 
       Countly.events.recordEvent(eventName, segmentation, 1);
 
+      // A successful record proves the SDK is healthy. Without this the counter
+      // only ever grows, so two unrelated errors hours apart would disable
+      // analytics for the full disable timeout.
+      this.retryCount = 0;
+
       if (this.enableLogging) {
         logger.debug({
           message: 'Analytics event tracked successfully',

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import React from 'react';
 
@@ -8,9 +8,11 @@ jest.mock('react-native', () => ({
     OS: 'ios',
   },
   Pressable: ({ children, onPress, testID, ...props }: any) => (
-    <button onClick={onPress} data-testid={testID} role="button" {...props}>{children}</button>
+    <button onClick={onPress} data-testid={testID} role="button" {...props}>
+      {children}
+    </button>
   ),
-  RefreshControl: () => null,
+  RefreshControl: ({ refreshing, onRefresh }: any) => <div {...({ testID: 'refresh-control', refreshing, onRefresh } as any)} />,
   View: ({ children, ...props }: any) => <div {...props}>{children}</div>,
   StatusBar: {
     setBackgroundColor: jest.fn(),
@@ -72,7 +74,7 @@ const mockAnalytics = {
 
 // Mock the stores with proper getState method
 jest.mock('@/stores/calls/store', () => {
-  const useCallsStore = jest.fn((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+  const useCallsStore = jest.fn((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
   (useCallsStore as any).getState = jest.fn(() => mockCallsStore);
 
   return {
@@ -82,7 +84,7 @@ jest.mock('@/stores/calls/store', () => {
 
 jest.mock('@/stores/security/store', () => ({
   securityStore: jest.fn(),
-  useSecurityStore: jest.fn((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore),
+  useSecurityStore: jest.fn((selector: any) => (typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore)),
 }));
 
 jest.mock('@/hooks/use-analytics', () => ({
@@ -98,11 +100,7 @@ jest.mock('react-i18next', () => ({
 
 // Mock components
 jest.mock('@/components/calls/call-card', () => ({
-  CallCard: ({ call }: any) => (
-    <div data-testid={`call-card-${call.CallId}`}>
-      {call.Nature}
-    </div>
-  ),
+  CallCard: ({ call }: any) => <div data-testid={`call-card-${call.CallId}`}>{call.Nature}</div>,
 }));
 
 jest.mock('@/components/common/loading', () => ({
@@ -112,7 +110,7 @@ jest.mock('@/components/common/loading', () => ({
 jest.mock('@/components/common/zero-state', () => ({
   __esModule: true,
   default: ({ heading, description, isError }: any) => (
-    <div data-testid={isError ? "error-state" : "zero-state"}>
+    <div data-testid={isError ? 'error-state' : 'zero-state'}>
       {heading} - {description}
     </div>
   ),
@@ -121,7 +119,9 @@ jest.mock('@/components/common/zero-state', () => ({
 // Mock UI components
 jest.mock('@/components/ui/box', () => ({
   Box: ({ children, className, ...props }: any) => (
-    <div className={className} {...props}>{children}</div>
+    <div className={className} {...props}>
+      {children}
+    </div>
   ),
 }));
 
@@ -129,13 +129,7 @@ jest.mock('@/components/ui/fab', () => ({
   Fab: ({ children, onPress, testID = 'fab', ...props }: any) => {
     const handleClick = onPress;
     return (
-      <button
-        data-testid={testID}
-        onClick={handleClick}
-        onPress={handleClick}
-        role="button"
-        {...props}
-      >
+      <button data-testid={testID} onClick={handleClick} onPress={handleClick} role="button" {...props}>
         {children}
       </button>
     );
@@ -144,35 +138,22 @@ jest.mock('@/components/ui/fab', () => ({
 }));
 
 jest.mock('@/components/ui/flat-list', () => ({
-  FlatList: ({ data, renderItem, keyExtractor, ListEmptyComponent, ...props }: any) => (
+  FlatList: ({ data, renderItem, keyExtractor, ListEmptyComponent, refreshControl, ...props }: any) => (
     <div {...props}>
-      {data.length === 0 && ListEmptyComponent ? (
-        <div>{ListEmptyComponent}</div>
-      ) : (
-        data.map((item: any, index: number) => (
-          <div key={keyExtractor ? keyExtractor(item, index) : index}>
-            {renderItem({ item, index })}
-          </div>
-        ))
-      )}
+      {refreshControl}
+      {data.length === 0 && ListEmptyComponent ? <div>{ListEmptyComponent}</div> : data.map((item: any, index: number) => <div key={keyExtractor ? keyExtractor(item, index) : index}>{renderItem({ item, index })}</div>)}
     </div>
   ),
 }));
 
 jest.mock('@/components/ui/input', () => ({
   Input: ({ children, ...props }: any) => <div {...props}>{children}</div>,
-  InputField: ({ value, onChangeText, placeholder, ...props }: any) => (
-    <input
-      value={value}
-      onChange={(e) => onChangeText(e.target.value)}
-      placeholder={placeholder}
-      role="textbox"
-      {...props}
-    />
-  ),
+  InputField: ({ value, onChangeText, placeholder, ...props }: any) => <input value={value} onChange={(e) => onChangeText(e.target.value)} placeholder={placeholder} role="textbox" {...props} />,
   InputIcon: ({ as: IconComponent, ...props }: any) => <IconComponent {...props} />,
   InputSlot: ({ children, onPress, ...props }: any) => (
-    <div onClick={onPress} {...props}>{children}</div>
+    <div onClick={onPress} {...props}>
+      {children}
+    </div>
   ),
 }));
 
@@ -218,8 +199,8 @@ describe('CallsScreen', () => {
     jest.clearAllMocks();
 
     // Reset mock returns to defaults
-    useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
-    useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore);
+    useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+    useSecurityStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore));
     useAnalytics.mockReturnValue(mockAnalytics);
 
     // Setup securityStore as a selector-based store
@@ -247,7 +228,7 @@ describe('CallsScreen', () => {
   describe('when user has create calls permission', () => {
     beforeEach(() => {
       mockSecurityStore.canUserCreateCalls = true;
-      useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore);
+      useSecurityStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore));
     });
 
     it('renders the new call FAB button', () => {
@@ -277,7 +258,7 @@ describe('CallsScreen', () => {
   describe('when user does not have create calls permission', () => {
     beforeEach(() => {
       mockSecurityStore.canUserCreateCalls = false;
-      useSecurityStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore);
+      useSecurityStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockSecurityStore) : mockSecurityStore));
     });
 
     it('does not render the new call FAB button', () => {
@@ -305,7 +286,7 @@ describe('CallsScreen', () => {
 
     beforeEach(() => {
       mockCallsStore.calls = mockCalls;
-      useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
     });
 
     it('renders call cards for each call', () => {
@@ -347,7 +328,7 @@ describe('CallsScreen', () => {
   describe('loading and error states', () => {
     it('shows loading state when isLoading is true', () => {
       mockCallsStore.isLoading = true;
-      useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
 
       render(<CallsScreen />);
 
@@ -360,7 +341,7 @@ describe('CallsScreen', () => {
 
     it('shows error state when there is an error', () => {
       mockCallsStore.error = 'Network error';
-      useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
 
       render(<CallsScreen />);
 
@@ -373,7 +354,7 @@ describe('CallsScreen', () => {
 
     it('shows zero state when there are no calls', () => {
       mockCallsStore.calls = [];
-      useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
 
       render(<CallsScreen />);
 
@@ -397,14 +378,120 @@ describe('CallsScreen', () => {
     it('tracks view rendered event with correct parameters', () => {
       const mockCalls = [{ CallId: 'call-1', Nature: 'Test' }];
       mockCallsStore.calls = mockCalls;
-      useCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
 
-      render(<CallsScreen />);
+      const { unmount } = render(<CallsScreen />);
 
       expect(mockAnalytics.trackEvent).toHaveBeenCalledWith('calls_view_rendered', {
         callsCount: 1,
         hasSearchQuery: false,
       });
+
+      unmount();
+    });
+
+    it('does not fire a tracking event per search keystroke', () => {
+      mockCallsStore.calls = [{ CallId: 'call-1', Nature: 'Test' }];
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+
+      const countRendered = () => mockAnalytics.trackEvent.mock.calls.filter((call: any[]) => call[0] === 'calls_view_rendered').length;
+
+      const callsAfterMount = countRendered();
+
+      // This suite mocks react-native with HTML elements, so the search field is
+      // reached by prop rather than by role/placeholder query.
+      const searchInput = view.UNSAFE_getByProps({ role: 'textbox' });
+      fireEvent(searchInput, 'change', { target: { value: 'f' } });
+      fireEvent(searchInput, 'change', { target: { value: 'fi' } });
+      fireEvent(searchInput, 'change', { target: { value: 'fir' } });
+
+      expect(countRendered()).toBe(callsAfterMount);
+
+      view.unmount();
+    });
+  });
+
+  describe('stale-while-revalidate and pull-to-refresh', () => {
+    const treeText = (view: any) => JSON.stringify(view.toJSON());
+
+    it('shows the full-screen loader only when loading with no data yet', () => {
+      mockCallsStore.isLoading = true;
+      mockCallsStore.calls = [];
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+
+      expect(treeText(view)).toContain('calls.loading');
+
+      view.unmount();
+    });
+
+    it('keeps the stale list on screen while refreshing with data present', () => {
+      mockCallsStore.isLoading = true;
+      mockCallsStore.calls = [{ CallId: 'call-1', Nature: 'Existing' }];
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+      const html = treeText(view);
+
+      expect(html).not.toContain('calls.loading');
+      expect(html).toContain('calls-list');
+
+      view.unmount();
+    });
+
+    it('does not replace the list with an error state while stale data is showing', () => {
+      mockCallsStore.error = 'Failed to fetch calls';
+      mockCallsStore.calls = [{ CallId: 'call-1', Nature: 'Existing' }];
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+      const html = treeText(view);
+
+      expect(html).not.toContain('error-state');
+      expect(html).toContain('calls-list');
+
+      view.unmount();
+    });
+
+    it('shows a translated error state when the load failed and there is no data', () => {
+      mockCallsStore.error = 'Failed to fetch calls';
+      mockCallsStore.calls = [];
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+      const html = treeText(view);
+
+      expect(html).toContain('error-state');
+      expect(html).toContain('calls.errors.load_failed');
+      // The raw English store sentinel must not reach the user
+      expect(html).not.toContain('Failed to fetch calls');
+
+      view.unmount();
+    });
+
+    it('force-refreshes on pull-to-refresh so the cached endpoint is bypassed', async () => {
+      mockCallsStore.calls = [{ CallId: 'call-1', Nature: 'Existing' }];
+      mockCallsStore.fetchCalls.mockResolvedValue(undefined);
+      mockCallsStore.fetchCallPriorities.mockResolvedValue(undefined);
+      useCallsStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(mockCallsStore) : mockCallsStore));
+
+      const view = render(<CallsScreen />);
+
+      mockCallsStore.fetchCalls.mockClear();
+
+      const refreshControl = view.UNSAFE_getByProps({ testID: 'refresh-control' });
+      expect(refreshControl.props.refreshing).toBe(false);
+
+      await act(async () => {
+        await refreshControl.props.onRefresh();
+      });
+
+      expect(mockCallsStore.fetchCalls).toHaveBeenCalledWith(true);
+
+      view.unmount();
     });
   });
 });

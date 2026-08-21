@@ -2,7 +2,7 @@ import { ArrowLeft, ArrowRight, Check } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, TouchableOpacity } from 'react-native';
+import { InteractionManager, ScrollView, TouchableOpacity } from 'react-native';
 
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { logger } from '@/lib/logging';
@@ -173,6 +173,64 @@ export const StatusBottomSheet = () => {
     return availableCalls.find((call) => call.CallId === activeCallId) ?? null;
   }, [activeCallId, availableCalls]);
 
+  // When the active call is auto-selected the destination list should scroll it
+  // into view. The id is parked here until the selected row's onLayout reports
+  // where it landed (the list may not even be mounted yet — e.g. the user is
+  // still on the status step).
+  const destinationScrollRef = React.useRef<ScrollView>(null);
+  const pendingScrollToCallIdRef = React.useRef<string | null>(null);
+  // Row offsets captured from onLayout. onLayout only fires when a row is
+  // (re)measured, so a scroll request armed after the list already settled would
+  // otherwise never be acted on — these let it resolve immediately instead.
+  const callRowOffsetsRef = React.useRef<Record<string, number>>({});
+
+  const scrollDestinationToOffset = React.useCallback((y: number) => {
+    destinationScrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true });
+  }, []);
+
+  /** Run a pending scroll request as soon as the target row's offset is known. */
+  const flushPendingCallScroll = React.useCallback(() => {
+    const callId = pendingScrollToCallIdRef.current;
+    if (!callId) {
+      return;
+    }
+
+    const offset = callRowOffsetsRef.current[callId];
+    if (offset == null) {
+      return;
+    }
+
+    pendingScrollToCallIdRef.current = null;
+    scrollDestinationToOffset(offset);
+  }, [scrollDestinationToOffset]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      pendingScrollToCallIdRef.current = null;
+      callRowOffsetsRef.current = {};
+    }
+  }, [isOpen]);
+
+  // The keyboard padding on ActionsheetContent reserves the covered strip, but it
+  // doesn't move the note field there — if the field sits below the fold it stays
+  // hidden under the keyboard. The note and its submit button are the last content
+  // in both note-entry steps, so scrolling to the end brings them into view once
+  // the padded layout settles.
+  const noteScrollRef = React.useRef<ScrollView>(null);
+  const isOnNoteEntryStep = currentStep === 'add-note' || (currentStep === 'select-destination' && !shouldShowDestinationStep);
+
+  React.useEffect(() => {
+    if (keyboardHeight <= 0 || !isOnNoteEntryStep) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      noteScrollRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [keyboardHeight, isOnNoteEntryStep]);
+
   React.useEffect(() => {
     if (isOpen && activeUnit) {
       fetchDestinationData(activeUnit.UnitId);
@@ -239,7 +297,13 @@ export const StatusBottomSheet = () => {
 
     setSelectedCall(activeCallCandidate);
     setSelectedDestinationType('call');
-  }, [activeCallCandidate, detailLevel, isOpen, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedCall, setSelectedDestinationType]);
+    pendingScrollToCallIdRef.current = activeCallCandidate.CallId;
+
+    // If the rows are already laid out no further onLayout will fire, so drive
+    // the scroll ourselves once the current interactions settle.
+    const interaction = InteractionManager.runAfterInteractions(flushPendingCallScroll);
+    return () => interaction.cancel();
+  }, [activeCallCandidate, detailLevel, flushPendingCallScroll, isOpen, selectedCall, selectedDestinationType, selectedPoi, selectedStation, selectedStatus, setSelectedCall, setSelectedDestinationType]);
 
   // Auto-pick the initial tab when the sheet opens or the status changes.
   // After that the user's manual tab taps must win — recomputing the preferred
@@ -628,7 +692,10 @@ export const StatusBottomSheet = () => {
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 
-        <VStack space="md" className="w-full shrink p-4">
+        {/* flex-1 (not just shrink) so the column fills the snap-point-sized sheet:
+            the step's list flexes into the space and the action buttons sit at the
+            bottom instead of floating above a dead zone. */}
+        <VStack space="md" className="w-full flex-1 p-4">
           <HStack space="sm" className="mb-2 justify-center">
             <Text className="text-sm text-gray-500 dark:text-gray-400">
               {t('common.step')} {getStepNumber()} {t('common.of')} {getTotalSteps()}
@@ -640,10 +707,10 @@ export const StatusBottomSheet = () => {
           </Heading>
 
           {currentStep === 'select-status' ? (
-            <VStack space="md" className="w-full">
+            <VStack space="md" className="w-full flex-1">
               <Text className="mb-2 font-medium">{t('status.select_status_type')}</Text>
 
-              <ScrollView className="max-h-[400px]">
+              <ScrollView className="flex-1">
                 <VStack space="sm">
                   {activeStatuses?.Statuses && activeStatuses.Statuses.length > 0 ? (
                     activeStatuses.Statuses.map((status) => {
@@ -691,7 +758,7 @@ export const StatusBottomSheet = () => {
           ) : null}
 
           {currentStep === 'select-destination' && shouldShowDestinationStep ? (
-            <VStack space="md" className="w-full">
+            <VStack space="md" className="w-full flex-1">
               <Text className="mb-2 font-medium">{t('status.select_destination_type')}</Text>
 
               <TouchableOpacity
@@ -717,7 +784,7 @@ export const StatusBottomSheet = () => {
                 </HStack>
               ) : null}
 
-              <ScrollView className={shouldShowDestinationTabs ? 'max-h-[200px]' : 'max-h-[300px]'}>
+              <ScrollView ref={destinationScrollRef} className="flex-1">
                 {showCalls ? (
                   <VStack space="sm">
                     {isLoading ? (
@@ -730,6 +797,16 @@ export const StatusBottomSheet = () => {
                         <TouchableOpacity
                           key={call.CallId}
                           onPress={() => handleCallSelect(call.CallId)}
+                          onLayout={(event) => {
+                            // Bring the auto-selected active call into view once
+                            // its row reports where it landed in the list.
+                            callRowOffsetsRef.current[call.CallId] = event.nativeEvent.layout.y;
+                            if (pendingScrollToCallIdRef.current !== call.CallId) {
+                              return;
+                            }
+                            pendingScrollToCallIdRef.current = null;
+                            scrollDestinationToOffset(event.nativeEvent.layout.y);
+                          }}
                           className={`mb-3 rounded-lg border-2 p-3 ${selectedCall?.CallId === call.CallId ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}`}
                         >
                           <HStack space="sm" className="items-center">
@@ -834,32 +911,44 @@ export const StatusBottomSheet = () => {
           ) : null}
 
           {currentStep === 'select-destination' && !shouldShowDestinationStep ? (
-            <VStack space="md" className="w-full">
-              {isNoteRequired || isNoteOptional ? (
-                <>
-                  <Text className="mb-2 font-medium">{t('status.add_note')}</Text>
-                  <Textarea size="md" className="min-h-[100px] w-full">
-                    <TextareaInput placeholder={isNoteRequired ? t('status.note_required') : t('status.note_optional')} value={note} onChangeText={setNote} />
-                  </Textarea>
-                </>
-              ) : null}
-              <HStack space="xs" className="justify-between px-2">
-                {cameFromStatusSelection ? (
-                  <Button variant="outline" onPress={handlePrevious} className="px-3">
-                    <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
-                    <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+            /* Same plain-ScrollView treatment as the add-note step below: the sheet's
+               keyboard padding reserves the covered strip, and this scroll container
+               lets the note field and buttons compress/scroll into it instead of
+               being clipped by the fixed-height sheet. */
+            <ScrollView
+              ref={noteScrollRef}
+              style={{ width: '100%', flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <VStack space="md" className="w-full">
+                {isNoteRequired || isNoteOptional ? (
+                  <>
+                    <Text className="mb-2 font-medium">{t('status.add_note')}</Text>
+                    <Textarea size="md" className="min-h-[100px] w-full">
+                      <TextareaInput placeholder={isNoteRequired ? t('status.note_required') : t('status.note_optional')} value={note} onChangeText={setNote} />
+                    </Textarea>
+                  </>
+                ) : null}
+                <HStack space="xs" className="justify-between px-2">
+                  {cameFromStatusSelection ? (
+                    <Button variant="outline" onPress={handlePrevious} className="px-3">
+                      <ArrowLeft size={14} color={colorScheme === 'dark' ? '#737373' : '#737373'} />
+                      <ButtonText className="text-sm">{t('common.previous')}</ButtonText>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onPress={handleClose} className="px-3">
+                      <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
+                    </Button>
+                  )}
+                  <Button onPress={() => void handleSubmit()} className="bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
+                    {isSubmitting ? <Spinner size="small" color="white" /> : null}
+                    <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
                   </Button>
-                ) : (
-                  <Button variant="outline" onPress={handleClose} className="px-3">
-                    <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
-                  </Button>
-                )}
-                <Button onPress={() => void handleSubmit()} className="bg-blue-600 px-4 py-2" isDisabled={(isNoteRequired && !note.trim()) || isSubmitting}>
-                  {isSubmitting ? <Spinner size="small" color="white" /> : null}
-                  <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
-                </Button>
-              </HStack>
-            </VStack>
+                </HStack>
+              </VStack>
+            </ScrollView>
           ) : null}
 
           {currentStep === 'add-note' ? (
@@ -867,7 +956,13 @@ export const StatusBottomSheet = () => {
                the ActionsheetContent paddingBottom. KeyboardAwareScrollView also reacts to
                the keyboard (its events are window-agnostic), so it compensated a second
                time and pushed the note field out of the sheet's visible area. */
-            <ScrollView style={{ width: '100%', flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              ref={noteScrollRef}
+              style={{ width: '100%', flexGrow: 0, flexShrink: 1 }}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 80 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               <VStack space="md" className="w-full">
                 <VStack space="sm">
                   <Text className="font-medium">{t('status.selected_status')}:</Text>

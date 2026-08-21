@@ -4,19 +4,22 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, X } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Keyboard, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
+import { logger } from '@/lib/logging';
 import { isIOS } from '@/lib/platform';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { useToastStore } from '@/stores/toast/store';
 
 import { Box } from '../ui/box';
 import { Button, ButtonIcon, ButtonText } from '../ui/button';
@@ -39,6 +42,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   const { colorScheme } = useColorScheme();
   const latitude = useLocationStore((state) => state.latitude);
   const longitude = useLocationStore((state) => state.longitude);
+  const showToast = useToastStore((state) => state.showToast);
 
   const isDark = colorScheme === 'dark';
 
@@ -90,17 +94,27 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     };
   }, [isOpen, callId, fetchCallImages, clearImages]);
 
-  // Track when call images modal is opened/rendered
+  // Track when the call images modal is opened — once per open, not again as the
+  // loading flag flips or the images arrive.
+  const trackedOpenForCall = useRef<string | null>(null);
   useEffect(() => {
-    if (isOpen) {
-      trackEvent('call_images_modal_opened', {
-        callId: callId,
-        hasExistingImages: validImages.length > 0,
-        imagesCount: validImages.length,
-        isLoadingImages: isLoadingImages,
-        hasError: !!errorImages,
-      });
+    if (!isOpen) {
+      trackedOpenForCall.current = null;
+      return;
     }
+
+    if (trackedOpenForCall.current === callId) {
+      return;
+    }
+
+    trackedOpenForCall.current = callId;
+    trackEvent('call_images_modal_opened', {
+      callId: callId,
+      hasExistingImages: validImages.length > 0,
+      imagesCount: validImages.length,
+      isLoadingImages: isLoadingImages,
+      hasError: !!errorImages,
+    });
   }, [isOpen, trackEvent, callId, validImages.length, isLoadingImages, errorImages]);
 
   // Reset active index when valid images change
@@ -117,7 +131,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       if (isIOS) {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (permissionResult.status !== 'granted') {
-          alert(t('common.permission_denied'));
+          showToast('error', t('common.permission_denied'));
           return;
         }
       }
@@ -134,8 +148,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
         setSelectedImageInfo({ uri: asset.uri, filename });
       }
     } catch (error) {
-      console.error('Error selecting image from library:', error);
-      alert(t('callImages.error_selecting_image'));
+      logger.error({ message: 'Error selecting image from library', context: { error } });
+      showToast('error', t('callImages.error_selecting_image'));
     }
   };
 
@@ -143,7 +157,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (permissionResult.status !== 'granted') {
-        alert(t('common.permission_denied'));
+        showToast('error', t('common.permission_denied'));
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -158,13 +172,20 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
         setSelectedImageInfo({ uri: asset.uri, filename });
       }
     } catch (error) {
-      console.error('Error capturing image from camera:', error);
-      alert(t('callImages.error_capturing_image'));
+      logger.error({ message: 'Error capturing image from camera', context: { error } });
+      showToast('error', t('callImages.error_capturing_image'));
     }
   };
 
   const handleUploadImage = async () => {
     if (!selectedImageInfo) return;
+
+    const userId = useAuthStore.getState().userId;
+    if (!userId) {
+      logger.error({ message: 'Cannot upload call image without a signed in user', context: { callId } });
+      showToast('error', t('callImages.not_signed_in'));
+      return;
+    }
 
     setIsUploading(true);
     try {
@@ -189,7 +210,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
       await uploadCallImage(
         callId,
-        useAuthStore.getState().userId!,
+        userId,
         newImageNote || '', // Use note for the note field
         selectedImageInfo.filename, // Use filename for the name field
         currentLatitude, // Current latitude
@@ -201,7 +222,8 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
       setIsAddingImage(false);
       Keyboard.dismiss();
     } catch (error) {
-      console.error('Error uploading image:', error);
+      logger.error({ message: 'Error uploading call image', context: { error, callId } });
+      showToast('error', t('callImages.upload_error'));
     } finally {
       setIsUploading(false);
     }
@@ -223,7 +245,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
   }, [onClose]);
 
   const handleImageError = (itemId: string, error: any) => {
-    console.error(`Image failed to load for ${itemId}:`, error);
+    logger.warn({ message: 'Call image failed to load', context: { itemId, error } });
     setImageErrors((prev) => new Set([...prev, itemId]));
   };
 
@@ -264,11 +286,11 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
           <View style={{ height: 256, width: '100%', justifyContent: 'center', alignItems: 'center', borderRadius: 8, backgroundColor: isDark ? '#374151' : '#E5E7EB' }}>
             <ImageIcon size={48} color="#999" />
             <Text className="mt-2 text-gray-500">{t('callImages.failed_to_load')}</Text>
-            {item.Url && (
+            {item.Url ? (
               <Text className="mt-1 px-2 text-center text-xs text-gray-400" numberOfLines={2}>
                 URL: {item.Url}
               </Text>
-            )}
+            ) : null}
           </View>
           <Text className="mt-2 text-center font-medium" style={{ color: isDark ? '#F3F4F6' : '#1F2937' }}>
             {item.Name || ''}
@@ -436,7 +458,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
                   <ButtonText>{t('callImages.add')}</ButtonText>
                 </Button>
               ) : null}
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-button">
+              <TouchableOpacity onPress={handleClose} style={styles.closeButton} testID="close-button" accessibilityRole="button" accessibilityLabel={t('common.close')}>
                 <X size={24} color={isDark ? '#D1D5DB' : '#374151'} />
               </TouchableOpacity>
             </HStack>

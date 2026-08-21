@@ -37,11 +37,27 @@ jest.mock('react-native', () => ({
   },
 }));
 
+jest.mock('@/lib/logging', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+jest.mock('@/utils/network', () => ({
+  isNetworkError: jest.fn(() => false),
+}));
+
 // Import after mocks
 import { securityStore, useSecurityStore } from '../store';
 import { getCurrentUsersRights } from '@/api/security/security';
+import { logger } from '@/lib/logging';
+import { isNetworkError } from '@/utils/network';
 
 const mockGetCurrentUsersRights = getCurrentUsersRights as jest.MockedFunction<typeof getCurrentUsersRights>;
+const mockIsNetworkError = isNetworkError as jest.MockedFunction<typeof isNetworkError>;
 
 describe('useSecurityStore', () => {
   const mockRightsData: DepartmentRightsResultData = {
@@ -69,6 +85,7 @@ describe('useSecurityStore', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockIsNetworkError.mockReturnValue(false);
     // Reset the store before each test
     act(() => {
       securityStore.setState({
@@ -100,7 +117,7 @@ describe('useSecurityStore', () => {
       });
 
       expect(mockGetCurrentUsersRights).toHaveBeenCalledTimes(1);
-      
+
       // Check that the store was updated
       const storeState = securityStore.getState();
       expect(storeState.rights).toEqual(mockRightsData);
@@ -117,10 +134,86 @@ describe('useSecurityStore', () => {
       });
 
       expect(mockGetCurrentUsersRights).toHaveBeenCalledTimes(1);
-      
+
       // Store should not be updated on error
       const storeState = securityStore.getState();
       expect(storeState.rights).toBeNull();
+    });
+
+    it('logs non-network failures as errors with context', async () => {
+      mockIsNetworkError.mockReturnValue(false);
+      mockGetCurrentUsersRights.mockRejectedValue(new Error('boom'));
+
+      const { result } = renderHook(() => useSecurityStore());
+
+      await act(async () => {
+        await result.current.getRights();
+      });
+
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to fetch user rights',
+        })
+      );
+      expect(securityStore.getState().error).toBe('boom');
+    });
+
+    it('logs transient network failures at warn so they never reach Sentry', async () => {
+      mockIsNetworkError.mockReturnValue(true);
+      mockGetCurrentUsersRights.mockRejectedValue(new Error('Network Error'));
+
+      const { result } = renderHook(() => useSecurityStore());
+
+      await act(async () => {
+        await result.current.getRights();
+      });
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to fetch user rights due to network connectivity',
+        })
+      );
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('keeps previously loaded rights when a refresh fails', async () => {
+      act(() => {
+        securityStore.setState({ rights: mockRightsData });
+      });
+      mockGetCurrentUsersRights.mockRejectedValue(new Error('boom'));
+
+      const { result } = renderHook(() => useSecurityStore());
+
+      await act(async () => {
+        await result.current.getRights();
+      });
+
+      // Init must be able to continue with the rights it already has.
+      expect(securityStore.getState().rights).toEqual(mockRightsData);
+    });
+
+    it('clears a previous error once a fetch succeeds', async () => {
+      act(() => {
+        securityStore.setState({ error: 'previous failure' });
+      });
+      mockGetCurrentUsersRights.mockResolvedValue({
+        Data: mockRightsData,
+        PageSize: 0,
+        Timestamp: '',
+        Version: '',
+        Node: '',
+        RequestId: '',
+        Status: '',
+        Environment: '',
+      });
+
+      const { result } = renderHook(() => useSecurityStore());
+
+      await act(async () => {
+        await result.current.getRights();
+      });
+
+      expect(securityStore.getState().error).toBeNull();
     });
   });
 
@@ -185,7 +278,7 @@ describe('useSecurityStore', () => {
 
     it('returns undefined for all permission checks', () => {
       const { result } = renderHook(() => useSecurityStore());
-      
+
       expect(result.current.isUserDepartmentAdmin).toBeUndefined();
       expect(result.current.canUserCreateCalls).toBeUndefined();
       expect(result.current.canUserCreateNotes).toBeUndefined();

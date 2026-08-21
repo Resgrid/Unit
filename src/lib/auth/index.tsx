@@ -10,7 +10,7 @@ export * from './types';
 
 // Utility hooks and selectors
 export const useAuth = () => {
-  const { accessToken, status, error, login, ssoLogin, logout, hydrate } = useAuthStore(
+  const { accessToken, status, error, login, ssoLogin, logout } = useAuthStore(
     useShallow((state) => ({
       accessToken: state.accessToken,
       status: state.status,
@@ -18,7 +18,6 @@ export const useAuth = () => {
       login: state.login,
       ssoLogin: state.ssoLogin,
       logout: state.logout,
-      hydrate: state.hydrate,
     }))
   );
   return {
@@ -29,6 +28,5 @@ export const useAuth = () => {
     ssoLogin,
     logout,
     status,
-    hydrate,
   };
 };

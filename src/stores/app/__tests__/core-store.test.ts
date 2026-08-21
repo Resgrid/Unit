@@ -65,6 +65,9 @@ import { getActiveUnitId, getActiveCallId } from '@/lib/storage/app';
 import { getConfig } from '@/api/config';
 import { logger } from '@/lib/logging';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import { getAllUnitStatuses } from '@/api/satuses/statuses';
+import { getUnitStatus } from '@/api/units/unitStatuses';
+import { useUnitsStore } from '@/stores/units/store';
 
 const mockGetActiveUnitId = getActiveUnitId as jest.MockedFunction<typeof getActiveUnitId>;
 const mockGetActiveCallId = getActiveCallId as jest.MockedFunction<typeof getActiveCallId>;
@@ -184,7 +187,7 @@ describe('Core Store', () => {
     it('should fetch config first during initialization', async () => {
       mockGetActiveUnitId.mockReturnValue(null);
       mockGetActiveCallId.mockReturnValue(null);
-      
+
       const mockConfigData = {
         EventingUrl: 'https://eventing.example.com/',
         GoogleMapsKey: 'test-google-key',
@@ -210,7 +213,7 @@ describe('Core Store', () => {
     it('should handle config fetch errors during initialization', async () => {
       mockGetActiveUnitId.mockReturnValue(null);
       mockGetActiveCallId.mockReturnValue(null);
-      
+
       const configError = new Error('Failed to fetch config');
       mockGetConfig.mockRejectedValue(configError);
 
@@ -306,6 +309,74 @@ describe('Core Store', () => {
       });
 
       expect(result.current.config?.EventingUrl).toBe(eventingUrl);
+    });
+  });
+
+  describe('setActiveUnit', () => {
+    const activeUnit = { UnitId: 'unit-1', Name: 'Engine 6', Type: '3' } as any;
+    const unitStatuses = [
+      { UnitType: '0', StatusId: 's0', Statuses: [{ Text: 'Available' }] },
+      { UnitType: '3', StatusId: 's3', Statuses: [{ Text: 'Available' }] },
+    ] as any[];
+
+    beforeEach(() => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [activeUnit],
+        unitStatuses,
+      });
+      (getUnitStatus as jest.Mock).mockImplementation(async () => ({ Data: { State: 'Available' } }));
+    });
+
+    it('should reuse the statuses fetchUnits already loaded instead of refetching them', async () => {
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      // fetchUnits() already issues /Statuses/GetAllUnitStatuses — calling it a
+      // second time here was a duplicate request on every unit selection.
+      expect(getAllUnitStatuses).not.toHaveBeenCalled();
+    });
+
+    it('should resolve activeStatuses for the unit type from the already-fetched data', async () => {
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[1]);
+      expect(useCoreStore.getState().activeUnit).toEqual(activeUnit);
+    });
+
+    it('should fall back to the default unit type statuses when the type has none', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [{ ...activeUnit, Type: '99' }],
+        unitStatuses,
+      });
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[0]);
+    });
+
+    it('should log a network failure at warn rather than error', async () => {
+      // Axios "Network Error" — no response received (offline / background launch)
+      const networkError = Object.assign(new Error('Network Error'), {
+        isAxiosError: true,
+        code: 'ERR_NETWORK',
+      });
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => {
+          throw networkError;
+        }),
+        units: [],
+        unitStatuses: [],
+      });
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to set active unit due to network connectivity',
+        })
+      );
+      expect(logger.error).not.toHaveBeenCalled();
     });
   });
 

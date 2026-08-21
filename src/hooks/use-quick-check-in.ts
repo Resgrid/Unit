@@ -14,13 +14,14 @@ export function useQuickCheckIn(callId: number, checkInType?: number) {
   const isCheckingIn = useCheckInTimerStore((state) => state.isCheckingIn);
   const performCheckInAction = useCheckInTimerStore((state) => state.performCheckIn);
   const activeUnit = useCoreStore((state) => state.activeUnit);
-  const latitude = useLocationStore((state) => state.latitude);
-  const longitude = useLocationStore((state) => state.longitude);
   const showToast = useToastStore((state) => state.showToast);
+  // NOTE: location is read via useLocationStore.getState() inside quickCheckIn instead
+  // of subscribing — subscribing re-rendered every consumer of this hook on each GPS fix.
 
   const quickCheckIn = useCallback(async () => {
     const resolvedCheckInType = checkInType ?? (activeUnit ? CHECK_IN_TARGET_TYPE.UNIT_TYPE : CHECK_IN_TARGET_TYPE.PERSONNEL);
     const shouldUseActiveUnit = resolvedCheckInType === CHECK_IN_TARGET_TYPE.UNIT_TYPE && activeUnit !== null;
+    const { latitude, longitude } = useLocationStore.getState();
     const input: PerformCheckInInput = {
       CallId: callId,
       CheckInType: resolvedCheckInType,
@@ -40,7 +41,7 @@ export function useQuickCheckIn(callId: number, checkInType?: number) {
     }
 
     return result;
-  }, [callId, checkInType, activeUnit, latitude, longitude, performCheckInAction, showToast, t]);
+  }, [callId, checkInType, activeUnit, performCheckInAction, showToast, t]);
 
   return { quickCheckIn, isCheckingIn };
 }

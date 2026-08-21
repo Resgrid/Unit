@@ -9,6 +9,10 @@ import type { AuthResponse, LoginCredentials, LoginResponse, SsoLoginCredentials
 
 const authApi = axios.create({
   baseURL: getBaseApiUrl(),
+  // Axios defaults to no timeout — a hung /connect/token call would otherwise
+  // pin the single-flight refresh promise and stall every queued 401 retry. A
+  // timeout surfaces as a transient failure (no response), never a logout.
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded',
   },

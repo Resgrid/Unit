@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "No se pudieron cargar los datos de la aplicación. Comprueba tu conexión e inténtalo de nuevo.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Aplicado",
     "audio": "Audio",
     "audioActive": "Audio Activo",
+    "audio_capable": "Compatible con audio",
     "audio_device": "Auricular BT",
     "audio_output": "Salida de audio",
     "availableDevices": "Dispositivos Disponibles",
@@ -47,6 +49,8 @@
     "connect": "Conectar",
     "connected": "Conectado",
     "connectionError": "Error de Conexión",
+    "connection_error_message": "No se pudo conectar con el dispositivo",
+    "connection_error_title": "Error de conexión",
     "current_selection": "Selección Actual",
     "device_disconnected": "Dispositivo desconectado",
     "disconnect": "Desconectar",
@@ -104,10 +108,12 @@
     "loading": "Cargando...",
     "no_images": "No hay imágenes disponibles",
     "no_images_description": "Añade imágenes a tu llamada para ayudar con la documentación y comunicación",
+    "not_signed_in": "Debes iniciar sesión para subir imágenes",
     "select_from_gallery": "Seleccionar de la galería",
     "take_photo": "Tomar foto",
     "title": "Imágenes de la llamada",
-    "upload": "Subir"
+    "upload": "Subir",
+    "upload_error": "Error al subir la imagen"
   },
   "callNotes": {
     "addNote": "Añadir nota",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Direcciones",
+    "directions_to_destination": "Indicaciones al destino",
     "dispatch_to": "Despachar A",
     "dispatch_to_everyone": "Despachar a todo el personal disponible",
     "edit_call": "Editar llamada",
     "edit_call_description": "Actualizar información de la llamada",
+    "errors": {
+      "load_failed": "Error al cargar las llamadas"
+    },
     "everyone": "Todos",
     "field_policy_loading": "Aún se están cargando los ajustes de avisos de tu departamento, inténtalo de nuevo en un momento",
     "files": {
+      "error": "Error al obtener los archivos",
+      "file_name": "Nombre del archivo",
       "no_files": "No hay archivos disponibles",
       "no_files_description": "No se han agregado archivos a esta llamada aún",
+      "open_error": "Error al abrir el archivo",
+      "share_error": "Error al compartir el archivo",
+      "sharing_unavailable": "Compartir no está disponible en este dispositivo",
       "title": "Archivos de llamada"
     },
     "geocoding_error": "Error al buscar la dirección, por favor inténtelo de nuevo",
@@ -308,6 +323,7 @@
     "users": "Usuarios",
     "viewNotes": "Notas",
     "view_details": "Ver detalles",
+    "view_on_map": "Ver en el mapa",
     "what3words": "what3words",
     "what3words_found": "Dirección what3words encontrada y ubicación actualizada",
     "what3words_geocoding_error": "Error al buscar dirección what3words, intente nuevamente",
@@ -433,6 +449,7 @@
     "add": "Añadir",
     "back": "Atrás",
     "cancel": "Cancelar",
+    "clear_search": "Borrar búsqueda",
     "close": "Cerrar",
     "confirm": "Confirmar",
     "confirm_location": "Confirmar ubicación",
@@ -454,6 +471,7 @@
     "no_address_found": "No se encontró dirección",
     "no_location": "No hay datos de ubicación disponibles",
     "no_results_found": "No se encontraron resultados",
+    "no_unit": "Sin unidad",
     "no_unit_selected": "Ninguna unidad seleccionada",
     "nothingToDisplay": "No hay nada que mostrar en este momento",
     "of": "de",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Toca el mapa para seleccionar una ubicación",
     "tryAgainLater": "Por favor, inténtelo de nuevo más tarde",
     "unknown": "Desconocido",
+    "unknown_error": "Se produjo un error desconocido",
     "upload": "Subir",
     "uploading": "Subiendo..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Contactos",
     "twitter": "Twitter",
+    "unknown_company": "Empresa desconocida",
+    "unknown_person": "Persona desconocida",
     "visibility": "Visibilidad",
     "website": "Sitio web",
     "zip": "Código postal"
@@ -659,6 +680,7 @@
       "message": "Por favor, comprueba tu nombre de usuario y contraseña e inténtalo de nuevo.",
       "title": "Inicio de sesión fallido"
     },
+    "hide_password": "Ocultar contraseña",
     "login": "Iniciar sesión",
     "login_button": "Iniciar sesión",
     "login_button_description": "Inicia sesión en tu cuenta para continuar",
@@ -667,8 +689,8 @@
     "login_button_success": "Sesión iniciada con éxito",
     "or_sign_in_with_password": "o inicia sesión con contraseña",
     "password": "Contraseña",
-    "password_incorrect": "La contraseña era incorrecta",
     "password_placeholder": "Introduce tu contraseña",
+    "show_password": "Mostrar contraseña",
     "sso_button": "Iniciar sesión con SSO",
     "sso_department": "SSO proporcionado por {{name}}",
     "sso_department_id": "ID de departamento (opcional)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Llamada establecida como llamada actual",
     "failed_to_open_maps": "Error al abrir la aplicación de mapas",
     "failed_to_set_current_call": "Error al establecer la llamada como llamada actual",
+    "lock_map": "Bloquear el mapa en la unidad",
     "no_location_for_routing": "No hay datos de ubicación disponibles para el enrutamiento",
     "pin_address": "Address",
     "pin_color": "Color del pin",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Recentrar mapa",
     "set_as_current_call": "Establecer como llamada actual",
+    "unlock_map": "Desbloquear el mapa",
     "view_call_details": "Ver detalles de la llamada",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Buscar notas...",
     "title": "Notas"
   },
+  "notifications": {
+    "confirm_delete_message_count": "¿Seguro que quieres eliminar {{count}} notificaciones? Esta acción no se puede deshacer.",
+    "confirm_delete_message_one": "¿Seguro que quieres eliminar esta notificación? Esta acción no se puede deshacer.",
+    "confirm_delete_title": "Confirmar eliminación",
+    "delete_selected": "Eliminar las notificaciones seleccionadas",
+    "deselect_all": "Deseleccionar todo",
+    "empty": "No hay novedades",
+    "enter_selection_mode": "Seleccionar notificaciones",
+    "open": "Abrir notificaciones",
+    "remove_failed_count": "No se pudieron eliminar las notificaciones",
+    "remove_failed_one": "No se pudo eliminar la notificación",
+    "removed_count": "{{count}} notificaciones eliminadas",
+    "removed_one": "Notificación eliminada",
+    "select_all": "Seleccionar todo",
+    "selected_count": "{{count}} seleccionadas",
+    "title": "Notificaciones",
+    "unable_to_load": "No se pudieron cargar las notificaciones"
+  },
   "onboarding": {
     "message": "Bienvenido al sitio de la aplicación Resgrid Unit"
   },
@@ -782,12 +824,23 @@
     "view_call": "Ver Llamada"
   },
   "roles": {
+    "assignedElsewhere": "En otra función",
+    "clearAssignment": "Borrar la asignación actual",
     "modal": {
       "title": "Asignaciones de roles de unidad"
     },
+    "noUsersFound": "No se encontraron usuarios",
+    "save_error": "Error al guardar las asignaciones de funciones",
+    "saved_successfully": "Asignaciones de funciones guardadas correctamente",
+    "searchUsers": "Buscar por nombre o grupo...",
     "selectUser": "Seleccionar usuario",
+    "selectUserDescription": "Elige a una persona para esta función",
+    "selectUserForRole": "Asignar: {{role}}",
+    "selectUserLabel": "Seleccionar a {{name}}",
     "status": "{{active}} de {{total}} roles activos",
+    "tapToAssign": "Toca para asignar un usuario a {{role}}",
     "tap_to_manage": "Toca para gestionar roles",
+    "title": "Asignación de funciones de la unidad",
     "unassigned": "Sin asignar"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Distancia Total",
     "total_duration": "Duración Total",
     "traffic_delay": "{{time}} de retraso por el tráfico",
+    "traffic_heavy": "Tráfico denso",
+    "traffic_light": "Tráfico fluido",
+    "traffic_moderate": "Tráfico moderado",
+    "traffic_no_data": "Sin datos de tráfico",
+    "traffic_severe": "Tráfico muy denso",
     "try_different_search": "Try a different search term",
     "type": "Tipo",
     "unassigned": "Sin asignar",

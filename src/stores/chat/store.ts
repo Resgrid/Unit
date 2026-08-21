@@ -290,7 +290,7 @@ export const useChatStore = create<ChatState>()(
           const response = await chatApi.getChannels(unitId);
           set({ channels: response.Data ?? [], isLoadingChannels: false });
         } catch (error) {
-          logger.error({ message: 'chat: failed to fetch channels', context: { error } });
+          logger.warn({ message: 'chat: failed to fetch channels', context: { error } });
           set({ isLoadingChannels: false });
         }
       },
@@ -321,7 +321,7 @@ export const useChatStore = create<ChatState>()(
             };
           });
         } catch (error) {
-          logger.error({ message: 'chat: failed to load messages', context: { error, channelId } });
+          logger.warn({ message: 'chat: failed to load messages', context: { error, channelId } });
           set((state) => ({ loadingMessagesByChannel: { ...state.loadingMessagesByChannel, [channelId]: false } }));
         }
       },
@@ -349,7 +349,7 @@ export const useChatStore = create<ChatState>()(
             };
           });
         } catch (error) {
-          logger.error({ message: 'chat: failed to load older messages', context: { error, channelId } });
+          logger.warn({ message: 'chat: failed to load older messages', context: { error, channelId } });
           set((s) => ({ loadingMessagesByChannel: { ...s.loadingMessagesByChannel, [channelId]: false } }));
         }
       },
@@ -370,7 +370,7 @@ export const useChatStore = create<ChatState>()(
             after = highestRealSeq(get().messagesByChannel[channelId]);
           }
         } catch (error) {
-          logger.error({ message: 'chat: delta sync failed', context: { error, channelId } });
+          logger.warn({ message: 'chat: delta sync failed', context: { error, channelId } });
         }
       },
 

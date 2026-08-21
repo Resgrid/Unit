@@ -220,9 +220,9 @@ export const ContactDetailsSheet: React.FC = () => {
       const middleName = selectedContact.MiddleName?.trim() || '';
       const lastName = selectedContact.LastName?.trim() || '';
       const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ');
-      return fullName || selectedContact.Name || 'Unknown Person';
+      return fullName || selectedContact.Name || t('contacts.unknown_person');
     } else {
-      return selectedContact.CompanyName?.trim() || selectedContact.Name || 'Unknown Company';
+      return selectedContact.CompanyName?.trim() || selectedContact.Name || t('contacts.unknown_company');
     }
   };
 

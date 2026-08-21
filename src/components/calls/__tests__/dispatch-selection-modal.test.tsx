@@ -33,12 +33,8 @@ const mockDispatchStore = {
         Roles: [],
       },
     ],
-    groups: [
-      { GroupId: '1', Name: 'Fire Department', TypeId: 1, Address: '', GroupType: 'Fire' },
-    ],
-    roles: [
-      { UnitRoleId: '1', Name: 'Captain', UnitId: '1' },
-    ],
+    groups: [{ GroupId: '1', Name: 'Fire Department', TypeId: 1, Address: '', GroupType: 'Fire' }],
+    roles: [{ UnitRoleId: '1', Name: 'Captain', UnitId: '1' }],
     units: [
       {
         UnitId: '1',
@@ -108,12 +104,8 @@ const mockDispatchStore = {
         Roles: [],
       },
     ],
-    groups: [
-      { GroupId: '1', Name: 'Fire Department', TypeId: 1, Address: '', GroupType: 'Fire' },
-    ],
-    roles: [
-      { UnitRoleId: '1', Name: 'Captain', UnitId: '1' },
-    ],
+    groups: [{ GroupId: '1', Name: 'Fire Department', TypeId: 1, Address: '', GroupType: 'Fire' }],
+    roles: [{ UnitRoleId: '1', Name: 'Captain', UnitId: '1' }],
     units: [
       {
         UnitId: '1',
@@ -140,7 +132,7 @@ const mockDispatchStore = {
 };
 
 jest.mock('@/stores/dispatch/store', () => ({
-  useDispatchStore: jest.fn((selector: any) => typeof selector === 'function' ? selector(mockDispatchStore) : mockDispatchStore),
+  useDispatchStore: jest.fn((selector: any) => (typeof selector === 'function' ? selector(mockDispatchStore) : mockDispatchStore)),
 }));
 
 // Mock the color scheme and cssInterop
@@ -164,6 +156,15 @@ jest.mock('@/components/ui/actionsheet', () => {
     ),
     ActionsheetDragIndicator: () => <View testID="actionsheet-drag-indicator" />,
     ActionsheetDragIndicatorWrapper: ({ children }: any) => <View testID="actionsheet-drag-indicator-wrapper">{children}</View>,
+    // The recipient list is virtualized (FlashList); render every row so the
+    // sheet's content stays reachable in the test tree.
+    ActionsheetFlatList: ({ data, renderItem, keyExtractor, testID }: any) => (
+      <View testID={testID}>
+        {(data ?? []).map((item: any, index: number) => (
+          <View key={keyExtractor ? keyExtractor(item, index) : index}>{renderItem({ item, index })}</View>
+        ))}
+      </View>
+    ),
   };
 });
 
@@ -206,9 +207,7 @@ describe('DispatchSelectionModal', () => {
   });
 
   it('should not render when not visible', () => {
-    const { queryByText } = render(
-      <DispatchSelectionModal {...mockProps} isVisible={false} />
-    );
+    const { queryByText } = render(<DispatchSelectionModal {...mockProps} isVisible={false} />);
 
     expect(queryByText('calls.select_dispatch_recipients')).toBeNull();
   });

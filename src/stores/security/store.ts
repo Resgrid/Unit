@@ -6,6 +6,7 @@ import { cacheManager } from '@/lib/cache/cache-manager';
 import { setCacheScope } from '@/lib/cache/cache-scope';
 import { logger } from '@/lib/logging';
 import { type DepartmentRightsResultData } from '@/models/v4/security/departmentRightsResultData';
+import { isNetworkError } from '@/utils/network';
 
 import { zustandStorage } from '../../lib/storage';
 
@@ -28,10 +29,29 @@ export const securityStore = create<SecurityState>()(
           if (!current || JSON.stringify(current) !== JSON.stringify(response.Data)) {
             set({
               rights: response.Data,
+              error: null,
             });
+          } else if (_get().error) {
+            // Clear a previous failure even when the rights themselves are unchanged.
+            set({ error: null });
           }
         } catch (error) {
-          // If refresh fails, log out the user
+          // Rights are refreshed on init and on resume; a failure here leaves the
+          // previously persisted rights in place rather than blocking startup.
+          // Transient connectivity failures stay at warn so they never reach
+          // Sentry — genuine server/parse failures still report as errors.
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to fetch user rights due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: 'Failed to fetch user rights',
+              context: { error },
+            });
+          }
+          set({ error: error instanceof Error ? error.message : 'Failed to fetch user rights' });
         }
       },
     }),

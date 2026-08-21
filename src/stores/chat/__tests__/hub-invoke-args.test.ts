@@ -191,7 +191,9 @@ describe('incoming message normalization', () => {
   });
 
   it('keeps existing reactions when a later payload omits them', () => {
-    useChatStore.getState().handleMessageReceived({ ChatMessageId: 'm1', ChatChannelId: 'channel-1', MessageSeq: 10, Body: 'hi', SentOn: new Date(0).toISOString(), Reactions: [{ Emoji: '\u{1F44D}', UserId: 'user-2' }] });
+    useChatStore
+      .getState()
+      .handleMessageReceived({ ChatMessageId: 'm1', ChatChannelId: 'channel-1', MessageSeq: 10, Body: 'hi', SentOn: new Date(0).toISOString(), Reactions: [{ Emoji: '\u{1F44D}', UserId: 'user-2' }] });
     useChatStore.getState().handleMessageEdited({ ChatMessageId: 'm1', ChatChannelId: 'channel-1', MessageSeq: 10, Body: 'hi (edited)', SentOn: new Date(0).toISOString() });
 
     const stored = useChatStore.getState().messagesByChannel['channel-1']?.[0];
@@ -234,5 +236,67 @@ describe('chat typing events', () => {
     useChatStore.getState().handleTyping({ channelId: 'channel-1', userId: 'user-2', displayName: 'Other', isTyping: true });
 
     expect(useChatStore.getState().typingByChannel['channel-1']?.[0]?.userId).toBe('user-2');
+  });
+});
+
+describe('chat fetch failures stay out of Sentry', () => {
+  const chatApi = require('@/api/chat/chat');
+  const { logger } = require('@/lib/logging');
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    useChatStore.setState({ messagesByChannel: {}, channels: [], loadingMessagesByChannel: {} });
+  });
+
+  afterEach(() => {
+    chatApi.getChannels.mockResolvedValue({ Data: [] });
+    chatApi.getMessages.mockResolvedValue({ Data: [] });
+  });
+
+  afterAll(() => {
+    // reset() clears the store's typing/outbox timers so Jest can exit cleanly.
+    useChatStore.getState().reset();
+  });
+
+  it('logs a channel fetch failure at warn, mirroring the outbox send path', async () => {
+    chatApi.getChannels.mockRejectedValue(new Error('offline'));
+
+    await useChatStore.getState().fetchChannels();
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'chat: failed to fetch channels' }));
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(useChatStore.getState().isLoadingChannels).toBe(false);
+  });
+
+  it('logs an initial message load failure at warn', async () => {
+    chatApi.getMessages.mockRejectedValue(new Error('offline'));
+
+    await useChatStore.getState().loadInitialMessages('channel-1');
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'chat: failed to load messages' }));
+    expect(logger.error).not.toHaveBeenCalled();
+    expect(useChatStore.getState().loadingMessagesByChannel['channel-1']).toBe(false);
+  });
+
+  it('logs an older-message load failure at warn', async () => {
+    useChatStore.setState({
+      messagesByChannel: { 'channel-1': [{ ChatMessageId: 'm1', ChatChannelId: 'channel-1', MessageSeq: 5, SentOn: new Date().toISOString(), Reactions: [], Attachments: [] } as any] },
+      hasMoreByChannel: { 'channel-1': true },
+    });
+    chatApi.getMessages.mockRejectedValue(new Error('offline'));
+
+    await useChatStore.getState().loadOlderMessages('channel-1');
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'chat: failed to load older messages' }));
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs a delta sync failure at warn', async () => {
+    chatApi.getMessagesAfter = jest.fn().mockRejectedValue(new Error('offline'));
+
+    await useChatStore.getState().loadNewerMessages('channel-1');
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'chat: delta sync failed' }));
+    expect(logger.error).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertTriangle, EyeIcon, EyeOffIcon, Globe, LogIn, ShieldCheck } from 'lucide-react-native';
+import { AlertTriangle, EyeIcon, EyeOffIcon, Globe, ShieldCheck } from 'lucide-react-native';
 import { ChevronDownIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useState } from 'react';
@@ -72,14 +72,9 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
   const {
     control,
     handleSubmit,
-    getValues,
     formState: { errors },
   } = useForm<FormType>({
     resolver: zodResolver(loginFormSchema),
-  });
-  const [validated] = useState({
-    usernameValid: true,
-    passwordValid: true,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -102,7 +97,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
         </View>
 
         {/* Username */}
-        <FormControl isInvalid={!!errors?.username || !validated.usernameValid} className="w-full">
+        <FormControl isInvalid={!!errors?.username} className="w-full">
           <FormControlLabel>
             <FormControlLabelText>{t('login.username')}</FormControlLabelText>
           </FormControlLabel>
@@ -110,16 +105,6 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             defaultValue=""
             name="username"
             control={control}
-            rules={{
-              validate: async (value) => {
-                try {
-                  await loginFormSchema.parseAsync({ username: value, password: 'placeholder' });
-                  return true;
-                } catch (err: any) {
-                  return err.message;
-                }
-              },
-            }}
             render={({ field: { onChange, onBlur, value } }) => (
               <Input>
                 <InputField
@@ -142,7 +127,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
         </FormControl>
 
         {/* Password form */}
-        <FormControl isInvalid={!!errors.password || !validated.passwordValid} className="w-full">
+        <FormControl isInvalid={!!errors.password} className="w-full">
           <FormControlLabel>
             <FormControlLabelText>{t('login.password')}</FormControlLabelText>
           </FormControlLabel>
@@ -150,16 +135,6 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
             defaultValue=""
             name="password"
             control={control}
-            rules={{
-              validate: async (value) => {
-                try {
-                  await loginFormSchema.parseAsync({ username: getValues('username'), password: value });
-                  return true;
-                } catch (err: any) {
-                  return err.message;
-                }
-              },
-            }}
             render={({ field: { onChange, onBlur, value } }) => (
               <Input>
                 <InputField
@@ -173,7 +148,17 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
                   autoCapitalize="none"
                   autoComplete="off"
                 />
-                <InputSlot onPress={handleState} className="pr-3">
+                {/* gluestack's Slot defaults to accessibilityElementsHidden, which would hide this
+                    control from VoiceOver even once labelled — an icon-only toggle with no other
+                    way to reach it. Re-expose it explicitly. */}
+                <InputSlot
+                  onPress={handleState}
+                  className="pr-3"
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? t('login.hide_password') : t('login.show_password')}
+                  accessibilityElementsHidden={false}
+                  importantForAccessibility="yes"
+                >
                   <InputIcon as={showPassword ? EyeIcon : EyeOffIcon} />
                 </InputSlot>
               </Input>
@@ -181,7 +166,7 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
           />
           <FormControlError>
             <FormControlErrorIcon as={AlertTriangle} className="text-red-500" />
-            <FormControlErrorText className="text-red-500">{errors?.password?.message || (!validated.passwordValid && t('login.password_incorrect'))}</FormControlErrorText>
+            <FormControlErrorText className="text-red-500">{errors?.password?.message}</FormControlErrorText>
           </FormControlError>
         </FormControl>
 

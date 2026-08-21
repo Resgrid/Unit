@@ -1,5 +1,6 @@
 import { Lock, Mic, Phone, Radio, Unlock } from 'lucide-react-native';
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { AudioStreamBottomSheet } from '@/components/audio-stream/audio-stream-bottom-sheet';
@@ -19,6 +20,7 @@ type ItemProps = {
 };
 
 export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUnitType, unitGroup: defaultUnitGroup, bgColor }: ItemProps) => {
+  const { t } = useTranslation();
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const setIsBottomSheetVisible = useLiveKitStore((state) => state.setIsBottomSheetVisible);
   const ensureMicrophonePermission = useLiveKitStore((state) => state.ensureMicrophonePermission);
@@ -70,15 +72,35 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
         ) : null}
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.mapLockButton, isMapLocked ? styles.mapLockButtonActive : {}]} onPress={handleToggleMapLock} testID="map-lock-button">
+          <TouchableOpacity
+            style={[styles.mapLockButton, isMapLocked ? styles.mapLockButtonActive : {}]}
+            onPress={handleToggleMapLock}
+            testID="map-lock-button"
+            accessibilityRole="button"
+            accessibilityState={{ selected: isMapLocked }}
+            accessibilityLabel={isMapLocked ? t('map.unlock_map') : t('map.lock_map')}
+          >
             {isMapLocked ? <Lock size={18} color={isMapLocked ? '#fff' : '#007AFF'} /> : <Unlock size={18} color="#007AFF" />}
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.audioStreamButton, currentStream && isPlaying ? styles.audioStreamButtonActive : {}]} onPress={handleOpenAudioStream} testID="audio-stream-button">
+          <TouchableOpacity
+            style={[styles.audioStreamButton, currentStream && isPlaying ? styles.audioStreamButtonActive : {}]}
+            onPress={handleOpenAudioStream}
+            testID="audio-stream-button"
+            accessibilityRole="button"
+            accessibilityLabel={t('audio_streams.title')}
+          >
             <Radio size={18} color={currentStream && isPlaying ? '#fff' : '#007AFF'} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.callButton, isConnected ? styles.activeCall : {}]} onPress={handleOpenLiveKit} testID="call-button">
+          <TouchableOpacity
+            style={[styles.callButton, isConnected ? styles.activeCall : {}]}
+            onPress={handleOpenLiveKit}
+            testID="call-button"
+            accessibilityRole="button"
+            accessibilityState={{ selected: isConnected }}
+            accessibilityLabel={t('livekit.title')}
+          >
             <Phone size={18} color={isConnected ? '#fff' : '#007AFF'} />
           </TouchableOpacity>
         </View>

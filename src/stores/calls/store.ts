@@ -26,7 +26,7 @@ interface CallsState {
   isCallFormDataLoaded: boolean;
   error: string | null;
   lastFetchedAt: number;
-  fetchCalls: () => Promise<void>;
+  fetchCalls: (forceRefresh?: boolean) => Promise<void>;
   fetchCallPriorities: () => Promise<void>;
   fetchCallTypes: () => Promise<void>;
   fetchCallFormData: () => Promise<void>;
@@ -53,22 +53,35 @@ export const useCallsStore = create<CallsState>((set, get) => ({
       return;
     }
     set({ isLoading: true, error: null });
-    const callsResponse = await getCalls();
-    const callPrioritiesResponse = await getCallPriorities();
-    const callTypesResponse = await getCallTypes();
-    set({
-      calls: Array.isArray(callsResponse.Data) ? callsResponse.Data : [],
-      callPriorities: Array.isArray(callPrioritiesResponse.Data) ? callPrioritiesResponse.Data : [],
-      callTypes: Array.isArray(callTypesResponse.Data) ? callTypesResponse.Data : [],
-      isLoading: false,
-      isInitialized: true,
-      lastFetchedAt: Date.now(),
-    });
-  },
-  fetchCalls: async () => {
-    set({ isLoading: true, error: null });
     try {
-      const response = await getCalls();
+      const callsResponse = await getCalls();
+      const callPrioritiesResponse = await getCallPriorities();
+      const callTypesResponse = await getCallTypes();
+      set({
+        calls: Array.isArray(callsResponse.Data) ? callsResponse.Data : [],
+        callPriorities: Array.isArray(callPrioritiesResponse.Data) ? callPrioritiesResponse.Data : [],
+        callTypes: Array.isArray(callTypesResponse.Data) ? callTypesResponse.Data : [],
+        isLoading: false,
+        isInitialized: true,
+        lastFetchedAt: Date.now(),
+      });
+    } catch (error) {
+      // isInitialized stays false so the TabLayout retry loop can call init() again;
+      // isLoading must clear or the guard above would block every retry forever.
+      logger.error({ message: 'Failed to initialize calls store', context: { error } });
+      set({ error: 'Failed to initialize calls', isLoading: false });
+    }
+  },
+  fetchCalls: async (forceRefresh = false) => {
+    // Stale-while-revalidate: only show the blocking loader when there is nothing
+    // to display yet — refreshes with data on screen happen in the background.
+    if (get().calls.length === 0) {
+      set({ isLoading: true, error: null });
+    } else {
+      set({ error: null });
+    }
+    try {
+      const response = await getCalls(forceRefresh);
       const newCalls = Array.isArray(response.Data) ? response.Data : [];
 
       // Evict dispatches for calls no longer in the active list to prevent unbounded memory growth

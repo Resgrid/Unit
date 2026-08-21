@@ -39,10 +39,10 @@ jest.mock('../../app/core-store', () => {
     mockStore.subscribe = jest.fn();
     mockStore.setState = jest.fn();
     mockStore.destroy = jest.fn();
-    
+
     return mockStore;
   };
-  
+
   return {
     useCoreStore: createMockStore(),
   };
@@ -54,6 +54,15 @@ jest.mock('../../feature-flags/store', () => ({
   featureFlagsStore: {
     getState: jest.fn(() => ({
       isEnabled: jest.fn(() => true),
+    })),
+  },
+}));
+
+const mockFetchCalls = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../calls/store', () => ({
+  useCallsStore: {
+    getState: jest.fn(() => ({
+      fetchCalls: mockFetchCalls,
     })),
   },
 }));
@@ -154,7 +163,7 @@ describe('useSignalRStore', () => {
       expect(typeof result.current.disconnectUpdateHub).toBe('function');
       expect(typeof result.current.connectGeolocationHub).toBe('function');
       expect(typeof result.current.disconnectGeolocationHub).toBe('function');
-      
+
       expect(result.current.isUpdateHubConnected).toBe(false);
       expect(result.current.isGeolocationHubConnected).toBe(false);
       expect(result.current.lastUpdateMessage).toBeNull();
@@ -184,9 +193,7 @@ describe('useSignalRStore', () => {
       });
 
       expect(signalRService.connectToHubWithEventingUrl).not.toHaveBeenCalled();
-      expect(result.current.error).toEqual(
-        new Error('EventingUrl not available in config. Please ensure config is loaded first.')
-      );
+      expect(result.current.error).toEqual(new Error('EventingUrl not available in config. Please ensure config is loaded first.'));
 
       expect(logger.error).toHaveBeenCalledWith({
         message: 'EventingUrl not available in config. Please ensure config is loaded first.',
@@ -206,12 +213,10 @@ describe('useSignalRStore', () => {
       });
 
       expect(signalRService.connectToHubWithEventingUrl).not.toHaveBeenCalled();
-      expect(result.current.error).toEqual(
-        new Error('EventingUrl not available in config. Please ensure config is loaded first.')
-      );
+      expect(result.current.error).toEqual(new Error('EventingUrl not available in config. Please ensure config is loaded first.'));
     });
 
-    it('should handle connection errors', async () => {
+    it('should handle connection errors without double-reporting what the service already logged', async () => {
       const connectionError = new Error('Connection failed');
       (signalRService.connectToHubWithEventingUrl as jest.Mock).mockRejectedValue(connectionError);
 
@@ -222,10 +227,58 @@ describe('useSignalRStore', () => {
       });
 
       expect(result.current.error).toEqual(connectionError);
-      expect(logger.warn).toHaveBeenCalledWith({
-        message: 'Failed to connect to SignalR hubs',
-        context: { error: connectionError },
+      // The service logs the connect failure with hub context; the store must not
+      // log the same transient failure a second time.
+      expect(logger.warn).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to connect to SignalR hubs',
+        })
+      );
+    });
+
+    it('should register listeners BEFORE starting the connection so an early onConnected is not dropped', async () => {
+      const registeredBeforeConnect: string[] = [];
+      let connectStarted = false;
+
+      (signalRService.on as jest.Mock).mockImplementation((event: string) => {
+        if (!connectStarted) {
+          registeredBeforeConnect.push(event);
+        }
       });
+      (signalRService.connectToHubWithEventingUrl as jest.Mock).mockImplementation(async () => {
+        connectStarted = true;
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      // onConnected is the flag-setting listener the race dropped.
+      expect(registeredBeforeConnect).toContain('onConnected');
+      expect(registeredBeforeConnect).toContain('callAdded');
+      expect(registeredBeforeConnect).toContain('__hubReconnected:eventingHub');
+    });
+
+    it('should set isUpdateHubConnected when onConnected fires during the connect call', async () => {
+      const handlers: Record<string, (message?: unknown) => void> = {};
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+        handlers[event] = handler;
+      });
+      // Simulate the server raising onConnected while connectToHubWithEventingUrl
+      // is still in flight — the exact race the fix addresses.
+      (signalRService.connectToHubWithEventingUrl as jest.Mock).mockImplementation(async () => {
+        handlers['onConnected']?.();
+      });
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectUpdateHub();
+      });
+
+      expect(result.current.isUpdateHubConnected).toBe(true);
     });
 
     it('should join the department group with the parsed DepartmentId', async () => {
@@ -353,6 +406,47 @@ describe('useSignalRStore', () => {
       expect(result.current.lastUpdateTimestamps.weatherAlertReceived).toBe(result.current.lastUpdateTimestamp);
     });
 
+    it('should refresh the calls list once for a burst of call events (debounced)', async () => {
+      jest.useFakeTimers();
+      try {
+        const handlers: Record<string, (message?: unknown) => void> = {};
+        (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+          handlers[event] = handler;
+        });
+
+        const { result } = renderHook(() => useSignalRStore());
+
+        await act(async () => {
+          await result.current.connectUpdateHub();
+        });
+
+        mockFetchCalls.mockClear();
+
+        act(() => {
+          handlers['callAdded']({ CallId: '1' });
+          handlers['callsUpdated']({ CallId: '2' });
+          handlers['callClosed']({ CallId: '3' });
+        });
+
+        // Still inside the debounce window — no refetch yet.
+        expect(mockFetchCalls).not.toHaveBeenCalled();
+
+        act(() => {
+          jest.advanceTimersByTime(2000);
+        });
+
+        // A burst of three events coalesces into a single forced refresh.
+        expect(mockFetchCalls).toHaveBeenCalledTimes(1);
+        expect(mockFetchCalls).toHaveBeenCalledWith(true);
+
+        // Timestamps still update immediately for the map hook.
+        expect(result.current.lastUpdateTimestamps.callAdded).toBeGreaterThan(0);
+        expect(result.current.lastUpdateTimestamps.callClosed).toBeGreaterThan(0);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('should remove hub-scoped lifecycle listeners before connecting', async () => {
       const { result } = renderHook(() => useSignalRStore());
 
@@ -413,9 +507,7 @@ describe('useSignalRStore', () => {
       });
 
       expect(signalRService.connectToHubWithEventingUrl).not.toHaveBeenCalled();
-      expect(result.current.error).toEqual(
-        new Error('EventingUrl not available in config. Please ensure config is loaded first.')
-      );
+      expect(result.current.error).toEqual(new Error('EventingUrl not available in config. Please ensure config is loaded first.'));
     });
 
     it('should register no-op location handlers that do not write to the store', async () => {

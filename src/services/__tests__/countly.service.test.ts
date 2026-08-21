@@ -39,9 +39,9 @@ describe('CountlyService', () => {
 
     it('should track events', () => {
       const Countly = require('countly-sdk-react-native-bridge').default;
-      
+
       countlyService.trackEvent('test_event', { prop1: 'value1' });
-      
+
       expect(Countly.events.recordEvent).toHaveBeenCalledWith('test_event', { prop1: 'value1' }, 1);
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: 'Tracking Countly event',
@@ -55,13 +55,13 @@ describe('CountlyService', () => {
 
     it('should not track events when disabled', () => {
       const Countly = require('countly-sdk-react-native-bridge').default;
-      
+
       // Manually disable the service
       countlyService.reset();
       countlyService['isDisabled'] = true;
-      
+
       countlyService.trackEvent('test_event', { prop1: 'value1' });
-      
+
       expect(Countly.events.recordEvent).not.toHaveBeenCalled();
       expect(mockLogger.debug).toHaveBeenCalledWith({
         message: 'Analytics event skipped - service is disabled',
@@ -91,6 +91,43 @@ describe('CountlyService', () => {
           willDisable: false,
         },
       });
+    });
+
+    it('should reset the retry counter after a successful event', () => {
+      const Countly = require('countly-sdk-react-native-bridge').default;
+      countlyService.reset();
+
+      // One failure...
+      Countly.events.recordEvent.mockImplementationOnce(() => {
+        throw new Error('Network error');
+      });
+      countlyService.trackEvent('test_event');
+      expect(countlyService.getStatus().retryCount).toBe(1);
+
+      // ...then a success proves the SDK is healthy again.
+      Countly.events.recordEvent.mockImplementation(() => undefined);
+      countlyService.trackEvent('test_event');
+
+      expect(countlyService.getStatus().retryCount).toBe(0);
+    });
+
+    it('should not disable analytics for isolated failures separated by successes', () => {
+      const Countly = require('countly-sdk-react-native-bridge').default;
+      countlyService.reset();
+
+      for (let i = 0; i < 5; i += 1) {
+        Countly.events.recordEvent.mockImplementationOnce(() => {
+          throw new Error('Network error');
+        });
+        countlyService.trackEvent('test_event');
+
+        Countly.events.recordEvent.mockImplementation(() => undefined);
+        countlyService.trackEvent('test_event');
+      }
+
+      // Without the reset, two lifetime errors would have disabled analytics
+      // for the full 10-minute window.
+      expect(countlyService.isAnalyticsDisabled()).toBe(false);
     });
 
     it('should disable after max retries', () => {
@@ -147,7 +184,7 @@ describe('CountlyService', () => {
   describe('service management', () => {
     it('should provide status information', () => {
       const status = countlyService.getStatus();
-      
+
       expect(status).toEqual({
         retryCount: expect.any(Number),
         isDisabled: expect.any(Boolean),
@@ -165,12 +202,12 @@ describe('CountlyService', () => {
       // Cause some errors first
       countlyService.trackEvent('test_event');
       countlyService.trackEvent('test_event');
-      
+
       expect(countlyService.isAnalyticsDisabled()).toBe(true);
-      
+
       // Reset should clear the state
       countlyService.reset();
-      
+
       expect(countlyService.isAnalyticsDisabled()).toBe(false);
       expect(countlyService.getStatus().retryCount).toBe(0);
     });

@@ -15,8 +15,6 @@ import { openMapsWithDirections } from '@/lib/navigation';
 
 import CallDetail from '../[id]';
 
-
-
 // Mock UI components that might use NativeWind
 jest.mock('@/components/ui', () => ({
   FocusAwareStatusBar: jest.fn().mockImplementation(() => null),
@@ -31,21 +29,25 @@ jest.mock('@/components/ui/button', () => ({
   Button: jest.fn().mockImplementation(({ children, onPress, disabled, ...props }) => {
     const React = require('react');
 
-    return React.createElement('button', {
-      onPress,
-      onClick: onPress, // For web compatibility
-      disabled,
-      accessibilityRole: 'button',
-      accessibilityLabel: React.Children.toArray(children).map((child: any) =>
-        typeof child === 'string' ? child :
-          child?.props?.children || ''
-      ).join(' '),
-      testID: `button-${React.Children.toArray(children).map((child: any) =>
-        typeof child === 'string' ? child :
-          child?.props?.children || ''
-      ).join(' ').toLowerCase().replace(/\s+/g, '-')}`,
-      ...props
-    }, children);
+    return React.createElement(
+      'button',
+      {
+        onPress,
+        onClick: onPress, // For web compatibility
+        disabled,
+        accessibilityRole: 'button',
+        accessibilityLabel: React.Children.toArray(children)
+          .map((child: any) => (typeof child === 'string' ? child : child?.props?.children || ''))
+          .join(' '),
+        testID: `button-${React.Children.toArray(children)
+          .map((child: any) => (typeof child === 'string' ? child : child?.props?.children || ''))
+          .join(' ')
+          .toLowerCase()
+          .replace(/\s+/g, '-')}`,
+        ...props,
+      },
+      children
+    );
   }),
   ButtonIcon: jest.fn().mockImplementation(() => null),
   ButtonText: jest.fn().mockImplementation(({ children }) => children),
@@ -89,13 +91,13 @@ jest.mock('expo-clipboard', () => ({
 jest.mock('expo-constants', () => ({
   expoConfig: {
     extra: {
-      IS_MOBILE_APP: "true",
+      IS_MOBILE_APP: 'true',
     },
   },
   default: {
     expoConfig: {
       extra: {
-        IS_MOBILE_APP: "true",
+        IS_MOBILE_APP: 'true',
       },
     },
   },
@@ -104,7 +106,7 @@ jest.mock('expo-constants', () => ({
 // Mock @env to prevent expo-constants issues
 jest.mock('@env', () => ({
   Env: {
-    IS_MOBILE_APP: "true",
+    IS_MOBILE_APP: 'true',
   },
 }));
 
@@ -131,7 +133,11 @@ jest.mock('axios', () => {
 
 // Mock query-string
 jest.mock('query-string', () => ({
-  stringify: jest.fn((obj) => Object.keys(obj).map(key => `${key}=${obj[key]}`).join('&')),
+  stringify: jest.fn((obj) =>
+    Object.keys(obj)
+      .map((key) => `${key}=${obj[key]}`)
+      .join('&')
+  ),
 }));
 
 // Mock auth store
@@ -355,19 +361,19 @@ jest.mock('react-native', () => ({
   },
   Platform: {
     OS: 'ios',
-    select: jest.fn(options => options.ios),
+    select: jest.fn((options) => options.ios),
   },
   StyleSheet: {
-    create: jest.fn(styles => styles),
-    flatten: jest.fn(style => style),
+    create: jest.fn((styles) => styles),
+    flatten: jest.fn((style) => style),
   },
   Appearance: {
     getColorScheme: jest.fn(() => 'light'),
     addEventListener: jest.fn((eventType, callback) => ({
-      remove: jest.fn()
+      remove: jest.fn(),
     })),
     addChangeListener: jest.fn((callback) => ({
-      remove: jest.fn()
+      remove: jest.fn(),
     })),
     removeChangeListener: jest.fn(),
     isReduceMotionEnabled: jest.fn(() => false),
@@ -375,7 +381,7 @@ jest.mock('react-native', () => ({
   AccessibilityInfo: {
     isReduceMotionEnabled: jest.fn(() => Promise.resolve(false)),
     addEventListener: jest.fn((eventType, callback) => ({
-      remove: jest.fn()
+      remove: jest.fn(),
     })),
     removeEventListener: jest.fn(),
   },
@@ -484,7 +490,7 @@ describe('CallDetail', () => {
 
   const defaultLocationStore = {
     latitude: 40.7128,
-    longitude: -74.0060,
+    longitude: -74.006,
   };
 
   const defaultStatusBottomSheetStore = {
@@ -515,6 +521,9 @@ describe('CallDetail', () => {
       }
       return defaultLocationStore;
     });
+    // The screen reads the user's location via getState() inside the route handlers
+    // rather than subscribing, so every GPS fix no longer re-renders the tab tree.
+    (mockUseLocationStore as unknown as { getState: jest.Mock }).getState = jest.fn(() => defaultLocationStore);
 
     mockUseToastStore.mockImplementation((selector: any) => {
       const store = { showToast: jest.fn() };

@@ -3,6 +3,12 @@ jest.mock('react-i18next', () => ({
   useTranslation: jest.fn(),
 }));
 
+// Controllable keyboard height (plain function, so jest.clearAllMocks can't wipe it)
+let mockKeyboardHeight = 0;
+jest.mock('@/hooks/use-keyboard-height', () => ({
+  useKeyboardHeight: () => mockKeyboardHeight,
+}));
+
 // Mock all UI components based on actual imports
 jest.mock('@/components/ui/actionsheet', () => {
   const mockReact = require('react');
@@ -822,6 +828,43 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('No Destination')).toBeTruthy();
     expect(screen.getByText('Previous')).toBeTruthy();
     expect(screen.getByText('Submit')).toBeTruthy();
+  });
+
+  it('should scroll the note step to the end when the keyboard opens', async () => {
+    const { ScrollView } = require('react-native');
+    const scrollToEndSpy = jest.spyOn(ScrollView.prototype, 'scrollToEnd').mockImplementation(() => {});
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Available',
+      Detail: 1,
+      Note: 1,
+    };
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        currentStep: 'add-note',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
+
+    try {
+      mockKeyboardHeight = 300;
+      render(<StatusBottomSheet />);
+
+      await waitFor(() => {
+        expect(scrollToEndSpy).toHaveBeenCalledWith({ animated: true });
+      });
+    } finally {
+      mockKeyboardHeight = 0;
+      scrollToEndSpy.mockRestore();
+    }
   });
 
   it('should handle previous button on note step', () => {
@@ -1848,6 +1891,73 @@ describe('StatusBottomSheet', () => {
       expect(mockSetSelectedCall).toHaveBeenCalledWith(activeCall);
       expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
     });
+  });
+
+  it('should scroll the auto-selected active call into view once its row lays out', async () => {
+    const { ScrollView } = require('react-native');
+    const scrollToSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+
+    const activeCall = {
+      CallId: 'active-call-123',
+      Number: 'C123',
+      Name: 'Active Emergency Call',
+      Address: '123 Active St',
+    };
+
+    const selectedStatus = {
+      Id: 'status-1',
+      Text: 'Responding',
+      Detail: 2, // Show calls
+      Note: 0,
+    };
+
+    const coreStoreWithActiveCall = {
+      ...defaultCoreStore,
+      activeCallId: 'active-call-123',
+    };
+    mockGetState.mockReturnValue(coreStoreWithActiveCall as any);
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      if (selector) {
+        return selector(coreStoreWithActiveCall);
+      }
+      return coreStoreWithActiveCall;
+    });
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus,
+        availableCalls: [{ CallId: 'other-call-456', Number: 'C456', Name: 'Other Call', Address: '456 Other St' }, activeCall],
+        isLoading: false,
+        selectedCall: null,
+        selectedDestinationType: 'none',
+      };
+      if (selector) {
+        return selector(store);
+      }
+      return store;
+    });
+
+    render(<StatusBottomSheet />);
+
+    await waitFor(() => {
+      expect(mockSetSelectedCall).toHaveBeenCalledWith(activeCall);
+    });
+
+    // The active call's row reports its position — the list should scroll to it
+    const activeRow = screen.getByText('C123 - Active Emergency Call');
+    fireEvent(activeRow, 'layout', { nativeEvent: { layout: { x: 0, y: 240, width: 320, height: 76 } } });
+
+    expect(scrollToSpy).toHaveBeenCalledWith({ y: 232, animated: true });
+
+    // A different row laying out must not scroll (only the pending active call does)
+    scrollToSpy.mockClear();
+    const otherRow = screen.getByText('C456 - Other Call');
+    fireEvent(otherRow, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 76 } } });
+    expect(scrollToSpy).not.toHaveBeenCalled();
+
+    scrollToSpy.mockRestore();
   });
 
   it('should not pre-select active call when calls are not enabled (detailLevel 1)', () => {

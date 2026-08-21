@@ -1,353 +1,537 @@
+/**
+ * Renders the REAL LoginForm.
+ *
+ * The previous suite did `jest.mock('../login-form')` and asserted against a hand-written
+ * stand-in, so the app's authentication entry point had zero coverage. Only the form's
+ * dependencies are mocked here (i18n, the language hook, the icon set and the keyboard
+ * module); the react-hook-form + zod wiring under test is the real thing.
+ */
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
-import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { Image, Keyboard } from 'react-native';
 
-// Mock the entire login-form module to replace the schema creation
-jest.mock('../login-form', () => {
+// ── Dependency mocks (must precede the subject import) ───────────────────────
+
+// The validation assertions below run the real zod schema through the real
+// zodResolver. jest-setup.ts used to stub zod globally, which made that
+// impossible; that stub has been removed, so no opt-out is needed here.
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => key,
+    i18n: { language: 'en' },
+  }),
+}));
+
+// Mirrors the global nativewind stub in jest-setup.ts (gluestack needs styled/cssInterop
+// to stay pass-through) but lets the colour scheme be driven per test.
+let mockColorScheme = 'light';
+jest.mock('nativewind', () => ({
+  __esModule: true,
+  styled: jest.fn((Component: unknown) => Component),
+  vars: jest.fn((v: unknown) => v),
+  cssInterop: jest.fn((Component: unknown) => Component),
+  useColorScheme: () => ({ colorScheme: mockColorScheme, get: () => mockColorScheme }),
+}));
+
+const mockSetLanguage = jest.fn();
+jest.mock('@/lib', () => ({
+  translate: (key: string) => key,
+  useSelectedLanguage: () => ({ language: 'en', setLanguage: mockSetLanguage }),
+}));
+
+jest.mock('lucide-react-native', () => {
   const React = require('react');
-  const { View, Text, TouchableOpacity, TextInput } = require('react-native');
-
-  const MockLoginForm = ({ onSubmit = () => { }, isLoading = false, error = undefined, onServerUrlPress }: any) => {
-    const [username, setUsername] = React.useState('');
-    const [password, setPassword] = React.useState('');
-    const [showPassword, setShowPassword] = React.useState(false);
-
-    const handleSubmit = () => {
-      onSubmit({ username, password });
-    };
-
-    return (
-      <View testID="login-form">
-        <Text>Username</Text>
-        <TextInput
-          testID="username-input"
-          value={username}
-          onChangeText={setUsername}
-          placeholder="Enter username"
-        />
-        <Text>Password</Text>
-        <View>
-          <TextInput
-            testID="password-input"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="Enter password"
-            secureTextEntry={!showPassword}
-          />
-          <TouchableOpacity
-            testID="input-slot"
-            onPress={() => setShowPassword(!showPassword)}
-          >
-            <Text>{showPassword ? 'Hide' : 'Show'}</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity testID="submit-button" onPress={handleSubmit} disabled={isLoading}>
-          {isLoading && <View testID="button-spinner" />}
-          <Text>{isLoading ? 'Signing in...' : 'Log in'}</Text>
-        </TouchableOpacity>
-        {onServerUrlPress && (
-          <TouchableOpacity onPress={onServerUrlPress}>
-            <Text>Server URL</Text>
-          </TouchableOpacity>
-        )}
-        {error && <Text testID="error-message">{error}</Text>}
-      </View>
-    );
+  const { View } = require('react-native');
+  const makeIcon = (testID: string) => {
+    const Icon = React.forwardRef((props: Record<string, unknown>, ref: unknown) => React.createElement(View, { testID, ...props, ref }));
+    Icon.displayName = testID;
+    return Icon;
   };
-
   return {
-    LoginForm: MockLoginForm,
+    AlertTriangle: makeIcon('alert-triangle-icon'),
+    ChevronDownIcon: makeIcon('chevron-down-icon'),
+    EyeIcon: makeIcon('eye-icon'),
+    EyeOffIcon: makeIcon('eye-off-icon'),
+    Globe: makeIcon('globe-icon'),
+    ShieldCheck: makeIcon('shield-check-icon'),
   };
 });
+
+import { GluestackUIProvider } from '@/components/ui/gluestack-ui-provider';
 
 import { LoginForm } from '../login-form';
 
-// Mock react-i18next
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const translations: Record<string, string> = {
-        'login.username': 'Username',
-        'login.password': 'Password',
-        'login.username_placeholder': 'Enter username',
-        'login.password_placeholder': 'Enter password',
-        'login.login_button_loading': 'Signing in...',
-        'login.password_incorrect': 'Incorrect password',
-        'settings.server_url': 'Server URL',
-        'form.required': 'This field is required',
-      };
-      return translations[key] || key;
-    },
-  }),
-}));
+const USERNAME_PLACEHOLDER = 'login.username_placeholder';
+const PASSWORD_PLACEHOLDER = 'login.password_placeholder';
+const SUBMIT_LABEL = 'login.login_button';
+/** Accessible names for the icon-only reveal toggle (the i18n mock echoes the key). */
+const SHOW_PASSWORD_LABEL = 'login.show_password';
+const HIDE_PASSWORD_LABEL = 'login.hide_password';
 
-// Mock nativewind
-jest.mock('nativewind', () => ({
-  styled: jest.fn((Component: any) => Component),
-  useColorScheme: () => ({
-    colorScheme: 'light',
-  }),
-}));
-
-// Mock react-native-keyboard-controller
-jest.mock('react-native-keyboard-controller', () => ({
-  KeyboardAvoidingView: ({ children }: any) => children,
-}));
-
-// Mock react-hook-form
-jest.mock('react-hook-form', () => ({
-  useForm: () => ({
-    control: {},
-    handleSubmit: (fn: any) => fn,
-    formState: { errors: {} },
-  }),
-  Controller: ({ render }: any) => {
-    const fieldProps = {
-      field: {
-        onChange: jest.fn(),
-        onBlur: jest.fn(),
-        value: '',
-      },
-    };
-    return render(fieldProps);
-  },
-}));
-
-// Mock @hookform/resolvers/zod
-jest.mock('@hookform/resolvers/zod', () => ({
-  zodResolver: () => ({}),
-}));
-
-// Mock React Native modules to avoid native module issues
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-
-  // Create a safe mock for Settings that won't try to access native modules
-  const mockSettings = {
-    get: jest.fn(),
-    set: jest.fn(),
-    watchKeys: jest.fn(() => ({ remove: jest.fn() })),
-  };
-
-  const mockKeyboard = {
-    dismiss: jest.fn(),
-    addListener: jest.fn(() => ({ remove: jest.fn() })),
-    removeAllListeners: jest.fn(),
-    removeListener: jest.fn(),
-  };
-
-  // Don't spread the entire RN object to avoid including problematic native modules
-  return {
-    View: RN.View,
-    Text: RN.Text,
-    TextInput: RN.TextInput,
-    TouchableOpacity: RN.TouchableOpacity,
-    Image: RN.Image,
-    ActivityIndicator: RN.ActivityIndicator,
-    ScrollView: RN.ScrollView,
-    Platform: RN.Platform,
-    Dimensions: RN.Dimensions,
-    StyleSheet: RN.StyleSheet,
-    Alert: RN.Alert,
-    Keyboard: mockKeyboard,
-    Settings: mockSettings,
-    // Mock TurboModuleRegistry to prevent any native module access
-    TurboModuleRegistry: {
-      getEnforcing: jest.fn(() => ({})),
-      get: jest.fn(() => ({})),
-    },
-  };
-});
-
-// Mock UI components
-jest.mock('@/components/ui', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-
-  return {
-    View: ({ children, className }: any) => React.createElement(View, { className }, children),
-  };
-});
-
-jest.mock('@/components/ui/button', () => {
-  const React = require('react');
-  const { TouchableOpacity, Text, ActivityIndicator } = require('react-native');
-
-  return {
-    Button: ({ children, onPress, className, variant, action }: any) =>
-      React.createElement(TouchableOpacity, { onPress, testID: 'button', className }, children),
-    ButtonText: ({ children }: any) => React.createElement(Text, {}, children),
-    ButtonSpinner: ({ color }: any) => React.createElement(ActivityIndicator, { color, testID: 'button-spinner' }),
-  };
-});
-
-jest.mock('@/components/ui/form-control', () => {
-  const React = require('react');
-  const { View, Text } = require('react-native');
-
-  return {
-    FormControl: ({ children, isInvalid, className }: any) =>
-      React.createElement(View, { className, testID: isInvalid ? 'form-control-invalid' : 'form-control' }, children),
-    FormControlLabel: ({ children }: any) => React.createElement(View, {}, children),
-    FormControlLabelText: ({ children }: any) => React.createElement(Text, {}, children),
-    FormControlError: ({ children }: any) => React.createElement(View, { testID: 'form-control-error' }, children),
-    FormControlErrorIcon: ({ as: IconComponent, className }: any) =>
-      React.createElement(View, { testID: 'form-control-error-icon', className }),
-    FormControlErrorText: ({ children, className }: any) =>
-      React.createElement(Text, { className, testID: 'form-control-error-text' }, children),
-  };
-});
-
-jest.mock('@/components/ui/input', () => {
-  const React = require('react');
-  const { View, TextInput, TouchableOpacity } = require('react-native');
-
-  return {
-    Input: ({ children }: any) => React.createElement(View, { testID: 'input' }, children),
-    InputField: ({ value, onChangeText, onBlur, onSubmitEditing, placeholder, type, ...props }: any) =>
-      React.createElement(TextInput, {
-        value,
-        onChangeText,
-        onBlur,
-        onSubmitEditing,
-        placeholder,
-        secureTextEntry: type === 'password',
-        testID: 'input-field',
-        ...props
-      }),
-    InputSlot: ({ children, onPress }: any) =>
-      React.createElement(TouchableOpacity, { onPress, testID: 'input-slot' }, children),
-    InputIcon: ({ as: IconComponent }: any) =>
-      React.createElement(View, { testID: 'input-icon' }),
-  };
-});
-
-jest.mock('@/components/ui/text', () => {
-  const React = require('react');
-  const { Text } = require('react-native');
-
-  return {
-    Text: ({ children, className }: any) => React.createElement(Text, { className }, children),
-  };
-});
-
-// Mock lucide icons
-jest.mock('lucide-react-native', () => ({
-  AlertTriangle: () => null,
-  EyeIcon: () => null,
-  EyeOffIcon: () => null,
-}));
-
-// Mock colors
-jest.mock('@/constants/colors', () => ({
-  light: {
-    neutral: {
-      400: '#9CA3AF',
-    },
-  },
-}));
+/** Fills both fields and presses Sign In, then waits for the async resolver to settle. */
+const submitWith = async (username: string, password: string) => {
+  fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), username);
+  fireEvent.changeText(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), password);
+  fireEvent.press(screen.getByLabelText(SUBMIT_LABEL));
+};
 
 describe('LoginForm', () => {
-  const defaultProps = {
-    onSubmit: jest.fn(),
-    isLoading: false,
-    error: undefined,
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
+    mockColorScheme = 'light';
   });
 
-  it('renders all form fields', () => {
-    render(<LoginForm {...defaultProps} />);
+  describe('rendering', () => {
+    it('renders the heading, both credential fields and the submit control', () => {
+      const { unmount } = render(<LoginForm />);
 
-    expect(screen.getByText('Username')).toBeTruthy();
-    expect(screen.getByText('Password')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Enter username')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Enter password')).toBeTruthy();
-    expect(screen.getByText('Log in')).toBeTruthy();
+      expect(screen.getByText('login.title')).toBeTruthy();
+      expect(screen.getByText('login.subtitle')).toBeTruthy();
+      expect(screen.getByText('login.username')).toBeTruthy();
+      expect(screen.getByText('login.password')).toBeTruthy();
+      expect(screen.getByPlaceholderText(USERNAME_PLACEHOLDER)).toBeTruthy();
+      expect(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER)).toBeTruthy();
+      expect(screen.getByLabelText(SUBMIT_LABEL)).toBeTruthy();
+
+      unmount();
+    });
+
+    it('keeps credential fields free of autocapitalisation and autocomplete', () => {
+      // Capitalising the first letter of a username is a classic "my password stopped
+      // working" support ticket.
+      const { unmount } = render(<LoginForm />);
+
+      for (const placeholder of [USERNAME_PLACEHOLDER, PASSWORD_PLACEHOLDER]) {
+        const field = screen.getByPlaceholderText(placeholder);
+        expect(field.props.autoCapitalize).toBe('none');
+        expect(field.props.autoComplete).toBe('off');
+      }
+
+      unmount();
+    });
+
+    it('swaps the wordmark for the light-on-dark asset in dark mode', () => {
+      const { unmount } = render(<LoginForm />);
+      const lightLogo = screen.UNSAFE_getByType(Image).props.source;
+      unmount();
+
+      mockColorScheme = 'dark';
+      const dark = render(<LoginForm />);
+      const darkLogo = screen.UNSAFE_getByType(Image).props.source;
+
+      // A dark-mode login screen showing the dark wordmark is an invisible logo.
+      expect(darkLogo).not.toEqual(lightLogo);
+
+      dark.unmount();
+    });
+
+    it('masks the password field by default', () => {
+      const { unmount } = render(<LoginForm />);
+
+      expect(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER).props.secureTextEntry).toBe(true);
+      expect(screen.getByPlaceholderText(USERNAME_PLACEHOLDER).props.secureTextEntry).toBeFalsy();
+
+      unmount();
+    });
+
+    it('reveals and re-masks the password when the reveal toggle is pressed', () => {
+      // Driven by accessible name rather than icon testID: that is how a screen-reader user
+      // reaches this control, so the test fails if the label regresses.
+      const { unmount } = render(<LoginForm />);
+
+      expect(screen.getByTestId('eye-off-icon', { includeHiddenElements: true })).toBeTruthy();
+
+      fireEvent.press(screen.getByLabelText(SHOW_PASSWORD_LABEL));
+
+      expect(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER).props.secureTextEntry).toBe(false);
+      expect(screen.getByTestId('eye-icon', { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.queryByTestId('eye-off-icon', { includeHiddenElements: true })).toBeNull();
+
+      fireEvent.press(screen.getByLabelText(HIDE_PASSWORD_LABEL));
+
+      expect(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER).props.secureTextEntry).toBe(true);
+
+      unmount();
+    });
+
+    it('names the reveal toggle for assistive tech and flips the name with its state', () => {
+      // An unlabelled icon-only toggle announces as a bare "button"; the name must also
+      // describe what the press will do, not what the field currently is.
+      const { unmount } = render(<LoginForm />);
+
+      const toggle = screen.getByLabelText(SHOW_PASSWORD_LABEL);
+      expect(toggle.props.accessibilityRole).toBe('button');
+      expect(screen.queryByLabelText(HIDE_PASSWORD_LABEL)).toBeNull();
+
+      fireEvent.press(toggle);
+
+      expect(screen.getByLabelText(HIDE_PASSWORD_LABEL)).toBeTruthy();
+      expect(screen.queryByLabelText(SHOW_PASSWORD_LABEL)).toBeNull();
+
+      unmount();
+    });
   });
 
-  it('renders server URL button when onServerUrlPress prop is provided', () => {
-    const onServerUrlPress = jest.fn();
-    render(<LoginForm {...defaultProps} onServerUrlPress={onServerUrlPress} />);
+  describe('validation', () => {
+    it('blocks submission and reports both fields when nothing is entered', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
 
-    expect(screen.getByText('Server URL')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText(SUBMIT_LABEL));
+
+      // These strings come from the real zod schema in login-form.tsx.
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+      expect(screen.getByText('Password is required')).toBeTruthy();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('rejects a username shorter than three characters', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('ab', 'correct-horse');
+
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+      expect(screen.queryByText('Password is required')).toBeNull();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('accepts a three-character username — the boundary is inclusive', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('abc', 'correct-horse');
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText('Username must be at least 3 characters')).toBeNull();
+
+      unmount();
+    });
+
+    it('rejects an empty password even when the username is valid', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('responder', '');
+
+      expect(await screen.findByText('Password is required')).toBeTruthy();
+      expect(screen.queryByText('Username must be at least 3 characters')).toBeNull();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('accepts a single-character password — the schema sets no minimum length', async () => {
+      // Documents the schema as written: only emptiness is rejected.
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('responder', 'x');
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][0]).toEqual({ username: 'responder', password: 'x' });
+
+      unmount();
+    });
+
+    it('reports the schema message verbatim, never a serialised ZodError', async () => {
+      // The controlled fields used to carry their own `rules` whose validate() returned a
+      // caught ZodError's `.message` — a JSON blob of issue objects. react-hook-form ignores
+      // field-level rules when a resolver is supplied, so they were dead weight that would
+      // have gone live (and user-visible) the moment anyone dropped zodResolver. The zod
+      // schema is now the single source of truth; this pins the message a user actually sees.
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('ab', '');
+
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+      expect(screen.getByText('Password is required')).toBeTruthy();
+      // A ZodError message serialises its issues, e.g. {"code": "too_small", ...}.
+      expect(screen.queryByText(/"code"|too_small|invalid_type/)).toBeNull();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('validates the username on its own, not against a placeholder password', async () => {
+      // The removed username rule parsed {username: value, password: 'placeholder'}, so it
+      // could never fail on the password and would have masked an empty one. Both fields
+      // must be reported independently.
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('responder', '');
+
+      expect(await screen.findByText('Password is required')).toBeTruthy();
+      expect(screen.queryByText('Username must be at least 3 characters')).toBeNull();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('clears the error once the offending field is corrected and resubmitted', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      await submitWith('ab', 'correct-horse');
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+
+      fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'responder');
+      fireEvent.press(screen.getByLabelText(SUBMIT_LABEL));
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(screen.queryByText('Username must be at least 3 characters')).toBeNull();
+
+      unmount();
+    });
   });
 
-  it('does not render server URL button when onServerUrlPress prop is not provided', () => {
-    render(<LoginForm {...defaultProps} />);
+  describe('submission', () => {
+    it('hands the entered credentials to onSubmit', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
 
-    expect(screen.queryByText('Server URL')).toBeNull();
+      await submitWith('responder', 'correct-horse');
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][0]).toEqual({ username: 'responder', password: 'correct-horse' });
+
+      unmount();
+    });
+
+    it('submits from the keyboard return key and dismisses the keyboard first', async () => {
+      const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'responder');
+      fireEvent.changeText(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'correct-horse');
+      fireEvent(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'submitEditing');
+
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+      expect(onSubmit.mock.calls[0][0]).toEqual({ username: 'responder', password: 'correct-horse' });
+      expect(dismissSpy).toHaveBeenCalled();
+
+      dismissSpy.mockRestore();
+      unmount();
+    });
+
+    it('does not submit from the keyboard when the entry is invalid', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} />);
+
+      fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'ab');
+      fireEvent(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'submitEditing');
+
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('renders without crashing when no onSubmit handler is supplied', async () => {
+      // The prop is optional and defaults to a no-op; a valid submit must not throw.
+      const { unmount } = render(<LoginForm />);
+
+      await submitWith('responder', 'correct-horse');
+      await waitFor(() => expect(screen.queryByText('Username must be at least 3 characters')).toBeNull());
+
+      expect(screen.getByLabelText(SUBMIT_LABEL)).toBeTruthy();
+
+      unmount();
+    });
   });
 
-  it('calls onServerUrlPress when server URL button is pressed', () => {
-    const onServerUrlPress = jest.fn();
-    render(<LoginForm {...defaultProps} onServerUrlPress={onServerUrlPress} />);
+  describe('in-flight state', () => {
+    it('swaps the submit control for a spinner and blocks further submits while loading', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} isLoading />);
 
-    const serverUrlButton = screen.getByText('Server URL').parent;
-    if (serverUrlButton) {
-      fireEvent.press(serverUrlButton);
+      expect(screen.getByText('login.login_button_loading')).toBeTruthy();
+      // The pressable submit control is gone entirely while a login is in flight.
+      expect(screen.queryByLabelText(SUBMIT_LABEL)).toBeNull();
+
+      fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'responder');
+      fireEvent.changeText(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'correct-horse');
+      fireEvent.press(screen.getByText('login.login_button_loading'));
+
+      await act(async () => {});
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('restores the submit control when loading finishes', () => {
+      const { unmount } = render(<LoginForm isLoading />);
+
+      expect(screen.queryByLabelText(SUBMIT_LABEL)).toBeNull();
+
+      screen.rerender(<LoginForm isLoading={false} />);
+
+      expect(screen.getByLabelText(SUBMIT_LABEL)).toBeTruthy();
+      expect(screen.queryByText('login.login_button_loading')).toBeNull();
+
+      unmount();
+    });
+  });
+
+  describe('error surfacing', () => {
+    it('shows the failure message handed down from the login attempt', () => {
+      const { unmount } = render(<LoginForm error="Invalid username or password" />);
+
+      expect(screen.getByText('Invalid username or password')).toBeTruthy();
+
+      unmount();
+    });
+
+    it('renders no error text when there is no error', () => {
+      const { unmount } = render(<LoginForm />);
+
+      expect(screen.queryByText('Invalid username or password')).toBeNull();
+
+      unmount();
+    });
+
+    it('clears the message once the error prop goes away', () => {
+      const { unmount } = render(<LoginForm error="Invalid username or password" />);
+
+      screen.rerender(<LoginForm error={undefined} />);
+
+      expect(screen.queryByText('Invalid username or password')).toBeNull();
+
+      unmount();
+    });
+
+    it('surfaces a rejected login through the banner alone, with no field-level duplicate', () => {
+      // The form has exactly one error surface for a rejected login: the banner fed by the
+      // `error` prop, which app/login/index.tsx wires to the auth store's failure string.
+      // A second, field-level "password was incorrect" message used to be rendered behind a
+      // `validated` flag that had no setter and so could never turn false — dead code that
+      // read as a live feature. Nothing upstream attributes a failure to a specific field,
+      // so the banner stays the single honest path.
+      const { unmount } = render(<LoginForm error="Invalid username or password" />);
+
+      expect(screen.getByText('Invalid username or password')).toBeTruthy();
+      expect(screen.queryByText('login.password_incorrect')).toBeNull();
+
+      unmount();
+    });
+
+    it('keeps the banner and the field validation as separate, non-overlapping surfaces', async () => {
+      // A server rejection and a client-side schema failure can be on screen at once; neither
+      // may leak into the other's slot.
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} error="Invalid username or password" />);
+
+      await submitWith('ab', '');
+
+      expect(await screen.findByText('Username must be at least 3 characters')).toBeTruthy();
+      expect(screen.getByText('Invalid username or password')).toBeTruthy();
+      expect(screen.queryByText('login.password_incorrect')).toBeNull();
+
+      unmount();
+    });
+  });
+
+  describe('secondary affordances', () => {
+    it('renders and wires the server URL button only when a handler is supplied', () => {
+      const { unmount } = render(<LoginForm />);
+      expect(screen.queryByText('settings.server_url')).toBeNull();
+      unmount();
+
+      const onServerUrlPress = jest.fn();
+      const second = render(<LoginForm onServerUrlPress={onServerUrlPress} />);
+
+      fireEvent.press(screen.getByText('settings.server_url'));
       expect(onServerUrlPress).toHaveBeenCalledTimes(1);
-    }
+
+      second.unmount();
+    });
+
+    it('renders and wires the SSO button only when a handler is supplied', () => {
+      const { unmount } = render(<LoginForm />);
+      expect(screen.queryByText('login.sso_button')).toBeNull();
+      expect(screen.queryByTestId('shield-check-icon', { includeHiddenElements: true })).toBeNull();
+      unmount();
+
+      const onSsoPress = jest.fn();
+      const second = render(<LoginForm onSsoPress={onSsoPress} />);
+
+      expect(screen.getByTestId('shield-check-icon', { includeHiddenElements: true })).toBeTruthy();
+      fireEvent.press(screen.getByText('login.sso_button'));
+      expect(onSsoPress).toHaveBeenCalledTimes(1);
+
+      second.unmount();
+    });
+
+    it('does not submit the form when a secondary button is pressed', async () => {
+      const onSubmit = jest.fn();
+      const { unmount } = render(<LoginForm onSubmit={onSubmit} onServerUrlPress={jest.fn()} onSsoPress={jest.fn()} />);
+
+      // Fill in valid credentials first: with an empty form, validation alone would stop a
+      // stray submit and the assertion below would pass for the wrong reason.
+      fireEvent.changeText(screen.getByPlaceholderText(USERNAME_PLACEHOLDER), 'responder');
+      fireEvent.changeText(screen.getByPlaceholderText(PASSWORD_PLACEHOLDER), 'correct-horse');
+
+      fireEvent.press(screen.getByText('settings.server_url'));
+      fireEvent.press(screen.getByText('login.sso_button'));
+
+      // handleSubmit resolves asynchronously, so flush before concluding nothing submitted.
+      await act(async () => {});
+      expect(onSubmit).not.toHaveBeenCalled();
+
+      unmount();
+    });
   });
 
-  it('shows loading state when isLoading is true', () => {
-    render(<LoginForm {...defaultProps} isLoading={true} />);
+  describe('language selector', () => {
+    // The trigger's TextInput is aria-hidden by gluestack, so it needs the hidden-element opt-in.
+    const getLanguageTrigger = () => screen.getByPlaceholderText('settings.language', { includeHiddenElements: true });
 
-    expect(screen.getByTestId('button-spinner')).toBeTruthy();
-    expect(screen.getByText('Signing in...')).toBeTruthy();
-  });
+    it('reflects the currently selected language', () => {
+      const { unmount } = render(<LoginForm />);
 
-  it('allows user to toggle password visibility', () => {
-    render(<LoginForm {...defaultProps} />);
+      expect(getLanguageTrigger().props.value).toBe('en');
 
-    const passwordField = screen.getByPlaceholderText('Enter password');
-    const toggleButton = screen.getByTestId('input-slot');
+      unmount();
+    });
 
-    // Initially should be secured
-    expect(passwordField.props.secureTextEntry).toBe(true);
-
-    // Toggle visibility
-    fireEvent.press(toggleButton);
-
-    // Re-query the password field and verify it's now visible
-    const updatedPasswordField = screen.getByPlaceholderText('Enter password');
-    expect(updatedPasswordField.props.secureTextEntry).toBe(false);
-  });
-
-  it('calls onSubmit with form data when form is submitted', async () => {
-    const onSubmit = jest.fn();
-    render(<LoginForm {...defaultProps} onSubmit={onSubmit} />);
-
-    const usernameField = screen.getByPlaceholderText('Enter username');
-    const passwordField = screen.getByPlaceholderText('Enter password');
-    const submitButton = screen.getByText('Log in').parent;
-
-    fireEvent.changeText(usernameField, 'testuser');
-    fireEvent.changeText(passwordField, 'testpass');
-
-    if (submitButton) {
-      fireEvent.press(submitButton);
-
-      await waitFor(() => {
-        expect(onSubmit).toHaveBeenCalledTimes(1);
-      });
-
-      expect(onSubmit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          username: 'testuser',
-          password: 'testpass'
-        })
+    it('offers every supported language and reports the choice back to the language hook', async () => {
+      const { unmount } = render(
+        <GluestackUIProvider>
+          <LoginForm />
+        </GluestackUIProvider>
       );
-    }
-  });
 
-  it('disables form when loading', () => {
-    render(<LoginForm {...defaultProps} isLoading={true} />);
+      fireEvent.press(getLanguageTrigger());
 
-    // When loading, the submit button should show loading state
-    expect(screen.getByTestId('button-spinner')).toBeTruthy();
-    expect(screen.queryByText('Signing in...')).toBeTruthy();
+      // All ten options the form declares must be reachable.
+      for (const key of [
+        'settings.english',
+        'settings.spanish',
+        'settings.swedish',
+        'settings.german',
+        'settings.greek',
+        'settings.french',
+        'settings.italian',
+        'settings.polish',
+        'settings.ukrainian',
+        'settings.arabic',
+      ]) {
+        expect(await screen.findByText(key)).toBeTruthy();
+      }
+
+      fireEvent.press(screen.getByText('settings.spanish'));
+
+      await waitFor(() => expect(mockSetLanguage).toHaveBeenCalledWith('es'));
+
+      unmount();
+    });
   });
 });

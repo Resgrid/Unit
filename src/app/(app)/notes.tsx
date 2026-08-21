@@ -30,13 +30,20 @@ export default function Notes() {
     fetchNotes();
   }, [fetchNotes]);
 
+  // Search query is read through a ref so typing does not fire an analytics
+  // event per keystroke — the effect below must not depend on searchQuery.
+  const searchQueryRef = React.useRef(searchQuery);
+  React.useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
   // Track when notes view is rendered
   React.useEffect(() => {
     trackEvent('notes_view_rendered', {
       notesCount: notes.length,
-      hasSearchQuery: searchQuery.length > 0,
+      hasSearchQuery: searchQueryRef.current.length > 0,
     });
-  }, [trackEvent, notes.length, searchQuery]);
+  }, [trackEvent, notes.length]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -65,7 +72,7 @@ export default function Notes() {
             </InputSlot>
             <InputField placeholder={t('notes.search')} value={searchQuery} onChangeText={setSearchQuery} />
             {searchQuery ? (
-              <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+              <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button" accessibilityRole="button" accessibilityLabel={t('common.clear_search')}>
                 <InputIcon as={X} />
               </InputSlot>
             ) : null}

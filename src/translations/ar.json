@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "تعذر تحميل بيانات التطبيق. يرجى التحقق من اتصالك والمحاولة مرة أخرى.",
     "title": "وحدة ريسغريد"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "مطبق",
     "audio": "صوت",
     "audioActive": "الصوت نشط",
+    "audio_capable": "يدعم الصوت",
     "audio_device": "سماعة BT",
     "audio_output": "مخرج الصوت",
     "availableDevices": "الأجهزة المتاحة",
@@ -47,6 +49,8 @@
     "connect": "اتصال",
     "connected": "متصل",
     "connectionError": "خطأ في الاتصال",
+    "connection_error_message": "تعذر الاتصال بالجهاز",
+    "connection_error_title": "فشل الاتصال",
     "current_selection": "الاختيار الحالي",
     "device_disconnected": "تم فصل الجهاز",
     "disconnect": "قطع الاتصال",
@@ -104,10 +108,12 @@
     "loading": "جاري التحميل...",
     "no_images": "لا توجد صور متاحة",
     "no_images_description": "أضف صورًا إلى مكالمتك للمساعدة في التوثيق والتواصل",
+    "not_signed_in": "يجب تسجيل الدخول لرفع الصور",
     "select_from_gallery": "اختر من المعرض",
     "take_photo": "التقط صورة",
     "title": "صور المكالمة",
-    "upload": "رفع"
+    "upload": "رفع",
+    "upload_error": "خطأ في رفع الصورة"
   },
   "callNotes": {
     "addNote": "إضافة ملاحظة",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "الاتجاهات",
+    "directions_to_destination": "الاتجاهات إلى الوجهة",
     "dispatch_to": "إرسال إلى",
     "dispatch_to_everyone": "إرسال إلى جميع الموظفين المتاحين",
     "edit_call": "تعديل المكالمة",
     "edit_call_description": "تحديث معلومات المكالمة",
+    "errors": {
+      "load_failed": "فشل تحميل المكالمات"
+    },
     "everyone": "الجميع",
     "field_policy_loading": "لا يزال يتم تحميل إعدادات البلاغات في قسمك، يرجى المحاولة مرة أخرى بعد لحظات",
     "files": {
+      "error": "خطأ في الحصول على الملفات",
+      "file_name": "اسم الملف",
       "no_files": "لا توجد ملفات متاحة",
       "no_files_description": "لم تتم إضافة أي ملفات إلى هذه المكالمة بعد",
+      "open_error": "خطأ في فتح الملف",
+      "share_error": "خطأ في مشاركة الملف",
+      "sharing_unavailable": "المشاركة غير متاحة على هذا الجهاز",
       "title": "ملفات المكالمة"
     },
     "geocoding_error": "فشل البحث عن العنوان، يرجى المحاولة مرة أخرى",
@@ -308,6 +323,7 @@
     "users": "المستخدمين",
     "viewNotes": "ملاحظات",
     "view_details": "عرض التفاصيل",
+    "view_on_map": "عرض على الخريطة",
     "what3words": "what3words",
     "what3words_found": "تم العثور على عنوان what3words وتم تحديث الموقع",
     "what3words_geocoding_error": "فشل في البحث عن عنوان what3words، يرجى المحاولة مرة أخرى",
@@ -433,6 +449,7 @@
     "add": "إضافة",
     "back": "رجوع",
     "cancel": "إلغاء",
+    "clear_search": "مسح البحث",
     "close": "إغلاق",
     "confirm": "تأكيد",
     "confirm_location": "تأكيد الموقع",
@@ -454,6 +471,7 @@
     "no_address_found": "لم يتم العثور على عنوان",
     "no_location": "لا توجد بيانات موقع متاحة",
     "no_results_found": "لم يتم العثور على نتائج",
+    "no_unit": "لا توجد وحدة",
     "no_unit_selected": "لم يتم اختيار وحدة",
     "nothingToDisplay": "لا يوجد شيء للعرض في الوقت الحالي",
     "of": "من",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "انقر على الخريطة لتحديد الموقع",
     "tryAgainLater": "يرجى المحاولة مرة أخرى لاحقًا",
     "unknown": "غير معروف",
+    "unknown_error": "حدث خطأ غير معروف",
     "upload": "رفع",
     "uploading": "جاري الرفع..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "جهات الاتصال",
     "twitter": "تويتر",
+    "unknown_company": "شركة غير معروفة",
+    "unknown_person": "شخص غير معروف",
     "visibility": "الرؤية",
     "website": "الموقع الإلكتروني",
     "zip": "الرمز البريدي"
@@ -659,6 +680,7 @@
       "message": "يرجى التحقق من اسم المستخدم وكلمة المرور والمحاولة مرة أخرى.",
       "title": "فشل تسجيل الدخول"
     },
+    "hide_password": "إخفاء كلمة المرور",
     "login": "تسجيل الدخول",
     "login_button": "تسجيل الدخول",
     "login_button_description": "قم بتسجيل الدخول إلى حسابك للمتابعة",
@@ -667,8 +689,8 @@
     "login_button_success": "تم تسجيل الدخول بنجاح",
     "or_sign_in_with_password": "أو تسجيل الدخول بكلمة المرور",
     "password": "كلمة المرور",
-    "password_incorrect": "كانت كلمة المرور غير صحيحة",
     "password_placeholder": "أدخل كلمة المرور الخاصة بك",
+    "show_password": "إظهار كلمة المرور",
     "sso_button": "تسجيل الدخول عبر SSO",
     "sso_department": "SSO مقدم من {{name}}",
     "sso_department_id": "معرف القسم (اختياري)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "تم تعيين المكالمة كمكالمة حالية",
     "failed_to_open_maps": "فشل في فتح تطبيق الخرائط",
     "failed_to_set_current_call": "فشل في تعيين المكالمة كمكالمة حالية",
+    "lock_map": "تثبيت الخريطة على الوحدة",
     "no_location_for_routing": "لا توجد بيانات موقع متاحة للتوجيه",
     "pin_address": "Address",
     "pin_color": "لون الدبوس",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "إعادة توسيط الخريطة",
     "set_as_current_call": "تعيين كمكالمة حالية",
+    "unlock_map": "إلغاء تثبيت الخريطة",
     "view_call_details": "عرض تفاصيل المكالمة",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "البحث في الملاحظات...",
     "title": "الملاحظات"
   },
+  "notifications": {
+    "confirm_delete_message_count": "هل أنت متأكد من حذف {{count}} إشعارات؟ لا يمكن التراجع عن هذا الإجراء.",
+    "confirm_delete_message_one": "هل أنت متأكد من حذف هذا الإشعار؟ لا يمكن التراجع عن هذا الإجراء.",
+    "confirm_delete_title": "تأكيد الحذف",
+    "delete_selected": "حذف الإشعارات المحددة",
+    "deselect_all": "إلغاء تحديد الكل",
+    "empty": "لا توجد تحديثات",
+    "enter_selection_mode": "تحديد الإشعارات",
+    "open": "فتح الإشعارات",
+    "remove_failed_count": "فشل حذف الإشعارات",
+    "remove_failed_one": "فشل حذف الإشعار",
+    "removed_count": "تم حذف {{count}} إشعارات",
+    "removed_one": "تم حذف الإشعار",
+    "select_all": "تحديد الكل",
+    "selected_count": "تم تحديد {{count}}",
+    "title": "الإشعارات",
+    "unable_to_load": "تعذر تحميل الإشعارات"
+  },
   "onboarding": {
     "message": "مرحبًا بك في تطبيق Resgrid Unit"
   },
@@ -782,12 +824,23 @@
     "view_call": "عرض المكالمة"
   },
   "roles": {
+    "assignedElsewhere": "في دور آخر",
+    "clearAssignment": "مسح الإسناد الحالي",
     "modal": {
       "title": "تعيينات أدوار الوحدة"
     },
+    "noUsersFound": "لم يتم العثور على مستخدمين",
+    "save_error": "خطأ في حفظ إسناد الأدوار",
+    "saved_successfully": "تم حفظ إسناد الأدوار بنجاح",
+    "searchUsers": "ابحث بالاسم أو المجموعة...",
     "selectUser": "اختر المستخدم",
+    "selectUserDescription": "اختر شخصًا لهذا الدور",
+    "selectUserForRole": "إسناد: {{role}}",
+    "selectUserLabel": "تحديد {{name}}",
     "status": "{{active}} من {{total}} أدوار نشطة",
+    "tapToAssign": "اضغط لإسناد مستخدم إلى {{role}}",
     "tap_to_manage": "انقر لإدارة الأدوار",
+    "title": "إسناد أدوار الوحدة",
     "unassigned": "غير معين"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "المسافة الإجمالية",
     "total_duration": "المدة الإجمالية",
     "traffic_delay": "{{time}} تأخير بسبب حركة المرور",
+    "traffic_heavy": "ازدحام كثيف",
+    "traffic_light": "ازدحام خفيف",
+    "traffic_moderate": "ازدحام معتدل",
+    "traffic_no_data": "لا توجد بيانات مرور",
+    "traffic_severe": "ازدحام شديد",
     "try_different_search": "Try a different search term",
     "type": "النوع",
     "unassigned": "غير معين",

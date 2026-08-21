@@ -17,6 +17,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { logger } from '@/lib/logging';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
@@ -153,7 +154,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
           dialogTitle: file.Name || file.FileName,
         });
       } else {
-        Alert.alert(t('calls.files.share_error'), 'Sharing is not available on this device');
+        Alert.alert(t('calls.files.share_error'), t('calls.files.sharing_unavailable'));
       }
 
       setDownloadingFiles((prev) => {
@@ -162,8 +163,8 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
         return newState;
       });
     } catch (error) {
-      console.error('Error downloading file:', error);
-      Alert.alert(t('calls.files.open_error'), error instanceof Error ? error.message : 'Unknown error occurred');
+      logger.error({ message: 'Error downloading call file', context: { error, callId, fileId: file.Id } });
+      Alert.alert(t('calls.files.open_error'), error instanceof Error ? error.message : t('common.unknown_error'));
       setDownloadingFiles((prev) => {
         const newState = { ...prev };
         delete newState[file.Id];
@@ -193,7 +194,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
             </Text>
             <HStack space="md" className="items-center">
               <Text className="text-sm text-gray-500 dark:text-gray-400">{formatFileSize(file.Size)}</Text>
-              {file.Timestamp && <Text className="text-sm text-gray-500 dark:text-gray-400">{formatDate(file.Timestamp)}</Text>}
+              {file.Timestamp ? <Text className="text-sm text-gray-500 dark:text-gray-400">{formatDate(file.Timestamp)}</Text> : null}
             </HStack>
           </VStack>
           <Box className="items-center justify-center">
@@ -254,7 +255,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
   return (
     <>
       <FocusAwareStatusBar hidden={true} />
-      {isOpen && (
+      {isOpen ? (
         <BottomSheet
           ref={bottomSheetRef}
           index={0}
@@ -288,7 +289,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
             </ScrollView>
           </BottomSheetView>
         </BottomSheet>
-      )}
+      ) : null}
     </>
   );
 };

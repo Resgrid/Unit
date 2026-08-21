@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "App-Daten konnten nicht geladen werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Angewendet",
     "audio": "Audio",
     "audioActive": "Audio aktiv",
+    "audio_capable": "Audiofähig",
     "audio_device": "BT-Handset",
     "audio_output": "Audioausgabe",
     "availableDevices": "Verfügbare Geräte",
@@ -47,6 +49,8 @@
     "connect": "Verbinden",
     "connected": "Verbunden",
     "connectionError": "Verbindungsfehler",
+    "connection_error_message": "Verbindung zum Gerät nicht möglich",
+    "connection_error_title": "Verbindung fehlgeschlagen",
     "current_selection": "Aktuelle Auswahl",
     "device_disconnected": "Gerät getrennt",
     "disconnect": "Trennen",
@@ -104,10 +108,12 @@
     "loading": "Laden...",
     "no_images": "Keine Bilder verfügbar",
     "no_images_description": "Fügen Sie Ihrem Anruf Bilder hinzu, um die Dokumentation und Kommunikation zu erleichtern",
+    "not_signed_in": "Sie müssen angemeldet sein, um Bilder hochzuladen",
     "select_from_gallery": "Aus Galerie auswählen",
     "take_photo": "Foto aufnehmen",
     "title": "Anrufbilder",
-    "upload": "Hochladen"
+    "upload": "Hochladen",
+    "upload_error": "Fehler beim Hochladen des Bildes"
   },
   "callNotes": {
     "addNote": "Notiz hinzufügen",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Wegbeschreibung",
+    "directions_to_destination": "Route zum Ziel",
     "dispatch_to": "Disponieren an",
     "dispatch_to_everyone": "An alle verfügbaren Einsatzkräfte disponieren",
     "edit_call": "Anruf bearbeiten",
     "edit_call_description": "Anrufinformationen aktualisieren",
+    "errors": {
+      "load_failed": "Anrufe konnten nicht geladen werden"
+    },
     "everyone": "Alle",
     "field_policy_loading": "Die Einsatzeinstellungen Ihrer Abteilung werden noch geladen, bitte versuchen Sie es gleich erneut",
     "files": {
+      "error": "Fehler beim Abrufen der Dateien",
+      "file_name": "Dateiname",
       "no_files": "Keine Dateien verfügbar",
       "no_files_description": "Diesem Anruf wurden noch keine Dateien hinzugefügt",
+      "open_error": "Fehler beim Öffnen der Datei",
+      "share_error": "Fehler beim Teilen der Datei",
+      "sharing_unavailable": "Teilen ist auf diesem Gerät nicht verfügbar",
       "title": "Anrufdateien"
     },
     "geocoding_error": "Adresssuche fehlgeschlagen, bitte erneut versuchen",
@@ -308,6 +323,7 @@
     "users": "Benutzer",
     "viewNotes": "Notizen",
     "view_details": "Details anzeigen",
+    "view_on_map": "Auf Karte anzeigen",
     "what3words": "what3words",
     "what3words_found": "what3words-Adresse gefunden und Standort aktualisiert",
     "what3words_geocoding_error": "Suche nach what3words-Adresse fehlgeschlagen, bitte erneut versuchen",
@@ -433,6 +449,7 @@
     "add": "Hinzufügen",
     "back": "Zurück",
     "cancel": "Abbrechen",
+    "clear_search": "Suche löschen",
     "close": "Schließen",
     "confirm": "Bestätigen",
     "confirm_location": "Standort bestätigen",
@@ -454,6 +471,7 @@
     "no_address_found": "Keine Adresse gefunden",
     "no_location": "Keine Standortdaten verfügbar",
     "no_results_found": "Keine Ergebnisse gefunden",
+    "no_unit": "Keine Einheit",
     "no_unit_selected": "Keine Einheit ausgewählt",
     "nothingToDisplay": "Im Moment gibt es nichts anzuzeigen",
     "of": "von",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Auf die Karte tippen, um einen Standort auszuwählen",
     "tryAgainLater": "Bitte später erneut versuchen",
     "unknown": "Unbekannt",
+    "unknown_error": "Ein unbekannter Fehler ist aufgetreten",
     "upload": "Hochladen",
     "uploading": "Hochladen..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Kontakte",
     "twitter": "Twitter",
+    "unknown_company": "Unbekanntes Unternehmen",
+    "unknown_person": "Unbekannte Person",
     "visibility": "Sichtbarkeit",
     "website": "Website",
     "zip": "Postleitzahl"
@@ -659,6 +680,7 @@
       "message": "Bitte Benutzername und Passwort überprüfen und erneut versuchen.",
       "title": "Anmeldung fehlgeschlagen"
     },
+    "hide_password": "Passwort verbergen",
     "login": "Anmelden",
     "login_button": "Anmelden",
     "login_button_description": "Bei Ihrem Konto anmelden, um fortzufahren",
@@ -667,8 +689,8 @@
     "login_button_success": "Erfolgreich angemeldet",
     "or_sign_in_with_password": "oder mit Passwort anmelden",
     "password": "Passwort",
-    "password_incorrect": "Passwort war falsch",
     "password_placeholder": "Passwort eingeben",
+    "show_password": "Passwort anzeigen",
     "sso_button": "Mit SSO anmelden",
     "sso_department": "SSO bereitgestellt von {{name}}",
     "sso_department_id": "Abteilungs-ID (optional)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Anruf als aktuellen Anruf gesetzt",
     "failed_to_open_maps": "Kartenanwendung konnte nicht geöffnet werden",
     "failed_to_set_current_call": "Anruf konnte nicht als aktueller Anruf gesetzt werden",
+    "lock_map": "Karte an Einheit binden",
     "no_location_for_routing": "Keine Standortdaten für die Navigation verfügbar",
     "pin_address": "Address",
     "pin_color": "Pin-Farbe",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Karte neu zentrieren",
     "set_as_current_call": "Als aktuellen Anruf setzen",
+    "unlock_map": "Karte entsperren",
     "view_call_details": "Anrufdetails anzeigen",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Notizen suchen...",
     "title": "Notizen"
   },
+  "notifications": {
+    "confirm_delete_message_count": "Möchten Sie {{count}} Benachrichtigungen wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirm_delete_message_one": "Möchten Sie diese Benachrichtigung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirm_delete_title": "Löschen bestätigen",
+    "delete_selected": "Ausgewählte Benachrichtigungen löschen",
+    "deselect_all": "Auswahl aufheben",
+    "empty": "Keine Neuigkeiten vorhanden",
+    "enter_selection_mode": "Benachrichtigungen auswählen",
+    "open": "Benachrichtigungen öffnen",
+    "remove_failed_count": "Benachrichtigungen konnten nicht gelöscht werden",
+    "remove_failed_one": "Benachrichtigung konnte nicht gelöscht werden",
+    "removed_count": "{{count}} Benachrichtigungen gelöscht",
+    "removed_one": "Benachrichtigung gelöscht",
+    "select_all": "Alle auswählen",
+    "selected_count": "{{count}} ausgewählt",
+    "title": "Benachrichtigungen",
+    "unable_to_load": "Benachrichtigungen konnten nicht geladen werden"
+  },
   "onboarding": {
     "message": "Willkommen bei Resgrid Unit app site"
   },
@@ -782,12 +824,23 @@
     "view_call": "Anruf anzeigen"
   },
   "roles": {
+    "assignedElsewhere": "In einer anderen Rolle",
+    "clearAssignment": "Aktuelle Zuweisung entfernen",
     "modal": {
       "title": "Einheitsrollenzuweisungen"
     },
+    "noUsersFound": "Keine Benutzer gefunden",
+    "save_error": "Fehler beim Speichern der Rollenzuweisungen",
+    "saved_successfully": "Rollenzuweisungen gespeichert",
+    "searchUsers": "Nach Name oder Gruppe suchen...",
     "selectUser": "Benutzer auswählen",
+    "selectUserDescription": "Wählen Sie eine Person für diese Rolle",
+    "selectUserForRole": "Zuweisen: {{role}}",
+    "selectUserLabel": "{{name}} auswählen",
     "status": "{{active}} von {{total}} Rollen",
+    "tapToAssign": "Tippen, um {{role}} einen Benutzer zuzuweisen",
     "tap_to_manage": "Tippen, um Rollen zu verwalten",
+    "title": "Rollenzuweisung der Einheit",
     "unassigned": "Nicht zugewiesen"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Gesamtentfernung",
     "total_duration": "Gesamtdauer",
     "traffic_delay": "{{time}} Verzögerung durch Verkehr",
+    "traffic_heavy": "Dichter Verkehr",
+    "traffic_light": "Wenig Verkehr",
+    "traffic_moderate": "Mäßiger Verkehr",
+    "traffic_no_data": "Keine Verkehrsdaten",
+    "traffic_severe": "Sehr dichter Verkehr",
     "try_different_search": "Try a different search term",
     "type": "Typ",
     "unassigned": "Nicht zugewiesen",

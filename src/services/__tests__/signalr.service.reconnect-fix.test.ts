@@ -96,13 +96,13 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
     it('should allow direct connection attempts when hub is in reconnecting state', async () => {
       // Set hub to reconnecting state
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.RECONNECTING);
-      
+
       // Verify hub is in reconnecting state
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(true);
-      
+
       // Attempt direct connection - should not be blocked
       await signalRService.connectToHubWithEventingUrl(mockConfig);
-      
+
       // Should have attempted the connection
       expect(mockHubConnectionBuilder).toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith({
@@ -113,10 +113,10 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
     it('should prevent duplicate direct connections', async () => {
       // Set hub to direct-connecting state
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.DIRECT_CONNECTING);
-      
+
       // Attempt another direct connection - should be blocked
       await signalRService.connectToHubWithEventingUrl(mockConfig);
-      
+
       // Should not have attempted the connection
       expect(mockHubConnectionBuilder).not.toHaveBeenCalled();
       expect(mockLogger.info).toHaveBeenCalledWith({
@@ -127,10 +127,10 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
     it('should clean up direct-connecting state on successful connection', async () => {
       // Start with idle state
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(false);
-      
+
       // Attempt connection
       await signalRService.connectToHubWithEventingUrl(mockConfig);
-      
+
       // Should be back to idle state after successful connection
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(false);
       expect((signalRService as any).hubStates.get(mockConfig.name)).toBeUndefined();
@@ -139,17 +139,17 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
     it('should clean up direct-connecting state on failed connection', async () => {
       // Mock connection failure
       mockStart.mockRejectedValueOnce(new Error('Connection failed'));
-      
+
       // Start with idle state
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(false);
-      
+
       // Attempt connection (should fail)
       await expect(signalRService.connectToHubWithEventingUrl(mockConfig)).rejects.toThrow('Connection failed');
-      
+
       // Should be back to idle state after failed connection
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(false);
       expect((signalRService as any).hubStates.get(mockConfig.name)).toBeUndefined();
-      
+
       // Reset mock for future tests
       mockStart.mockResolvedValue(undefined);
     });
@@ -157,14 +157,14 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
     it('should maintain backward compatibility with legacy reconnectingHubs set', async () => {
       // Set hub to reconnecting state
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.RECONNECTING);
-      
+
       // Legacy reconnectingHubs set should also be updated
       expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(true);
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(true);
-      
+
       // Clear state
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.IDLE);
-      
+
       // Legacy set should be cleared too
       expect((signalRService as any).reconnectingHubs.has(mockConfig.name)).toBe(false);
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(false);
@@ -177,12 +177,12 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.RECONNECTING);
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(true);
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(true);
-      
+
       // Set to direct-connecting
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.DIRECT_CONNECTING);
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(false);
       expect((signalRService as any).isHubConnecting(mockConfig.name)).toBe(true);
-      
+
       // Set to idle
       (signalRService as any).setHubState(mockConfig.name, HubConnectingState.IDLE);
       expect(signalRService.isHubReconnecting(mockConfig.name)).toBe(false);
@@ -191,26 +191,75 @@ describe('SignalRService - Reconnect Self-Blocking Fix', () => {
 
     it('should properly manage isHubAvailable with new states', () => {
       const hubName = 'testHub';
-      
+
       // Not connected, not connecting
       expect(signalRService.isHubAvailable(hubName)).toBe(false);
-      
+
       // Reconnecting
       (signalRService as any).setHubState(hubName, HubConnectingState.RECONNECTING);
       expect(signalRService.isHubAvailable(hubName)).toBe(true);
-      
+
       // Direct connecting
       (signalRService as any).setHubState(hubName, HubConnectingState.DIRECT_CONNECTING);
       expect(signalRService.isHubAvailable(hubName)).toBe(true);
-      
+
       // Add actual connection
       (signalRService as any).connections.set(hubName, mockConnection);
       (signalRService as any).setHubState(hubName, HubConnectingState.IDLE);
       expect(signalRService.isHubAvailable(hubName)).toBe(true);
-      
+
       // Clean up
       (signalRService as any).connections.delete(hubName);
       expect(signalRService.isHubAvailable(hubName)).toBe(false);
+    });
+  });
+
+  describe('connectToHub stores a reconnectable config', () => {
+    it('should store the hub config so handleConnectionClose can reconnect', async () => {
+      await signalRService.connectToHub({
+        name: 'urlHub',
+        url: 'https://api.example.com/eventing/eventingHub',
+        methods: ['method1'],
+      });
+
+      // Without a stored config handleConnectionClose logs "No stored config
+      // found" and gives up instead of reconnecting.
+      const stored = (signalRService as any).hubConfigs.get('urlHub');
+      expect(stored).toEqual({
+        name: 'urlHub',
+        eventingUrl: 'https://api.example.com/eventing',
+        hubName: 'eventingHub',
+        methods: ['method1'],
+      });
+    });
+
+    it('should preserve query parameters when deriving the eventing url', async () => {
+      await signalRService.connectToHub({
+        name: 'queryHub',
+        url: 'https://api.example.com/eventing/eventingHub?tenant=42',
+        methods: ['method1'],
+      });
+
+      const stored = (signalRService as any).hubConfigs.get('queryHub');
+      expect(stored.eventingUrl).toBe('https://api.example.com/eventing?tenant=42');
+      expect(stored.hubName).toBe('eventingHub');
+    });
+
+    it('should not report a missing config when the connection closes', () => {
+      (signalRService as any).hubConfigs.set('urlHub', {
+        name: 'urlHub',
+        eventingUrl: 'https://api.example.com/eventing',
+        hubName: 'eventingHub',
+        methods: ['method1'],
+      });
+
+      (signalRService as any).handleConnectionClose('urlHub');
+
+      expect(mockLogger.error).not.toHaveBeenCalledWith({
+        message: 'No stored config found for hub: urlHub, cannot attempt reconnection',
+      });
+
+      (signalRService as any).clearReconnectTimer('urlHub');
     });
   });
 });

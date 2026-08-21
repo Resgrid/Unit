@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { router } from 'expo-router';
 import { PlusIcon, RefreshCcwDotIcon, Search, X } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, View } from 'react-native';
 
@@ -51,6 +51,7 @@ export default function Calls() {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch data when screen comes into focus
   useFocusEffect(
@@ -72,19 +73,30 @@ export default function Calls() {
     }
   }, [calls, fetchCallDispatches]);
 
+  // Search query is read through a ref so typing does not fire an analytics
+  // event per keystroke — the effect below must not depend on searchQuery.
+  const searchQueryRef = useRef(searchQuery);
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
   // Track when calls view is rendered
   useEffect(() => {
     trackEvent('calls_view_rendered', {
       callsCount: calls.length,
-      hasSearchQuery: searchQuery.length > 0,
+      hasSearchQuery: searchQueryRef.current.length > 0,
     });
-  }, [trackEvent, calls.length, searchQuery]);
+  }, [trackEvent, calls.length]);
 
-  const handleRefresh = () => {
-    fetchCalls();
-    fetchCallPriorities();
-    // Dispatches will auto-fetch via useEffect when calls update
-  };
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // Force refresh to bypass the cached endpoint; dispatches auto-fetch via useEffect when calls update
+      await Promise.all([fetchCalls(true), fetchCallPriorities()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchCalls, fetchCallPriorities]);
 
   const handleNewCall = () => {
     router.push('/call/new/');
@@ -108,12 +120,14 @@ export default function Calls() {
 
   // Render content based on loading, error, and data states
   const renderContent = () => {
-    if (isLoading) {
+    // Full-screen loader only when there is nothing to show yet; background
+    // refreshes keep the stale list on screen (stale-while-revalidate).
+    if (isLoading && calls.length === 0) {
       return <Loading text={t('calls.loading')} />;
     }
 
-    if (error) {
-      return <ZeroState heading={t('common.errorOccurred')} description={error} isError={true} />;
+    if (error && calls.length === 0) {
+      return <ZeroState heading={t('common.errorOccurred')} description={t('calls.errors.load_failed')} isError={true} />;
     }
 
     return (
@@ -122,7 +136,7 @@ export default function Calls() {
         data={filteredCalls}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={handleRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         ListEmptyComponent={<ZeroState heading={t('calls.no_calls')} description={t('calls.no_calls_description')} icon={RefreshCcwDotIcon} />}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -140,7 +154,7 @@ export default function Calls() {
           </InputSlot>
           <InputField placeholder={t('calls.search')} value={searchQuery} onChangeText={setSearchQuery} />
           {searchQuery ? (
-            <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')} accessibilityRole="button" accessibilityLabel={t('common.clear_search')}>
               <InputIcon as={X} />
             </InputSlot>
           ) : null}

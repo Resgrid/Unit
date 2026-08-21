@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { LocateIcon, MapPinIcon, XIcon } from 'lucide-react-native';
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Dimensions, StyleSheet, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Mapbox from '@/components/maps/mapbox';
@@ -10,6 +10,7 @@ import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Env } from '@/lib/env';
+import { logger } from '@/lib/logging';
 import { getDepartmentMapCenter } from '@/lib/map-center';
 
 // Ensure Mapbox access token is set before using any Mapbox components
@@ -20,6 +21,9 @@ Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
 
 // Timeout for location fetching (in milliseconds)
 const LOCATION_TIMEOUT = 10000;
+// Distinguishes our own timeout rejection from a genuine platform failure in the catch,
+// so an expected slow fix logs at warn instead of paging Sentry.
+const LOCATION_TIMEOUT_MESSAGE = 'Location timeout';
 
 interface FullScreenLocationPickerProps {
   initialLocation?: {
@@ -33,7 +37,9 @@ interface FullScreenLocationPickerProps {
 const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ initialLocation, onLocationSelected, onClose }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
+  // Read live rather than at StyleSheet-create time — a module-level
+  // Dimensions.get('window') keeps the pre-rotation size forever.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const cameraRef = useRef<any>(null); // Using any due to imperative handle
   // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{
@@ -45,6 +51,16 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   const [address, setAddress] = useState<string | undefined>(undefined);
   const [hasUserLocation, setHasUserLocation] = useState(!!initialLocation);
   const isMountedRef = useRef(true);
+  // Held in a ref so both the `finally` below and the unmount cleanup can cancel a pending
+  // timer. Left uncleared, every failed fix keeps a 10s closure over this component alive.
+  const locationTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const clearLocationTimeout = React.useCallback(() => {
+    if (locationTimeoutRef.current !== undefined) {
+      clearTimeout(locationTimeoutRef.current);
+      locationTimeoutRef.current = undefined;
+    }
+  }, []);
 
   const reverseGeocode = React.useCallback(async (latitude: number, longitude: number) => {
     if (!isMountedRef.current) return;
@@ -74,7 +90,8 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
         setAddress(undefined);
       }
     } catch (error) {
-      console.error('Error reverse geocoding:', error);
+      // Transient (offline / geocoder unavailable) and the UI degrades to "no address found".
+      logger.warn({ message: 'Reverse geocode failed for the location picker', context: { error, latitude, longitude } });
       if (isMountedRef.current) setAddress(undefined);
     } finally {
       if (isMountedRef.current) setIsReverseGeocoding(false);
@@ -88,14 +105,16 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        console.error('Location permission not granted');
+        // Expected outcome of a user choice, not a fault — the picker falls back to the map centre.
+        logger.warn({ message: 'Location permission not granted for the location picker', context: { status } });
         return;
       }
 
-      // Create a timeout promise with cleanup
-      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      // Any previous attempt's timer is cancelled before arming a new one, so repeated
+      // "my location" taps cannot stack timers.
+      clearLocationTimeout();
       const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Location timeout')), LOCATION_TIMEOUT);
+        locationTimeoutRef.current = setTimeout(() => reject(new Error(LOCATION_TIMEOUT_MESSAGE)), LOCATION_TIMEOUT);
       });
 
       // Race between getting location and timeout
@@ -105,9 +124,6 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
         }),
         timeoutPromise,
       ]);
-
-      // Clear timeout if location resolved first
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
 
       if (!isMountedRef.current) return;
 
@@ -128,20 +144,39 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
         });
       }
     } catch (error) {
-      console.error('Error getting location:', error);
       // Don't update location - keep using whatever we have (initial or default)
+      if (error instanceof Error && error.message === LOCATION_TIMEOUT_MESSAGE) {
+        logger.warn({ message: 'Timed out getting the device location for the location picker', context: { timeoutMs: LOCATION_TIMEOUT } });
+      } else {
+        logger.error({ message: 'Failed to get the device location for the location picker', context: { error } });
+      }
     } finally {
+      // Runs on every path — resolved, rejected and the permission-denied early return —
+      // so a rejected fix can never leave the 10s timer armed.
+      clearLocationTimeout();
       if (isMountedRef.current) setIsLocating(false);
     }
-  }, [reverseGeocode]);
+  }, [reverseGeocode, clearLocationTimeout]);
+
+  // Depend on the coordinates rather than the object: `initialLocation` is a new identity on
+  // every parent render for any caller passing an object literal, which would re-run the effect
+  // and re-fly the camera, clobbering a location the user had already tapped.
+  const initialLatitude = initialLocation?.latitude;
+  const initialLongitude = initialLocation?.longitude;
 
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (initialLocation) {
-      setCurrentLocation(initialLocation);
+    if (initialLatitude !== undefined && initialLongitude !== undefined) {
+      setCurrentLocation({ latitude: initialLatitude, longitude: initialLongitude });
       setHasUserLocation(true);
-      reverseGeocode(initialLocation.latitude, initialLocation.longitude);
+      reverseGeocode(initialLatitude, initialLongitude);
+      // Camera is imperative-only, so move it here rather than through props.
+      cameraRef.current?.setCamera({
+        centerCoordinate: [initialLongitude, initialLatitude],
+        zoomLevel: 15,
+        animationDuration: 1000,
+      });
     } else {
       // Try to get user location, but don't block the map from showing
       getUserLocation();
@@ -149,8 +184,9 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
 
     return () => {
       isMountedRef.current = false;
+      clearLocationTimeout();
     };
-  }, [initialLocation, getUserLocation, reverseGeocode]);
+  }, [initialLatitude, initialLongitude, getUserLocation, reverseGeocode, clearLocationTimeout]);
 
   const handleMapPress = (event: GeoJSON.Feature) => {
     if (event.geometry.type !== 'GeometryCollection' && 'coordinates' in event.geometry) {
@@ -175,9 +211,12 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   };
 
   return (
-    <Box style={styles.container}>
-      <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
-        <Mapbox.Camera ref={cameraRef} zoomLevel={hasUserLocation ? 15 : 4} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
+    <Box style={[styles.container, { width: windowWidth, height: windowHeight }]}>
+      <Mapbox.MapView style={styles.map} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
+        {/* Camera is driven imperatively only (see getUserLocation). Passing
+            centerCoordinate as well made every map tap re-fly the camera to the
+            tapped point and updated the camera mid-pan, fighting the gesture. */}
+        <Mapbox.Camera ref={cameraRef} defaultSettings={{ centerCoordinate: [currentLocation.longitude, currentLocation.latitude], zoomLevel: hasUserLocation ? 15 : 4 }} />
         {/* Marker for the selected location */}
         <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title="Selected Location">
           <Box className="items-center justify-center">
@@ -187,12 +226,12 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
       </Mapbox.MapView>
 
       {/* Close button */}
-      <TouchableOpacity style={[styles.closeButton, { top: insets.top + 10 }]} onPress={onClose}>
+      <TouchableOpacity style={[styles.closeButton, { top: insets.top + 10 }]} onPress={onClose} accessibilityRole="button" accessibilityLabel={t('common.close')}>
         <XIcon size={24} color="#000000" />
       </TouchableOpacity>
 
       {/* My Location button */}
-      <TouchableOpacity style={[styles.myLocationButton, { top: insets.top + 10 }]} onPress={getUserLocation} disabled={isLocating}>
+      <TouchableOpacity style={[styles.myLocationButton, { top: insets.top + 10 }]} onPress={getUserLocation} disabled={isLocating} accessibilityRole="button" accessibilityLabel={t('common.get_my_location')}>
         {isLocating ? <ActivityIndicator size="small" color="#007AFF" /> : <LocateIcon size={24} color="#007AFF" />}
       </TouchableOpacity>
 
@@ -222,8 +261,6 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
     position: 'relative',
   },
   map: {

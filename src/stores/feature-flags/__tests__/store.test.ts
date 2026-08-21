@@ -41,6 +41,7 @@ jest.mock('../../security/store', () => ({
 }));
 
 const { getAllFeatureFlags } = require('@/api/feature-flags/feature-flags');
+const { logger } = require('@/lib/logging');
 const useAuthStore = require('../../auth/store').default;
 const { securityStore } = require('../../security/store');
 
@@ -92,6 +93,19 @@ describe('Feature Flags Store', () => {
       expect(state.flags[FeatureFlagKeys.ChatSystem]?.enabled).toBe(true);
       expect(state.identityKey).toBe('user-1:dept-1');
       expect(state.error).toBe('network down');
+    });
+
+    it('should log a fetch failure at warn, not error, so it never reaches Sentry', async () => {
+      getAllFeatureFlags.mockRejectedValue(new Error('network down'));
+
+      await featureFlagsStore.getState().fetchFlags();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to fetch feature flags',
+        })
+      );
+      expect(logger.error).not.toHaveBeenCalled();
     });
 
     it('should clear flags from a different department before fetching so a failed fetch cannot reuse them', async () => {
@@ -208,6 +222,29 @@ describe('Feature Flags Store', () => {
 
       const { result } = renderHook(() => useChatSystemStatus());
       expect(result.current).toBe('disabled');
+    });
+  });
+
+  describe('persistence', () => {
+    it('should persist flags, isLoaded and identityKey but never the transient error', () => {
+      featureFlagsStore.setState({
+        flags: { [FeatureFlagKeys.ChatSystem]: { enabled: true, value: null } },
+        isLoaded: true,
+        identityKey: 'user-1:dept-1',
+        error: 'transient failure',
+      });
+
+      const partialize = (featureFlagsStore as any).persist.getOptions().partialize;
+      const persisted = partialize(featureFlagsStore.getState());
+
+      // isLoaded is kept on purpose: rehydrating without it leaves gated screens
+      // on 'unknown' instead of resolving fail-closed.
+      expect(persisted).toEqual({
+        flags: { [FeatureFlagKeys.ChatSystem]: { enabled: true, value: null } },
+        isLoaded: true,
+        identityKey: 'user-1:dept-1',
+      });
+      expect(persisted).not.toHaveProperty('error');
     });
   });
 

@@ -2,6 +2,8 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import React from 'react';
 import { useMMKVBoolean } from 'react-native-mmkv';
 
+import { logger } from '@/lib/logging';
+
 import { storage } from '../storage';
 
 const KEEP_ALIVE_ENABLED = 'KEEP_ALIVE_ENABLED';
@@ -24,7 +26,10 @@ export const useKeepAlive = () => {
         }
         _setKeepAliveEnabled(enabled);
       } catch (error) {
-        console.error('Failed to update keep alive state:', error);
+        logger.error({
+          message: 'Failed to update keep alive state',
+          context: { error, enabled },
+        });
       }
     },
     [_setKeepAliveEnabled]
@@ -42,6 +47,9 @@ export const loadKeepAliveState = async () => {
       await activateKeepAwakeAsync('settings');
     }
   } catch (error) {
-    console.error('Failed to load keep alive state on startup:', error);
+    logger.error({
+      message: 'Failed to load keep alive state on startup',
+      context: { error },
+    });
   }
 };

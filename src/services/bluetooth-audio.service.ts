@@ -54,7 +54,9 @@ class BluetoothAudioService {
   private static instance: BluetoothAudioService;
   private connectedDevice: Device | null = null;
   private scanTimeout: ReturnType<typeof setTimeout> | null = null;
-  private connectionTimeout: NodeJS.Timeout | null = null;
+  // Guards connectToDevice against overlapping runs — discovery events can fire
+  // repeatedly for the preferred device while a connection is still in flight.
+  private isConnecting: boolean = false;
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
@@ -63,7 +65,7 @@ class BluetoothAudioService {
   private monitoringWatchdogInterval: ReturnType<typeof setInterval> | null = null;
   private readPollingInterval: ReturnType<typeof setInterval> | null = null;
   private isReadPollingInFlight: boolean = false;
-  private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null }[] = [];
+  private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null; notificationConfirmed: boolean }[] = [];
   private mediaButtonEventListener: { remove: () => void } | null = null;
   private mediaButtonListeningActive: boolean = false;
   private pttPressActive: boolean = false;
@@ -311,8 +313,35 @@ class BluetoothAudioService {
       return;
     }
 
+    // A real GATT notification arrived for this characteristic — the
+    // subscription is proven to work, so the read-polling fallback can stop
+    // polling it.
+    this.markNotificationConfirmed(data.service, data.characteristic);
+
     // Handle button events based on service and characteristic UUIDs
     this.handleButtonEventFromCharacteristic(data.peripheral, data.service, data.characteristic, value);
+  }
+
+  /**
+   * Record that a GATT notification was actually delivered for a characteristic.
+   *
+   * The read-polling fallback exists for devices whose notifications silently
+   * never fire (screen-off PTT must keep working), but polling every monitored
+   * characteristic every 700ms forever wastes battery/radio when notifications
+   * do work. Once a characteristic has delivered a notification it is excluded
+   * from polling; a re-subscribe (reconnect) rebuilds the entries unconfirmed,
+   * which resumes polling until notifications prove themselves again.
+   */
+  private markNotificationConfirmed(serviceUuid: string, characteristicUuid: string): void {
+    for (const entry of this.monitoredReadCharacteristics) {
+      if (!entry.notificationConfirmed && this.areUuidsEqual(entry.serviceUuid, serviceUuid) && this.areUuidsEqual(entry.characteristicUuid, characteristicUuid)) {
+        entry.notificationConfirmed = true;
+        logger.info({
+          message: 'GATT notifications confirmed for characteristic; read-polling fallback no longer needed for it',
+          context: { serviceUuid, characteristicUuid },
+        });
+      }
+    }
   }
 
   private handleScanStopped(): void {
@@ -877,7 +906,7 @@ class BluetoothAudioService {
     // 1. This is the preferred device
     // 2. No device is currently connected
     // 3. We're not already in the process of connecting
-    if (preferredDevice?.id === device.id && !connectedDevice && !this.connectionTimeout) {
+    if (preferredDevice?.id === device.id && !connectedDevice && !this.isConnecting) {
       try {
         logger.info({
           message: 'Auto-connecting to preferred Bluetooth device',
@@ -926,6 +955,14 @@ class BluetoothAudioService {
 
   async connectToDevice(deviceId: string): Promise<void> {
     if (this.isWeb) return;
+    if (this.isConnecting) {
+      logger.info({
+        message: 'Bluetooth device connection already in progress, ignoring duplicate connect request',
+        context: { deviceId },
+      });
+      return;
+    }
+    this.isConnecting = true;
     try {
       useBluetoothAudioStore.getState().clearConnectionError();
       useBluetoothAudioStore.getState().setIsConnecting(true);
@@ -1038,6 +1075,8 @@ class BluetoothAudioService {
       useBluetoothAudioStore.getState().setIsConnecting(false);
       useBluetoothAudioStore.getState().setConnectionError(errorMessage);
       throw error;
+    } finally {
+      this.isConnecting = false;
     }
   }
 
@@ -1472,6 +1511,7 @@ class BluetoothAudioService {
       serviceUuid,
       characteristicUuid,
       lastHexValue: null,
+      notificationConfirmed: false,
     });
   }
 
@@ -1494,6 +1534,13 @@ class BluetoothAudioService {
         return;
       }
 
+      // Every subscription has delivered a real notification — nothing left
+      // that needs the polling fallback.
+      if (this.monitoredReadCharacteristics.every((entry) => entry.notificationConfirmed)) {
+        this.stopReadPollingFallback();
+        return;
+      }
+
       if (this.isReadPollingInFlight) {
         return;
       }
@@ -1507,6 +1554,11 @@ class BluetoothAudioService {
 
   private async pollReadCharacteristics(deviceId: string): Promise<void> {
     for (const entry of this.monitoredReadCharacteristics) {
+      // Notifications are proven to work for this characteristic — reading it
+      // on a timer would only duplicate events and burn battery.
+      if (entry.notificationConfirmed) {
+        continue;
+      }
       try {
         const readValue = await BleManager.read(deviceId, entry.serviceUuid, entry.characteristicUuid);
         const nextHexValue = Buffer.from(readValue).toString('hex');
@@ -2423,9 +2475,23 @@ class BluetoothAudioService {
     }
   }
 
-  destroy(): void {
-    this.stopScanning();
-    this.disconnectDevice();
+  async destroy(): Promise<void> {
+    try {
+      await this.stopScanning();
+    } catch (error) {
+      logger.warn({
+        message: 'Error stopping scan during Bluetooth service destroy',
+        context: { error },
+      });
+    }
+    try {
+      await this.disconnectDevice();
+    } catch (error) {
+      logger.warn({
+        message: 'Error disconnecting device during Bluetooth service destroy',
+        context: { error },
+      });
+    }
     useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
     this.clearPttReleaseFallback();
     this.clearMicApplyRetry();
@@ -2441,13 +2507,7 @@ class BluetoothAudioService {
     });
     this.eventListeners = [];
 
-    if (this.connectionTimeout) {
-      clearTimeout(this.connectionTimeout);
-      this.connectionTimeout = null;
-    }
-
     // Reset initialization flags
-    this.isInitialized = false;
     this.isInitialized = false;
     this.hasAttemptedPreferredDeviceConnection = false;
   }

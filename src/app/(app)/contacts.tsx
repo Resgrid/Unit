@@ -30,13 +30,20 @@ export default function Contacts() {
     fetchContacts();
   }, [fetchContacts]);
 
+  // Search query is read through a ref so typing does not fire an analytics
+  // event per keystroke — the effect below must not depend on searchQuery.
+  const searchQueryRef = React.useRef(searchQuery);
+  React.useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
   // Track when contacts view is rendered
   React.useEffect(() => {
     trackEvent('contacts_view_rendered', {
       contactsCount: contacts.length,
-      hasSearchQuery: searchQuery.length > 0,
+      hasSearchQuery: searchQueryRef.current.length > 0,
     });
-  }, [trackEvent, contacts.length, searchQuery]);
+  }, [trackEvent, contacts.length]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -83,7 +90,7 @@ export default function Contacts() {
           </InputSlot>
           <InputField placeholder={t('contacts.search')} value={searchQuery} onChangeText={setSearchQuery} />
           {searchQuery ? (
-            <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button">
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button" accessibilityRole="button" accessibilityLabel={t('common.clear_search')}>
               <InputIcon as={X} />
             </InputSlot>
           ) : null}

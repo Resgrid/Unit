@@ -153,63 +153,66 @@ export default function IndoorMapViewer() {
 
       {/* Map */}
       <View className="flex-1">
+        {/* The map stays mounted across floor switches — unmounting it tore down
+            and rebuilt the whole GL context on every tab tap. The loader is
+            overlaid instead. */}
+        <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} logoEnabled={false} attributionEnabled={false}>
+          <Mapbox.Camera zoomLevel={currentIndoorMap.BoundsNELatitude ? 18 : 16} centerCoordinate={[currentIndoorMap.CenterLongitude, currentIndoorMap.CenterLatitude]} animationMode="flyTo" animationDuration={800} />
+
+          {/* Floor plan image overlay */}
+          {floorImageUrl && currentFloor && currentIndoorMap.BoundsNELatitude ? (
+            <Mapbox.ImageSource
+              id="floor-image"
+              url={floorImageUrl}
+              coordinates={[
+                [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsNELatitude], // NW (top-left)
+                [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsNELatitude], // NE (top-right)
+                [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsSWLatitude], // SE (bottom-right)
+                [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsSWLatitude], // SW (bottom-left)
+              ]}
+            >
+              <Mapbox.RasterLayer id="floor-raster" style={{ rasterOpacity: currentFloor.Opacity }} />
+            </Mapbox.ImageSource>
+          ) : null}
+
+          {/* Zone polygons */}
+          {filteredZonesGeoJSON ? (
+            <Mapbox.ShapeSource id="zones-source" shape={filteredZonesGeoJSON} onPress={handleZonePress}>
+              <Mapbox.FillLayer
+                id="zones-fill"
+                style={{
+                  fillColor: ['get', 'color'],
+                  fillOpacity: 0.3,
+                }}
+              />
+              <Mapbox.LineLayer
+                id="zones-line"
+                style={{
+                  lineColor: ['get', 'color'],
+                  lineWidth: 2,
+                  lineOpacity: 0.8,
+                }}
+              />
+              <Mapbox.SymbolLayer
+                id="zones-label"
+                style={{
+                  textField: ['coalesce', ['get', 'name'], ['get', 'Name']],
+                  textSize: 11,
+                  textColor: '#1F2937',
+                  textHaloColor: '#FFFFFF',
+                  textHaloWidth: 1,
+                  textAllowOverlap: false,
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ) : null}
+        </Mapbox.MapView>
+
         {isLoadingGeoJSON ? (
-          <View className="flex-1 items-center justify-center">
+          <View className="absolute inset-0 items-center justify-center bg-gray-50/80 dark:bg-gray-900/80">
             <Loading text={t('common.loading')} />
           </View>
-        ) : (
-          <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} logoEnabled={false} attributionEnabled={false}>
-            <Mapbox.Camera zoomLevel={currentIndoorMap.BoundsNELatitude ? 18 : 16} centerCoordinate={[currentIndoorMap.CenterLongitude, currentIndoorMap.CenterLatitude]} animationMode="flyTo" animationDuration={800} />
-
-            {/* Floor plan image overlay */}
-            {floorImageUrl && currentFloor && currentIndoorMap.BoundsNELatitude ? (
-              <Mapbox.ImageSource
-                id="floor-image"
-                url={floorImageUrl}
-                coordinates={[
-                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsNELatitude], // NW (top-left)
-                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsNELatitude], // NE (top-right)
-                  [currentIndoorMap.BoundsNELongitude, currentIndoorMap.BoundsSWLatitude], // SE (bottom-right)
-                  [currentIndoorMap.BoundsSWLongitude, currentIndoorMap.BoundsSWLatitude], // SW (bottom-left)
-                ]}
-              >
-                <Mapbox.RasterLayer id="floor-raster" style={{ rasterOpacity: currentFloor.Opacity }} />
-              </Mapbox.ImageSource>
-            ) : null}
-
-            {/* Zone polygons */}
-            {filteredZonesGeoJSON ? (
-              <Mapbox.ShapeSource id="zones-source" shape={filteredZonesGeoJSON} onPress={handleZonePress}>
-                <Mapbox.FillLayer
-                  id="zones-fill"
-                  style={{
-                    fillColor: ['get', 'color'],
-                    fillOpacity: 0.3,
-                  }}
-                />
-                <Mapbox.LineLayer
-                  id="zones-line"
-                  style={{
-                    lineColor: ['get', 'color'],
-                    lineWidth: 2,
-                    lineOpacity: 0.8,
-                  }}
-                />
-                <Mapbox.SymbolLayer
-                  id="zones-label"
-                  style={{
-                    textField: ['coalesce', ['get', 'name'], ['get', 'Name']],
-                    textSize: 11,
-                    textColor: '#1F2937',
-                    textHaloColor: '#FFFFFF',
-                    textHaloWidth: 1,
-                    textAllowOverlap: false,
-                  }}
-                />
-              </Mapbox.ShapeSource>
-            ) : null}
-          </Mapbox.MapView>
-        )}
+        ) : null}
 
         {/* Zone detail popover */}
         {selectedZone ? (

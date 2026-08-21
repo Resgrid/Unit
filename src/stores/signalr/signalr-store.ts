@@ -7,6 +7,7 @@ import { SignalRService, signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
 import { useIncidentCommandStore } from '../calls/incident-command-store';
+import { useCallsStore } from '../calls/store';
 import { useChatStore } from '../chat/store';
 import { FeatureFlagKeys, featureFlagsStore } from '../feature-flags/store';
 import { securityStore } from '../security/store';
@@ -195,6 +196,27 @@ function extractCommandCallId(message: unknown): string | undefined {
   return undefined;
 }
 
+// A dispatch fan-out raises several call events in quick succession; debounce so a
+// burst coalesces into a single calls-list refresh. The per-event timestamps still
+// update immediately for consumers (e.g. the map hook) that key off them.
+const CALLS_REFRESH_DEBOUNCE_MS = 2000;
+let callsRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleCallsRefresh(): void {
+  if (callsRefreshTimer) {
+    clearTimeout(callsRefreshTimer);
+  }
+  callsRefreshTimer = setTimeout(() => {
+    callsRefreshTimer = null;
+    useCallsStore
+      .getState()
+      .fetchCalls(true)
+      .catch((error: unknown) => {
+        logger.warn({ message: 'Failed to refresh calls after SignalR call event', context: { error } });
+      });
+  }, CALLS_REFRESH_DEBOUNCE_MS);
+}
+
 /** Update-hub events that carry a per-event timestamp for targeted refetches. */
 export const UPDATE_HUB_EVENTS = [
   'personnelStatusUpdated',
@@ -315,15 +337,11 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       const updateEvents = [...UPDATE_HUB_EVENTS, 'onConnected', updateHubDisconnected, updateHubReconnecting, updateHubReconnected];
       updateEvents.forEach((event) => signalRService.removeAllListeners(event));
 
-      // Connect to the eventing hub
-      await signalRService.connectToHubWithEventingUrl({
-        name: Env.CHANNEL_HUB_NAME,
-        eventingUrl: eventingUrl,
-        hubName: Env.CHANNEL_HUB_NAME,
-        methods: [...UPDATE_HUB_EVENTS, 'onConnected'],
-      });
-
-      await joinDepartmentGroup();
+      // Register every listener BEFORE starting the connection: the server raises
+      // onConnected as soon as the transport is up, so registering afterwards can
+      // drop the event and leave isUpdateHubConnected stuck at false. The
+      // removeAllListeners sweep above guards against duplicate registration when
+      // connectUpdateHub runs again.
 
       // Connection lifecycle: clear the connected flag when the hub drops so
       // connectUpdateHub() can recover, and re-join the department group +
@@ -430,9 +448,21 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
 
       signalRService.on('personnelStatusUpdated', recordEvent('personnelStatusUpdated'));
       signalRService.on('personnelStaffingUpdated', recordEvent('personnelStaffingUpdated'));
-      signalRService.on('callsUpdated', recordEvent('callsUpdated'));
-      signalRService.on('callAdded', recordEvent('callAdded'));
-      signalRService.on('callClosed', recordEvent('callClosed'));
+
+      // Call events also refresh the calls list itself (debounced) — the
+      // timestamps alone only drive the map hook, not the list data.
+      signalRService.on('callsUpdated', (message) => {
+        recordEvent('callsUpdated')(message);
+        scheduleCallsRefresh();
+      });
+      signalRService.on('callAdded', (message) => {
+        recordEvent('callAdded')(message);
+        scheduleCallsRefresh();
+      });
+      signalRService.on('callClosed', (message) => {
+        recordEvent('callClosed')(message);
+        scheduleCallsRefresh();
+      });
 
       // unitStatusUpdated additionally keeps its raw payload for the status hook
       signalRService.on('unitStatusUpdated', (message) => {
@@ -492,12 +522,20 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         });
         set({ isUpdateHubConnected: true, error: null });
       });
+
+      // Connect to the eventing hub
+      await signalRService.connectToHubWithEventingUrl({
+        name: Env.CHANNEL_HUB_NAME,
+        eventingUrl: eventingUrl,
+        hubName: Env.CHANNEL_HUB_NAME,
+        methods: [...UPDATE_HUB_EVENTS, 'onConnected'],
+      });
+
+      await joinDepartmentGroup();
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.warn({
-        message: 'Failed to connect to SignalR hubs',
-        context: { error: err },
-      });
+      // The service already logged the connect failure with hub context; logging
+      // here again would double-report the same transient failure.
       set({ error: err });
     }
   },
@@ -545,13 +583,9 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
       const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect', geoHubDisconnected];
       geoEvents.forEach((event) => signalRService.removeAllListeners(event));
 
-      // Connect to the geolocation hub
-      await signalRService.connectToHubWithEventingUrl({
-        name: Env.REALTIME_GEO_HUB_NAME,
-        eventingUrl: eventingUrl,
-        hubName: Env.REALTIME_GEO_HUB_NAME,
-        methods: ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'],
-      });
+      // Register listeners BEFORE starting the connection so an early
+      // onGeolocationConnect from the server cannot be dropped, which would
+      // leave isGeolocationHubConnected stuck at false.
 
       // NOTE: no per-message store writes here. Geolocation messages fire per
       // unit per location cycle and nothing in the app consumes them — writing
@@ -571,12 +605,18 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         });
         set({ isGeolocationHubConnected: true, error: null });
       });
+
+      // Connect to the geolocation hub
+      await signalRService.connectToHubWithEventingUrl({
+        name: Env.REALTIME_GEO_HUB_NAME,
+        eventingUrl: eventingUrl,
+        hubName: Env.REALTIME_GEO_HUB_NAME,
+        methods: ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'],
+      });
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
-      logger.warn({
-        message: 'Failed to connect to SignalR hubs',
-        context: { error: err },
-      });
+      // The service already logged the connect failure with hub context; logging
+      // here again would double-report the same transient failure.
       set({ error: err });
     }
   },

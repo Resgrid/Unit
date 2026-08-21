@@ -2,6 +2,7 @@ import axios, { type AxiosProgressEvent, type AxiosRequestConfig, type AxiosResp
 import { Platform } from 'react-native';
 
 import { createApiEndpoint } from '@/api/common/client';
+import { logger } from '@/lib/logging';
 import { type CallFilesResult } from '@/models/v4/callFiles/callFilesResult';
 import { type SaveCallFileResult } from '@/models/v4/callFiles/saveCallFileResult';
 
@@ -83,7 +84,7 @@ export const getCallAttachmentFile = async (url: string, options: DownloadOption
 // Callers should check the return value and fall back to expo-file-system / expo-sharing on native.
 export const saveBlobAsFile = (blob: Blob, fileName: string): boolean => {
   if (Platform.OS !== 'web') {
-    console.warn('saveBlobAsFile is not supported on native platforms. Use expo-file-system and expo-sharing instead.');
+    logger.warn({ message: 'saveBlobAsFile is not supported on native platforms. Use expo-file-system and expo-sharing instead.' });
     return false;
   }
 

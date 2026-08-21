@@ -84,7 +84,9 @@ export const featureFlagsStore = create<FeatureFlagsState>()(
           // check above already cleared them if they belonged to a different identity. Marking
           // isLoaded resolves flags with no persisted entry fail-closed (disabled) instead of
           // leaving consumers waiting on 'unknown' forever.
-          logger.error({
+          // Transient/recoverable: persisted flags keep gating stable and the next
+          // fetch repairs it, so this must not report to Sentry.
+          logger.warn({
             message: 'Failed to fetch feature flags',
             context: { error },
           });
@@ -96,6 +98,14 @@ export const featureFlagsStore = create<FeatureFlagsState>()(
     {
       name: 'feature-flags-storage',
       storage: createJSONStorage(() => zustandStorage),
+      // isLoaded is persisted deliberately: a rehydrated identity resolves flags
+      // with no persisted entry fail-closed instead of leaving gated screens on
+      // 'unknown' forever. error is transient and must not survive a restart.
+      partialize: (state) => ({
+        flags: state.flags,
+        isLoaded: state.isLoaded,
+        identityKey: state.identityKey,
+      }),
     }
   )
 );

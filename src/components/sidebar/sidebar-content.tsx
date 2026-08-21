@@ -52,7 +52,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       <VStack space="md" className="w-full flex-1 p-2">
         {/* First row - Two cards side by side */}
         <HStack space="md">
-          <SidebarUnitCard unitName="No Unit" unitType="" unitGroup={t('common.no_unit_selected')} bgColor="bg-background-50" />
+          <SidebarUnitCard unitName={t('common.no_unit')} unitType="" unitGroup={t('common.no_unit_selected')} bgColor="bg-background-50" />
           <VStack space="xs" className="flex-1">
             <SidebarStatusCard />
             <SidebarRolesCard />
@@ -66,7 +66,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         <CheckInSidebarWidget />
 
         {/* Chat + Assistant navigation (hidden when the Chat.System feature flag is off) */}
-        {isChatEnabled && (
+        {isChatEnabled ? (
           <HStack space="md">
             <Button variant="outline" action="secondary" size="md" className="flex-1" onPress={handleNavigateToChat}>
               <MessagesSquare size={18} color="#2563eb" />
@@ -77,7 +77,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
               <ButtonText className="ml-2">{t('tabs.assistant')}</ButtonText>
             </Button>
           </HStack>
-        )}
+        ) : null}
 
         {/* Third row - Status buttons or empty state */}
         {isActiveStatusesEmpty ? (

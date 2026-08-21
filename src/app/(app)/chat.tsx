@@ -1,6 +1,6 @@
 import { type Href, Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { Bot, MessageCircle, MessagesSquare, Network, Plus, Sparkles, Users } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshControl, ScrollView } from 'react-native';
 
@@ -22,40 +22,42 @@ import { type ChatChannelResultData, ChatChannelType } from '@/models/v4/chat';
 import { useChatStore } from '@/stores/chat/store';
 import { useChatSystemStatus } from '@/stores/feature-flags/store';
 
+// Module scope: declaring this inside ChannelRow's render would give it a new
+// component type each render, remounting the avatar/icon subtree every time.
+function ChannelLeading({ channel, displayName }: { channel: ChatChannelResultData; displayName: string }) {
+  if (channel.ChannelType === ChatChannelType.DirectMessage) {
+    return (
+      <Avatar size="md">
+        <AvatarFallbackText>{displayName}</AvatarFallbackText>
+      </Avatar>
+    );
+  }
+  const isIncident =
+    channel.ChannelType === ChatChannelType.Incident ||
+    channel.ChannelType === ChatChannelType.IncidentLane ||
+    channel.ChannelType === ChatChannelType.IncidentCommand ||
+    channel.ChannelType === ChatChannelType.IncidentLeads ||
+    channel.ChannelType === ChatChannelType.IncidentDispatch;
+  const Icon = channel.ChannelType === ChatChannelType.Chatbot ? Sparkles : isIncident ? Network : Users;
+  return (
+    <Box className="size-10 items-center justify-center rounded-full bg-primary-100">
+      <Icon size={20} color="#2563eb" />
+    </Box>
+  );
+}
+
 function ChannelRow({ channel, onPress }: { channel: ChatChannelResultData; onPress: () => void }) {
   const { t } = useTranslation();
   const unread = channel.UnreadCount > 0;
-  const isDm = channel.ChannelType === ChatChannelType.DirectMessage;
-
-  const Leading = () => {
-    if (isDm) {
-      return (
-        <Avatar size="md">
-          <AvatarFallbackText>{getChannelDisplayName(channel, t)}</AvatarFallbackText>
-        </Avatar>
-      );
-    }
-    const isIncident =
-      channel.ChannelType === ChatChannelType.Incident ||
-      channel.ChannelType === ChatChannelType.IncidentLane ||
-      channel.ChannelType === ChatChannelType.IncidentCommand ||
-      channel.ChannelType === ChatChannelType.IncidentLeads ||
-      channel.ChannelType === ChatChannelType.IncidentDispatch;
-    const Icon = channel.ChannelType === ChatChannelType.Chatbot ? Sparkles : isIncident ? Network : Users;
-    return (
-      <Box className="size-10 items-center justify-center rounded-full bg-primary-100">
-        <Icon size={20} color="#2563eb" />
-      </Box>
-    );
-  };
+  const displayName = getChannelDisplayName(channel, t);
 
   return (
     <Pressable onPress={onPress} className="px-4 py-3">
       <HStack className="items-center" space="md">
-        <Leading />
+        <ChannelLeading channel={channel} displayName={displayName} />
         <VStack className="flex-1">
           <Text className={`text-typography-900 ${unread ? 'font-bold' : 'font-medium'}`} numberOfLines={1}>
-            {getChannelDisplayName(channel, t)}
+            {displayName}
           </Text>
           {channel.Topic ? (
             <Text className="text-xs text-typography-400" numberOfLines={1}>
@@ -104,7 +106,7 @@ export default function ChatScreen() {
     }, [isChatEnabled])
   );
 
-  const grouped = groupChannels(channels);
+  const grouped = useMemo(() => groupChannels(channels), [channels]);
 
   const openChannel = useCallback(
     (channelId: string) => {

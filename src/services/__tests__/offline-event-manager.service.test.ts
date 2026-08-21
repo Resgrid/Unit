@@ -37,6 +37,7 @@ jest.mock('@/stores/offline-queue/store', () => ({
   useOfflineQueueStore: {
     getState: jest.fn(),
   },
+  setOfflineQueueActivityListener: jest.fn(),
 }));
 
 // Mock logger
@@ -89,6 +90,22 @@ const mockAppState = AppState as jest.Mocked<typeof AppState>;
 describe('OfflineEventManager', () => {
   let mockStoreState: any;
 
+  // The processing timer only runs while the queue has something to do, so any
+  // test that expects a timer has to give the queue work first.
+  const seedPendingWork = (): void => {
+    const event = {
+      id: 'seeded-event',
+      type: QueuedEventType.UNIT_STATUS,
+      status: QueuedEventStatus.PENDING,
+      data: { unitId: 'unit-1', statusType: 'available', timestamp: '2023-01-01T00:00:00Z', timestampUtc: 'Sun, 01 Jan 2023 00:00:00 GMT' },
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt: Date.now(),
+    };
+    mockStoreState.getPendingEvents.mockReturnValue([event]);
+    mockStoreState.queuedEvents = [event];
+  };
+
   beforeAll(() => {
     // Use fake timers for the entire test suite
     jest.useFakeTimers();
@@ -103,7 +120,7 @@ describe('OfflineEventManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.clearAllTimers();
-    
+
     mockStoreState = {
       isConnected: true,
       isNetworkReachable: true,
@@ -112,6 +129,8 @@ describe('OfflineEventManager', () => {
       removeEvent: jest.fn(),
       getPendingEvents: jest.fn().mockReturnValue([]),
       getFailedEvents: jest.fn().mockReturnValue([]),
+      pruneFailedEvents: jest.fn(),
+      queuedEvents: [],
       initializeNetworkListener: jest.fn(),
       retryAllFailedEvents: jest.fn(),
       clearCompletedEvents: jest.fn(),
@@ -121,7 +140,7 @@ describe('OfflineEventManager', () => {
     };
 
     mockUseOfflineQueueStore.getState.mockReturnValue(mockStoreState);
-    
+
     // Setup AppState mock
     mockAppState.addEventListener.mockReturnValue({ remove: jest.fn() });
   });
@@ -138,14 +157,7 @@ describe('OfflineEventManager', () => {
 
   describe('queueUnitStatusEvent', () => {
     it('should queue a unit status event', () => {
-      const eventId = offlineEventManager.queueUnitStatusEvent(
-        'unit-1',
-        'available',
-        'Test note',
-        'call-1',
-        2,
-        [{ roleId: 'role-1', userId: 'user-1' }]
-      );
+      const eventId = offlineEventManager.queueUnitStatusEvent('unit-1', 'available', 'Test note', 'call-1', 2, [{ roleId: 'role-1', userId: 'user-1' }]);
 
       expect(eventId).toBe('test-event-id');
       expect(mockStoreState.addEvent).toHaveBeenCalledWith(
@@ -183,14 +195,7 @@ describe('OfflineEventManager', () => {
 
   describe('queueLocationUpdateEvent', () => {
     it('should queue a location update event', () => {
-      const eventId = offlineEventManager.queueLocationUpdateEvent(
-        'unit-1',
-        40.7128,
-        -74.0060,
-        10,
-        45,
-        25
-      );
+      const eventId = offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25);
 
       expect(eventId).toBe('test-event-id');
       expect(mockStoreState.addEvent).toHaveBeenCalledWith(
@@ -198,7 +203,7 @@ describe('OfflineEventManager', () => {
         expect.objectContaining({
           unitId: 'unit-1',
           latitude: 40.7128,
-          longitude: -74.0060,
+          longitude: -74.006,
           accuracy: 10,
           heading: 45,
           speed: 25,
@@ -208,7 +213,7 @@ describe('OfflineEventManager', () => {
     });
 
     it('should queue location update event without optional parameters', () => {
-      const eventId = offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.0060);
+      const eventId = offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006);
 
       expect(eventId).toBe('test-event-id');
       expect(mockStoreState.addEvent).toHaveBeenCalledWith(
@@ -216,7 +221,7 @@ describe('OfflineEventManager', () => {
         expect.objectContaining({
           unitId: 'unit-1',
           latitude: 40.7128,
-          longitude: -74.0060,
+          longitude: -74.006,
           accuracy: undefined,
           heading: undefined,
           speed: undefined,
@@ -227,15 +232,7 @@ describe('OfflineEventManager', () => {
 
   describe('queueCallImageUploadEvent', () => {
     it('should queue a call image upload event', () => {
-      const eventId = offlineEventManager.queueCallImageUploadEvent(
-        'call-1',
-        'user-1',
-        'Test note',
-        'image.jpg',
-        '/path/to/image.jpg',
-        40.7128,
-        -74.0060
-      );
+      const eventId = offlineEventManager.queueCallImageUploadEvent('call-1', 'user-1', 'Test note', 'image.jpg', '/path/to/image.jpg', 40.7128, -74.006);
 
       expect(eventId).toBe('test-event-id');
       expect(mockStoreState.addEvent).toHaveBeenCalledWith(
@@ -247,19 +244,13 @@ describe('OfflineEventManager', () => {
           name: 'image.jpg',
           filePath: '/path/to/image.jpg',
           latitude: 40.7128,
-          longitude: -74.0060,
+          longitude: -74.006,
         })
       );
     });
 
     it('should queue call image upload event without optional parameters', () => {
-      const eventId = offlineEventManager.queueCallImageUploadEvent(
-        'call-1',
-        'user-1',
-        'Test note',
-        'image.jpg',
-        '/path/to/image.jpg'
-      );
+      const eventId = offlineEventManager.queueCallImageUploadEvent('call-1', 'user-1', 'Test note', 'image.jpg', '/path/to/image.jpg');
 
       expect(eventId).toBe('test-event-id');
       expect(mockStoreState.addEvent).toHaveBeenCalledWith(
@@ -321,32 +312,87 @@ describe('OfflineEventManager', () => {
   });
 
   describe('startProcessing', () => {
-    it('should start processing interval', () => {
+    it('should start processing interval when the queue has work', () => {
+      seedPendingWork();
       const setIntervalSpy = jest.spyOn(global, 'setInterval');
-      
+
       offlineEventManager.startProcessing();
 
       // Verify setInterval was called
       expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 10000);
-      
+
       // Verify immediate processing call
       expect(mockStoreState.getPendingEvents).toHaveBeenCalled();
     });
 
     it('should not start multiple intervals', () => {
+      seedPendingWork();
       const setIntervalSpy = jest.spyOn(global, 'setInterval');
-      
+
       offlineEventManager.startProcessing();
       offlineEventManager.startProcessing();
 
       expect(setIntervalSpy).toHaveBeenCalledTimes(1);
     });
+
+    it('should not arm a timer while the queue is empty', () => {
+      const setIntervalSpy = jest.spyOn(global, 'setInterval');
+
+      offlineEventManager.startProcessing();
+
+      expect(setIntervalSpy).not.toHaveBeenCalled();
+    });
+
+    it('should stop the timer once the queue drains', async () => {
+      // Arm the timer while offline so the initial run returns before it starts
+      // draining (which would otherwise still be in flight below).
+      seedPendingWork();
+      mockStoreState.isConnected = false;
+      mockStoreState.isNetworkReachable = false;
+
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      offlineEventManager.startProcessing();
+      clearIntervalSpy.mockClear();
+
+      // Queue drains — the next tick has nothing to do and must not keep ticking.
+      mockStoreState.isConnected = true;
+      mockStoreState.isNetworkReachable = true;
+      mockStoreState.getPendingEvents.mockReturnValue([]);
+      mockStoreState.queuedEvents = [];
+
+      await (offlineEventManager as any).processQueuedEvents();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+
+    it('should evict permanently failed events while processing', async () => {
+      seedPendingWork();
+
+      await (offlineEventManager as any).processQueuedEvents();
+
+      expect(mockStoreState.pruneFailedEvents).toHaveBeenCalled();
+    });
+
+    it('should keep the timer armed for events waiting on a retry backoff', async () => {
+      // Not returned by getPendingEvents (backoff has not elapsed) but still live.
+      mockStoreState.getPendingEvents.mockReturnValue([]);
+      mockStoreState.queuedEvents = [{ id: 'backoff', status: QueuedEventStatus.FAILED, retryCount: 1, maxRetries: 3, nextRetryAt: Date.now() + 60000 }];
+
+      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      offlineEventManager.startProcessing();
+      clearIntervalSpy.mockClear();
+
+      await (offlineEventManager as any).processQueuedEvents();
+
+      expect(clearIntervalSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('stopProcessing', () => {
     it('should stop processing interval', () => {
+      seedPendingWork();
       const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
-      
+
       offlineEventManager.startProcessing();
       offlineEventManager.stopProcessing();
 
@@ -362,18 +408,18 @@ describe('OfflineEventManager', () => {
     });
 
     it('should set up processing interval but skip processing when offline', () => {
+      seedPendingWork();
       mockStoreState.isConnected = false;
       mockStoreState.isNetworkReachable = false;
-      
+
       const setIntervalSpy = jest.spyOn(global, 'setInterval');
 
       offlineEventManager.startProcessing();
 
-      // The interval should still be set up, even if offline
+      // The interval stays armed while offline so the queued work drains as soon
+      // as connectivity returns; processing itself returns early.
       expect(setIntervalSpy).toHaveBeenCalled();
-      
-      // When offline, processQueuedEvents will return early and not call getPendingEvents
-      // So we just verify the interval was set up
+      expect(mockStoreState.updateEventStatus).not.toHaveBeenCalled();
     });
 
     it('should set up processing interval when online', () => {
@@ -393,6 +439,7 @@ describe('OfflineEventManager', () => {
       };
 
       mockStoreState.getPendingEvents.mockReturnValue([mockEvent]);
+      mockStoreState.queuedEvents = [mockEvent];
       const setIntervalSpy = jest.spyOn(global, 'setInterval');
 
       // Trigger processing
@@ -400,7 +447,7 @@ describe('OfflineEventManager', () => {
 
       // The interval should be set up
       expect(setIntervalSpy).toHaveBeenCalled();
-      
+
       // Verify that getPendingEvents is called immediately when online
       expect(mockStoreState.getPendingEvents).toHaveBeenCalled();
     });
@@ -411,14 +458,14 @@ describe('OfflineEventManager', () => {
       // The AppState listener should have been set up when the module was imported
       // Even if the mock wasn't capturing it initially, we can test the behavior
       // by directly calling the handler method that would be triggered
-      
+
       // Create a spy to verify the method calls
       const startProcessingSpy = jest.spyOn(offlineEventManager, 'startProcessing');
-      
+
       // Since we can't easily test the private method directly, let's test via initialize
       // which calls handleAppStateChange with current state
       offlineEventManager.initialize();
-      
+
       // The initialize method calls handleAppStateChange with AppState.currentState ('active')
       // which should trigger startProcessing
       expect(startProcessingSpy).toHaveBeenCalled();
@@ -430,7 +477,7 @@ describe('OfflineEventManager', () => {
       expect(() => {
         offlineEventManager.initialize();
       }).not.toThrow();
-      
+
       // Verify the store initialization was called
       expect(mockStoreState.initializeNetworkListener).toHaveBeenCalled();
     });

@@ -1,5 +1,5 @@
 import { QueuedEventStatus, QueuedEventType } from '@/models/offline-queue/queued-event';
-import { useOfflineQueueStore } from '@/stores/offline-queue/store';
+import { setOfflineQueueActivityListener, useOfflineQueueStore } from '@/stores/offline-queue/store';
 
 // Mock NetInfo
 jest.mock('@react-native-community/netinfo', () => ({
@@ -55,25 +55,25 @@ describe('OfflineQueueStore', () => {
       failedEvents: 0,
       completedEvents: 0,
     });
-    
+
     // Reset event ID counter and mock
     eventIdCounter = 0;
     mockGenerateEventId.mockImplementation(() => `test-event-id-${++eventIdCounter}`);
-    
+
     jest.clearAllMocks();
   });
 
   describe('addEvent', () => {
     it('should add a new event to the queue', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       const eventId = store.addEvent(QueuedEventType.UNIT_STATUS, {
         unitId: 'unit-1',
         statusType: 'available',
       });
 
       expect(eventId).toBe('test-event-id-1');
-      
+
       const state = useOfflineQueueStore.getState();
       expect(state.queuedEvents).toHaveLength(1);
       expect(state.queuedEvents[0]).toMatchObject({
@@ -92,7 +92,7 @@ describe('OfflineQueueStore', () => {
 
     it('should add event with custom max retries', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data' }, 5);
 
       const state = useOfflineQueueStore.getState();
@@ -102,7 +102,7 @@ describe('OfflineQueueStore', () => {
 
   describe('updateEventStatus', () => {
     let eventId: string;
-    
+
     beforeEach(() => {
       // Add an event first
       const store = useOfflineQueueStore.getState();
@@ -111,7 +111,7 @@ describe('OfflineQueueStore', () => {
 
     it('should update event status to completed', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.updateEventStatus(eventId, QueuedEventStatus.COMPLETED);
 
       const state = useOfflineQueueStore.getState();
@@ -121,7 +121,7 @@ describe('OfflineQueueStore', () => {
 
     it('should update event status to failed and increment retry count', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.updateEventStatus(eventId, QueuedEventStatus.FAILED, 'Network error');
 
       const state = useOfflineQueueStore.getState();
@@ -134,7 +134,7 @@ describe('OfflineQueueStore', () => {
 
     it('should not set nextRetryAt if max retries exceeded', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       // Set retry count to max
       store.updateEventStatus(eventId, QueuedEventStatus.FAILED);
       store.updateEventStatus(eventId, QueuedEventStatus.FAILED);
@@ -147,7 +147,7 @@ describe('OfflineQueueStore', () => {
 
   describe('removeEvent', () => {
     let eventId: string;
-    
+
     beforeEach(() => {
       const store = useOfflineQueueStore.getState();
       eventId = store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data' });
@@ -155,7 +155,7 @@ describe('OfflineQueueStore', () => {
 
     it('should remove event from queue', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.removeEvent(eventId);
 
       const state = useOfflineQueueStore.getState();
@@ -165,7 +165,7 @@ describe('OfflineQueueStore', () => {
 
   describe('getEventById', () => {
     let eventId: string;
-    
+
     beforeEach(() => {
       const store = useOfflineQueueStore.getState();
       eventId = store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data' });
@@ -173,7 +173,7 @@ describe('OfflineQueueStore', () => {
 
     it('should return event by ID', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       const event = store.getEventById(eventId);
 
       expect(event).toBeDefined();
@@ -182,7 +182,7 @@ describe('OfflineQueueStore', () => {
 
     it('should return undefined for non-existent ID', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       const event = store.getEventById('non-existent');
 
       expect(event).toBeUndefined();
@@ -198,7 +198,7 @@ describe('OfflineQueueStore', () => {
 
     it('should return events of specified type', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       const events = store.getEventsByType(QueuedEventType.UNIT_STATUS);
 
       expect(events).toHaveLength(1);
@@ -209,7 +209,7 @@ describe('OfflineQueueStore', () => {
   describe('getPendingEvents', () => {
     let eventId1: string;
     let eventId2: string;
-    
+
     beforeEach(() => {
       const store = useOfflineQueueStore.getState();
       eventId1 = store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data1' });
@@ -218,7 +218,7 @@ describe('OfflineQueueStore', () => {
 
     it('should return events with pending status', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       const events = store.getPendingEvents();
 
       expect(events).toHaveLength(2);
@@ -229,7 +229,7 @@ describe('OfflineQueueStore', () => {
 
     it('should include failed events ready for retry', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       // Mark one event as failed with retry time in the past
       store.updateEventStatus(eventId1, QueuedEventStatus.FAILED);
       const state = useOfflineQueueStore.getState();
@@ -243,7 +243,7 @@ describe('OfflineQueueStore', () => {
 
     it('should exclude failed events not ready for retry', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       // Mark one event as failed with retry time in the future
       store.updateEventStatus(eventId1, QueuedEventStatus.FAILED);
       const state = useOfflineQueueStore.getState();
@@ -259,7 +259,7 @@ describe('OfflineQueueStore', () => {
   describe('getFailedEvents', () => {
     let eventId1: string;
     let eventId2: string;
-    
+
     beforeEach(() => {
       const store = useOfflineQueueStore.getState();
       eventId1 = store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data1' });
@@ -268,7 +268,7 @@ describe('OfflineQueueStore', () => {
 
     it('should return events that have exceeded max retries', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       // Fail first event beyond max retries
       store.updateEventStatus(eventId1, QueuedEventStatus.FAILED);
       store.updateEventStatus(eventId1, QueuedEventStatus.FAILED);
@@ -285,7 +285,7 @@ describe('OfflineQueueStore', () => {
   describe('clearCompletedEvents', () => {
     let eventId1: string;
     let eventId2: string;
-    
+
     beforeEach(() => {
       const store = useOfflineQueueStore.getState();
       eventId1 = store.addEvent(QueuedEventType.UNIT_STATUS, { test: 'data1' });
@@ -295,7 +295,7 @@ describe('OfflineQueueStore', () => {
 
     it('should remove completed events', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.clearCompletedEvents();
 
       const state = useOfflineQueueStore.getState();
@@ -313,7 +313,7 @@ describe('OfflineQueueStore', () => {
 
     it('should clear all events and reset counters', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.clearAllEvents();
 
       const state = useOfflineQueueStore.getState();
@@ -335,7 +335,7 @@ describe('OfflineQueueStore', () => {
 
     it('should reset failed event to pending', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.retryEvent('test-event-id');
 
       const state = useOfflineQueueStore.getState();
@@ -355,7 +355,7 @@ describe('OfflineQueueStore', () => {
 
     it('should reset all failed events to pending', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store.retryAllFailedEvents();
 
       const state = useOfflineQueueStore.getState();
@@ -372,7 +372,7 @@ describe('OfflineQueueStore', () => {
   describe('network state management', () => {
     it('should update network state', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store._setNetworkState(false, false);
 
       const state = useOfflineQueueStore.getState();
@@ -382,12 +382,117 @@ describe('OfflineQueueStore', () => {
 
     it('should update processing state', () => {
       const store = useOfflineQueueStore.getState();
-      
+
       store._setProcessing(true, 'event-123');
 
       const state = useOfflineQueueStore.getState();
       expect(state.isProcessing).toBe(true);
       expect(state.processingEventId).toBe('event-123');
+    });
+  });
+
+  describe('pruneFailedEvents', () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+
+    const makeFailedEvent = (id: string, ageDays: number) => ({
+      id,
+      type: QueuedEventType.UNIT_STATUS,
+      status: QueuedEventStatus.FAILED,
+      data: {},
+      retryCount: 3,
+      maxRetries: 3,
+      createdAt: Date.now() - ageDays * DAY_MS,
+      lastAttemptAt: Date.now() - ageDays * DAY_MS,
+    });
+
+    it('should evict permanently failed events older than the retention window', () => {
+      useOfflineQueueStore.setState({
+        queuedEvents: [makeFailedEvent('old', 8), makeFailedEvent('recent', 1)] as any,
+      });
+
+      useOfflineQueueStore.getState().pruneFailedEvents();
+
+      const ids = useOfflineQueueStore.getState().queuedEvents.map((event) => event.id);
+      expect(ids).toEqual(['recent']);
+    });
+
+    it('should cap retained failed events at the newest 50', () => {
+      const events = Array.from({ length: 60 }, (_, index) => makeFailedEvent(`failed-${index}`, index / 24));
+      useOfflineQueueStore.setState({ queuedEvents: events as any });
+
+      useOfflineQueueStore.getState().pruneFailedEvents();
+
+      expect(useOfflineQueueStore.getState().queuedEvents).toHaveLength(50);
+    });
+
+    it('should never evict events that still have retries left', () => {
+      const retryable = { ...makeFailedEvent('retryable', 30), retryCount: 1, maxRetries: 3 };
+      useOfflineQueueStore.setState({ queuedEvents: [retryable] as any });
+
+      useOfflineQueueStore.getState().pruneFailedEvents();
+
+      expect(useOfflineQueueStore.getState().queuedEvents).toHaveLength(1);
+    });
+
+    it('should leave the lifetime stat counters alone', () => {
+      useOfflineQueueStore.setState({
+        queuedEvents: [makeFailedEvent('old', 8)] as any,
+        failedEvents: 7,
+        totalEvents: 9,
+      });
+
+      useOfflineQueueStore.getState().pruneFailedEvents();
+
+      const state = useOfflineQueueStore.getState();
+      expect(state.failedEvents).toBe(7);
+      expect(state.totalEvents).toBe(9);
+    });
+  });
+
+  describe('queue activity listener', () => {
+    afterEach(() => {
+      setOfflineQueueActivityListener(null);
+    });
+
+    it('should notify on enqueue so a stopped processing timer restarts', () => {
+      const listener = jest.fn();
+      setOfflineQueueActivityListener(listener);
+
+      useOfflineQueueStore.getState().addEvent(QueuedEventType.UNIT_STATUS, { unitId: 'unit-1' });
+
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('should notify when the device comes back online', () => {
+      useOfflineQueueStore.setState({ isConnected: false, isNetworkReachable: false });
+      const listener = jest.fn();
+      setOfflineQueueActivityListener(listener);
+
+      useOfflineQueueStore.getState()._setNetworkState(true, true);
+
+      expect(listener).toHaveBeenCalled();
+    });
+
+    it('should not notify while already online', () => {
+      useOfflineQueueStore.setState({ isConnected: true, isNetworkReachable: true });
+      const listener = jest.fn();
+      setOfflineQueueActivityListener(listener);
+
+      useOfflineQueueStore.getState()._setNetworkState(true, true);
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('should notify when failed events are queued for retry', () => {
+      useOfflineQueueStore.setState({
+        queuedEvents: [{ id: 'f1', type: QueuedEventType.UNIT_STATUS, status: QueuedEventStatus.FAILED, data: {}, retryCount: 3, maxRetries: 3, createdAt: Date.now() }] as any,
+      });
+      const listener = jest.fn();
+      setOfflineQueueActivityListener(listener);
+
+      useOfflineQueueStore.getState().retryAllFailedEvents();
+
+      expect(listener).toHaveBeenCalled();
     });
   });
 });

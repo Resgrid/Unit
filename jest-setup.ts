@@ -268,21 +268,10 @@ jest.mock('expo-video', () => ({
   })),
 }));
 
-// Mock zod globally to avoid validation schema issues in tests
-jest.mock('zod', () => ({
-  z: {
-    object: jest.fn(() => ({
-      parse: jest.fn((data) => data),
-      safeParse: jest.fn((data) => ({ success: true, data })),
-    })),
-    string: jest.fn(() => ({
-      min: jest.fn(() => ({
-        parse: jest.fn((data) => data),
-        safeParse: jest.fn((data) => ({ success: true, data })),
-      })),
-      parse: jest.fn((data) => data),
-      safeParse: jest.fn((data) => ({ success: true, data })),
-    })),
-  },
-  __esModule: true,
-}));
+// zod is deliberately NOT mocked. A global stub used to live here, returning a
+// schema whose safeParse accepted everything and which had no parseAsync at all
+// — the method zodResolver actually calls. Any form suite that loaded it either
+// crashed on `import * as z` or silently validated nothing. Every schema in this
+// app guards a form a responder depends on (login, SSO, call create, call edit),
+// so those schemas must run for real in tests. zod is plain CJS and resolves
+// under jest with no configuration.

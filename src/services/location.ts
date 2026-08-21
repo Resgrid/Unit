@@ -184,6 +184,13 @@ class LocationService {
   private backgroundSubscription: Location.LocationSubscription | null = null;
   private appStateSubscription: { remove: () => void } | null = null;
   private isBackgroundGeolocationEnabled = false;
+  // Single-flight guards. The subscription fields are only assigned after an
+  // await, so a plain "already subscribed?" check lets two concurrent starts
+  // both pass it and create duplicate watchers — and lets a stop run in the gap
+  // and drop the fresh subscription. Concurrent callers share the in-flight
+  // promise instead, and stop* waits for it before tearing anything down.
+  private startPromise: Promise<void> | null = null;
+  private startBackgroundPromise: Promise<void> | null = null;
 
   private constructor() {
     this.initializeAppStateListener();
@@ -208,10 +215,20 @@ class LocationService {
       context: { nextAppState, backgroundEnabled: this.isBackgroundGeolocationEnabled },
     });
 
-    if (nextAppState === 'background' && this.isBackgroundGeolocationEnabled) {
-      await this.startBackgroundUpdates();
-    } else if (nextAppState === 'active') {
-      await this.stopBackgroundUpdates();
+    // AppState invokes this without awaiting, so anything that throws here (a
+    // permission revoked while backgrounded is the common one) becomes an
+    // unhandled rejection instead of a recoverable, logged failure.
+    try {
+      if (nextAppState === 'background' && this.isBackgroundGeolocationEnabled) {
+        await this.startBackgroundUpdates();
+      } else if (nextAppState === 'active') {
+        await this.stopBackgroundUpdates();
+      }
+    } catch (error) {
+      logger.warn({
+        message: 'Failed to handle location app state change',
+        context: { error, nextAppState },
+      });
     }
   };
 
@@ -239,6 +256,20 @@ class LocationService {
   }
 
   async startLocationUpdates(): Promise<void> {
+    if (this.startPromise) {
+      return this.startPromise;
+    }
+
+    const promise = this.performStartLocationUpdates().finally(() => {
+      if (this.startPromise === promise) {
+        this.startPromise = null;
+      }
+    });
+    this.startPromise = promise;
+    return promise;
+  }
+
+  private async performStartLocationUpdates(): Promise<void> {
     // On web, use a lightweight browser geolocation watcher instead of expo-location/TaskManager
     if (isWeb) {
       if (!('geolocation' in navigator)) {
@@ -357,6 +388,20 @@ class LocationService {
   }
 
   async startBackgroundUpdates(): Promise<void> {
+    if (this.startBackgroundPromise) {
+      return this.startBackgroundPromise;
+    }
+
+    const promise = this.performStartBackgroundUpdates().finally(() => {
+      if (this.startBackgroundPromise === promise) {
+        this.startBackgroundPromise = null;
+      }
+    });
+    this.startBackgroundPromise = promise;
+    return promise;
+  }
+
+  private async performStartBackgroundUpdates(): Promise<void> {
     if (isWeb) return; // Background location not supported on web
     if (this.backgroundSubscription || !this.isBackgroundGeolocationEnabled) {
       return;
@@ -401,6 +446,11 @@ class LocationService {
 
   async stopBackgroundUpdates(): Promise<void> {
     if (isWeb) return;
+    // A start still in flight assigns its subscription after this runs, which
+    // would leave an orphaned watcher running forever.
+    if (this.startBackgroundPromise) {
+      await this.startBackgroundPromise.catch(() => {});
+    }
     if (this.backgroundSubscription) {
       logger.info({
         message: 'Stopping background location updates',
@@ -472,6 +522,13 @@ class LocationService {
   }
 
   async stopLocationUpdates(): Promise<void> {
+    // Wait out any start still in flight: it assigns this.locationSubscription
+    // after its await, so stopping first would clear a null field and leave the
+    // watcher that lands afterwards running with nothing tracking it.
+    if (this.startPromise) {
+      await this.startPromise.catch(() => {});
+    }
+
     if (this.locationSubscription) {
       if (isWeb) {
         // On web the subscription is our own shim wrapping clearWatch

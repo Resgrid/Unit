@@ -211,6 +211,66 @@ describe('LocationService', () => {
     (locationService as any).locationSubscription = null;
     (locationService as any).backgroundSubscription = null;
     (locationService as any).isBackgroundGeolocationEnabled = false;
+    (locationService as any).startPromise = null;
+    (locationService as any).startBackgroundPromise = null;
+  });
+
+  describe('Concurrent start/stop safety', () => {
+    it('should create only one foreground watcher when starts overlap', async () => {
+      mockLocation.watchPositionAsync.mockResolvedValue(mockLocationSubscription);
+      mockTaskManager.isTaskRegisteredAsync.mockResolvedValue(false);
+
+      // Two callers race before the first watcher is assigned — the pre-fix
+      // guard let both through and leaked a duplicate watcher.
+      const first = locationService.startLocationUpdates();
+      const second = locationService.startLocationUpdates();
+      await Promise.all([first, second]);
+
+      expect(mockLocation.watchPositionAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not leave an orphaned watcher when stop interleaves with a start', async () => {
+      mockLocation.watchPositionAsync.mockResolvedValue(mockLocationSubscription);
+      mockTaskManager.isTaskRegisteredAsync.mockResolvedValue(false);
+
+      const start = locationService.startLocationUpdates();
+      // Stop issued while the watcher is still being created.
+      const stop = locationService.stopLocationUpdates();
+      await Promise.all([start, stop]);
+
+      // The stop waited for the start, so the watcher it created was removed.
+      expect(mockLocationSubscription.remove).toHaveBeenCalled();
+      expect((locationService as any).locationSubscription).toBeNull();
+    });
+
+    it('should create only one background watcher when starts overlap', async () => {
+      (locationService as any).isBackgroundGeolocationEnabled = true;
+      mockTaskManager.isTaskRegisteredAsync.mockResolvedValue(false);
+      mockLocation.watchPositionAsync.mockResolvedValue(mockLocationSubscription);
+
+      const first = locationService.startBackgroundUpdates();
+      const second = locationService.startBackgroundUpdates();
+      await Promise.all([first, second]);
+
+      expect(mockLocation.watchPositionAsync).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('App state handler resilience', () => {
+    it('should log a warning instead of rejecting when a backgrounded start fails', async () => {
+      (locationService as any).isBackgroundGeolocationEnabled = true;
+      mockTaskManager.isTaskRegisteredAsync.mockRejectedValue(new Error('permission revoked'));
+
+      // The handler is registered with AppState and its result is never awaited,
+      // so a throw here would surface as an unhandled rejection.
+      await expect((locationService as any).handleAppStateChange('background')).resolves.toBeUndefined();
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Failed to handle location app state change',
+        })
+      );
+    });
   });
 
   describe('Singleton Pattern', () => {
@@ -821,7 +881,9 @@ describe('LocationService', () => {
       await sendLocation();
 
       // Counter restarted, so this is a first rejection again, not a third.
-      expect(mockLogger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Backing off location updates after server rejection', context: expect.objectContaining({ consecutiveRejections: 1, backoffMs: 30_000 }) }));
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Backing off location updates after server rejection', context: expect.objectContaining({ consecutiveRejections: 1, backoffMs: 30_000 }) })
+      );
     });
 
     it('does not back off on server errors, which are transient', async () => {
