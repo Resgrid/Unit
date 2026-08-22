@@ -1,7 +1,7 @@
-import { Check } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { Check } from '@/components/ui/lucide-icons';
 import { logger } from '@/lib/logging';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';

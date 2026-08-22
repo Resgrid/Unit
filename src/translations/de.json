@@ -674,6 +674,13 @@
     "pleaseWait": "Bitte warten",
     "processingRequest": "Ihre Anfrage wird verarbeitet..."
   },
+  "location": {
+    "fix_permission_denied": "Standortberechtigung erforderlich. Aktivieren Sie den Standortzugriff in den Geräteeinstellungen und versuchen Sie es erneut.",
+    "fix_services_disabled": "Standortdienste sind deaktiviert. Aktivieren Sie sie in den Geräteeinstellungen und versuchen Sie es erneut.",
+    "fix_unavailable": "Standort konnte nicht ermittelt werden. Begeben Sie sich an einen Ort mit freier Sicht zum Himmel und versuchen Sie es erneut.",
+    "tracking_notification_body": "Der Standort dieser Einheit wird mit Ihrer Abteilung geteilt.",
+    "tracking_notification_title": "Standortverfolgung"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "Französisch",
     "general": "Allgemein",
     "generale": "Allgemein",
+    "geolocation_hub_connected": "Mit Hub verbunden.",
+    "geolocation_hub_connecting": "Verbindung zum Hub wird hergestellt...",
     "german": "Deutsch",
     "github": "Github",
     "greek": "Griechisch",
@@ -1062,6 +1071,8 @@
     "privacy": "Datenschutzrichtlinie",
     "privacy_policy": "Datenschutzrichtlinie",
     "rate": "Bewerten",
+    "realtime_geolocation": "Echtzeit-Standort",
+    "realtime_geolocation_warning": "Diese Funktion sendet den Standort dieser Einheit an Ihre Abteilung, während die App geöffnet ist, und verbindet sich mit dem Echtzeit-Standort-Hub, um die Positionen anderer Einheiten zu empfangen. Eine aktive Netzwerkverbindung ist erforderlich.",
     "select_unit": "Einheit auswählen",
     "server": "Server",
     "server_url": "Server-URL",

@@ -1,3 +1,8 @@
+import React, { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Linking, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
+
+import { Avatar, AvatarImage } from '@/components/ui/avatar';
 import {
   BuildingIcon,
   CalendarIcon,
@@ -15,12 +20,7 @@ import {
   TrashIcon,
   UserIcon,
   X,
-} from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { Linking, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
-
-import { Avatar, AvatarImage } from '@/components/ui/avatar';
+} from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { logger } from '@/lib/logging';
 import { ContactType } from '@/models/v4/contacts/contactResultData';

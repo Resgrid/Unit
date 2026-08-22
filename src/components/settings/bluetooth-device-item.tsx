@@ -1,8 +1,8 @@
-import { ChevronRightIcon } from 'lucide-react-native';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { HStack } from '@/components/ui/hstack';
+import { ChevronRightIcon } from '@/components/ui/lucide-icons';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { View } from '@/components/ui/view';

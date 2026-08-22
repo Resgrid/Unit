@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import { AlertCircle, Bell, MailIcon, MessageCircle, Phone, Users } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Button, ButtonText } from '@/components/ui/button';
 import { HStack } from '@/components/ui/hstack';
+import { AlertCircle, Bell, MailIcon, MessageCircle, Phone, Users } from '@/components/ui/lucide-icons';
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
