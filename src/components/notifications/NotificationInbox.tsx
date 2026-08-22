@@ -22,12 +22,25 @@ const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight |
 
 const getSidebarWidth = (windowWidth: number) => Math.min(windowWidth * 0.85, 400);
 
+// lucide-react-native icons default to `stroke="currentColor"`, which react-native-svg resolves
+// from the `color` *prop* only — a nativewind `className` lands in `style` and is dropped, so the
+// icons rendered near-black on the dark sidebar. Colors are passed explicitly instead.
+const getIconColors = (isDark: boolean) =>
+  ({
+    accent: isDark ? '#60a5fa' : '#3b82f6',
+    danger: isDark ? '#f87171' : '#ef4444',
+    muted: isDark ? '#9ca3af' : '#6b7280',
+  }) as const;
+
 /** Color-dependent style fragments; computed per render from the reactive color scheme. */
 const getThemedStyles = (isDark: boolean) =>
   ({
     sidebarContainer: {
       backgroundColor: isDark ? '#171717' : '#fff',
       shadowColor: isDark ? '#262626' : '#e5e5e5',
+    },
+    header: {
+      borderBottomColor: isDark ? '#333333' : '#eee',
     },
     selectionCount: {
       color: isDark ? '#ffffff' : '#000000',
@@ -74,6 +87,7 @@ const NotificationRow = React.memo(
   ({ notification, unread, isSelectionMode, isSelected, onPress, onLongPress, onNavigateToReference }: NotificationRowProps) => {
     const { colorScheme } = useColorScheme();
     const themed = React.useMemo(() => getThemedStyles(colorScheme === 'dark'), [colorScheme]);
+    const iconColors = React.useMemo(() => getIconColors(colorScheme === 'dark'), [colorScheme]);
     const handlePress = React.useCallback(() => onPress(notification), [onPress, notification]);
     const handleLongPress = React.useCallback(() => onLongPress(notification), [onLongPress, notification]);
     const handleNavigate = React.useCallback(
@@ -90,9 +104,7 @@ const NotificationRow = React.memo(
         {unread ? <View style={[styles.unreadIndicator, themed.unreadIndicator]} /> : null}
 
         {isSelectionMode ? (
-          <View style={styles.selectionIndicator}>
-            {isSelected ? <CheckCircle size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} /> : <Circle size={24} className="text-gray-400 dark:text-gray-500" strokeWidth={2} />}
-          </View>
+          <View style={styles.selectionIndicator}>{isSelected ? <CheckCircle size={24} color={iconColors.accent} strokeWidth={2} /> : <Circle size={24} color={iconColors.muted} strokeWidth={2} />}</View>
         ) : null}
 
         <View style={styles.notificationContent}>
@@ -106,12 +118,12 @@ const NotificationRow = React.memo(
           notification.referenceType && notification.referenceId ? (
             <View style={styles.actionButtons}>
               <Button onPress={handleNavigate} variant="outline" className="size-8 p-0">
-                <ExternalLink size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+                <ExternalLink size={24} color={iconColors.accent} strokeWidth={2} />
               </Button>
-              <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
+              <ChevronRight size={24} color={iconColors.muted} strokeWidth={2} style={styles.chevron} />
             </View>
           ) : (
-            <ChevronRight size={24} className="ml-2 text-gray-400" strokeWidth={2} />
+            <ChevronRight size={24} color={iconColors.muted} strokeWidth={2} style={styles.chevron} />
           )
         ) : null}
       </Pressable>
@@ -135,6 +147,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   const { width: windowWidth } = useWindowDimensions();
   const sidebarWidth = getSidebarWidth(windowWidth);
   const themed = React.useMemo(() => getThemedStyles(colorScheme === 'dark'), [colorScheme]);
+  const iconColors = React.useMemo(() => getIconColors(colorScheme === 'dark'), [colorScheme]);
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const config = useCoreStore((state: any) => state.config);
   const { notifications, isLoading, fetchMore, hasMore, refetch } = useNotifications();
@@ -369,7 +382,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
             <NotificationDetail notification={selectedNotification} onClose={() => setSelectedNotification(null)} onDelete={handleDeleteNotification} onNavigateToReference={handleNavigateToReference} />
           ) : (
             <>
-              <View style={styles.header}>
+              <View style={[styles.header, themed.header]}>
                 {isSelectionMode ? (
                   <>
                     <View style={styles.selectionHeader}>
@@ -379,7 +392,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                           <Text>{selectedNotificationIds.size === notifications?.length ? t('notifications.deselect_all') : t('notifications.select_all')}</Text>
                         </Button>
                         <Button onPress={handleBulkDelete} variant="outline" className="mr-2" disabled={selectedNotificationIds.size === 0 || isDeletingSelected} accessibilityLabel={t('notifications.delete_selected')}>
-                          {isDeletingSelected ? <ActivityIndicator size="small" color="#ef4444" /> : <Trash2 size={16} className="text-red-500" strokeWidth={2} />}
+                          {isDeletingSelected ? <ActivityIndicator size="small" color={iconColors.danger} /> : <Trash2 size={16} color={iconColors.danger} strokeWidth={2} />}
                         </Button>
                         <Button onPress={exitSelectionMode} variant="outline">
                           <Text>{t('common.cancel')}</Text>
@@ -389,13 +402,13 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                   </>
                 ) : (
                   <>
-                    <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
+                    <Text style={[styles.headerTitle, themed.selectionCount]}>{t('notifications.title')}</Text>
                     <View style={styles.headerActions}>
                       <Pressable onPress={enterSelectionMode} style={styles.actionButton} accessibilityRole="button" accessibilityLabel={t('notifications.enter_selection_mode')}>
-                        <MoreVertical size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+                        <MoreVertical size={24} color={iconColors.accent} strokeWidth={2} />
                       </Pressable>
                       <Pressable onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={t('common.close')}>
-                        <X size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
+                        <X size={24} color={iconColors.accent} strokeWidth={2} />
                       </Pressable>
                     </View>
                   </>
@@ -485,7 +498,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: Platform.OS === 'android' ? STATUS_BAR_HEIGHT + 16 : 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
   },
   headerTitle: {
     fontSize: 18,
@@ -550,6 +562,9 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  chevron: {
+    marginLeft: 8,
   },
   loadingContainer: {
     flex: 1,

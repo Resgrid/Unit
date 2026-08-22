@@ -674,6 +674,13 @@
     "pleaseWait": "يرجى الانتظار",
     "processingRequest": "جاري معالجة طلبك..."
   },
+  "location": {
+    "fix_permission_denied": "إذن الموقع مطلوب. فعّل الوصول إلى الموقع في إعدادات جهازك ثم أعد المحاولة.",
+    "fix_services_disabled": "خدمات الموقع معطّلة. فعّلها في إعدادات جهازك ثم أعد المحاولة.",
+    "fix_unavailable": "تعذّر تحديد الموقع. انتقل إلى منطقة ذات رؤية أوضح للسماء ثم أعد المحاولة.",
+    "tracking_notification_body": "تتم مشاركة موقع هذه الوحدة مع إدارتك.",
+    "tracking_notification_title": "تتبع الموقع"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "موافق",
@@ -1033,6 +1040,8 @@
     "french": "الفرنسية",
     "general": "عام",
     "generale": "عام",
+    "geolocation_hub_connected": "تم الاتصال بالمركز.",
+    "geolocation_hub_connecting": "جارٍ الاتصال بالمركز...",
     "german": "الألمانية",
     "github": "جيثب",
     "greek": "اليونانية",
@@ -1062,6 +1071,8 @@
     "privacy": "سياسة الخصوصية",
     "privacy_policy": "سياسة الخصوصية",
     "rate": "تقييم",
+    "realtime_geolocation": "تحديد الموقع في الوقت الفعلي",
+    "realtime_geolocation_warning": "ترسل هذه الميزة موقع هذه الوحدة إلى إدارتك أثناء فتح التطبيق، وتتصل بمركز الموقع في الوقت الفعلي لاستقبال مواقع الوحدات الأخرى. وهي تتطلب اتصال شبكة نشطًا.",
     "select_unit": "اختر الوحدة",
     "server": "الخادم",
     "server_url": "عنوان URL للخادم",

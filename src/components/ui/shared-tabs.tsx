@@ -1,4 +1,3 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +5,7 @@ import { type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEve
 import { create } from 'zustand';
 
 import { Box } from '@/components/ui/box';
+import { ChevronLeft, ChevronRight } from '@/components/ui/lucide-icons';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 

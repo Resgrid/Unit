@@ -1,4 +1,7 @@
 // Mock all dependencies first
+jest.mock('@/lib/i18n/utils', () => ({
+  translate: jest.fn((key: string) => key),
+}));
 jest.mock('@/api/units/unitLocation', () => ({
   setUnitLocation: jest.fn(),
 }));
@@ -15,6 +18,15 @@ jest.mock('@/lib/logging', () => ({
 }));
 jest.mock('@/lib/storage/background-geolocation', () => ({
   loadBackgroundGeolocationState: jest.fn(),
+}));
+
+jest.mock('@/lib/storage/realtime-geolocation', () => ({
+  loadRealtimeGeolocationState: jest.fn(),
+  saveRealtimeGeolocationState: jest.fn(),
+}));
+
+jest.mock('@/lib/hooks/use-realtime-geolocation', () => ({
+  registerLocationServiceRealtimeUpdater: jest.fn(),
 }));
 
 jest.mock('@/services/offline-event-manager.service', () => ({
@@ -67,13 +79,24 @@ jest.mock('expo-location', () => {
     Accuracy: {
       Balanced: 'balanced',
     },
+    LocationActivityType: {
+      Other: 1,
+      AutomotiveNavigation: 2,
+      Fitness: 3,
+      OtherNavigation: 4,
+      Airborne: 5,
+    },
   };
 });
 
 // TaskManager mocks are now handled in the jest.mock() call
 
+const registeredTasks: Record<string, (body: unknown) => Promise<void>> = {};
+
 jest.mock('expo-task-manager', () => ({
-  defineTask: jest.fn(),
+  defineTask: jest.fn((name: string, handler: (body: unknown) => Promise<void>) => {
+    registeredTasks[name] = handler;
+  }),
   isTaskRegisteredAsync: jest.fn(),
 }));
 
@@ -98,6 +121,7 @@ import { setUnitLocation } from '@/api/units/unitLocation';
 import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolocation';
 import { logger } from '@/lib/logging';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
+import { loadRealtimeGeolocationState } from '@/lib/storage/realtime-geolocation';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { isNetworkError } from '@/utils/network';
@@ -110,6 +134,7 @@ const mockSetUnitLocation = setUnitLocation as jest.MockedFunction<typeof setUni
 const mockRegisterLocationServiceUpdater = registerLocationServiceUpdater as jest.MockedFunction<typeof registerLocationServiceUpdater>;
 const mockLogger = logger as jest.Mocked<typeof logger>;
 const mockLoadBackgroundGeolocationState = loadBackgroundGeolocationState as jest.MockedFunction<typeof loadBackgroundGeolocationState>;
+const mockLoadRealtimeGeolocationState = loadRealtimeGeolocationState as jest.MockedFunction<typeof loadRealtimeGeolocationState>;
 const mockIsNetworkError = isNetworkError as jest.MockedFunction<typeof isNetworkError>;
 const mockQueueLocationUpdateEvent = offlineEventManager.queueLocationUpdateEvent as jest.Mock;
 const mockTaskManager = TaskManager as jest.Mocked<typeof TaskManager>;
@@ -197,6 +222,9 @@ describe('LocationService', () => {
 
     // Setup storage mock
     mockLoadBackgroundGeolocationState.mockResolvedValue(false);
+    // Realtime defaults to on for units: the app existed for years with unconditional foreground
+    // transmission, and the new toggle must not switch that off on upgrade.
+    mockLoadRealtimeGeolocationState.mockResolvedValue(true);
 
     // Setup API mock
     mockSetUnitLocation.mockResolvedValue(mockApiResponse);
@@ -211,6 +239,7 @@ describe('LocationService', () => {
     (locationService as any).locationSubscription = null;
     (locationService as any).backgroundSubscription = null;
     (locationService as any).isBackgroundGeolocationEnabled = false;
+    (locationService as any).isRealtimeGeolocationEnabled = true;
     (locationService as any).startPromise = null;
     (locationService as any).startBackgroundPromise = null;
   });
@@ -441,9 +470,16 @@ describe('LocationService', () => {
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 15000,
         distanceInterval: 10,
+        // Android batches fixes while the screen is off instead of waking the app per fix.
+        deferredUpdatesInterval: 30000,
+        deferredUpdatesDistance: 25,
+        // iOS must not pause a parked apparatus off dispatch's map.
+        pausesUpdatesAutomatically: false,
+        activityType: Location.LocationActivityType.AutomotiveNavigation,
+        showsBackgroundLocationIndicator: true,
         foregroundService: {
-          notificationTitle: 'Location Tracking',
-          notificationBody: 'Tracking your location in the background',
+          notificationTitle: 'location.tracking_notification_title',
+          notificationBody: 'location.tracking_notification_body',
         },
       });
 
@@ -894,6 +930,72 @@ describe('LocationService', () => {
       await sendLocation();
 
       expect(mockSetUnitLocation).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Transmission gating', () => {
+    // Realtime Geolocation governs foreground transmission, Background Geolocation governs
+    // background transmission. They are independent, and the OS task fires in both app states, so
+    // a fix has to be attributed to the setting that owns the app state it arrived in.
+    const runTask = async (appState: string) => {
+      (AppState as any).currentState = appState;
+      const handler = registeredTasks['location-updates'];
+      expect(handler).toBeDefined();
+      await handler({ data: { locations: [mockLocationObject] }, error: null });
+    };
+
+    afterEach(() => {
+      (AppState as any).currentState = 'active';
+    });
+
+    it('transmits a backgrounded fix on the background setting alone, with realtime off', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(true);
+      mockLoadRealtimeGeolocationState.mockResolvedValue(false);
+
+      await runTask('background');
+
+      expect(mockSetUnitLocation).toHaveBeenCalled();
+    });
+
+    it('does not transmit a backgrounded fix when background tracking is off', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(false);
+      mockLoadRealtimeGeolocationState.mockResolvedValue(true);
+
+      await runTask('background');
+
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+    });
+
+    it('governs a foregrounded fix by the realtime setting, not the background one', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(true);
+      mockLoadRealtimeGeolocationState.mockResolvedValue(false);
+
+      await runTask('active');
+
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+    });
+
+    it('always records the fix locally regardless of whether it may be transmitted', async () => {
+      mockLoadBackgroundGeolocationState.mockResolvedValue(false);
+      mockLoadRealtimeGeolocationState.mockResolvedValue(false);
+
+      await runTask('background');
+
+      expect(mockLocationStoreState.setLocation).toHaveBeenCalledWith(mockLocationObject);
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+    });
+
+    it('stops transmitting foreground fixes once realtime geolocation is switched off', async () => {
+      await locationService.startLocationUpdates();
+      const onLocation = mockLocation.watchPositionAsync.mock.calls[0][1] as (location: unknown) => void;
+
+      (locationService as any).isRealtimeGeolocationEnabled = false;
+      onLocation(mockLocationObject);
+      await Promise.resolve();
+
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+      // The watcher itself keeps running: the map and status sheet still need the position.
+      expect(mockLocationStoreState.setLocation).toHaveBeenCalledWith(mockLocationObject);
     });
   });
 

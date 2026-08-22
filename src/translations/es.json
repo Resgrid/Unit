@@ -674,6 +674,13 @@
     "pleaseWait": "Por favor, espere",
     "processingRequest": "Procesando su solicitud..."
   },
+  "location": {
+    "fix_permission_denied": "Se requiere permiso de ubicación. Active el acceso a la ubicación en los ajustes del dispositivo e inténtelo de nuevo.",
+    "fix_services_disabled": "Los servicios de ubicación están desactivados. Actívelos en los ajustes del dispositivo e inténtelo de nuevo.",
+    "fix_unavailable": "No se pudo obtener la ubicación. Diríjase a una zona con mejor visibilidad del cielo e inténtelo de nuevo.",
+    "tracking_notification_body": "Compartiendo la ubicación de esta unidad con su departamento.",
+    "tracking_notification_title": "Seguimiento de ubicación"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "Aceptar",
@@ -1033,6 +1040,8 @@
     "french": "Francés",
     "general": "General",
     "generale": "General",
+    "geolocation_hub_connected": "Conectado al centro.",
+    "geolocation_hub_connecting": "Conectando al centro...",
     "german": "Alemán",
     "github": "Github",
     "greek": "Griego",
@@ -1062,6 +1071,8 @@
     "privacy": "Política de privacidad",
     "privacy_policy": "Política de privacidad",
     "rate": "Calificar",
+    "realtime_geolocation": "Geolocalización en tiempo real",
+    "realtime_geolocation_warning": "Esta función envía la ubicación de esta unidad a su departamento mientras la aplicación está abierta y se conecta al centro de ubicación en tiempo real para recibir las posiciones de otras unidades. Requiere una conexión de red activa.",
     "select_unit": "Seleccionar unidad",
     "server": "Servidor",
     "server_url": "URL del servidor",

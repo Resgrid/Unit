@@ -11,6 +11,7 @@ import { invertColor } from '@/lib/utils';
 import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
 import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEntityTypes';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
+import { acquireLocationFix, getLocationFixErrorMessage } from '@/services/location-fix';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -475,15 +476,38 @@ export const StatusBottomSheet = () => {
         input.RespondingToType = DestinationEntityTypes.Poi;
       }
 
-      // Read the latest GPS fix imperatively (no render subscription)
-      const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore.getState();
+      // Take a fix at submission time rather than trusting whatever the watcher last left in the
+      // store. The watcher only runs once a unit is selected and permission was granted, the store
+      // is never persisted, and permission can be revoked from the OS at any point — so a cached
+      // read is not evidence of anything. It is also the only honest way to enforce a status whose
+      // custom-state definition sets GpsRequired: checking the cache would wave through a status
+      // carrying coordinates from hours ago.
+      const fix = await acquireLocationFix();
+
+      if (fix.outcome !== 'acquired' && selectedStatus.Gps) {
+        showToast('error', getLocationFixErrorMessage(fix.outcome));
+        return;
+      }
+
+      // Read the latest GPS fix imperatively (no render subscription), preferring the fix we just
+      // took and falling back to the watcher for a status that does not require one.
+      const cached = useLocationStore.getState();
+      const coords = fix.location?.coords ?? null;
+      const latitude = coords?.latitude ?? cached.latitude;
+      const longitude = coords?.longitude ?? cached.longitude;
+      const accuracy = coords?.accuracy ?? cached.accuracy;
+      const altitude = coords?.altitude ?? cached.altitude;
+      const altitudeAccuracy = coords?.altitudeAccuracy ?? null;
+      const speed = coords?.speed ?? cached.speed;
+      const heading = coords?.heading ?? cached.heading;
+      const timestamp = fix.location?.timestamp ?? cached.timestamp;
 
       if (latitude !== null && longitude !== null) {
         input.Latitude = latitude.toString();
         input.Longitude = longitude.toString();
         input.Accuracy = accuracy?.toString() || '0';
         input.Altitude = altitude?.toString() || '0';
-        input.AltitudeAccuracy = '';
+        input.AltitudeAccuracy = altitudeAccuracy?.toString() || '';
         input.Speed = speed?.toString() || '0';
         input.Heading = heading?.toString() || '0';
 

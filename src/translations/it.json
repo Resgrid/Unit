@@ -674,6 +674,13 @@
     "pleaseWait": "Attendere prego",
     "processingRequest": "Elaborazione richiesta in corso..."
   },
+  "location": {
+    "fix_permission_denied": "È necessaria l'autorizzazione alla posizione. Attiva l'accesso alla posizione nelle impostazioni del dispositivo e riprova.",
+    "fix_services_disabled": "I servizi di localizzazione sono disattivati. Attivali nelle impostazioni del dispositivo e riprova.",
+    "fix_unavailable": "Impossibile ottenere la posizione. Spostati in un'area con una visuale del cielo più libera e riprova.",
+    "tracking_notification_body": "Condivisione della posizione di questa unità con il tuo dipartimento.",
+    "tracking_notification_title": "Tracciamento della posizione"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "Francese",
     "general": "Generale",
     "generale": "Generale",
+    "geolocation_hub_connected": "Connesso all'hub.",
+    "geolocation_hub_connecting": "Connessione all'hub...",
     "german": "Tedesco",
     "github": "Github",
     "greek": "Greco",
@@ -1062,6 +1071,8 @@
     "privacy": "Informativa sulla privacy",
     "privacy_policy": "Informativa sulla privacy",
     "rate": "Valuta",
+    "realtime_geolocation": "Geolocalizzazione in tempo reale",
+    "realtime_geolocation_warning": "Questa funzione invia la posizione di questa unità al tuo dipartimento mentre l'app è aperta e si collega all'hub di localizzazione in tempo reale per ricevere le posizioni delle altre unità. Richiede una connessione di rete attiva.",
     "select_unit": "Seleziona unità",
     "server": "Server",
     "server_url": "URL server",

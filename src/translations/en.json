@@ -674,6 +674,13 @@
     "pleaseWait": "Please wait",
     "processingRequest": "Processing your request..."
   },
+  "location": {
+    "fix_permission_denied": "Location permission is required. Enable location access in your device settings and try again.",
+    "fix_services_disabled": "Location services are turned off. Turn them on in your device settings and try again.",
+    "fix_unavailable": "Could not get a location fix. Move to an area with a clearer view of the sky and try again.",
+    "tracking_notification_body": "Sharing this unit's location with your department.",
+    "tracking_notification_title": "Location Tracking"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "French",
     "general": "General",
     "generale": "General",
+    "geolocation_hub_connected": "Connected to hub.",
+    "geolocation_hub_connecting": "Connecting to hub...",
     "german": "German",
     "github": "Github",
     "greek": "Greek",
@@ -1062,6 +1071,8 @@
     "privacy": "Privacy Policy",
     "privacy_policy": "Privacy Policy",
     "rate": "Rate",
+    "realtime_geolocation": "Realtime Geolocation",
+    "realtime_geolocation_warning": "This feature sends this unit's location to your department while the app is open, and connects to the real-time location hub to receive other units' positions. It requires an active network connection.",
     "select_unit": "Select Unit",
     "server": "Server",
     "server_url": "Server URL",

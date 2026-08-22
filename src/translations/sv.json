@@ -674,6 +674,13 @@
     "pleaseWait": "Vänta",
     "processingRequest": "Behandlar din begäran..."
   },
+  "location": {
+    "fix_permission_denied": "Platsbehörighet krävs. Aktivera platsåtkomst i enhetens inställningar och försök igen.",
+    "fix_services_disabled": "Platstjänster är avstängda. Slå på dem i enhetens inställningar och försök igen.",
+    "fix_unavailable": "Kunde inte fastställa din position. Flytta till en plats med fri sikt mot himlen och försök igen.",
+    "tracking_notification_body": "Delar den här enhetens position med din avdelning.",
+    "tracking_notification_title": "Platsspårning"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "Franska",
     "general": "Allmänt",
     "generale": "Allmänt",
+    "geolocation_hub_connected": "Ansluten till navet.",
+    "geolocation_hub_connecting": "Ansluter till navet...",
     "german": "Tyska",
     "github": "Github",
     "greek": "Grekiska",
@@ -1062,6 +1071,8 @@
     "privacy": "Integritetspolicy",
     "privacy_policy": "Integritetspolicy",
     "rate": "Betygsätt",
+    "realtime_geolocation": "Positionering i realtid",
+    "realtime_geolocation_warning": "Den här funktionen skickar den här enhetens position till din avdelning medan appen är öppen och ansluter till realtidsnavet för att ta emot andra enheters positioner. Det kräver en aktiv nätverksanslutning.",
     "select_unit": "Välj enhet",
     "server": "Server",
     "server_url": "Server-URL",

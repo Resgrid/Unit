@@ -674,6 +674,13 @@
     "pleaseWait": "Veuillez patienter",
     "processingRequest": "Traitement de votre demande..."
   },
+  "location": {
+    "fix_permission_denied": "L'autorisation de localisation est requise. Activez l'accès à la localisation dans les réglages de votre appareil, puis réessayez.",
+    "fix_services_disabled": "Les services de localisation sont désactivés. Activez-les dans les réglages de votre appareil, puis réessayez.",
+    "fix_unavailable": "Impossible d'obtenir une position. Placez-vous dans une zone dégagée, puis réessayez.",
+    "tracking_notification_body": "Partage de la position de cette unité avec votre département.",
+    "tracking_notification_title": "Suivi de la position"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "Français",
     "general": "Général",
     "generale": "Général",
+    "geolocation_hub_connected": "Connecté au hub.",
+    "geolocation_hub_connecting": "Connexion au hub...",
     "german": "Allemand",
     "github": "Github",
     "greek": "Grec",
@@ -1062,6 +1071,8 @@
     "privacy": "Politique de confidentialité",
     "privacy_policy": "Politique de confidentialité",
     "rate": "Évaluer",
+    "realtime_geolocation": "Géolocalisation en temps réel",
+    "realtime_geolocation_warning": "Cette fonction envoie la position de cette unité à votre département lorsque l'application est ouverte et se connecte au hub de localisation en temps réel pour recevoir la position des autres unités. Une connexion réseau active est requise.",
     "select_unit": "Sélectionner l'unité",
     "server": "Serveur",
     "server_url": "URL du serveur",

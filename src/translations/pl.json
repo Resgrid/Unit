@@ -674,6 +674,13 @@
     "pleaseWait": "Proszę czekać",
     "processingRequest": "Przetwarzanie żądania..."
   },
+  "location": {
+    "fix_permission_denied": "Wymagane jest uprawnienie do lokalizacji. Włącz dostęp do lokalizacji w ustawieniach urządzenia i spróbuj ponownie.",
+    "fix_services_disabled": "Usługi lokalizacji są wyłączone. Włącz je w ustawieniach urządzenia i spróbuj ponownie.",
+    "fix_unavailable": "Nie udało się ustalić lokalizacji. Przejdź w miejsce z lepszą widocznością nieba i spróbuj ponownie.",
+    "tracking_notification_body": "Udostępnianie lokalizacji tej jednostki jednostce organizacyjnej.",
+    "tracking_notification_title": "Śledzenie lokalizacji"
+  },
   "login": {
     "errorModal": {
       "confirmButton": "OK",
@@ -1033,6 +1040,8 @@
     "french": "Francuski",
     "general": "Ogólne",
     "generale": "Ogólne",
+    "geolocation_hub_connected": "Połączono z centrum.",
+    "geolocation_hub_connecting": "Łączenie z centrum...",
     "german": "Niemiecki",
     "github": "Github",
     "greek": "Grecki",
@@ -1062,6 +1071,8 @@
     "privacy": "Polityka prywatności",
     "privacy_policy": "Polityka prywatności",
     "rate": "Oceń",
+    "realtime_geolocation": "Geolokalizacja w czasie rzeczywistym",
+    "realtime_geolocation_warning": "Ta funkcja wysyła lokalizację tej jednostki do Twojej jednostki organizacyjnej, gdy aplikacja jest otwarta, i łączy się z centrum lokalizacji w czasie rzeczywistym, aby odbierać pozycje innych jednostek. Wymaga aktywnego połączenia sieciowego.",
     "select_unit": "Wybierz jednostkę",
     "server": "Serwer",
     "server_url": "URL serwera",

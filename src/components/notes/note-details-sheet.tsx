@@ -1,9 +1,9 @@
-import { Calendar, Tag, X } from 'lucide-react-native';
 import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 
 import { HtmlRenderer } from '@/components/ui/html-renderer';
+import { Calendar, Tag, X } from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/store';

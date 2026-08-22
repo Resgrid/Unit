@@ -51,14 +51,14 @@ export const BackgroundGeolocationItem = () => {
         </View>
       </View>
 
-      {isBackgroundGeolocationEnabled && (
+      {isBackgroundGeolocationEnabled ? (
         <View className="px-4">
           <Alert className={`rounded-lg border ${colorScheme === 'dark' ? 'border-orange-800 bg-orange-900/20' : 'border-orange-200 bg-orange-50'}`}>
             <AlertIcon as={MapPin} className={`${colorScheme === 'dark' ? 'text-orange-400' : 'text-orange-600'}`} />
             <AlertText className={`text-sm ${colorScheme === 'dark' ? 'text-orange-200' : 'text-orange-700'}`}>{t('settings.background_geolocation_warning')}</AlertText>
           </Alert>
         </View>
-      )}
+      ) : null}
     </VStack>
   );
 };

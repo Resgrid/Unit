@@ -12,6 +12,9 @@
  */
 
 // Mock all dependencies first
+jest.mock('@/lib/i18n/utils', () => ({
+  translate: jest.fn((key: string) => key),
+}));
 jest.mock('@/api/units/unitLocation', () => ({
   setUnitLocation: jest.fn(),
 }));
@@ -81,6 +84,13 @@ jest.mock('expo-location', () => {
     stopLocationUpdatesAsync: mockStopLocationUpdatesAsync,
     Accuracy: {
       Balanced: 'balanced',
+    },
+    LocationActivityType: {
+      Other: 1,
+      AutomotiveNavigation: 2,
+      Fitness: 3,
+      OtherNavigation: 4,
+      Airborne: 5,
     },
   };
 });

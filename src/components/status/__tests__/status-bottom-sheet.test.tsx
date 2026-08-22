@@ -210,6 +210,19 @@ jest.mock('@/stores/app/location-store', () => {
   return { useLocationStore: mockStore };
 });
 
+// A factory mock, not an automock: automocking loads the real module to derive its shape, which
+// would pull expo-location's native surface into this suite.
+jest.mock('@/services/location-fix', () => ({
+  acquireLocationFix: jest.fn(async () => ({
+    outcome: 'acquired',
+    location: {
+      coords: { latitude: 40.7128, longitude: -74.006, accuracy: 5, altitude: 10, altitudeAccuracy: 3, speed: 0, heading: 0 },
+      timestamp: 1700000000000,
+    },
+  })),
+  getLocationFixErrorMessage: jest.fn((outcome: string) => `fix-error:${outcome}`),
+}));
+
 jest.mock('@/lib/logging', () => ({
   logger: {
     debug: jest.fn(),
@@ -315,6 +328,7 @@ describe('StatusBottomSheet', () => {
   const mockSetSelectedDestinationType = jest.fn();
   const mockSetNote = jest.fn();
   const mockFetchDestinationData = jest.fn();
+  const mockAcquireLocationFix = require('@/services/location-fix').acquireLocationFix as jest.Mock;
   const mockSaveUnitStatus = jest.fn();
   const mockShowToast = jest.fn();
 
@@ -2649,7 +2663,7 @@ describe('StatusBottomSheet', () => {
     expect(mockSetCurrentStep).toHaveBeenCalledWith('add-note');
   });
 
-  it('should submit directly from status selection when no destination or note is needed', () => {
+  it('should submit directly from status selection when no destination or note is needed', async () => {
     const selectedStatus = {
       Id: 1,
       Type: 1,
@@ -2680,8 +2694,8 @@ describe('StatusBottomSheet', () => {
     const nextButton = screen.getByText('Next');
     fireEvent.press(nextButton);
 
-    // Should call submit directly
-    expect(mockSaveUnitStatus).toHaveBeenCalled();
+    // Submitting now takes a location fix first, so the save lands a microtask later.
+    await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
   });
 
   it('should handle previous button from destination step to status selection', () => {
@@ -3077,7 +3091,7 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Next')).toBeTruthy();
   });
 
-  it('should maintain Next button visibility with many calls and stations in Committed status', () => {
+  it('should maintain Next button visibility with many calls and stations in Committed status', async () => {
     const committedStatus = {
       Id: 'committed-status',
       Text: 'Committed',
@@ -3129,8 +3143,9 @@ describe('StatusBottomSheet', () => {
     // Should be able to click Next button without scrolling
     fireEvent.press(nextButton);
 
-    // Since no note is required, this should trigger submit
-    expect(mockSaveUnitStatus).toHaveBeenCalled();
+    // Since no note is required, this should trigger submit. The save lands a microtask later now
+    // that submitting takes a location fix first.
+    await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
   });
 
   it('should handle status selection with many statuses without pushing Next button off screen', () => {
@@ -3868,5 +3883,65 @@ describe('StatusBottomSheet', () => {
     // Button should be enabled (can proceed)
     fireEvent.press(nextButton);
     // Should not throw or fail to find the button
+  });
+
+  describe('GPS-required statuses', () => {
+    const buildGpsRequiredStore = (selectedStatus: Record<string, unknown>) => {
+      mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+        const store = {
+          ...defaultBottomSheetStore,
+          isOpen: true,
+          currentStep: 'select-status',
+          selectedStatus,
+        };
+        return selector ? selector(store) : store;
+      });
+    };
+
+    const gpsRequiredStatus = {
+      Id: 1,
+      Type: 1,
+      StateId: 1,
+      Text: 'Responding',
+      BColor: '#28a745',
+      Color: '#fff',
+      Gps: true,
+      Note: 0,
+      Detail: 0,
+    };
+
+    it.each([['permission-denied'], ['services-disabled'], ['unavailable']])(
+      'refuses to submit and names the obstacle when the fix fails with %s',
+      async (outcome) => {
+        mockAcquireLocationFix.mockResolvedValueOnce({ outcome, location: null });
+        buildGpsRequiredStore(gpsRequiredStatus);
+
+        render(<StatusBottomSheet />);
+        fireEvent.press(screen.getByText('Next'));
+
+        await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('error', `fix-error:${outcome}`));
+        expect(mockSaveUnitStatus).not.toHaveBeenCalled();
+      }
+    );
+
+    it('submits with the freshly acquired coordinates when the fix succeeds', async () => {
+      buildGpsRequiredStore(gpsRequiredStatus);
+
+      render(<StatusBottomSheet />);
+      fireEvent.press(screen.getByText('Next'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
+      expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Latitude: '40.7128', Longitude: '-74.006' }));
+    });
+
+    it('still submits a status that does not require GPS when no fix can be taken', async () => {
+      mockAcquireLocationFix.mockResolvedValueOnce({ outcome: 'unavailable', location: null });
+      buildGpsRequiredStore({ ...gpsRequiredStatus, Gps: false });
+
+      render(<StatusBottomSheet />);
+      fireEvent.press(screen.getByText('Next'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
+    });
   });
 });
