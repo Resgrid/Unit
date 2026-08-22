@@ -1,4 +1,5 @@
 import { cacheManager } from '@/lib/cache/cache-manager';
+import { logger } from '@/lib/logging';
 import { type ActiveCallsResult } from '@/models/v4/calls/activeCallsResult';
 import { type CallExtraDataResult } from '@/models/v4/calls/callExtraDataResult';
 import { type CallResult } from '@/models/v4/calls/callResult';
@@ -17,8 +18,8 @@ const createCallApi = createApiEndpoint('/Calls/SaveCall');
 const updateCallApi = createApiEndpoint('/Calls/EditCall');
 const closeCallApi = createApiEndpoint('/Calls/CloseCall');
 
-export const getCalls = async () => {
-  const response = await callsApi.get<ActiveCallsResult>();
+export const getCalls = async (forceRefresh = false) => {
+  const response = await callsApi.get<ActiveCallsResult>(undefined, { forceRefresh });
   return response.data;
 };
 
@@ -136,8 +137,8 @@ export const createCall = async (callData: CreateCallRequest) => {
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
   } catch (error) {
-    // Silently handle cache removal errors
-    console.warn('Failed to invalidate calls cache:', error);
+    // Cache removal failures are non-fatal
+    logger.warn({ message: 'Failed to invalidate calls cache', context: { error } });
   }
 
   return response.data;
@@ -169,8 +170,8 @@ export const updateCall = async (callData: UpdateCallRequest) => {
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
   } catch (error) {
-    // Silently handle cache removal errors
-    console.warn('Failed to invalidate calls cache:', error);
+    // Cache removal failures are non-fatal
+    logger.warn({ message: 'Failed to invalidate calls cache', context: { error } });
   }
 
   return response.data;
@@ -189,8 +190,8 @@ export const closeCall = async (callData: CloseCallRequest) => {
   try {
     cacheManager.remove('/Calls/GetActiveCalls');
   } catch (error) {
-    // Silently handle cache removal errors
-    console.warn('Failed to invalidate calls cache:', error);
+    // Cache removal failures are non-fatal
+    logger.warn({ message: 'Failed to invalidate calls cache', context: { error } });
   }
 
   return response.data;

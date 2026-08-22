@@ -16,7 +16,7 @@ import {
 } from '@/models/offline-queue/queued-event';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
-import { useOfflineQueueStore } from '@/stores/offline-queue/store';
+import { setOfflineQueueActivityListener, useOfflineQueueStore } from '@/stores/offline-queue/store';
 
 class OfflineEventManager {
   private static instance: OfflineEventManager;
@@ -48,8 +48,34 @@ class OfflineEventManager {
     // Initialize network listener
     useOfflineQueueStore.getState().initializeNetworkListener();
 
+    // The processing timer stops itself once the queue has no work left, so the
+    // queue wakes it again when an event is enqueued, retried, or the device
+    // comes back online.
+    setOfflineQueueActivityListener(() => {
+      if (AppState.currentState !== 'inactive') {
+        this.startProcessing();
+      }
+    });
+
     // Start processing when app becomes active
     this.handleAppStateChange(AppState.currentState);
+  }
+
+  /**
+   * True when the queue still holds something the processor can act on. Events
+   * whose retries are exhausted are inert, so a queue holding only those must
+   * not keep the 10s timer alive.
+   */
+  private hasPendingWork(): boolean {
+    const store = useOfflineQueueStore.getState();
+
+    if (store.getPendingEvents().length > 0) {
+      return true;
+    }
+
+    // Events parked on a retry backoff are not pending *yet*, but they will be —
+    // dropping the timer now would strand them until the next enqueue.
+    return (store.queuedEvents ?? []).some((event) => event.status === QueuedEventStatus.PROCESSING || (event.status === QueuedEventStatus.FAILED && event.retryCount < event.maxRetries));
   }
 
   /**
@@ -59,6 +85,15 @@ class OfflineEventManager {
     if (this.processingInterval) {
       logger.debug({
         message: 'Event processing already running',
+      });
+      return;
+    }
+
+    // Nothing to drain — starting the timer here would just tick against an
+    // empty queue until something is enqueued, which wakes it anyway.
+    if (!this.hasPendingWork()) {
+      logger.debug({
+        message: 'Offline queue is empty, not starting event processing',
       });
       return;
     }
@@ -206,9 +241,21 @@ class OfflineEventManager {
       return;
     }
 
+    // Age out permanently failed events before deciding whether there is work
+    // left — a queue holding only dead events is an idle queue.
+    useOfflineQueueStore.getState().pruneFailedEvents();
+
+    if (!this.hasPendingWork()) {
+      // Nothing actionable: stop the timer instead of ticking every 10s forever.
+      // addEvent / retry / NetInfo reconnect restart it via the activity listener.
+      this.stopProcessing();
+      return;
+    }
+
     const store = useOfflineQueueStore.getState();
 
-    // Don't process if offline
+    // Don't process if offline. The timer stays armed so the queue drains as
+    // soon as connectivity returns.
     if (!store.isConnected || !store.isNetworkReachable) {
       logger.debug({
         message: 'Device is offline, skipping event processing',
@@ -408,6 +455,7 @@ class OfflineEventManager {
    */
   public cleanup(): void {
     this.stopProcessing();
+    setOfflineQueueActivityListener(null);
 
     if (this.appStateSubscription) {
       this.appStateSubscription.remove();

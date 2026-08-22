@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react-native';
-import base64 from 'react-native-base64';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
@@ -8,13 +7,20 @@ import { clearCacheScope, setCacheScope } from '@/lib/cache/cache-scope';
 import { logger } from '@/lib/logging';
 
 import { loginRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
+import { decodeJwtPayload, getJwtExpiryMs } from '../../lib/auth/jwt';
 import { refreshTokenSingleFlight } from '../../lib/auth/refresh-lock';
 import { runSessionCleanup } from '../../lib/auth/session-cleanup';
 import { isRefreshCredentialRejection } from '../../lib/auth/token-refresh';
 import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
-import { getAuth } from '../../lib/auth/utils';
 import { removeItem, setItem, zustandStorage } from '../../lib/storage';
+
+// Single-flight guard for logout: on a refresh credential rejection every queued
+// 401 caller independently reaches logout(), and without a guard the full
+// session cleanup (app-data wipe) runs once per caller, concurrently. All
+// concurrent callers share one logout run; the guard clears when it settles so
+// a later, genuine logout still executes.
+let logoutInFlight: Promise<void> | null = null;
 
 const useAuthStore = create<AuthState>()(
   persist(
@@ -34,7 +40,7 @@ const useAuthStore = create<AuthState>()(
           const response = await loginRequest(credentials);
 
           if (response.successful) {
-            const payload = sanitizeJson(base64.decode(response.authResponse!.id_token!.split('.')[1]));
+            const payload = sanitizeJson(decodeJwtPayload(response.authResponse!.id_token!));
 
             setItem<AuthResponse>('authResponse', response.authResponse!);
             const now = new Date();
@@ -100,7 +106,7 @@ const useAuthStore = create<AuthState>()(
           const response = await ssoExternalTokenRequest(credentials);
 
           if (response.successful && response.authResponse) {
-            const payload = sanitizeJson(base64.decode(response.authResponse.id_token!.split('.')[1]));
+            const payload = sanitizeJson(decodeJwtPayload(response.authResponse.id_token!));
 
             setItem<AuthResponse>('authResponse', response.authResponse);
             const expiresOn = new Date(Date.now() + response.authResponse.expires_in * 1000).getTime().toString();
@@ -143,50 +149,63 @@ const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        // Clear any pending refresh timer to prevent stacked timeouts
-        const existingTimeoutId = get().refreshTimeoutId;
-        if (existingTimeoutId !== null) {
-          clearTimeout(existingTimeoutId);
+        // Single-flight: concurrent logout triggers (every 401 caller queued
+        // behind a rejected refresh) share one run so the full data wipe never
+        // executes twice in parallel.
+        if (logoutInFlight) {
+          return logoutInFlight;
         }
-        set({
-          accessToken: null,
-          refreshToken: null,
-          status: 'signedOut',
-          error: null,
-          profile: null,
-          // Clearing the user id is what drops the API cache scope; leaving it set keeps this user's
-          // cache keys live for whoever signs in next on the same device.
-          userId: null,
-          isFirstTime: true,
-          refreshTimeoutId: null,
+
+        logoutInFlight = (async () => {
+          // Clear any pending refresh timer to prevent stacked timeouts
+          const existingTimeoutId = get().refreshTimeoutId;
+          if (existingTimeoutId !== null) {
+            clearTimeout(existingTimeoutId);
+          }
+          set({
+            accessToken: null,
+            refreshToken: null,
+            status: 'signedOut',
+            error: null,
+            profile: null,
+            // Clearing the user id is what drops the API cache scope; leaving it set keeps this user's
+            // cache keys live for whoever signs in next on the same device.
+            userId: null,
+            isFirstTime: true,
+            refreshTimeoutId: null,
+          });
+          Sentry.setUser(null);
+
+          // Remove the standalone stored auth response so no valid refresh
+          // token is left on the device after logout.
+          try {
+            await removeItem('authResponse');
+          } catch (error) {
+            logger.warn({
+              message: 'Failed to remove stored auth response on logout',
+              context: { error },
+            });
+          }
+
+          // Route EVERY logout (manual, forced by the 401 interceptor, refresh
+          // credential rejection) through the full app-data reset so a different
+          // user logging in on the same device never sees the previous user's
+          // data — and the previous user's queued offline events never replay
+          // under the new account. The reset service registers its handler in
+          // the leaf session-cleanup module (avoids a static import cycle).
+          try {
+            await runSessionCleanup();
+          } catch (error) {
+            logger.error({
+              message: 'Failed to clear app data on logout',
+              context: { error },
+            });
+          }
+        })().finally(() => {
+          logoutInFlight = null;
         });
-        Sentry.setUser(null);
 
-        // Remove the standalone stored auth response so no valid refresh
-        // token is left on the device after logout.
-        try {
-          await removeItem('authResponse');
-        } catch (error) {
-          logger.warn({
-            message: 'Failed to remove stored auth response on logout',
-            context: { error },
-          });
-        }
-
-        // Route EVERY logout (manual, forced by the 401 interceptor, refresh
-        // credential rejection) through the full app-data reset so a different
-        // user logging in on the same device never sees the previous user's
-        // data — and the previous user's queued offline events never replay
-        // under the new account. The reset service registers its handler in
-        // the leaf session-cleanup module (avoids a static import cycle).
-        try {
-          await runSessionCleanup();
-        } catch (error) {
-          logger.error({
-            message: 'Failed to clear app data on logout',
-            context: { error },
-          });
-        }
+        return logoutInFlight;
       },
 
       refreshAccessToken: async (): Promise<boolean> => {
@@ -211,6 +230,9 @@ const useAuthStore = create<AuthState>()(
           set({
             accessToken: response.access_token,
             refreshToken: response.refresh_token,
+            // Keep the persisted access-token expiry current so a later cold
+            // start can restore the session instantly (see restoreSession).
+            refreshTokenExpiresOn: new Date(Date.now() + response.expires_in * 1000).getTime().toString(),
             status: 'signedIn',
             error: null,
           });
@@ -258,60 +280,6 @@ const useAuthStore = create<AuthState>()(
           const retryTimeoutId = setTimeout(() => get().refreshAccessToken(), 30000);
           set({ refreshTimeoutId: retryTimeoutId });
           return false;
-        }
-      },
-      hydrate: () => {
-        try {
-          const authResponse = getAuth();
-          if (authResponse !== null && authResponse.refresh_token) {
-            // We have stored auth data, try to restore the session
-            try {
-              const payload = sanitizeJson(base64.decode(authResponse.id_token!.split('.')[1]));
-              const profileData = JSON.parse(payload) as ProfileModel;
-
-              set({
-                accessToken: authResponse.access_token,
-                refreshToken: authResponse.refresh_token,
-                status: 'signedIn',
-                error: null,
-                profile: profileData,
-                userId: profileData.sub,
-              });
-
-              Sentry.setUser({ id: profileData.sub, username: profileData.name });
-
-              logger.info({
-                message: 'Auth state hydrated from storage, token refresh will be scheduled by onRehydrateStorage',
-              });
-
-              // Note: Token refresh scheduling is handled by onRehydrateStorage to avoid duplicate refreshes
-            } catch (parseError) {
-              // Token parsing failed, but we have a refresh token - try to refresh
-              logger.warn({
-                message: 'Failed to parse stored token, refresh will be attempted by onRehydrateStorage',
-                context: { error: parseError instanceof Error ? parseError.message : String(parseError) },
-              });
-
-              set({
-                refreshToken: authResponse.refresh_token,
-                status: 'loading',
-              });
-
-              // Note: Token refresh is handled by onRehydrateStorage to avoid duplicate refreshes
-            }
-          } else {
-            logger.info({
-              message: 'No stored auth data found, user needs to login',
-            });
-            get().logout();
-          }
-        } catch (e) {
-          logger.error({
-            message: 'Failed to hydrate auth state',
-            context: { error: e instanceof Error ? e.message : String(e) },
-          });
-          // Don't logout here - let the user try to use the app
-          // and handle auth errors via the axios interceptor
         }
       },
       isAuthenticated: (): boolean => {
@@ -365,27 +333,7 @@ const useAuthStore = create<AuthState>()(
 
           // Defer execution to ensure useAuthStore is fully initialized
           setTimeout(() => {
-            // status/error are no longer persisted, so a stored refresh token is
-            // the only signal that a session existed — always try to restore it.
-            if (state && state.refreshToken) {
-              logger.info({
-                message: 'Found refresh token in storage, attempting to restore session',
-                context: { hasAccessToken: !!state.accessToken },
-              });
-
-              // Clear any existing refresh timer before scheduling a new one
-              const existingTimeoutId = useAuthStore.getState().refreshTimeoutId;
-              if (existingTimeoutId !== null) {
-                clearTimeout(existingTimeoutId);
-              }
-              // Set status to loading while we try to refresh
-              useAuthStore.setState({ status: 'loading' });
-
-              const timeoutId = setTimeout(() => {
-                useAuthStore.getState().refreshAccessToken();
-              }, 2000);
-              useAuthStore.setState({ refreshTimeoutId: timeoutId });
-            }
+            restoreSession(state);
           }, 0);
         };
       },
@@ -395,6 +343,110 @@ const useAuthStore = create<AuthState>()(
 
 const sanitizeJson = (json: string) => {
   return json.replace(/[\u0000]+/g, '');
+};
+
+// Treat an access token expiring within this window as already expired so we
+// never restore "signedIn with a valid token" on a token about to lapse.
+const ACCESS_TOKEN_EXPIRY_SKEW_MS = 60 * 1000;
+
+/**
+ * Resolve when the stored access token expires (epoch ms). Prefers the token's
+ * own `exp` claim; falls back to the persisted expiry timestamp captured at
+ * login/refresh time (`refreshTokenExpiresOn` -- historical name, it holds the
+ * access-token expiry). Returns null when neither is usable.
+ */
+const getAccessTokenExpiryMs = (accessToken: string | null | undefined, storedExpiresOn: string | null | undefined): number | null => {
+  if (accessToken) {
+    const jwtExpiry = getJwtExpiryMs(accessToken);
+    if (jwtExpiry !== null) {
+      return jwtExpiry;
+    }
+  }
+  if (storedExpiresOn) {
+    const parsed = Number(storedExpiresOn);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+type PersistedSession = Pick<AuthState, 'accessToken' | 'refreshToken' | 'refreshTokenExpiresOn' | 'profile'>;
+
+/**
+ * Cold-start session restore, invoked once after zustand rehydrates the
+ * persisted auth state. Exported for tests.
+ *
+ * - Valid access token: signedIn immediately (no network, no artificial delay)
+ *   with a proactive refresh scheduled in the background before expiry.
+ * - Expired/undecodable access token + refresh token: signedIn optimistically --
+ *   any API call that hits a 401 rides the interceptor's single-flight refresh --
+ *   while an immediate background refresh runs.
+ * - Refresh token only: nothing to call the API with, so show 'loading' while
+ *   refreshing immediately (no fixed delay).
+ * - Transient refresh failures keep the session (refreshAccessToken retries
+ *   every 30s); only a definitive credential rejection (400/401 from
+ *   /connect/token) logs the user out.
+ */
+export const restoreSession = (state: PersistedSession | undefined): void => {
+  if (!state || !state.refreshToken) {
+    // No stored session -- leave status as-is; the tab layout redirects to login.
+    return;
+  }
+
+  // Clear any existing refresh timer before scheduling a new one
+  const existingTimeoutId = useAuthStore.getState().refreshTimeoutId;
+  if (existingTimeoutId !== null) {
+    clearTimeout(existingTimeoutId);
+  }
+
+  if (state.profile?.sub) {
+    Sentry.setUser({ id: state.profile.sub, username: state.profile.name });
+  }
+
+  // The persist middleware has already merged these into the store; re-applying
+  // them keeps this function self-contained, so the scheduled refresh below can
+  // never observe a store without the credentials it was told to restore.
+  const restoredTokens = {
+    accessToken: state.accessToken,
+    refreshToken: state.refreshToken,
+    refreshTokenExpiresOn: state.refreshTokenExpiresOn,
+  };
+
+  const expiresOn = getAccessTokenExpiryMs(state.accessToken, state.refreshTokenExpiresOn);
+  const now = Date.now();
+
+  if (state.accessToken && expiresOn !== null && expiresOn - now > ACCESS_TOKEN_EXPIRY_SKEW_MS) {
+    // Access token still valid -- restore instantly and refresh in the
+    // background shortly before it expires (1 minute early, like the login path).
+    const refreshDelayMs = Math.max(expiresOn - now - 60 * 1000, 1000);
+    logger.info({
+      message: 'Restored session from storage with valid access token',
+      context: { refreshDelayMs },
+    });
+    const timeoutId = setTimeout(() => useAuthStore.getState().refreshAccessToken(), refreshDelayMs);
+    useAuthStore.setState({ ...restoredTokens, status: 'signedIn', error: null, refreshTimeoutId: timeoutId });
+    return;
+  }
+
+  if (state.accessToken) {
+    // Access token expired (or expiry unknown) but a refresh token exists. Stay
+    // signed in optimistically: the 401 interceptor refreshes on demand, and an
+    // offline cold start keeps the session instead of bouncing to login.
+    logger.info({
+      message: 'Restored session from storage with expired access token, refreshing in background',
+    });
+    const timeoutId = setTimeout(() => useAuthStore.getState().refreshAccessToken(), 0);
+    useAuthStore.setState({ ...restoredTokens, status: 'signedIn', error: null, refreshTimeoutId: timeoutId });
+    return;
+  }
+
+  // Refresh token only -- refresh immediately, no artificial delay.
+  logger.info({
+    message: 'Found refresh token in storage without access token, attempting to restore session',
+  });
+  const timeoutId = setTimeout(() => useAuthStore.getState().refreshAccessToken(), 0);
+  useAuthStore.setState({ ...restoredTokens, status: 'loading', refreshTimeoutId: timeoutId });
 };
 
 // Keep the API cache scoped to whoever is signed in. Cache keys embed this identity, so stamping it

@@ -1,11 +1,10 @@
 import { AlertTriangle, MapPin, Phone, Timer } from 'lucide-react-native';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, Platform, ScrollView, StyleSheet } from 'react-native';
+import { Animated, ScrollView } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { HStack } from '@/components/ui/hstack';
-import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
@@ -13,6 +12,7 @@ import { getTimeAgoUtc, invertColor } from '@/lib/utils';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import type { CallResultData } from '@/models/v4/calls/callResultData';
 import type { DispatchedEventResultData } from '@/models/v4/calls/dispatchedEventResultData';
+import { stripHtml } from '@/utils/strip-html';
 
 function getColor(call: CallResultData, priority: CallPriorityResultData | undefined) {
   if (!call) {
@@ -39,6 +39,10 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
   const textColor = invertColor(getColor(call, priority), true);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const destinationLabel = call.DestinationName || call.DestinationAddress || '';
+  // Nature is server-authored HTML; render it as stripped plain text here — a
+  // WebView-backed HtmlRenderer per list row is far too heavy. The call detail
+  // screen keeps the full HTML rendering.
+  const natureText = useMemo(() => stripHtml(call.Nature), [call.Nature]);
 
   useEffect(() => {
     if (isTimerOverdue) {
@@ -174,20 +178,13 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
       </VStack>
 
       {/* Nature of Call */}
-      {call.Nature ? (
-        // Android's WebView claims the touch stream (requestDisallowInterceptTouchEvent),
-        // so a drag starting on it never reaches the surrounding list — kill its pointer
-        // events there and let the list scroll. iOS nests scrolling fine, leave it alone.
-        <Box className="mt-4 rounded-lg bg-white/50 p-3" pointerEvents={Platform.OS === 'android' ? 'none' : 'auto'}>
-          <HtmlRenderer html={call.Nature} style={StyleSheet.flatten([styles.container, { height: 80 }])} textColor={textColor} />
+      {natureText ? (
+        <Box className="mt-4 rounded-lg bg-white/50 p-3">
+          <Text style={{ color: textColor }} className="text-sm" numberOfLines={4}>
+            {natureText}
+          </Text>
         </Box>
       ) : null}
     </Box>
   );
-});
-const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    backgroundColor: 'transparent',
-  },
 });

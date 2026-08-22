@@ -31,13 +31,20 @@ export default function Protocols() {
     fetchProtocols();
   }, [fetchProtocols]);
 
+  // Search query is read through a ref so typing does not fire an analytics
+  // event per keystroke — the effect below must not depend on searchQuery.
+  const searchQueryRef = React.useRef(searchQuery);
+  React.useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
+
   // Track when protocols view is rendered
   React.useEffect(() => {
     trackEvent('protocols_view_rendered', {
       protocolsCount: protocols.length,
-      hasSearchQuery: searchQuery.length > 0,
+      hasSearchQuery: searchQueryRef.current.length > 0,
     });
-  }, [trackEvent, protocols.length, searchQuery.length]);
+  }, [trackEvent, protocols.length]);
 
   const handleRefresh = React.useCallback(async () => {
     setRefreshing(true);
@@ -72,7 +79,7 @@ export default function Protocols() {
             </InputSlot>
             <InputField placeholder={t('protocols.search')} value={searchQuery} onChangeText={setSearchQuery} />
             {searchQuery ? (
-              <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+              <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button" accessibilityRole="button" accessibilityLabel={t('common.clear_search')}>
                 <InputIcon as={X} />
               </InputSlot>
             ) : null}

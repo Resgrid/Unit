@@ -1,6 +1,7 @@
 import { useCounts } from '@novu/react-native';
 import { BellIcon } from 'lucide-react-native';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ActivityIndicator, Pressable, View } from '@/components/ui';
 import { Text } from '@/components/ui/text';
@@ -9,6 +10,7 @@ interface NotificationButtonProps {
 }
 
 export const NotificationButton = ({ onPress }: NotificationButtonProps) => {
+  const { t } = useTranslation();
   const { counts, isLoading } = useCounts({
     filters: [
       {
@@ -20,7 +22,7 @@ export const NotificationButton = ({ onPress }: NotificationButtonProps) => {
   if (isLoading) return <ActivityIndicator />;
 
   return (
-    <Pressable onPress={onPress} className="mr-2 p-2" testID="notification-button">
+    <Pressable onPress={onPress} className="mr-2 p-2" testID="notification-button" accessibilityRole="button" accessibilityLabel={t('notifications.open')}>
       <View className="relative">
         <BellIcon size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
 

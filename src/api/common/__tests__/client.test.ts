@@ -18,10 +18,17 @@ const mockAxiosInstance = Object.assign(jest.fn(), {
   },
 });
 
+// Records the config the client passes to axios.create, so the assertions below
+// survive both jest.isolateModules and the beforeEach clearAllMocks().
+const mockCreateConfigs: Record<string, unknown>[] = [];
+
 jest.mock('axios', () => ({
   __esModule: true,
   default: {
-    create: jest.fn(() => mockAxiosInstance),
+    create: jest.fn((config: Record<string, unknown>) => {
+      mockCreateConfigs.push(config);
+      return mockAxiosInstance;
+    }),
   },
 }));
 
@@ -86,5 +93,11 @@ describe('API client token refresh logging', () => {
       context: { error: refreshError },
     });
     expect(getHeader).toHaveBeenCalledWith('x-trace-id');
+  });
+
+  it('configures a request timeout so a hung request cannot stall the refresh queue', () => {
+    // Axios defaults to no timeout: a hung request would hold the single-flight
+    // refresh promise and every 401-queued request behind it, indefinitely.
+    expect(mockCreateConfigs[0]).toMatchObject({ timeout: 30000 });
   });
 });

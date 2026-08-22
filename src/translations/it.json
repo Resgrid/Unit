@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "Impossibile caricare i dati dell'app. Controlla la connessione e riprova.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Applicato",
     "audio": "Audio",
     "audioActive": "Audio attivo",
+    "audio_capable": "Compatibile con audio",
     "audio_device": "Auricolare BT",
     "audio_output": "Uscita audio",
     "availableDevices": "Dispositivi disponibili",
@@ -47,6 +49,8 @@
     "connect": "Connetti",
     "connected": "Connesso",
     "connectionError": "Errore di connessione",
+    "connection_error_message": "Impossibile connettersi al dispositivo",
+    "connection_error_title": "Connessione non riuscita",
     "current_selection": "Selezione corrente",
     "device_disconnected": "Dispositivo disconnesso",
     "disconnect": "Disconnetti",
@@ -104,10 +108,12 @@
     "loading": "Caricamento...",
     "no_images": "Nessuna immagine disponibile",
     "no_images_description": "Aggiungi immagini alla tua chiamata per facilitare la documentazione e la comunicazione",
+    "not_signed_in": "Devi aver effettuato l'accesso per caricare immagini",
     "select_from_gallery": "Seleziona dalla galleria",
     "take_photo": "Scatta foto",
     "title": "Immagini chiamata",
-    "upload": "Carica"
+    "upload": "Carica",
+    "upload_error": "Errore durante il caricamento dell'immagine"
   },
   "callNotes": {
     "addNote": "Aggiungi nota",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Indicazioni",
+    "directions_to_destination": "Indicazioni per la destinazione",
     "dispatch_to": "Invia a",
     "dispatch_to_everyone": "Invia a tutto il personale disponibile",
     "edit_call": "Modifica chiamata",
     "edit_call_description": "Aggiorna le informazioni della chiamata",
+    "errors": {
+      "load_failed": "Impossibile caricare le chiamate"
+    },
     "everyone": "Tutti",
     "field_policy_loading": "Le impostazioni delle chiamate del tuo dipartimento sono ancora in caricamento, riprova tra un momento",
     "files": {
+      "error": "Errore durante il recupero dei file",
+      "file_name": "Nome del file",
       "no_files": "Nessun file disponibile",
       "no_files_description": "Nessun file aggiunto a questa chiamata",
+      "open_error": "Errore durante l'apertura del file",
+      "share_error": "Errore durante la condivisione del file",
+      "sharing_unavailable": "La condivisione non è disponibile su questo dispositivo",
       "title": "File chiamata"
     },
     "geocoding_error": "Ricerca indirizzo fallita, riprovare",
@@ -308,6 +323,7 @@
     "users": "Utenti",
     "viewNotes": "Note",
     "view_details": "Visualizza dettagli",
+    "view_on_map": "Visualizza sulla mappa",
     "what3words": "what3words",
     "what3words_found": "Indirizzo what3words trovato e posizione aggiornata",
     "what3words_geocoding_error": "Ricerca indirizzo what3words fallita, riprovare",
@@ -433,6 +449,7 @@
     "add": "Aggiungi",
     "back": "Indietro",
     "cancel": "Annulla",
+    "clear_search": "Cancella ricerca",
     "close": "Chiudi",
     "confirm": "Conferma",
     "confirm_location": "Conferma posizione",
@@ -454,6 +471,7 @@
     "no_address_found": "Nessun indirizzo trovato",
     "no_location": "Nessun dato di posizione disponibile",
     "no_results_found": "Nessun risultato trovato",
+    "no_unit": "Nessuna unità",
     "no_unit_selected": "Nessuna unità selezionata",
     "nothingToDisplay": "Non c'è nulla da visualizzare al momento",
     "of": "di",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Tocca la mappa per selezionare una posizione",
     "tryAgainLater": "Riprova più tardi",
     "unknown": "Sconosciuto",
+    "unknown_error": "Si è verificato un errore sconosciuto",
     "upload": "Carica",
     "uploading": "Caricamento..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Contatti",
     "twitter": "Twitter",
+    "unknown_company": "Azienda sconosciuta",
+    "unknown_person": "Persona sconosciuta",
     "visibility": "Visibilità",
     "website": "Sito web",
     "zip": "CAP"
@@ -659,6 +680,7 @@
       "message": "Verificare nome utente e password e riprovare.",
       "title": "Accesso fallito"
     },
+    "hide_password": "Nascondi password",
     "login": "Accedi",
     "login_button": "Accedi",
     "login_button_description": "Accedi al tuo account per continuare",
@@ -667,8 +689,8 @@
     "login_button_success": "Accesso effettuato con successo",
     "or_sign_in_with_password": "o accedi con password",
     "password": "Password",
-    "password_incorrect": "La password non è corretta",
     "password_placeholder": "Inserisci la tua password",
+    "show_password": "Mostra password",
     "sso_button": "Accedi con SSO",
     "sso_department": "SSO fornito da {{name}}",
     "sso_department_id": "ID dipartimento (opzionale)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Chiamata impostata come chiamata corrente",
     "failed_to_open_maps": "Impossibile aprire l'applicazione mappe",
     "failed_to_set_current_call": "Impossibile impostare la chiamata come corrente",
+    "lock_map": "Blocca la mappa sull'unità",
     "no_location_for_routing": "Nessun dato di posizione disponibile per la navigazione",
     "pin_address": "Address",
     "pin_color": "Colore pin",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Ricentra mappa",
     "set_as_current_call": "Imposta come chiamata corrente",
+    "unlock_map": "Sblocca la mappa",
     "view_call_details": "Visualizza dettagli chiamata",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Cerca note...",
     "title": "Note"
   },
+  "notifications": {
+    "confirm_delete_message_count": "Vuoi davvero eliminare {{count}} notifiche? Questa azione non può essere annullata.",
+    "confirm_delete_message_one": "Vuoi davvero eliminare questa notifica? Questa azione non può essere annullata.",
+    "confirm_delete_title": "Conferma l'eliminazione",
+    "delete_selected": "Elimina le notifiche selezionate",
+    "deselect_all": "Deseleziona tutto",
+    "empty": "Nessun aggiornamento disponibile",
+    "enter_selection_mode": "Seleziona notifiche",
+    "open": "Apri le notifiche",
+    "remove_failed_count": "Impossibile eliminare le notifiche",
+    "remove_failed_one": "Impossibile eliminare la notifica",
+    "removed_count": "{{count}} notifiche eliminate",
+    "removed_one": "Notifica eliminata",
+    "select_all": "Seleziona tutto",
+    "selected_count": "{{count}} selezionate",
+    "title": "Notifiche",
+    "unable_to_load": "Impossibile caricare le notifiche"
+  },
   "onboarding": {
     "message": "Benvenuto nell'app Resgrid Unit"
   },
@@ -782,12 +824,23 @@
     "view_call": "Visualizza chiamata"
   },
   "roles": {
+    "assignedElsewhere": "In un altro ruolo",
+    "clearAssignment": "Rimuovi l'assegnazione attuale",
     "modal": {
       "title": "Assegnazioni ruoli unità"
     },
+    "noUsersFound": "Nessun utente trovato",
+    "save_error": "Errore durante il salvataggio delle assegnazioni dei ruoli",
+    "saved_successfully": "Assegnazioni dei ruoli salvate",
+    "searchUsers": "Cerca per nome o gruppo...",
     "selectUser": "Seleziona utente",
+    "selectUserDescription": "Scegli una persona per questo ruolo",
+    "selectUserForRole": "Assegna: {{role}}",
+    "selectUserLabel": "Seleziona {{name}}",
     "status": "{{active}} di {{total}} ruoli",
+    "tapToAssign": "Tocca per assegnare un utente a {{role}}",
     "tap_to_manage": "Tocca per gestire i ruoli",
+    "title": "Assegnazione dei ruoli dell'unità",
     "unassigned": "Non assegnato"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Distanza totale",
     "total_duration": "Durata totale",
     "traffic_delay": "{{time}} di ritardo a causa del traffico",
+    "traffic_heavy": "Traffico intenso",
+    "traffic_light": "Traffico scorrevole",
+    "traffic_moderate": "Traffico moderato",
+    "traffic_no_data": "Nessun dato sul traffico",
+    "traffic_severe": "Traffico molto intenso",
     "try_different_search": "Try a different search term",
     "type": "Tipo",
     "unassigned": "Non assegnato",

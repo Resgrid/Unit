@@ -141,7 +141,10 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
   return (
     <Box style={[styles.container, { height }]}>
       <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
-        <Mapbox.Camera ref={cameraRef} zoomLevel={hasUserLocation ? 15 : 4} centerCoordinate={[currentLocation.longitude, currentLocation.latitude]} animationMode="flyTo" animationDuration={1000} />
+        {/* Camera is driven imperatively only (see getUserLocation). Passing
+            centerCoordinate as well made every map tap re-fly the camera to the
+            tapped point and updated the camera mid-pan, fighting the gesture. */}
+        <Mapbox.Camera ref={cameraRef} defaultSettings={{ centerCoordinate: [currentLocation.longitude, currentLocation.latitude], zoomLevel: hasUserLocation ? 15 : 4 }} />
         {/* Marker for the selected location */}
         <Mapbox.PointAnnotation id="selectedLocation" coordinate={[currentLocation.longitude, currentLocation.latitude]} title={t('common.selected_location')}>
           <Box className="items-center justify-center">

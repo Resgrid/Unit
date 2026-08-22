@@ -7,6 +7,9 @@ import useAuthStore from '@/stores/auth/store';
 // Create axios instance with default config
 const axiosInstance: AxiosInstance = axios.create({
   baseURL: getBaseApiUrl(),
+  // Axios defaults to no timeout — a hung request would otherwise hold the
+  // single-flight refresh (and every 401-queued request behind it) forever.
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },

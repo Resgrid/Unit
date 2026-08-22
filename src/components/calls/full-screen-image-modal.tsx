@@ -1,7 +1,7 @@
 import { XIcon } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Dimensions, StatusBar, TouchableOpacity } from 'react-native';
+import { StatusBar, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,11 +16,12 @@ interface FullScreenImageModalProps {
   imageName?: string;
 }
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
 const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({ isOpen, onClose, imageSource, imageName }) => {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  // Read live: a module-level Dimensions.get('window') keeps the pre-rotation size
+  // forever, which leaves the pan clamping bounded to the wrong screen.
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // Animation values
   const scale = useSharedValue(1);
@@ -80,24 +81,32 @@ const FullScreenImageModal: React.FC<FullScreenImageModalProps> = ({ isOpen, onC
       savedTranslateY.value = translateY.value;
     });
 
+  // runOnJS can only schedule a stable JS-thread function; a closure created inside the
+  // worklet cannot be transferred, so the toggle lives out here and takes the scale it
+  // needs as an argument.
+  const handleDoubleTap = React.useCallback(
+    (currentScale: number) => {
+      if (currentScale > 1) {
+        // Reset to original size
+        scale.value = withTiming(1);
+        translateX.value = withTiming(0);
+        translateY.value = withTiming(0);
+        savedScale.value = 1;
+        savedTranslateX.value = 0;
+        savedTranslateY.value = 0;
+      } else {
+        // Zoom in to 2x
+        scale.value = withTiming(2);
+        savedScale.value = 2;
+      }
+    },
+    [scale, translateX, translateY, savedScale, savedTranslateX, savedTranslateY]
+  );
+
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
     .onEnd(() => {
-      runOnJS(() => {
-        if (scale.value > 1) {
-          // Reset to original size
-          scale.value = withTiming(1);
-          translateX.value = withTiming(0);
-          translateY.value = withTiming(0);
-          savedScale.value = 1;
-          savedTranslateX.value = 0;
-          savedTranslateY.value = 0;
-        } else {
-          // Zoom in to 2x
-          scale.value = withTiming(2);
-          savedScale.value = 2;
-        }
-      })();
+      runOnJS(handleDoubleTap)(scale.value);
     });
 
   const composedGesture = Gesture.Simultaneous(Gesture.Simultaneous(pinchGesture, panGesture), doubleTapGesture);

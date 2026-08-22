@@ -106,7 +106,7 @@ export default function WeatherAlerts() {
           </InputSlot>
           <InputField placeholder={t('weather_alerts.search')} value={searchQuery} onChangeText={setSearchQuery} />
           {searchQuery ? (
-            <InputSlot className="pr-3" onPress={() => setSearchQuery('')}>
+            <InputSlot className="pr-3" onPress={() => setSearchQuery('')} testID="clear-search-button" accessibilityRole="button" accessibilityLabel={t('common.clear_search')}>
               <InputIcon as={X} />
             </InputSlot>
           ) : null}

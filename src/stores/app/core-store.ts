@@ -4,7 +4,6 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { getConfig } from '@/api/config';
-import { getAllUnitStatuses } from '@/api/satuses/statuses';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
 import { zustandStorage } from '@/lib/storage';
@@ -144,12 +143,14 @@ export const useCoreStore = create<CoreState>()(
           const unitStatuses = useUnitsStore.getState().unitStatuses;
           const activeUnit = units.find((unit) => unit.UnitId === unitId);
           if (activeUnit) {
+            // fetchUnits() above already fetched /Statuses/GetAllUnitStatuses and
+            // stored the identical payload as unitStatuses — reuse it instead of
+            // issuing the same request a second time.
             let activeStatuses: UnitTypeStatusResultData | undefined = undefined;
-            const allStatuses = await getAllUnitStatuses();
-            const defaultStatuses = find(allStatuses.Data, ['UnitType', '0']);
+            const defaultStatuses = find(unitStatuses, ['UnitType', '0']);
 
             if (activeUnit.Type) {
-              const statusesForType = find(allStatuses.Data, ['UnitType', activeUnit.Type.toString()]);
+              const statusesForType = find(unitStatuses, ['UnitType', activeUnit.Type.toString()]);
 
               if (statusesForType) {
                 activeStatuses = statusesForType;
@@ -205,10 +206,17 @@ export const useCoreStore = create<CoreState>()(
           //await useRolesStore.getState().fetchRolesForUnit(unitId);
         } catch (error) {
           set({ error: 'Failed to set active unit', isLoading: false });
-          logger.error({
-            message: 'Failed to set active unit',
-            context: { error },
-          });
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to set active unit due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: 'Failed to set active unit',
+              context: { error },
+            });
+          }
         }
       },
       setActiveUnitWithFetch: async (unitId: string) => {
@@ -231,10 +239,17 @@ export const useCoreStore = create<CoreState>()(
             error: 'Failed to fetch and set active unit',
             isLoading: false,
           });
-          logger.error({
-            message: 'Failed to fetch and set active unit',
-            context: { error },
-          });
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to fetch and set active unit due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: 'Failed to fetch and set active unit',
+              context: { error },
+            });
+          }
         }
       },
       // Lightweight status-only refresh — used by the SignalR status hook so a
@@ -246,10 +261,19 @@ export const useCoreStore = create<CoreState>()(
             set({ activeUnitStatus: unitStatus.Data });
           }
         } catch (error) {
-          logger.error({
-            message: 'Failed to refresh active unit status',
-            context: { error },
-          });
+          // Driven by SignalR unitStatusUpdated events, so a transient failure is
+          // repaired by the next event or the next resume.
+          if (isNetworkError(error)) {
+            logger.warn({
+              message: 'Failed to refresh active unit status due to network connectivity',
+              context: { error },
+            });
+          } else {
+            logger.error({
+              message: 'Failed to refresh active unit status',
+              context: { error },
+            });
+          }
         }
       },
       setActiveCall: async (callId: string | null) => {

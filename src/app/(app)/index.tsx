@@ -3,7 +3,7 @@ import { NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Animated, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
@@ -11,6 +11,7 @@ import { Loading } from '@/components/common/loading';
 import MapPins from '@/components/maps/map-pins';
 import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
+import UnitLocationMarker from '@/components/maps/unit-location-marker';
 import { StopMarker } from '@/components/routes/stop-marker';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
@@ -20,6 +21,7 @@ import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
+import { applyPitchHysteresis, applyZoomHysteresis, createCirclePolygon, normalizeHeading, normalizeSpeed, smoothSpeed, zoomForSpeed } from '@/lib/map-camera';
 import { getDepartmentMapCenter } from '@/lib/map-center';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
@@ -57,12 +59,23 @@ function MapContent() {
   const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
   const cameraRef = useRef<any>(null); // Using any due to imperative handle
   const [isMapReady, setIsMapReady] = useState(false);
+  // Ref mirror so the dependency-stable focus effect and the trailing follow
+  // timer can read readiness without re-running/capturing a stale value.
+  const isMapReadyRef = useRef(false);
+  isMapReadyRef.current = isMapReady;
   // Track screen focus so camera follow/animations can be stopped on blur. A camera
   // event delivered while the native map view is tearing down crashes in @rnmapbox/maps
   // (onCameraChanged use-after-free), so we quiet the camera when the user navigates
   // away to shrink that window.
   const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const isScreenFocusedRef = useRef(true);
+  isScreenFocusedRef.current = isScreenFocused;
   const [hasUserMovedMap, setHasUserMovedMap] = useState(false);
+  // Ref mirror for the trailing follow-camera timer: hasUserMovedMap is
+  // intentionally excluded from the follow effect's deps, so the timer checks
+  // this at fire time to avoid recentering over a fresh user pan.
+  const hasUserMovedMapRef = useRef(false);
+  hasUserMovedMapRef.current = hasUserMovedMap;
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
   const [isPinDetailModalOpen, setIsPinDetailModalOpen] = useState(false);
@@ -70,6 +83,8 @@ function MapContent() {
   const locationLatitude = useLocationStore((state) => state.latitude);
   const locationLongitude = useLocationStore((state) => state.longitude);
   const locationHeading = useLocationStore((state) => state.heading);
+  const locationAccuracy = useLocationStore((state) => state.accuracy);
+  const locationSpeed = useLocationStore((state) => state.speed);
   const isMapLocked = useLocationStore((state) => state.isMapLocked);
 
   // Weather alert banner state
@@ -85,6 +100,7 @@ function MapContent() {
 
   // Route overlay state
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
+  const activeCallId = useCoreStore((state) => state.activeCallId);
   const activeInstance = useRoutesStore((state) => state.activeInstance);
   const instanceStops = useRoutesStore((state) => state.instanceStops);
   const fetchActiveRoute = useRoutesStore((state) => state.fetchActiveRoute);
@@ -105,11 +121,81 @@ function MapContent() {
 
   const [styleURL, setStyleURL] = useState({ styleURL: getMapStyle() });
 
-  const pulseAnim = useRef(new Animated.Value(1)).current;
   useMapSignalRUpdates(setMapPins);
 
   // Throttle state for programmatic camera follow (see effect below)
   const lastCameraFollowRef = useRef(0);
+  // Trailing-edge timer for the follow throttle: the location store dedupes
+  // identical fixes, so an update dropped inside the throttle window may be the
+  // last one before the unit stops — deliver it when the window expires.
+  const trailingFollowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Follow-camera state: smoothed ground speed drives the zoom level (walking
+  // pace zooms in tight, highway speed pulls out for lookahead), and the last
+  // known heading keeps the camera pointed "behind" the unit while stationary
+  // fixes report no heading.
+  const smoothedSpeedRef = useRef<number | null>(null);
+  const followZoomRef = useRef<number | null>(null);
+  const followPitchRef = useRef<number>(0);
+  const lastBearingRef = useRef<number | null>(null);
+
+  // Previous lock/ready state, so the single camera effect below can tell a lock
+  // toggle (or the map first becoming ready) from an ordinary location update.
+  const prevIsMapLockedRef = useRef(isMapLocked);
+  const prevIsMapReadyRef = useRef(isMapReady);
+
+  const clearTrailingFollow = useCallback(() => {
+    if (trailingFollowTimeoutRef.current) {
+      clearTimeout(trailingFollowTimeoutRef.current);
+      trailingFollowTimeoutRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Camera config that frames the unit like a navigation app: centered on the
+   * unit, rotated to its heading, zoomed by its speed, tilted while moving.
+   * Reads the location store directly so callers always frame the freshest fix.
+   */
+  const buildFollowCamera = useCallback((animationDuration: number) => {
+    const { latitude, longitude, heading, speed } = useLocationStore.getState();
+    if (latitude == null || longitude == null) return null;
+
+    smoothedSpeedRef.current = smoothSpeed(smoothedSpeedRef.current, normalizeSpeed(speed));
+    const zoomLevel = applyZoomHysteresis(followZoomRef.current, zoomForSpeed(smoothedSpeedRef.current));
+    followZoomRef.current = zoomLevel;
+
+    const currentHeading = normalizeHeading(heading);
+    if (currentHeading != null) {
+      lastBearingRef.current = currentHeading;
+    }
+    const bearing = lastBearingRef.current;
+
+    // Tilt behind the unit only while it's actually moving with a known
+    // heading; a stationary crew on foot gets a top-down view. Hysteresis
+    // keeps the pitch from flipping when speed hovers around the boundary.
+    const pitch = bearing != null ? applyPitchHysteresis(followPitchRef.current, smoothedSpeedRef.current) : 0;
+    followPitchRef.current = pitch;
+
+    return {
+      centerCoordinate: [longitude, latitude] as [number, number],
+      zoomLevel,
+      heading: bearing ?? 0,
+      pitch,
+      animationDuration,
+    };
+  }, []);
+
+  /** Issue exactly one camera command and (re)arm the follow throttle window. */
+  const applyFollowCamera = useCallback(
+    (animationDuration: number) => {
+      const cameraConfig = buildFollowCamera(animationDuration);
+      if (!cameraConfig) return null;
+      lastCameraFollowRef.current = Date.now();
+      cameraRef.current?.setCamera(cameraConfig);
+      return cameraConfig;
+    },
+    [buildFollowCamera]
+  );
 
   // Stable initial camera settings so the native Camera renders at the
   // correct position from the very first frame (fixes Android/iOS centering).
@@ -117,8 +203,8 @@ function MapContent() {
     if (locationLatitude != null && locationLongitude != null) {
       return {
         centerCoordinate: [locationLongitude, locationLatitude] as [number, number],
-        zoomLevel: isMapLocked ? 16 : 12,
-        heading: 0,
+        zoomLevel: zoomForSpeed(normalizeSpeed(locationSpeed)),
+        heading: normalizeHeading(locationHeading) ?? 0,
         pitch: 0,
       };
     }
@@ -130,7 +216,9 @@ function MapContent() {
       heading: 0,
       pitch: 0,
     };
-  }, [locationLatitude, locationLongitude, isMapLocked]);
+    // Initial settings only matter for the first frame — don't churn them on every fix.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch active route overlay data
   useEffect(() => {
@@ -190,18 +278,7 @@ function MapContent() {
   // Geofence circle GeoJSON
   const geofenceGeoJSON = useMemo((): GeoJSON.Feature<GeoJSON.Polygon> | null => {
     if (!nextStop || !nextStop.GeofenceRadiusMeters) return null;
-    const points = 64;
-    const coords: number[][] = [];
-    const radiusDeg = nextStop.GeofenceRadiusMeters / 111320;
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * 2 * Math.PI;
-      coords.push([nextStop.Longitude + radiusDeg * Math.cos(angle), nextStop.Latitude + radiusDeg * Math.sin(angle)]);
-    }
-    return {
-      type: 'Feature',
-      properties: {},
-      geometry: { type: 'Polygon', coordinates: [coords] },
-    };
+    return createCirclePolygon(nextStop.Longitude, nextStop.Latitude, nextStop.GeofenceRadiusMeters);
   }, [nextStop]);
 
   // Update map style when theme changes
@@ -210,7 +287,12 @@ function MapContent() {
     setStyleURL({ styleURL: newStyle });
   }, [getMapStyle]);
 
-  // Handle navigation focus - reset map state when user navigates back to map page
+  // Handle navigation focus - reset map state when user navigates back to map page.
+  // The callback is intentionally dependency-stable (state is read through refs /
+  // the store) so it only re-runs on genuine focus/blur transitions — with
+  // isMapReady/isMapLocked in the deps it also re-ran on every lock toggle and
+  // map-ready flip, issuing a second camera command on top of the lock effect
+  // below and double-advancing the speed EMA.
   useFocusEffect(
     useCallback(() => {
       // Mark the screen focused again so camera follow/animations are allowed
@@ -219,40 +301,28 @@ function MapContent() {
       // Reset hasUserMovedMap when navigating back to map
       setHasUserMovedMap(false);
 
-      // Reset camera to current location when navigating back to map
-      if (isMapReady && locationLatitude && locationLongitude) {
-        const cameraConfig: any = {
-          centerCoordinate: [locationLongitude, locationLatitude],
-          zoomLevel: isMapLocked ? 16 : 12,
-          animationDuration: 1000,
-          heading: 0,
-          pitch: 0,
-        };
-
-        // Add heading and pitch for navigation mode when locked
-        if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
-          cameraConfig.heading = locationHeading;
-          cameraConfig.pitch = 45;
+      // Reset camera to follow the unit when navigating back to map
+      if (isMapReadyRef.current) {
+        const cameraConfig = applyFollowCamera(1000);
+        if (cameraConfig) {
+          logger.info({
+            message: 'Map focused, resetting camera to current location',
+            context: {
+              latitude: cameraConfig.centerCoordinate[1],
+              longitude: cameraConfig.centerCoordinate[0],
+              isMapLocked: useLocationStore.getState().isMapLocked,
+            },
+          });
         }
-
-        cameraRef.current?.setCamera(cameraConfig);
-
-        logger.info({
-          message: 'Map focused, resetting camera to current location',
-          context: {
-            latitude: locationLatitude,
-            longitude: locationLongitude,
-            isMapLocked: isMapLocked,
-          },
-        });
       }
 
       // On blur (cleanup), stop the camera following/animating before the native
       // map view is detached, so a camera event can't fire into a torn-down view.
       return () => {
         setIsScreenFocused(false);
+        clearTrailingFollow();
       };
-    }, [isMapReady, locationLatitude, locationLongitude, isMapLocked, locationHeading])
+    }, [applyFollowCamera, clearTrailingFollow])
   );
 
   useEffect(() => {
@@ -295,63 +365,72 @@ function MapContent() {
     };
   }, []);
 
+  // Single driver for programmatic camera moves. Lock toggles, the map first
+  // becoming ready and ordinary location updates all funnel through here so each
+  // trigger issues exactly one setCamera — two effects firing back-to-back
+  // double-advanced the speed EMA and the zoom hysteresis on every lock toggle.
   useEffect(() => {
+    const lockChanged = prevIsMapLockedRef.current !== isMapLocked;
+    const becameReady = isMapReady && !prevIsMapReadyRef.current;
+    prevIsMapLockedRef.current = isMapLocked;
+    prevIsMapReadyRef.current = isMapReady;
+
+    // Toggling the lock (either direction) returns the camera to the default
+    // follow-the-unit behavior and clears any manual pan/zoom the user made.
+    if (lockChanged) {
+      setHasUserMovedMap(false);
+    }
+
     // Skip camera animations while the screen is unfocused so a location update
     // arriving during/after navigation away doesn't drive the (possibly tearing
     // down) native map view.
-    if (isScreenFocused && isMapReady && locationLatitude && locationLongitude) {
-      // When map is locked, always follow the location
-      // When map is unlocked, only follow if user hasn't moved the map
-      if (isMapLocked || !hasUserMovedMap) {
-        // Throttle programmatic camera moves — GPS fixes arrive every ~15s and
-        // each setCamera triggers a native camera animation + re-render.
-        const now = Date.now();
-        if (now - lastCameraFollowRef.current < CAMERA_FOLLOW_THROTTLE_MS) {
-          return;
-        }
-        lastCameraFollowRef.current = now;
-
-        const cameraConfig: any = {
-          centerCoordinate: [locationLongitude, locationLatitude],
-          zoomLevel: isMapLocked ? 16 : 12,
-          animationDuration: isMapLocked ? 500 : 1000,
-        };
-
-        // Add heading and pitch for navigation mode when locked
-        if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
-          cameraConfig.heading = locationHeading;
-          cameraConfig.pitch = 45;
-        }
-
-        cameraRef.current?.setCamera(cameraConfig);
-      }
+    if (!isScreenFocused || !isMapReady || locationLatitude == null || locationLongitude == null) {
+      return;
     }
+
+    // A lock toggle (or the map becoming ready) recenters right away, bypassing
+    // and re-arming the follow throttle.
+    if (lockChanged || becameReady) {
+      clearTrailingFollow();
+      applyFollowCamera(800);
+      return;
+    }
+
+    // When map is locked, always follow the location.
+    // When map is unlocked, follow by default — but stop the moment the user
+    // pans/zooms/rotates the map, until they recenter or toggle the lock.
+    if (!isMapLocked && hasUserMovedMap) {
+      return;
+    }
+
+    // Throttle programmatic camera moves — GPS fixes arrive every ~15s and
+    // each setCamera triggers a native camera animation + re-render.
+    const elapsed = Date.now() - lastCameraFollowRef.current;
+    clearTrailingFollow();
+
+    if (elapsed < CAMERA_FOLLOW_THROTTLE_MS) {
+      // The location store dedupes identical fixes, so a dropped update can be
+      // the last position change before the unit stops. Replay it on the
+      // trailing edge instead of parking the camera behind the stopped unit.
+      trailingFollowTimeoutRef.current = setTimeout(() => {
+        trailingFollowTimeoutRef.current = null;
+        if (!isScreenFocusedRef.current || !isMapReadyRef.current) return;
+        if (!useLocationStore.getState().isMapLocked && hasUserMovedMapRef.current) return;
+        applyFollowCamera(4000);
+      }, CAMERA_FOLLOW_THROTTLE_MS - elapsed);
+      return;
+    }
+
+    // Long animation glides the camera between sparse fixes instead of
+    // hopping, approximating continuous navigation-style tracking.
+    applyFollowCamera(4000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isScreenFocused, isMapReady, locationLatitude, locationLongitude, locationHeading, isMapLocked]);
+  }, [isScreenFocused, isMapReady, locationLatitude, locationLongitude, locationHeading, locationSpeed, isMapLocked, applyFollowCamera, clearTrailingFollow]);
   // NOTE: hasUserMovedMap intentionally excluded from deps to avoid toggle loop
   // on web where programmatic easeTo → moveend → setHasUserMovedMap(true) → re-trigger.
 
-  // Reset hasUserMovedMap when map gets locked and reset camera when unlocked
-  useEffect(() => {
-    if (isMapLocked) {
-      setHasUserMovedMap(false);
-    } else {
-      // When exiting locked mode, reset camera to normal view and reset user interaction state
-      setHasUserMovedMap(false);
-
-      if (isMapReady && locationLatitude && locationLongitude) {
-        cameraRef.current?.setCamera({
-          centerCoordinate: [locationLongitude, locationLatitude],
-          zoomLevel: 12,
-          heading: 0,
-          pitch: 0,
-          animationDuration: 1000,
-        });
-      }
-    }
-    // Only react to lock mode changes — NOT location changes (those are handled above)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMapReady, isMapLocked]);
+  // Drop any pending trailing follow when the map screen goes away.
+  useEffect(() => clearTrailingFollow, [clearTrailingFollow]);
 
   useEffect(() => {
     const abortController = new AbortController();
@@ -387,32 +466,6 @@ function MapContent() {
     };
   }, []);
 
-  // Only run Animated.loop on native — on web, useNativeDriver falls back to JS driver
-  // which creates continuous requestAnimationFrame overhead. Web uses CSS animation instead.
-  useEffect(() => {
-    if (Platform.OS !== 'web') {
-      const loopAnim = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.2,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      );
-      loopAnim.start();
-
-      return () => {
-        loopAnim.stop();
-      };
-    }
-  }, [pulseAnim]);
-
   // Track when map view is rendered
   useEffect(() => {
     trackEvent('map_view_rendered', {
@@ -434,20 +487,8 @@ function MapContent() {
   );
 
   const handleRecenterMap = () => {
-    if (locationLatitude && locationLongitude) {
-      const cameraConfig: any = {
-        centerCoordinate: [locationLongitude, locationLatitude],
-        zoomLevel: isMapLocked ? 16 : 12,
-        animationDuration: 1000,
-      };
-
-      // Add heading and pitch for navigation mode when locked
-      if (isMapLocked && locationHeading !== null && locationHeading !== undefined) {
-        cameraConfig.heading = locationHeading;
-        cameraConfig.pitch = 45;
-      }
-
-      cameraRef.current?.setCamera(cameraConfig);
+    clearTrailingFollow();
+    if (applyFollowCamera(1000)) {
       setHasUserMovedMap(false);
     }
   };
@@ -489,30 +530,12 @@ function MapContent() {
   };
 
   // Show recenter button only when map is not locked and user has moved the map
-  const showRecenterButton = !isMapLocked && hasUserMovedMap && locationLatitude && locationLongitude;
+  const showRecenterButton = !isMapLocked && hasUserMovedMap && locationLatitude != null && locationLongitude != null;
 
   // Create dynamic styles based on theme - useMemo to avoid new objects every render
   const themedStyles = useMemo(() => {
     const isDark = colorScheme === 'dark';
     return {
-      markerInnerContainer: {
-        width: 24,
-        height: 24,
-        alignItems: 'center' as const,
-        justifyContent: 'center' as const,
-        backgroundColor: '#3b82f6',
-        borderRadius: 12,
-        borderWidth: 3,
-        borderColor: isDark ? '#1f2937' : '#ffffff',
-        elevation: 5,
-        shadowColor: isDark ? '#ffffff' : '#000000',
-        shadowOffset: {
-          width: 0,
-          height: 2,
-        },
-        shadowOpacity: isDark ? 0.1 : 0.25,
-        shadowRadius: 3.84,
-      },
       recenterButton: {
         position: 'absolute' as const,
         bottom: 20 + insets.bottom,
@@ -559,36 +582,11 @@ function MapContent() {
           rotateEnabled={!isMapLocked}
           pitchEnabled={!isMapLocked}
         >
-          <Mapbox.Camera
-            ref={cameraRef}
-            defaultSettings={initialCameraSettings}
-            followZoomLevel={isMapLocked ? 16 : 12}
-            followUserLocation={isMapLocked && isScreenFocused}
-            followUserMode={isMapLocked && isScreenFocused ? Mapbox.UserTrackingMode.FollowWithHeading : undefined}
-            followPitch={isMapLocked && isScreenFocused ? 45 : undefined}
-          />
+          {/* Camera is driven imperatively (buildFollowCamera) so locked and
+              unlocked modes share the same speed-adaptive follow behavior. */}
+          <Mapbox.Camera ref={cameraRef} defaultSettings={initialCameraSettings} />
 
-          {locationLatitude != null && locationLongitude != null ? (
-            <Mapbox.PointAnnotation id="userLocation" coordinate={[locationLongitude, locationLatitude]} anchor={{ x: 0.5, y: 0.5 }}>
-              <Animated.View style={[styles.markerContainer, Platform.OS === 'web' ? styles.markerPulseWeb : { transform: [{ scale: pulseAnim }] }]}>
-                <View style={styles.markerOuterRing} className={Platform.OS === 'web' ? 'pulse-ring' : undefined} />
-                <View style={[styles.markerInnerContainer, themedStyles.markerInnerContainer]}>
-                  <View style={styles.markerDot} />
-                  {locationHeading != null ? (
-                    <View
-                      style={[
-                        styles.directionIndicator,
-                        {
-                          transform: [{ rotate: `${locationHeading}deg` }],
-                        },
-                      ]}
-                    />
-                  ) : null}
-                </View>
-              </Animated.View>
-            </Mapbox.PointAnnotation>
-          ) : null}
-          <MapPins pins={mapPins} onPinPress={handlePinPress} />
+          <MapPins pins={mapPins} onPinPress={handlePinPress} activeCallId={activeCallId} />
 
           {/* Active route polyline overlay */}
           {routeOverlayGeoJSON ? (
@@ -658,6 +656,10 @@ function MapContent() {
               </Mapbox.ShapeSource>
             ) : null
           )}
+
+          {/* Unit location indicator: accuracy circle, heading arrow, dot.
+              Rendered last so its layers draw above the overlay fills. */}
+          {locationLatitude != null && locationLongitude != null ? <UnitLocationMarker latitude={locationLatitude} longitude={locationLongitude} heading={locationHeading} accuracy={locationAccuracy} /> : null}
         </Mapbox.MapView>
 
         {/* Weather Alert Banner */}
@@ -688,52 +690,6 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
-  markerContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 60,
-    height: 60,
-    position: 'relative',
-  },
-  markerOuterRing: {
-    position: 'absolute',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    borderWidth: 2,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
-  },
-  markerInnerContainer: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#3b82f6',
-    borderRadius: 12,
-    borderWidth: 3,
-    // borderColor and shadow properties are handled by themedStyles
-  },
-  markerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ffffff',
-  },
-  directionIndicator: {
-    position: 'absolute',
-    width: 0,
-    height: 0,
-    backgroundColor: 'transparent',
-    borderStyle: 'solid',
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 24,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: '#3b82f6',
-    top: -36,
-  },
   recenterButton: {
     position: 'absolute',
     bottom: 20,
@@ -746,10 +702,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     // elevation and shadow properties are handled by themedStyles
   },
-  // Web-only CSS pulse animation (replaces Animated.loop which falls back to JS driver on web).
-  // Applied via the global `.pulse-ring` CSS class — react-native-web rejects
-  // `animationName` as an inline style property.
-  markerPulseWeb: {
-    // No JS-driven transform on web — the outer ring animates via CSS instead
-  } as any,
 });

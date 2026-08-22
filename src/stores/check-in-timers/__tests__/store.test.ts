@@ -22,6 +22,7 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals';
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { getCheckInHistory, getTimerStatuses, getTimersForCall, performCheckIn } from '@/api/check-in-timers/check-in-timers';
+import { logger } from '@/lib/logging';
 import { useCheckInTimerStore } from '../store';
 
 jest.mock('@/api/check-in-timers/check-in-timers');
@@ -107,6 +108,19 @@ describe('useCheckInTimerStore', () => {
         expect(result.current.statusError).toBe('Network error');
         expect(result.current.isLoadingStatuses).toBe(false);
       });
+    });
+
+    it('should log a poll failure at warn so a 30s poll cannot flood Sentry', async () => {
+      mockGetTimerStatuses.mockRejectedValue(new Error('Network error'));
+
+      const { result } = renderHook(() => useCheckInTimerStore());
+
+      await act(async () => {
+        await result.current.fetchTimerStatuses(1);
+      });
+
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Failed to fetch timer statuses' }));
+      expect(logger.error).not.toHaveBeenCalledWith(expect.objectContaining({ message: 'Failed to fetch timer statuses' }));
     });
   });
 

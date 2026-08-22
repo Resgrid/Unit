@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "Nie można załadować danych aplikacji. Sprawdź połączenie i spróbuj ponownie.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Zastosowano",
     "audio": "Audio",
     "audioActive": "Audio aktywne",
+    "audio_capable": "Obsługuje dźwięk",
     "audio_device": "Słuchawka BT",
     "audio_output": "Wyjście audio",
     "availableDevices": "Dostępne urządzenia",
@@ -47,6 +49,8 @@
     "connect": "Połącz",
     "connected": "Połączono",
     "connectionError": "Błąd połączenia",
+    "connection_error_message": "Nie można połączyć się z urządzeniem",
+    "connection_error_title": "Połączenie nieudane",
     "current_selection": "Bieżący wybór",
     "device_disconnected": "Urządzenie rozłączone",
     "disconnect": "Rozłącz",
@@ -104,10 +108,12 @@
     "loading": "Ładowanie...",
     "no_images": "Brak dostępnych zdjęć",
     "no_images_description": "Dodaj zdjęcia do zgłoszenia, aby ułatwić dokumentację i komunikację",
+    "not_signed_in": "Aby przesyłać obrazy, musisz się zalogować",
     "select_from_gallery": "Wybierz z galerii",
     "take_photo": "Zrób zdjęcie",
     "title": "Zdjęcia zgłoszenia",
-    "upload": "Prześlij"
+    "upload": "Prześlij",
+    "upload_error": "Błąd podczas przesyłania obrazu"
   },
   "callNotes": {
     "addNote": "Dodaj notatkę",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Wskazówki",
+    "directions_to_destination": "Trasa do celu",
     "dispatch_to": "Wyślij do",
     "dispatch_to_everyone": "Wyślij do wszystkich dostępnych",
     "edit_call": "Edytuj zgłoszenie",
     "edit_call_description": "Zaktualizuj informacje o zgłoszeniu",
+    "errors": {
+      "load_failed": "Nie udało się załadować zgłoszeń"
+    },
     "everyone": "Wszyscy",
     "field_policy_loading": "Ustawienia zgłoszeń Twojej jednostki są jeszcze wczytywane, spróbuj ponownie za chwilę",
     "files": {
+      "error": "Błąd podczas pobierania plików",
+      "file_name": "Nazwa pliku",
       "no_files": "Brak dostępnych plików",
       "no_files_description": "Do tego zgłoszenia nie dodano jeszcze żadnych plików",
+      "open_error": "Błąd podczas otwierania pliku",
+      "share_error": "Błąd podczas udostępniania pliku",
+      "sharing_unavailable": "Udostępnianie nie jest dostępne na tym urządzeniu",
       "title": "Pliki zgłoszenia"
     },
     "geocoding_error": "Wyszukiwanie adresu nie powiodło się, spróbuj ponownie",
@@ -308,6 +323,7 @@
     "users": "Użytkownicy",
     "viewNotes": "Notatki",
     "view_details": "Wyświetl szczegóły",
+    "view_on_map": "Pokaż na mapie",
     "what3words": "what3words",
     "what3words_found": "Adres what3words znaleziony i lokalizacja zaktualizowana",
     "what3words_geocoding_error": "Wyszukiwanie adresu what3words nie powiodło się, spróbuj ponownie",
@@ -433,6 +449,7 @@
     "add": "Dodaj",
     "back": "Wstecz",
     "cancel": "Anuluj",
+    "clear_search": "Wyczyść wyszukiwanie",
     "close": "Zamknij",
     "confirm": "Potwierdź",
     "confirm_location": "Potwierdź lokalizację",
@@ -454,6 +471,7 @@
     "no_address_found": "Nie znaleziono adresu",
     "no_location": "Brak danych lokalizacji",
     "no_results_found": "Nie znaleziono wyników",
+    "no_unit": "Brak jednostki",
     "no_unit_selected": "Nie wybrano jednostki",
     "nothingToDisplay": "Nie ma nic do wyświetlenia w tej chwili",
     "of": "z",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Dotknij mapy, aby wybrać lokalizację",
     "tryAgainLater": "Spróbuj ponownie później",
     "unknown": "Nieznany",
+    "unknown_error": "Wystąpił nieznany błąd",
     "upload": "Prześlij",
     "uploading": "Przesyłanie..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Kontakty",
     "twitter": "Twitter",
+    "unknown_company": "Nieznana firma",
+    "unknown_person": "Nieznana osoba",
     "visibility": "Widoczność",
     "website": "Strona internetowa",
     "zip": "Kod pocztowy"
@@ -659,6 +680,7 @@
       "message": "Sprawdź nazwę użytkownika i hasło i spróbuj ponownie.",
       "title": "Logowanie nieudane"
     },
+    "hide_password": "Ukryj hasło",
     "login": "Zaloguj się",
     "login_button": "Zaloguj się",
     "login_button_description": "Zaloguj się do swojego konta, aby kontynuować",
@@ -667,8 +689,8 @@
     "login_button_success": "Zalogowano pomyślnie",
     "or_sign_in_with_password": "lub zaloguj się hasłem",
     "password": "Hasło",
-    "password_incorrect": "Hasło jest nieprawidłowe",
     "password_placeholder": "Wpisz hasło",
+    "show_password": "Pokaż hasło",
     "sso_button": "Zaloguj się przez SSO",
     "sso_department": "SSO zapewnione przez {{name}}",
     "sso_department_id": "ID działu (opcjonalnie)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Zgłoszenie ustawione jako bieżące",
     "failed_to_open_maps": "Nie udało się otworzyć aplikacji map",
     "failed_to_set_current_call": "Nie udało się ustawić zgłoszenia jako bieżące",
+    "lock_map": "Zablokuj mapę na jednostce",
     "no_location_for_routing": "Brak danych lokalizacji do nawigacji",
     "pin_address": "Address",
     "pin_color": "Kolor pinezki",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Wyśrodkuj mapę",
     "set_as_current_call": "Ustaw jako bieżące zgłoszenie",
+    "unlock_map": "Odblokuj mapę",
     "view_call_details": "Wyświetl szczegóły zgłoszenia",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Szukaj notatek...",
     "title": "Notatki"
   },
+  "notifications": {
+    "confirm_delete_message_count": "Czy na pewno chcesz usunąć powiadomienia w liczbie {{count}}? Tej operacji nie można cofnąć.",
+    "confirm_delete_message_one": "Czy na pewno chcesz usunąć to powiadomienie? Tej operacji nie można cofnąć.",
+    "confirm_delete_title": "Potwierdź usunięcie",
+    "delete_selected": "Usuń zaznaczone powiadomienia",
+    "deselect_all": "Odznacz wszystko",
+    "empty": "Brak nowych informacji",
+    "enter_selection_mode": "Zaznacz powiadomienia",
+    "open": "Otwórz powiadomienia",
+    "remove_failed_count": "Nie udało się usunąć powiadomień",
+    "remove_failed_one": "Nie udało się usunąć powiadomienia",
+    "removed_count": "Usunięto powiadomienia: {{count}}",
+    "removed_one": "Powiadomienie usunięte",
+    "select_all": "Zaznacz wszystko",
+    "selected_count": "Zaznaczono: {{count}}",
+    "title": "Powiadomienia",
+    "unable_to_load": "Nie można załadować powiadomień"
+  },
   "onboarding": {
     "message": "Witamy w aplikacji Resgrid Unit"
   },
@@ -782,12 +824,23 @@
     "view_call": "Wyświetl zgłoszenie"
   },
   "roles": {
+    "assignedElsewhere": "W innej funkcji",
+    "clearAssignment": "Wyczyść bieżący przydział",
     "modal": {
       "title": "Przypisania ról jednostki"
     },
+    "noUsersFound": "Nie znaleziono użytkowników",
+    "save_error": "Błąd podczas zapisywania przydziału funkcji",
+    "saved_successfully": "Zapisano przydział funkcji",
+    "searchUsers": "Szukaj według nazwiska lub grupy...",
     "selectUser": "Wybierz użytkownika",
+    "selectUserDescription": "Wybierz osobę do tej funkcji",
+    "selectUserForRole": "Przypisz: {{role}}",
+    "selectUserLabel": "Wybierz: {{name}}",
     "status": "{{active}} z {{total}} ról",
+    "tapToAssign": "Dotknij, aby przypisać użytkownika do: {{role}}",
     "tap_to_manage": "Dotknij, aby zarządzać rolami",
+    "title": "Przydział funkcji w jednostce",
     "unassigned": "Nieprzypisany"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Całkowita odległość",
     "total_duration": "Całkowity czas",
     "traffic_delay": "{{time}} opóźnienia z powodu ruchu drogowego",
+    "traffic_heavy": "Duży ruch",
+    "traffic_light": "Mały ruch",
+    "traffic_moderate": "Umiarkowany ruch",
+    "traffic_no_data": "Brak danych o ruchu",
+    "traffic_severe": "Bardzo duży ruch",
     "try_different_search": "Try a different search term",
     "type": "Typ",
     "unassigned": "Nieprzypisany",

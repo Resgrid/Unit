@@ -233,6 +233,11 @@ export default function ChannelConversationScreen() {
     [router, channelId]
   );
 
+  // Stable identity so the memoized MessageBubble isn't re-rendered by a fresh inline handler per item.
+  const handleRetry = useCallback((m: ChatMessageResultData) => {
+    if (m.ClientMessageId) void useChatStore.getState().retryOutboxItem(m.ClientMessageId);
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: { item: ChatMessageResultData }) => (
       <MessageBubble
@@ -243,11 +248,11 @@ export default function ChannelConversationScreen() {
         onLongPress={setActionsMessage}
         onToggleReaction={handleToggleReaction}
         onOpenThread={openThread}
-        onRetry={(m) => m.ClientMessageId && useChatStore.getState().retryOutboxItem(m.ClientMessageId)}
+        onRetry={handleRetry}
         onPressImage={setImageUri}
       />
     ),
-    [currentUserId, showSender, handleToggleReaction, openThread]
+    [currentUserId, showSender, handleToggleReaction, openThread, handleRetry]
   );
 
   const keyExtractor = useCallback((item: ChatMessageResultData) => item.ChatMessageId, []);

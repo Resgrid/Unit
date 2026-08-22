@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { MapPin, Navigation, Route, Search, X } from 'lucide-react-native';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 
@@ -78,16 +78,33 @@ export const ActiveRoutesList: React.FC = () => {
     </Pressable>
   ) : null;
 
-  const handleRoutePress = (route: RoutePlanResultData) => {
-    if (activeInstance && activeInstance.RoutePlanId === route.RoutePlanId) {
-      const routeInstanceId = activeInstance.RouteInstanceId;
-      const activeRouteUrl = routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${route.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${route.RoutePlanId}`;
-      router.push(activeRouteUrl as any);
-      return;
-    }
+  const handleRoutePress = useCallback(
+    (route: RoutePlanResultData) => {
+      if (activeInstance && activeInstance.RoutePlanId === route.RoutePlanId) {
+        const routeInstanceId = activeInstance.RouteInstanceId;
+        const activeRouteUrl = routeInstanceId && routeInstanceId !== 'undefined' ? `/routes/active?planId=${route.RoutePlanId}&instanceId=${routeInstanceId}` : `/routes/active?planId=${route.RoutePlanId}`;
+        router.push(activeRouteUrl as any);
+        return;
+      }
 
-    router.push(`/routes/start?planId=${route.RoutePlanId}` as any);
-  };
+      router.push(`/routes/start?planId=${route.RoutePlanId}` as any);
+    },
+    [activeInstance]
+  );
+
+  // Stable renderItem: an inline closure here is recreated every render, forcing the list to re-render all rows.
+  const renderRouteItem = useCallback(
+    ({ item }: { item: RoutePlanResultData }) => {
+      const isMyUnit = item.UnitId != null && String(item.UnitId) === String(activeUnitId);
+      const unitName = item.UnitId != null ? unitMap[item.UnitId] || (isMyUnit ? (activeUnit?.Name ?? '') : '') : '';
+      return (
+        <Pressable onPress={() => handleRoutePress(item)}>
+          <RouteCard route={item} isActive={!!activeInstance && activeInstance.RoutePlanId === item.RoutePlanId} unitName={unitName || undefined} isMyUnit={isMyUnit} />
+        </Pressable>
+      );
+    },
+    [activeInstance, activeUnit, activeUnitId, handleRoutePress, unitMap]
+  );
 
   const filteredRoutes = useMemo(() => {
     const activeRoutes = routePlans.filter((route) => route.RouteStatus === 1);
@@ -139,15 +156,7 @@ export const ActiveRoutesList: React.FC = () => {
             testID="routes-list"
             data={filteredRoutes}
             ListHeaderComponent={activeRouteBanner}
-            renderItem={({ item }) => {
-              const isMyUnit = item.UnitId != null && String(item.UnitId) === String(activeUnitId);
-              const unitName = item.UnitId != null ? unitMap[item.UnitId] || (isMyUnit ? (activeUnit?.Name ?? '') : '') : '';
-              return (
-                <Pressable onPress={() => handleRoutePress(item)}>
-                  <RouteCard route={item} isActive={!!activeInstance && activeInstance.RoutePlanId === item.RoutePlanId} unitName={unitName || undefined} isMyUnit={isMyUnit} />
-                </Pressable>
-              );
-            }}
+            renderItem={renderRouteItem}
             keyExtractor={(item) => item.RoutePlanId}
             refreshControl={<RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />}
             ListEmptyComponent={

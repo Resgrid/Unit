@@ -57,7 +57,9 @@ export const useCheckInTimerStore = create<CheckInTimerState>((set, get) => ({
       set({ timerStatuses: sorted, isLoadingStatuses: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch timer statuses';
-      logger.error({ message: 'Failed to fetch timer statuses', context: { error, callId } });
+      // Polled every 30s while a call is open — a transient failure here is
+      // retried on the next tick and must not flood Sentry.
+      logger.warn({ message: 'Failed to fetch timer statuses', context: { error, callId } });
       set({ statusError: message, isLoadingStatuses: false });
     }
   },

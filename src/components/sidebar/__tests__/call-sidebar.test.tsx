@@ -27,11 +27,7 @@ jest.mock('@/lib/navigation');
 jest.mock('@/components/ui/bottom-sheet', () => ({
   CustomBottomSheet: ({ children, isOpen, onClose, isLoading, testID }: any) => {
     const { View, Text } = require('react-native');
-    return isOpen ? (
-      <View testID={testID}>
-        {isLoading ? <Text testID="loading-spinner">Loading...</Text> : children}
-      </View>
-    ) : null;
+    return isOpen ? <View testID={testID}>{isLoading ? <Text testID="loading-spinner">Loading...</Text> : children}</View> : null;
   },
 }));
 
@@ -75,13 +71,17 @@ jest.mock('@/components/ui/hstack', () => ({
 }));
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onPress, testID }: any) => {
+  Button: ({ children, onPress, testID, accessibilityLabel }: any) => {
     const { TouchableOpacity } = require('react-native');
     return (
-      <TouchableOpacity onPress={onPress} testID={testID}>
+      <TouchableOpacity onPress={onPress} testID={testID} accessibilityLabel={accessibilityLabel}>
         {children}
       </TouchableOpacity>
     );
+  },
+  ButtonText: ({ children }: any) => {
+    const { Text } = require('react-native');
+    return <Text>{children}</Text>;
   },
   ButtonIcon: ({ as: Icon, testID }: any) => {
     const { View, Text } = require('react-native');
@@ -111,23 +111,43 @@ jest.mock('@/components/ui/button', () => ({
 jest.mock('lucide-react-native', () => ({
   Check: (props: any) => {
     const { View, Text } = require('react-native');
-    return <View testID="check-icon"><Text>Check</Text></View>;
+    return (
+      <View testID="check-icon">
+        <Text>Check</Text>
+      </View>
+    );
   },
   CircleX: (props: any) => {
     const { View, Text } = require('react-native');
-    return <View testID="circle-x-icon"><Text>CircleX</Text></View>;
+    return (
+      <View testID="circle-x-icon">
+        <Text>CircleX</Text>
+      </View>
+    );
   },
   Eye: (props: any) => {
     const { View, Text } = require('react-native');
-    return <View testID="eye-icon"><Text>Eye</Text></View>;
+    return (
+      <View testID="eye-icon">
+        <Text>Eye</Text>
+      </View>
+    );
   },
   MapPin: (props: any) => {
     const { View, Text } = require('react-native');
-    return <View testID="map-pin-icon"><Text>MapPin</Text></View>;
+    return (
+      <View testID="map-pin-icon">
+        <Text>MapPin</Text>
+      </View>
+    );
   },
   Navigation: (props: any) => {
     const { View, Text } = require('react-native');
-    return <View testID="navigation-icon"><Text>Navigation</Text></View>;
+    return (
+      <View testID="navigation-icon">
+        <Text>Navigation</Text>
+      </View>
+    );
   },
 }));
 
@@ -215,27 +235,36 @@ describe('SidebarCallCard', () => {
       toggleColorScheme: jest.fn(),
     });
 
-    mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-      activeCall: null,
-      activePriority: null,
-      setActiveCall: mockSetActiveCall,
-    }) : {
-      activeCall: null,
-      activePriority: null,
-      setActiveCall: mockSetActiveCall,
-    });
+    mockUseCoreStore.mockImplementation((selector: any) =>
+      typeof selector === 'function'
+        ? selector({
+            activeCall: null,
+            activePriority: null,
+            setActiveCall: mockSetActiveCall,
+          })
+        : {
+            activeCall: null,
+            activePriority: null,
+            setActiveCall: mockSetActiveCall,
+          }
+    );
 
-    mockUseCallsStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-      calls: [],
-      fetchCalls: mockFetchCalls,
-    }) : {
-      calls: [],
-      fetchCalls: mockFetchCalls,
-    });
+    mockUseCallsStore.mockImplementation((selector: any) =>
+      typeof selector === 'function'
+        ? selector({
+            calls: [],
+            fetchCalls: mockFetchCalls,
+          })
+        : {
+            calls: [],
+            fetchCalls: mockFetchCalls,
+          }
+    );
 
     mockUseQuery.mockReturnValue({
       data: [],
       isLoading: false,
+      isError: false,
       error: null,
       refetch: jest.fn(),
     } as any);
@@ -257,15 +286,19 @@ describe('SidebarCallCard', () => {
     });
 
     it('should render with active call', () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -276,15 +309,19 @@ describe('SidebarCallCard', () => {
     });
 
     it('should show action buttons when active call exists with coordinates', () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -301,15 +338,19 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -326,15 +367,19 @@ describe('SidebarCallCard', () => {
         Address: '',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithoutLocation,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithoutLocation,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithoutLocation,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithoutLocation,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -351,15 +396,19 @@ describe('SidebarCallCard', () => {
         Address: '   ',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithEmptyAddress,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithEmptyAddress,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithEmptyAddress,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithEmptyAddress,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -429,15 +478,19 @@ describe('SidebarCallCard', () => {
 
   describe('Action Buttons', () => {
     beforeEach(() => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
     });
 
     it('should navigate to call detail when eye button is pressed', () => {
@@ -456,10 +509,7 @@ describe('SidebarCallCard', () => {
       expect(mockAlert.alert).toHaveBeenCalledWith(
         'calls.confirm_deselect_title',
         'calls.confirm_deselect_message',
-        expect.arrayContaining([
-          expect.objectContaining({ text: 'common.cancel' }),
-          expect.objectContaining({ text: 'common.confirm' }),
-        ]),
+        expect.arrayContaining([expect.objectContaining({ text: 'common.cancel' }), expect.objectContaining({ text: 'common.confirm' })]),
         { cancelable: true }
       );
     });
@@ -469,11 +519,7 @@ describe('SidebarCallCard', () => {
 
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
-      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(
-        mockCall.Latitude,
-        mockCall.Longitude,
-        mockCall.Address
-      );
+      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(mockCall.Latitude, mockCall.Longitude, mockCall.Address);
       expect(mockOpenMapsWithAddress).not.toHaveBeenCalled();
     });
 
@@ -485,15 +531,19 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -511,13 +561,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
 
     it('should show error alert when openMapsWithAddress fails', async () => {
@@ -528,15 +574,19 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       mockOpenMapsWithAddress.mockRejectedValue(new Error('Address navigation failed'));
 
@@ -545,13 +595,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
 
     it('should show error alert when openMapsWithDirections resolves false', async () => {
@@ -562,13 +608,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
 
     it('should show error alert when openMapsWithAddress resolves false', async () => {
@@ -579,15 +621,19 @@ describe('SidebarCallCard', () => {
         Address: '123 Test Street',
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: callWithAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: callWithAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       mockOpenMapsWithAddress.mockResolvedValue(false);
 
@@ -596,13 +642,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
   });
 
@@ -617,15 +659,19 @@ describe('SidebarCallCard', () => {
     };
 
     it('should show destination button when active call has a destination POI', () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -633,15 +679,19 @@ describe('SidebarCallCard', () => {
     });
 
     it('should not show destination button when active call has no destination', () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCall,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -649,15 +699,19 @@ describe('SidebarCallCard', () => {
     });
 
     it('should route to destination coordinates when destination button is pressed', () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -677,15 +731,19 @@ describe('SidebarCallCard', () => {
         DestinationLongitude: null,
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: destinationAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: destinationAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: destinationAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: destinationAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -704,15 +762,19 @@ describe('SidebarCallCard', () => {
         DestinationLongitude: 0,
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: destinationZeroCoords,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: destinationZeroCoords,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: destinationZeroCoords,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: destinationZeroCoords,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -731,15 +793,19 @@ describe('SidebarCallCard', () => {
         DestinationLongitude: 0,
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: destinationZeroNoAddress,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: destinationZeroNoAddress,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: destinationZeroNoAddress,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: destinationZeroNoAddress,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       render(<SidebarCallCard />);
 
@@ -747,15 +813,19 @@ describe('SidebarCallCard', () => {
     });
 
     it('should show error alert when destination openMapsWithDirections resolves false', async () => {
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: mockCallWithDestination,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCallWithDestination,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       mockOpenMapsWithDirections.mockResolvedValue(false);
 
@@ -764,13 +834,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('call-destination-directions-button'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
 
     it('should show error alert when destination openMapsWithAddress resolves false', async () => {
@@ -782,15 +848,19 @@ describe('SidebarCallCard', () => {
         DestinationLongitude: null,
       };
 
-      mockUseCoreStore.mockImplementation((selector: any) => typeof selector === 'function' ? selector({
-        activeCall: destinationAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      }) : {
-        activeCall: destinationAddressOnly,
-        activePriority: mockPriority,
-        setActiveCall: mockSetActiveCall,
-      });
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: destinationAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: destinationAddressOnly,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
 
       mockOpenMapsWithAddress.mockResolvedValue(false);
 
@@ -799,13 +869,9 @@ describe('SidebarCallCard', () => {
       fireEvent.press(screen.getByTestId('call-destination-directions-button'));
 
       // Wait for the async operation to complete
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-      expect(mockAlert.alert).toHaveBeenCalledWith(
-        'calls.no_location_title',
-        'calls.no_location_message',
-        [{ text: 'common.ok' }]
-      );
+      expect(mockAlert.alert).toHaveBeenCalledWith('calls.no_location_title', 'calls.no_location_message', [{ text: 'common.ok' }]);
     });
   });
 
@@ -814,6 +880,77 @@ describe('SidebarCallCard', () => {
       render(<SidebarCallCard />);
 
       expect(screen.getByTestId('call-selection-trigger')).toBeTruthy();
+    });
+
+    it('labels the icon-only action buttons', () => {
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            })
+          : {
+              activeCall: mockCall,
+              activePriority: mockPriority,
+              setActiveCall: mockSetActiveCall,
+            }
+      );
+
+      const { unmount } = render(<SidebarCallCard />);
+
+      // Eye / MapPin / CircleX are icon-only, so a screen reader has nothing to
+      // announce without an explicit label.
+      expect(screen.getByLabelText('map.view_call_details')).toBeTruthy();
+      expect(screen.getByLabelText('calls.directions')).toBeTruthy();
+      expect(screen.getByLabelText('calls.deselect')).toBeTruthy();
+
+      unmount();
+    });
+  });
+
+  describe('open-calls load failure', () => {
+    it('shows a translated error and a retry control instead of an empty sheet', () => {
+      const mockRefetch = jest.fn();
+      mockUseQuery.mockReturnValue({
+        data: undefined,
+        isLoading: false,
+        isError: true,
+        error: new Error('Failed to fetch calls'),
+        refetch: mockRefetch,
+      } as any);
+
+      const { unmount } = render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-selection-trigger'));
+
+      expect(screen.getByText('calls.errors.load_failed')).toBeTruthy();
+      // The "no open calls" message must NOT be what a failed load looks like
+      expect(screen.queryByTestId('no-calls-message')).toBeNull();
+
+      fireEvent.press(screen.getByTestId('call-selection-retry-button'));
+      expect(mockRefetch).toHaveBeenCalled();
+
+      unmount();
+    });
+
+    it('still renders the call list when the query succeeds', () => {
+      mockUseQuery.mockReturnValue({
+        data: [mockCall],
+        isLoading: false,
+        isError: false,
+        error: null,
+        refetch: jest.fn(),
+      } as any);
+
+      const { unmount } = render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('call-selection-trigger'));
+
+      expect(screen.queryByText('calls.errors.load_failed')).toBeNull();
+      expect(screen.getByTestId(`call-item-${mockCall.CallId}`)).toBeTruthy();
+
+      unmount();
     });
   });
 });

@@ -95,8 +95,10 @@ describe('BluetoothAudioService Refactoring', () => {
     jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    bluetoothAudioService.destroy();
+  afterEach(async () => {
+    // destroy() awaits its stopScanning/disconnectDevice teardown before
+    // resetting state, so it must be awaited.
+    await bluetoothAudioService.destroy();
   });
 
   it('should be defined and accessible', () => {
@@ -131,25 +133,25 @@ describe('BluetoothAudioService Refactoring', () => {
 
     it('should track hasAttemptedPreferredDeviceConnection flag for single-call semantics', () => {
       const service = bluetoothAudioService as any;
-      
+
       // Initially should be false
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(false);
-      
+
       // Can be set to true (simulating attempt)
       service.hasAttemptedPreferredDeviceConnection = true;
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(true);
     });
 
-    it('should reset flags on destroy method', () => {
+    it('should reset flags on destroy method', async () => {
       const service = bluetoothAudioService as any;
-      
+
       // Set flags to true
       service.hasAttemptedPreferredDeviceConnection = true;
       service.isInitialized = true;
-      
-      // Call destroy
-      bluetoothAudioService.destroy();
-      
+
+      // Call destroy — it awaits its async teardown before resetting flags
+      await bluetoothAudioService.destroy();
+
       // Verify flags are reset for single-call logic
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(false);
       expect(service.isInitialized).toBe(false);
@@ -157,13 +159,13 @@ describe('BluetoothAudioService Refactoring', () => {
 
     it('should support iOS state change handling through attemptReconnectToPreferredDevice', () => {
       const service = bluetoothAudioService as any;
-      
+
       // Set up scenario: connection was previously attempted
       service.hasAttemptedPreferredDeviceConnection = true;
-      
+
       // Verify the method exists for iOS poweredOn state handling
       expect(typeof service.attemptReconnectToPreferredDevice).toBe('function');
-      
+
       // This method should be called when Bluetooth state changes to poweredOn on iOS
       // It resets the flag and attempts preferred device connection again
     });
@@ -172,30 +174,30 @@ describe('BluetoothAudioService Refactoring', () => {
   describe('Single-Call Logic Validation', () => {
     it('should implement single-call semantics for preferred device connection', () => {
       const service = bluetoothAudioService as any;
-      
+
       // Simulate first call - should set flag
       service.hasAttemptedPreferredDeviceConnection = false;
       // In actual implementation, attemptPreferredDeviceConnection would set this to true
-      
+
       // Simulate second call - should not execute due to flag
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(false);
-      
+
       // After first attempt
       service.hasAttemptedPreferredDeviceConnection = true;
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(true);
-      
+
       // Second attempt should be blocked by this flag
     });
 
-    it('should allow re-attempting connection after destroy', () => {
+    it('should allow re-attempting connection after destroy', async () => {
       const service = bluetoothAudioService as any;
-      
+
       // Simulate connection attempt
       service.hasAttemptedPreferredDeviceConnection = true;
-      
+
       // Destroy service (resets flags)
-      bluetoothAudioService.destroy();
-      
+      await bluetoothAudioService.destroy();
+
       // Flag should be reset, allowing new attempts
       expect(service.hasAttemptedPreferredDeviceConnection).toBe(false);
     });
@@ -312,6 +314,109 @@ describe('BluetoothAudioService Refactoring', () => {
 
       await service.pollReadCharacteristics('device-1');
       expect(mockHandleButtonEvent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Read polling only covers characteristics whose notifications are not working', () => {
+    it('should mark a characteristic confirmed when a GATT notification arrives', () => {
+      const service = bluetoothAudioService as any;
+      service.connectedDevice = { id: 'device-1', name: 'PTT' };
+      service.monitoredReadCharacteristics = [{ serviceUuid: 'service-1', characteristicUuid: 'characteristic-1', lastHexValue: null, notificationConfirmed: false }];
+
+      service.handleCharacteristicValueUpdate({
+        peripheral: 'device-1',
+        service: 'service-1',
+        characteristic: 'characteristic-1',
+        value: [0x01],
+      });
+
+      expect(service.monitoredReadCharacteristics[0].notificationConfirmed).toBe(true);
+    });
+
+    it('should stop reading a characteristic once its notifications are proven to work', async () => {
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+
+      service.connectedDevice = { id: 'device-1', name: 'PTT' };
+      service.monitoredReadCharacteristics = [
+        { serviceUuid: 'confirmed-svc', characteristicUuid: 'confirmed-chr', lastHexValue: null, notificationConfirmed: true },
+        { serviceUuid: 'silent-svc', characteristicUuid: 'silent-chr', lastHexValue: null, notificationConfirmed: false },
+      ];
+
+      bleManagerMock.read = jest.fn().mockResolvedValue([0x00]);
+
+      await service.pollReadCharacteristics('device-1');
+
+      // Only the characteristic that has never delivered a notification is polled.
+      expect(bleManagerMock.read).toHaveBeenCalledTimes(1);
+      expect(bleManagerMock.read).toHaveBeenCalledWith('device-1', 'silent-svc', 'silent-chr');
+    });
+
+    it('should keep polling characteristics that genuinely never notify (screen-off PTT)', async () => {
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+
+      service.connectedDevice = { id: 'device-1', name: 'PTT' };
+      service.monitoredReadCharacteristics = [{ serviceUuid: 'silent-svc', characteristicUuid: 'silent-chr', lastHexValue: null, notificationConfirmed: false }];
+
+      bleManagerMock.read = jest.fn().mockResolvedValue([0x00]);
+
+      await service.pollReadCharacteristics('device-1');
+      await service.pollReadCharacteristics('device-1');
+
+      // Background PTT depends on this fallback, so it must not be paused.
+      expect(bleManagerMock.read).toHaveBeenCalledTimes(2);
+    });
+
+    it('should register new polling entries as unconfirmed so a re-subscribe resumes polling', () => {
+      const service = bluetoothAudioService as any;
+      service.monitoredReadCharacteristics = [];
+
+      service.registerReadPollingCharacteristic('service-1', 'characteristic-1');
+
+      expect(service.monitoredReadCharacteristics[0]).toMatchObject({
+        serviceUuid: 'service-1',
+        characteristicUuid: 'characteristic-1',
+        notificationConfirmed: false,
+      });
+    });
+  });
+
+  describe('connectToDevice concurrency guard', () => {
+    it('should ignore a duplicate connect while one is already in flight', async () => {
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+
+      bleManagerMock.connect = jest.fn().mockResolvedValue(undefined);
+      service.isConnecting = true;
+
+      try {
+        await bluetoothAudioService.connectToDevice('device-1');
+        // The dead connectionTimeout guard let overlapping discovery events start
+        // concurrent connects; the real flag must short-circuit instead.
+        expect(bleManagerMock.connect).not.toHaveBeenCalled();
+      } finally {
+        service.isConnecting = false;
+      }
+    });
+
+    it('should clear the connecting flag when a connect fails', async () => {
+      jest.useFakeTimers();
+      const service = bluetoothAudioService as any;
+      const bleManagerMock = require('react-native-ble-manager').default;
+
+      service.isConnecting = false;
+      bleManagerMock.stopScan = jest.fn().mockResolvedValue(undefined);
+      bleManagerMock.connect = jest.fn().mockRejectedValue(new Error('connect failed'));
+
+      const attempt = bluetoothAudioService.connectToDevice('device-1');
+      const assertion = expect(attempt).rejects.toThrow('connect failed');
+
+      await jest.advanceTimersByTimeAsync(600);
+      await assertion;
+
+      expect(service.isConnecting).toBe(false);
+      jest.useRealTimers();
     });
   });
 });

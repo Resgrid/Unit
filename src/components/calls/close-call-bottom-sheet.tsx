@@ -14,6 +14,7 @@ import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
+import { logger } from '@/lib/logging';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useToastStore } from '@/stores/toast/store';
@@ -78,7 +79,7 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
       router.replace('/(app)/calls');
       await fetchCalls();
     } catch (error) {
-      console.error('Error closing call:', error);
+      logger.error({ message: 'Error closing call', context: { error, callId } });
       // Show error toast
       showToast('error', t('call_detail.close_call_error'));
     } finally {

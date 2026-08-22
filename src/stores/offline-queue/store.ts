@@ -31,6 +31,7 @@ interface OfflineQueueState {
   getEventsByType: (type: QueuedEventType) => QueuedEvent[];
   getPendingEvents: () => QueuedEvent[];
   getFailedEvents: () => QueuedEvent[];
+  pruneFailedEvents: () => void;
   clearCompletedEvents: () => void;
   clearAllEvents: () => void;
   retryEvent: (eventId: string) => void;
@@ -44,8 +45,26 @@ interface OfflineQueueState {
 const DEFAULT_MAX_RETRIES = 3;
 const RETRY_DELAY_BASE = 1000; // 1 second base delay
 
+// Permanently failed events (retries exhausted) are kept only long enough to be
+// surfaced/retried by the user. Without a bound they accumulate in MMKV forever.
+const FAILED_EVENT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_RETAINED_FAILED_EVENTS = 50;
+
 // Module-level handle so initialize() never stacks duplicate NetInfo listeners.
 let netInfoUnsubscribe: (() => void) | null = null;
+
+// Set by the offline event manager so the queue can wake its processing timer
+// when work arrives. A direct import would close an offline-queue <-> manager
+// cycle, so the dependency points one way and the manager registers itself.
+let queueActivityListener: (() => void) | null = null;
+
+export const setOfflineQueueActivityListener = (listener: (() => void) | null): void => {
+  queueActivityListener = listener;
+};
+
+const isPermanentlyFailed = (event: QueuedEvent): boolean => event.status === QueuedEventStatus.FAILED && event.retryCount >= event.maxRetries;
+
+const failedEventTimestamp = (event: QueuedEvent): number => event.lastAttemptAt ?? event.createdAt;
 
 export const useOfflineQueueStore = create<OfflineQueueState>()(
   persist(
@@ -117,6 +136,10 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
           context: { eventId, type, dataKeys: Object.keys(data) },
         });
 
+        // The processing timer stops itself when the queue runs dry, so a new
+        // event has to wake it back up.
+        queueActivityListener?.();
+
         return eventId;
       },
 
@@ -184,7 +207,38 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
 
       // Get failed events
       getFailedEvents: () => {
-        return get().queuedEvents.filter((event) => event.status === QueuedEventStatus.FAILED && event.retryCount >= event.maxRetries);
+        return get().queuedEvents.filter(isPermanentlyFailed);
+      },
+
+      // Evict permanently failed events that are past the retention window, and
+      // cap the rest at the newest MAX_RETAINED_FAILED_EVENTS. Nothing retries
+      // these, so without eviction they persist to MMKV forever. Stat counters
+      // are deliberately left alone — they are lifetime totals, not queue depth.
+      pruneFailedEvents: () => {
+        const failed = get().queuedEvents.filter(isPermanentlyFailed);
+        if (failed.length === 0) {
+          return;
+        }
+
+        const now = Date.now();
+        const retained = failed
+          .filter((event) => now - failedEventTimestamp(event) < FAILED_EVENT_TTL_MS)
+          .sort((a, b) => failedEventTimestamp(b) - failedEventTimestamp(a))
+          .slice(0, MAX_RETAINED_FAILED_EVENTS);
+
+        if (retained.length === failed.length) {
+          return;
+        }
+
+        const retainedIds = new Set(retained.map((event) => event.id));
+        set((state) => ({
+          queuedEvents: state.queuedEvents.filter((event) => !isPermanentlyFailed(event) || retainedIds.has(event.id)),
+        }));
+
+        logger.info({
+          message: 'Evicted permanently failed events from offline queue',
+          context: { evicted: failed.length - retained.length, retained: retained.length },
+        });
       },
 
       // Clear completed events
@@ -234,6 +288,8 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
           message: 'Event marked for retry',
           context: { eventId },
         });
+
+        queueActivityListener?.();
       },
 
       // Retry all failed events
@@ -255,11 +311,21 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
         logger.info({
           message: 'All failed events marked for retry',
         });
+
+        queueActivityListener?.();
       },
 
       // Internal actions
       _setNetworkState: (isConnected: boolean, isReachable: boolean) => {
+        const previous = get();
+        const wasOnline = previous.isConnected && previous.isNetworkReachable;
         set({ isConnected, isNetworkReachable: isReachable });
+
+        // Coming back online is the moment a queue parked while offline can
+        // drain, so restart the processing timer if it stopped.
+        if (!wasOnline && isConnected && isReachable) {
+          queueActivityListener?.();
+        }
       },
 
       _setProcessing: (isProcessing: boolean, eventId?: string) => {
@@ -289,6 +355,10 @@ export const useOfflineQueueStore = create<OfflineQueueState>()(
               queuedEvents: current.queuedEvents.map((event) => (event.status === QueuedEventStatus.PROCESSING ? { ...event, status: QueuedEventStatus.PENDING } : event)),
             }));
           }
+
+          // Drop permanently failed events that aged out while the app was
+          // closed, so a long-dead event never rides along forever.
+          state?.pruneFailedEvents?.();
         };
       },
     }

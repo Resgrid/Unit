@@ -63,8 +63,8 @@ export const saveNote = async (data: SaveNoteInput) => {
   const response = await saveNoteApi.post<SaveNoteResult>({
     ...data,
   });
-  // The notes list is cached for 2 days — invalidate so the new/updated note
-  // is visible immediately instead of after cache expiry.
+  // The notes list is cached for 15 minutes — invalidate so the new/updated
+  // note is visible immediately instead of after cache expiry.
   cacheManager.remove('/Notes/GetAllNotes');
   return response.data;
 };

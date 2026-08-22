@@ -82,9 +82,9 @@ export default function CallDetail() {
   const stopPolling = useCheckInTimerStore((state) => state.stopPolling);
   const resetTimers = useCheckInTimerStore((state) => state.reset);
 
-  // Get current user location from the location store
-  const userLatitude = useLocationStore((state) => state.latitude);
-  const userLongitude = useLocationStore((state) => state.longitude);
+  // NOTE: the user's location is read via useLocationStore.getState() inside the
+  // route handlers instead of subscribing — subscribing re-rendered this whole
+  // screen (tab tree + WebViews) on every GPS fix.
 
   const handleBack = () => {
     router.back();
@@ -237,6 +237,7 @@ export default function CallDetail() {
 
     try {
       const destinationName = call?.Address || t('call_detail.call_location');
+      const { latitude: userLatitude, longitude: userLongitude } = useLocationStore.getState();
       const success = await openMapsWithDirections(coordinates.latitude, coordinates.longitude, destinationName, userLatitude || undefined, userLongitude || undefined);
 
       if (!success) {
@@ -265,6 +266,7 @@ export default function CallDetail() {
 
     try {
       const destinationName = call?.DestinationName || call?.DestinationAddress || t('call_detail.destination');
+      const { latitude: userLatitude, longitude: userLongitude } = useLocationStore.getState();
       const success = await openMapsWithDirections(latitude, longitude, destinationName, userLatitude || undefined, userLongitude || undefined);
 
       if (!success) {
@@ -565,12 +567,12 @@ export default function CallDetail() {
               {call.Name} ({call.Number})
             </Heading>
             {/* Show "Set Active" button if this call is not the active call and there is an active unit */}
-            {activeUnit && activeCall?.CallId !== call.CallId && (
+            {activeUnit && activeCall?.CallId !== call.CallId ? (
               <Button variant="solid" size="sm" onPress={handleSetActive} disabled={isSettingActive} className={`${isSettingActive ? 'bg-primary-400 opacity-80' : 'bg-primary-500'} shadow-lg`}>
-                {isSettingActive && <ButtonIcon as={LoaderIcon} className="mr-1 animate-spin text-white" />}
+                {isSettingActive ? <ButtonIcon as={LoaderIcon} className="mr-1 animate-spin text-white" /> : null}
                 <ButtonText className="font-medium text-white">{isSettingActive ? t('call_detail.setting_active') : t('call_detail.set_active')}</ButtonText>
               </Button>
-            )}
+            ) : null}
           </HStack>
           <VStack className="space-y-1">
             <ScrollView style={{ height: 180 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>

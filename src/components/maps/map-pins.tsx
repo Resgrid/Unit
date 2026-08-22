@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import Mapbox from '@/components/maps/mapbox';
 import { type MAP_ICONS } from '@/constants/map-icons';
@@ -13,6 +13,13 @@ type MapIconKey = keyof typeof MAP_ICONS;
 interface MapPinsProps {
   pins: MapMakerInfoData[];
   onPinPress?: (pin: MapMakerInfoData) => void;
+  /** Id of the department's active call — its pin is highlighted and drawn above the others. */
+  activeCallId?: string | null;
+}
+
+/** Call markers come back with Type 0 (or the legacy 'call' image). */
+function isCallPin(pin: MapMakerInfoData): boolean {
+  return pin.Type === 0 || pin.ImagePath?.toLowerCase() === 'call';
 }
 
 /**
@@ -22,7 +29,7 @@ interface MapPinsProps {
  * POI markers use the SVG shape + icon rendering (per the "POI Map Icon Renderer"
  * reference document). Non-POI markers use PNG images from the MAP_ICONS lookup.
  */
-const MapPin = React.memo(({ pin, onPinPress }: { pin: MapMakerInfoData; onPinPress?: (pin: MapMakerInfoData) => void }) => {
+const MapPin = React.memo(({ pin, onPinPress, isActiveCall }: { pin: MapMakerInfoData; onPinPress?: (pin: MapMakerInfoData) => void; isActiveCall?: boolean }) => {
   const handlePress = useCallback(() => {
     onPinPress?.(pin);
   }, [onPinPress, pin]);
@@ -42,7 +49,7 @@ const MapPin = React.memo(({ pin, onPinPress }: { pin: MapMakerInfoData; onPinPr
       {poi ? (
         <PoiMarker poiImage={pin.PoiImage} imagePath={pin.ImagePath} color={pin.Color} marker={pin.Marker} title={pin.Title} size={36} onPress={handlePress} />
       ) : (
-        <PinMarker imagePath={pin.ImagePath as MapIconKey} poiImage={pin.PoiImage as MapIconKey} title={pin.Title} size={32} onPress={handlePress} />
+        <PinMarker imagePath={pin.ImagePath as MapIconKey} poiImage={pin.PoiImage as MapIconKey} title={pin.Title} size={isActiveCall ? 40 : 32} isActive={isActiveCall} onPress={handlePress} />
       )}
     </Mapbox.MarkerView>
   );
@@ -50,12 +57,28 @@ const MapPin = React.memo(({ pin, onPinPress }: { pin: MapMakerInfoData; onPinPr
 
 MapPin.displayName = 'MapPin';
 
-const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress }) => {
+const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress, activeCallId }) => {
+  // Markers stack in mount order on every platform (native views and DOM
+  // markers alike), so rendering the active call last keeps it on top of
+  // overlapping pins.
+  const orderedPins = useMemo(() => {
+    if (!activeCallId) return pins;
+    const activeIndex = pins.findIndex((pin) => isCallPin(pin) && pin.Id === activeCallId);
+    if (activeIndex === -1) return pins;
+    return [...pins.slice(0, activeIndex), ...pins.slice(activeIndex + 1), pins[activeIndex]];
+  }, [pins, activeCallId]);
+
   return (
     <>
-      {pins.map((pin) => (
-        <MapPin key={`pin-${pin.Id}`} pin={pin} onPinPress={onPinPress} />
-      ))}
+      {orderedPins.map((pin) => {
+        const isActiveCall = activeCallId != null && isCallPin(pin) && pin.Id === activeCallId;
+        // Stacking order is fixed when the marker attaches (DOM insertion order
+        // on web, imperative MarkerView attach on iOS), so reordering keyed
+        // children alone updates the ring but never restacks. Folding the active
+        // flag into the key remounts the pin whose active state changed, which
+        // re-attaches it on top.
+        return <MapPin key={`pin-${pin.Id}-${isActiveCall ? 'active' : 'n'}`} pin={pin} onPinPress={onPinPress} isActiveCall={isActiveCall} />;
+      })}
     </>
   );
 };

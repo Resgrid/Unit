@@ -272,7 +272,9 @@ class SignalRService {
       // Clear the direct-connecting state on failed connection
       this.setHubState(config.name, HubConnectingState.IDLE);
 
-      logger.error({
+      // Transient network/backend failure — reconnect logic retries, so warn
+      // rather than reporting every attempt to Sentry.
+      logger.warn({
         message: `Failed to connect to hub: ${config.name}`,
         context: { error },
       });
@@ -343,6 +345,21 @@ class SignalRService {
         context: { config },
       });
 
+      // Store an equivalent eventing-style config so handleConnectionClose can
+      // rebuild this connection after the automatic-reconnect budget is
+      // exhausted — manual reconnection always goes through
+      // connectToHubWithEventingUrl, which re-appends the hub name to the path.
+      const parsedUrl = new URL(config.url);
+      const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+      const derivedHubName = pathSegments.pop() ?? '';
+      const basePath = pathSegments.length > 0 ? `/${pathSegments.join('/')}` : '/';
+      this.hubConfigs.set(config.name, {
+        name: config.name,
+        eventingUrl: `${parsedUrl.protocol}//${parsedUrl.host}${basePath}${parsedUrl.search}`,
+        hubName: derivedHubName,
+        methods: config.methods,
+      });
+
       const signalRLogLevel = Platform.OS === 'web' ? LogLevel.Warning : LogLevel.Information;
 
       const connection = new HubConnectionBuilder()
@@ -410,7 +427,9 @@ class SignalRService {
       // Clear the direct-connecting state on failed connection
       this.setHubState(config.name, HubConnectingState.IDLE);
 
-      logger.error({
+      // Transient network/backend failure — reconnect logic retries, so warn
+      // rather than reporting every attempt to Sentry.
+      logger.warn({
         message: `Failed to connect to hub: ${config.name}`,
         context: { error },
       });
@@ -525,7 +544,9 @@ class SignalRService {
         // dead until the next app background/resume cycle.
         this.setHubState(hubName, HubConnectingState.IDLE);
 
-        logger.error({
+        // Each failed attempt is a transient, retried failure — only the
+        // max-attempts-exhausted case above reports to Sentry as an error.
+        logger.warn({
           message: `Reconnection attempt ${currentAttempts}/${this.MAX_RECONNECT_ATTEMPTS} failed for hub: ${hubName}`,
           context: { error },
         });

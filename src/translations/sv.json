@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "Det gick inte att läsa in appdata. Kontrollera din anslutning och försök igen.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Tillämpad",
     "audio": "Ljud",
     "audioActive": "Ljud aktivt",
+    "audio_capable": "Ljudkapabel",
     "audio_device": "BT-handset",
     "audio_output": "Ljudutgång",
     "availableDevices": "Tillgängliga enheter",
@@ -47,6 +49,8 @@
     "connect": "Anslut",
     "connected": "Ansluten",
     "connectionError": "Anslutningsfel",
+    "connection_error_message": "Det gick inte att ansluta till enheten",
+    "connection_error_title": "Anslutningen misslyckades",
     "current_selection": "Aktuellt val",
     "device_disconnected": "Enhet frånkopplad",
     "disconnect": "Koppla från",
@@ -104,10 +108,12 @@
     "loading": "Laddar...",
     "no_images": "Inga bilder tillgängliga",
     "no_images_description": "Lägg till bilder i ditt samtal för att hjälpa med dokumentation och kommunikation",
+    "not_signed_in": "Du måste vara inloggad för att ladda upp bilder",
     "select_from_gallery": "Välj från galleriet",
     "take_photo": "Ta foto",
     "title": "Samtalsbilder",
-    "upload": "Ladda upp"
+    "upload": "Ladda upp",
+    "upload_error": "Det gick inte att ladda upp bilden"
   },
   "callNotes": {
     "addNote": "Lägg till anteckning",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Vägbeskrivning",
+    "directions_to_destination": "Vägbeskrivning till destinationen",
     "dispatch_to": "Skicka till",
     "dispatch_to_everyone": "Skicka till all tillgänglig personal",
     "edit_call": "Redigera samtal",
     "edit_call_description": "Uppdatera samtalsinformation",
+    "errors": {
+      "load_failed": "Det gick inte att läsa in samtalen"
+    },
     "everyone": "Alla",
     "field_policy_loading": "Din avdelnings samtalsinställningar laddas fortfarande, försök igen om ett ögonblick",
     "files": {
+      "error": "Det gick inte att hämta filerna",
+      "file_name": "Filnamn",
       "no_files": "Inga filer tillgängliga",
       "no_files_description": "Inga filer har lagts till i detta samtal ännu",
+      "open_error": "Det gick inte att öppna filen",
+      "share_error": "Det gick inte att dela filen",
+      "sharing_unavailable": "Delning är inte tillgängligt på den här enheten",
       "title": "Samtalsfiler"
     },
     "geocoding_error": "Det gick inte att söka efter adressen, försök igen",
@@ -308,6 +323,7 @@
     "users": "Användare",
     "viewNotes": "Anteckningar",
     "view_details": "Visa detaljer",
+    "view_on_map": "Visa på kartan",
     "what3words": "what3words",
     "what3words_found": "what3words-adress hittades och platsen uppdaterades",
     "what3words_geocoding_error": "Det gick inte att söka efter what3words-adress, försök igen",
@@ -433,6 +449,7 @@
     "add": "Lägg till",
     "back": "Tillbaka",
     "cancel": "Avbryt",
+    "clear_search": "Rensa sökning",
     "close": "Stäng",
     "confirm": "Bekräfta",
     "confirm_location": "Bekräfta plats",
@@ -454,6 +471,7 @@
     "no_address_found": "Ingen adress hittades",
     "no_location": "Ingen platsdata tillgänglig",
     "no_results_found": "Inga resultat hittades",
+    "no_unit": "Ingen enhet",
     "no_unit_selected": "Ingen enhet vald",
     "nothingToDisplay": "Det finns inget att visa för tillfället",
     "of": "av",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Tryck på kartan för att välja en plats",
     "tryAgainLater": "Försök igen senare",
     "unknown": "Okänd",
+    "unknown_error": "Ett okänt fel uppstod",
     "upload": "Ladda upp",
     "uploading": "Laddar upp..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Kontakter",
     "twitter": "Twitter",
+    "unknown_company": "Okänt företag",
+    "unknown_person": "Okänd person",
     "visibility": "Synlighet",
     "website": "Webbplats",
     "zip": "Postnummer"
@@ -659,6 +680,7 @@
       "message": "Kontrollera ditt användarnamn och lösenord och försök igen.",
       "title": "Inloggningen misslyckades"
     },
+    "hide_password": "Dölj lösenord",
     "login": "Logga in",
     "login_button": "Logga in",
     "login_button_description": "Logga in på ditt konto för att fortsätta",
@@ -667,8 +689,8 @@
     "login_button_success": "Inloggningen lyckades",
     "or_sign_in_with_password": "eller logga in med lösenord",
     "password": "Lösenord",
-    "password_incorrect": "Lösenordet var felaktigt",
     "password_placeholder": "Ange ditt lösenord",
+    "show_password": "Visa lösenord",
     "sso_button": "Logga in med SSO",
     "sso_department": "SSO tillhandahållet av {{name}}",
     "sso_department_id": "Avdelnings-ID (valfritt)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Samtal angett som aktuellt samtal",
     "failed_to_open_maps": "Det gick inte att öppna kartappen",
     "failed_to_set_current_call": "Det gick inte att ange samtalet som aktuellt",
+    "lock_map": "Lås kartan till enheten",
     "no_location_for_routing": "Ingen platsdata tillgänglig för navigering",
     "pin_address": "Address",
     "pin_color": "Nålfärg",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Centrera kartan",
     "set_as_current_call": "Ange som aktuellt samtal",
+    "unlock_map": "Lås upp kartan",
     "view_call_details": "Visa samtalsdetaljer",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Sök anteckningar...",
     "title": "Anteckningar"
   },
+  "notifications": {
+    "confirm_delete_message_count": "Är du säker på att du vill ta bort {{count}} aviseringar? Åtgärden kan inte ångras.",
+    "confirm_delete_message_one": "Är du säker på att du vill ta bort den här aviseringen? Åtgärden kan inte ångras.",
+    "confirm_delete_title": "Bekräfta borttagning",
+    "delete_selected": "Ta bort markerade aviseringar",
+    "deselect_all": "Avmarkera alla",
+    "empty": "Inga uppdateringar tillgängliga",
+    "enter_selection_mode": "Markera aviseringar",
+    "open": "Öppna aviseringar",
+    "remove_failed_count": "Det gick inte att ta bort aviseringarna",
+    "remove_failed_one": "Det gick inte att ta bort aviseringen",
+    "removed_count": "{{count}} aviseringar har tagits bort",
+    "removed_one": "Aviseringen har tagits bort",
+    "select_all": "Markera alla",
+    "selected_count": "{{count}} markerade",
+    "title": "Aviseringar",
+    "unable_to_load": "Det gick inte att läsa in aviseringarna"
+  },
   "onboarding": {
     "message": "Välkommen till Resgrid Unit app site"
   },
@@ -782,12 +824,23 @@
     "view_call": "Visa samtal"
   },
   "roles": {
+    "assignedElsewhere": "I en annan roll",
+    "clearAssignment": "Rensa den aktuella tilldelningen",
     "modal": {
       "title": "Enhetsrolltilldelningar"
     },
+    "noUsersFound": "Inga användare hittades",
+    "save_error": "Det gick inte att spara rolltilldelningarna",
+    "saved_successfully": "Rolltilldelningarna har sparats",
+    "searchUsers": "Sök efter namn eller grupp...",
     "selectUser": "Välj användare",
+    "selectUserDescription": "Välj en person för den här rollen",
+    "selectUserForRole": "Tilldela: {{role}}",
+    "selectUserLabel": "Välj {{name}}",
     "status": "{{active}} av {{total}} roller",
+    "tapToAssign": "Tryck för att tilldela en användare till {{role}}",
     "tap_to_manage": "Tryck för att hantera roller",
+    "title": "Rolltilldelning för enheten",
     "unassigned": "Otilldelad"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Totalt avstånd",
     "total_duration": "Total varaktighet",
     "traffic_delay": "{{time}} försening på grund av trafik",
+    "traffic_heavy": "Tät trafik",
+    "traffic_light": "Lite trafik",
+    "traffic_moderate": "Måttlig trafik",
+    "traffic_no_data": "Inga trafikdata",
+    "traffic_severe": "Mycket tät trafik",
     "try_different_search": "Try a different search term",
     "type": "Typ",
     "unassigned": "Ej tilldelad",

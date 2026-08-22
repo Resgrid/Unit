@@ -1,8 +1,10 @@
 import { useNotifications } from '@novu/react-native';
 import { router } from 'expo-router';
 import { CheckCircle, ChevronRight, Circle, ExternalLink, MoreVertical, Trash2, X } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Appearance, Dimensions, Platform, Pressable, RefreshControl, SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Animated, Platform, Pressable, RefreshControl, SafeAreaView, StatusBar, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { deleteMessage } from '@/api/novu/inbox';
 import { NotificationDetail } from '@/components/notifications/NotificationDetail';
@@ -16,9 +18,42 @@ import { useToastStore } from '@/stores/toast/store';
 import { type NotificationPayload } from '@/types/notification';
 
 // Constants
-const { width } = Dimensions.get('window');
-const SIDEBAR_WIDTH = Math.min(width * 0.85, 400);
 const STATUS_BAR_HEIGHT = Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 0;
+
+const getSidebarWidth = (windowWidth: number) => Math.min(windowWidth * 0.85, 400);
+
+/** Color-dependent style fragments; computed per render from the reactive color scheme. */
+const getThemedStyles = (isDark: boolean) =>
+  ({
+    sidebarContainer: {
+      backgroundColor: isDark ? '#171717' : '#fff',
+      shadowColor: isDark ? '#262626' : '#e5e5e5',
+    },
+    selectionCount: {
+      color: isDark ? '#ffffff' : '#000000',
+    },
+    notificationItem: {
+      borderBottomColor: isDark ? '#333333' : '#eee',
+    },
+    unreadNotificationItem: {
+      backgroundColor: isDark ? '#262626' : '#f0f7ff',
+    },
+    selectedNotificationItem: {
+      backgroundColor: isDark ? '#1e3a8a' : '#dbeafe',
+    },
+    unreadIndicator: {
+      backgroundColor: isDark ? '#60a5fa' : '#3b82f6',
+    },
+    notificationBody: {
+      color: isDark ? '#e5e5e5' : '#333333',
+    },
+    unreadNotificationText: {
+      color: isDark ? '#ffffff' : '#000000',
+    },
+    timestamp: {
+      color: isDark ? '#a3a3a3' : '#666',
+    },
+  }) as const;
 
 interface NotificationInboxProps {
   isOpen: boolean;
@@ -37,6 +72,8 @@ interface NotificationRowProps {
 
 const NotificationRow = React.memo(
   ({ notification, unread, isSelectionMode, isSelected, onPress, onLongPress, onNavigateToReference }: NotificationRowProps) => {
+    const { colorScheme } = useColorScheme();
+    const themed = React.useMemo(() => getThemedStyles(colorScheme === 'dark'), [colorScheme]);
     const handlePress = React.useCallback(() => onPress(notification), [onPress, notification]);
     const handleLongPress = React.useCallback(() => onLongPress(notification), [onLongPress, notification]);
     const handleNavigate = React.useCallback(
@@ -45,8 +82,12 @@ const NotificationRow = React.memo(
     );
 
     return (
-      <Pressable onPress={handlePress} onLongPress={handleLongPress} style={[styles.notificationItem, unread ? styles.unreadNotificationItem : {}, isSelected ? styles.selectedNotificationItem : {}]}>
-        {unread ? <View style={styles.unreadIndicator} /> : null}
+      <Pressable
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        style={[styles.notificationItem, themed.notificationItem, unread ? themed.unreadNotificationItem : {}, isSelected ? themed.selectedNotificationItem : {}]}
+      >
+        {unread ? <View style={[styles.unreadIndicator, themed.unreadIndicator]} /> : null}
 
         {isSelectionMode ? (
           <View style={styles.selectionIndicator}>
@@ -55,8 +96,8 @@ const NotificationRow = React.memo(
         ) : null}
 
         <View style={styles.notificationContent}>
-          <Text style={[styles.notificationBody, unread ? styles.unreadNotificationText : {}]}>{notification.title}</Text>
-          <Text style={styles.timestamp}>
+          <Text style={[styles.notificationBody, themed.notificationBody, unread ? [styles.unreadNotificationText, themed.unreadNotificationText] : {}]}>{notification.title}</Text>
+          <Text style={[styles.timestamp, themed.timestamp]}>
             {new Date(notification.createdAt).toLocaleDateString()} {new Date(notification.createdAt).toLocaleTimeString()}
           </Text>
         </View>
@@ -89,6 +130,11 @@ const NotificationRow = React.memo(
 NotificationRow.displayName = 'NotificationRow';
 
 export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) => {
+  const { t } = useTranslation();
+  const { colorScheme } = useColorScheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const sidebarWidth = getSidebarWidth(windowWidth);
+  const themed = React.useMemo(() => getThemedStyles(colorScheme === 'dark'), [colorScheme]);
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const config = useCoreStore((state: any) => state.config);
   const { notifications, isLoading, fetchMore, hasMore, refetch } = useNotifications();
@@ -100,7 +146,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   const [isDeletingSelected, setIsDeletingSelected] = useState(false);
 
   // Animation values
-  const slideAnim = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  const slideAnim = useRef(new Animated.Value(sidebarWidth)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -122,7 +168,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       // Animate out and reset state
       Animated.parallel([
         Animated.timing(slideAnim, {
-          toValue: SIDEBAR_WIDTH,
+          toValue: sidebarWidth,
           duration: 300,
           useNativeDriver: true,
         }),
@@ -139,7 +185,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       setSelectedNotification(null);
       setShowDeleteConfirmModal(false);
     }
-  }, [isOpen, slideAnim, fadeAnim]);
+  }, [isOpen, slideAnim, fadeAnim, sidebarWidth]);
 
   const toggleNotificationSelection = React.useCallback((notificationId: string) => {
     setSelectedNotificationIds((prev) => {
@@ -210,27 +256,27 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       const deletePromises = Array.from(selectedNotificationIds).map((id) => deleteMessage(id));
       await Promise.all(deletePromises);
 
-      showToast('success', `${selectedNotificationIds.size} notification${selectedNotificationIds.size > 1 ? 's' : ''} removed`);
+      showToast('success', selectedNotificationIds.size > 1 ? t('notifications.removed_count', { count: selectedNotificationIds.size }) : t('notifications.removed_one'));
       exitSelectionMode();
       refetch();
     } catch (error) {
-      showToast('error', 'Failed to remove notifications');
+      showToast('error', t('notifications.remove_failed_count'));
     } finally {
       setIsDeletingSelected(false);
     }
-  }, [selectedNotificationIds, showToast, exitSelectionMode, refetch]);
+  }, [selectedNotificationIds, showToast, exitSelectionMode, refetch, t]);
 
   const handleDeleteNotification = React.useCallback(
     async (_id: string) => {
       try {
         await deleteMessage(_id);
-        showToast('success', 'Notification removed');
+        showToast('success', t('notifications.removed_one'));
         refetch();
       } catch (error) {
-        showToast('error', 'Failed to remove notification');
+        showToast('error', t('notifications.remove_failed_one'));
       }
     },
-    [showToast, refetch]
+    [showToast, refetch, t]
   );
 
   const handleNavigateToReference = React.useCallback(
@@ -296,7 +342,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
-      <Text>No updates available</Text>
+      <Text>{t('notifications.empty')}</Text>
     </View>
   );
 
@@ -317,7 +363,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
       </Animated.View>
 
       {/* Sidebar container */}
-      <Animated.View style={[styles.sidebarContainer, { transform: [{ translateX: slideAnim }] }]}>
+      <Animated.View style={[styles.sidebarContainer, themed.sidebarContainer, { width: sidebarWidth, transform: [{ translateX: slideAnim }] }]}>
         <SafeAreaView style={styles.safeArea}>
           {selectedNotification ? (
             <NotificationDetail notification={selectedNotification} onClose={() => setSelectedNotification(null)} onDelete={handleDeleteNotification} onNavigateToReference={handleNavigateToReference} />
@@ -327,28 +373,28 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                 {isSelectionMode ? (
                   <>
                     <View style={styles.selectionHeader}>
-                      <Text style={styles.selectionCount}>{selectedNotificationIds.size} selected</Text>
+                      <Text style={[styles.selectionCount, themed.selectionCount]}>{t('notifications.selected_count', { count: selectedNotificationIds.size })}</Text>
                       <View style={styles.selectionActions}>
                         <Button onPress={selectedNotificationIds.size === notifications?.length ? deselectAllNotifications : selectAllNotifications} variant="outline" className="mr-2">
-                          <Text>{selectedNotificationIds.size === notifications?.length ? 'Deselect All' : 'Select All'}</Text>
+                          <Text>{selectedNotificationIds.size === notifications?.length ? t('notifications.deselect_all') : t('notifications.select_all')}</Text>
                         </Button>
-                        <Button onPress={handleBulkDelete} variant="outline" className="mr-2" disabled={selectedNotificationIds.size === 0 || isDeletingSelected}>
+                        <Button onPress={handleBulkDelete} variant="outline" className="mr-2" disabled={selectedNotificationIds.size === 0 || isDeletingSelected} accessibilityLabel={t('notifications.delete_selected')}>
                           {isDeletingSelected ? <ActivityIndicator size="small" color="#ef4444" /> : <Trash2 size={16} className="text-red-500" strokeWidth={2} />}
                         </Button>
                         <Button onPress={exitSelectionMode} variant="outline">
-                          <Text>Cancel</Text>
+                          <Text>{t('common.cancel')}</Text>
                         </Button>
                       </View>
                     </View>
                   </>
                 ) : (
                   <>
-                    <Text style={styles.headerTitle}>Notifications</Text>
+                    <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
                     <View style={styles.headerActions}>
-                      <Pressable onPress={enterSelectionMode} style={styles.actionButton}>
+                      <Pressable onPress={enterSelectionMode} style={styles.actionButton} accessibilityRole="button" accessibilityLabel={t('notifications.enter_selection_mode')}>
                         <MoreVertical size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
                       </Pressable>
-                      <Pressable onPress={onClose} style={styles.closeButton}>
+                      <Pressable onPress={onClose} style={styles.closeButton} accessibilityRole="button" accessibilityLabel={t('common.close')}>
                         <X size={24} className="text-primary-500 dark:text-primary-400" strokeWidth={2} />
                       </Pressable>
                     </View>
@@ -362,7 +408,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
                 </View>
               ) : !activeUnitId || !config ? (
                 <View style={styles.loadingContainer}>
-                  <Text>Unable to load notifications</Text>
+                  <Text>{t('notifications.unable_to_load')}</Text>
                 </View>
               ) : (
                 <FlatList
@@ -387,19 +433,17 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
         <ModalBackdrop />
         <ModalContent>
           <ModalHeader>
-            <Text className="text-lg font-semibold">Confirm Delete</Text>
+            <Text className="text-lg font-semibold">{t('notifications.confirm_delete_title')}</Text>
           </ModalHeader>
           <ModalBody>
-            <Text>
-              Are you sure you want to delete {selectedNotificationIds.size} notification{selectedNotificationIds.size > 1 ? 's' : ''}? This action cannot be undone.
-            </Text>
+            <Text>{selectedNotificationIds.size > 1 ? t('notifications.confirm_delete_message_count', { count: selectedNotificationIds.size }) : t('notifications.confirm_delete_message_one')}</Text>
           </ModalBody>
           <ModalFooter>
             <Button variant="outline" onPress={() => setShowDeleteConfirmModal(false)} className="mr-2">
-              <Text>Cancel</Text>
+              <Text>{t('common.cancel')}</Text>
             </Button>
             <Button variant="solid" onPress={confirmBulkDelete} className="bg-red-500">
-              <Text className="text-white">Delete</Text>
+              <Text className="text-white">{t('common.delete')}</Text>
             </Button>
           </ModalFooter>
         </ModalContent>
@@ -421,10 +465,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     right: 0,
-    width: SIDEBAR_WIDTH,
     height: '100%',
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#171717' : '#fff',
-    shadowColor: Appearance.getColorScheme() === 'dark' ? '#262626' : '#e5e5e5',
     shadowOffset: {
       width: -2,
       height: 0,
@@ -470,7 +511,6 @@ const styles = StyleSheet.create({
   selectionCount: {
     fontSize: 16,
     fontWeight: '600',
-    color: Appearance.getColorScheme() === 'dark' ? '#ffffff' : '#000000',
   },
   selectionActions: {
     flexDirection: 'row',
@@ -481,14 +521,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: Appearance.getColorScheme() === 'dark' ? '#333333' : '#eee',
     position: 'relative',
-  },
-  unreadNotificationItem: {
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#262626' : '#f0f7ff',
-  },
-  selectedNotificationItem: {
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#1e3a8a' : '#dbeafe',
   },
   unreadIndicator: {
     position: 'absolute',
@@ -496,7 +529,6 @@ const styles = StyleSheet.create({
     top: 0,
     width: 4,
     height: '100%',
-    backgroundColor: Appearance.getColorScheme() === 'dark' ? '#60a5fa' : '#3b82f6',
   },
   selectionIndicator: {
     marginRight: 12,
@@ -508,15 +540,12 @@ const styles = StyleSheet.create({
   notificationBody: {
     fontSize: 16,
     marginBottom: 4,
-    color: Appearance.getColorScheme() === 'dark' ? '#e5e5e5' : '#333333',
   },
   unreadNotificationText: {
     fontWeight: '600',
-    color: Appearance.getColorScheme() === 'dark' ? '#ffffff' : '#000000',
   },
   timestamp: {
     fontSize: 12,
-    color: Appearance.getColorScheme() === 'dark' ? '#a3a3a3' : '#666',
   },
   actionButtons: {
     flexDirection: 'row',

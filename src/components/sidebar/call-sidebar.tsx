@@ -9,12 +9,13 @@ import { Alert, Platform, Pressable, ScrollView } from 'react-native';
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { logger } from '@/lib/logging';
 import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 
 import { CallCard } from '../calls/call-card';
-import { Button, ButtonIcon } from '../ui/button';
+import { Button, ButtonIcon, ButtonText } from '../ui/button';
 import { Card } from '../ui/card';
 import { HStack } from '../ui/hstack';
 
@@ -27,17 +28,33 @@ export const SidebarCallCard = () => {
   const [isBottomSheetOpen, setIsBottomSheetOpen] = React.useState(false);
   const { t } = useTranslation();
 
-  // Fetch calls data when bottom sheet opens
-  const { data: openCallsData, isLoading } = useQuery({
+  // Fetch calls data when bottom sheet opens.
+  // The store swallows fetch failures into its own `error` field and never rejects, so
+  // the query has to read that field and throw — otherwise a failed load rendered an
+  // empty sheet that looked like "there are no open calls".
+  const {
+    data: openCallsData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['calls', 'open'],
     queryFn: async () => {
       // Only fetch when bottom sheet is open
       if (!isBottomSheetOpen) return [];
-      await useCallsStore.getState().fetchCalls();
-      return useCallsStore.getState().calls;
+      await useCallsStore.getState().fetchCalls(true);
+      const { calls, error } = useCallsStore.getState();
+      if (error) {
+        throw new Error(error);
+      }
+      return calls;
     },
     enabled: isBottomSheetOpen, // Only run query when bottom sheet is open
   });
+
+  const handleRetry = React.useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   const handleDeselect = () => {
     if (Platform.OS === 'web') {
@@ -170,13 +187,14 @@ export const SidebarCallCard = () => {
         )}
       </Pressable>
 
-      {activeCall && (
+      {activeCall ? (
         <HStack className="w-full">
           <Button
             variant="outline"
             className="flex-1"
             size="sm"
             action="primary"
+            accessibilityLabel={t('map.view_call_details')}
             onPress={() => {
               router.push(`/call/${activeCall.CallId}`);
             }}
@@ -184,68 +202,85 @@ export const SidebarCallCard = () => {
             <ButtonIcon as={Eye} />
           </Button>
 
-          {hasLocationData(activeCall) && (
-            <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDirections}>
+          {hasLocationData(activeCall) ? (
+            <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDirections} accessibilityLabel={t('calls.directions')}>
               <ButtonIcon as={MapPin} />
             </Button>
-          )}
+          ) : null}
 
           {hasDestinationData(activeCall) ? (
-            <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDestinationDirections} testID="call-destination-directions-button">
+            <Button
+              variant="outline"
+              className="flex-1"
+              size="sm"
+              action="primary"
+              onPress={handleDestinationDirections}
+              testID="call-destination-directions-button"
+              accessibilityLabel={t('calls.directions_to_destination')}
+            >
               <ButtonIcon as={Navigation} />
             </Button>
           ) : null}
 
-          <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDeselect}>
+          <Button variant="outline" className="flex-1" size="sm" action="primary" onPress={handleDeselect} accessibilityLabel={t('calls.deselect')}>
             <ButtonIcon as={CircleX} />
           </Button>
         </HStack>
-      )}
+      ) : null}
 
       <CustomBottomSheet isOpen={isBottomSheetOpen} onClose={() => setIsBottomSheetOpen(false)} isLoading={isLoading} loadingText={t('common.loading')} snapPoints={[60]} testID="call-selection-bottom-sheet">
         <VStack space="md" className="w-full flex-1">
           <Text className="text-lg font-bold">{t('calls.select_active_call')}</Text>
-          <ScrollView className="w-full flex-1" showsVerticalScrollIndicator={false}>
-            <VStack space="md" className="w-full">
-              {openCallsData?.map((call) => (
-                <Pressable
-                  key={call.CallId}
-                  onPress={() => {
-                    const handleCallSelect = async () => {
-                      try {
-                        await setActiveCall(call.CallId);
-                        setIsBottomSheetOpen(false);
-                      } catch (error) {
-                        console.error('Failed to set active call:', error);
-                      }
-                    };
-                    handleCallSelect().catch((error) => {
-                      console.error('Failed to handle call selection:', error);
-                    });
-                  }}
-                  className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                    activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
-                  }`}
-                  testID={`call-item-${call.CallId}`}
-                >
-                  <HStack space="md" className="items-center justify-between">
-                    <VStack className="flex-1">
-                      <Text className={`font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{call.Name}</Text>
-                      <Text size="sm" className={colorScheme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'}>
-                        {call.Type}
-                      </Text>
-                    </VStack>
-                    {activeCall?.CallId === call.CallId && <Check size={20} color={colorScheme === 'dark' ? '#60a5fa' : '#2563eb'} />}
-                  </HStack>
-                </Pressable>
-              ))}
-              {!isLoading && openCallsData?.length === 0 && (
-                <Text className="py-8 text-center text-gray-500" testID="no-calls-message">
-                  {t('calls.no_open_calls')}
-                </Text>
-              )}
+          {isError ? (
+            <VStack space="sm" className="w-full items-center py-8">
+              <Text className="text-center text-red-600 dark:text-red-400">{t('calls.errors.load_failed')}</Text>
+              <Button variant="outline" size="sm" action="primary" onPress={handleRetry} testID="call-selection-retry-button">
+                <ButtonText>{t('common.retry')}</ButtonText>
+              </Button>
             </VStack>
-          </ScrollView>
+          ) : (
+            <ScrollView className="w-full flex-1" showsVerticalScrollIndicator={false}>
+              <VStack space="md" className="w-full">
+                {openCallsData?.map((call) => (
+                  <Pressable
+                    key={call.CallId}
+                    onPress={() => {
+                      const handleCallSelect = async () => {
+                        try {
+                          await setActiveCall(call.CallId);
+                          setIsBottomSheetOpen(false);
+                        } catch (error) {
+                          logger.error({ message: 'Failed to set active call', context: { error, callId: call.CallId } });
+                        }
+                      };
+                      handleCallSelect().catch((error) => {
+                        logger.error({ message: 'Failed to handle call selection', context: { error, callId: call.CallId } });
+                      });
+                    }}
+                    className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
+                      activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                    }`}
+                    testID={`call-item-${call.CallId}`}
+                  >
+                    <HStack space="md" className="items-center justify-between">
+                      <VStack className="flex-1">
+                        <Text className={`font-medium ${colorScheme === 'dark' ? 'text-neutral-200' : 'text-neutral-700'}`}>{call.Name}</Text>
+                        <Text size="sm" className={colorScheme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'}>
+                          {call.Type}
+                        </Text>
+                      </VStack>
+                      {activeCall?.CallId === call.CallId ? <Check size={20} color={colorScheme === 'dark' ? '#60a5fa' : '#2563eb'} /> : null}
+                    </HStack>
+                  </Pressable>
+                ))}
+                {!isLoading && openCallsData?.length === 0 ? (
+                  <Text className="py-8 text-center text-gray-500" testID="no-calls-message">
+                    {t('calls.no_open_calls')}
+                  </Text>
+                ) : null}
+              </VStack>
+            </ScrollView>
+          )}
         </VStack>
       </CustomBottomSheet>
     </>

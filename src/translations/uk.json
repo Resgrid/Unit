@@ -8,6 +8,7 @@
     }
   },
   "app": {
+    "initialization_failed": "Не вдалося завантажити дані застосунку. Перевірте з'єднання та повторіть спробу.",
     "title": "Resgrid Unit"
   },
   "audio_streams": {
@@ -36,6 +37,7 @@
     "applied": "Застосовано",
     "audio": "Аудіо",
     "audioActive": "Аудіо активне",
+    "audio_capable": "Підтримує аудіо",
     "audio_device": "BT-гарнітура",
     "audio_output": "Виведення звуку",
     "availableDevices": "Доступні пристрої",
@@ -47,6 +49,8 @@
     "connect": "Підключити",
     "connected": "Підключено",
     "connectionError": "Помилка підключення",
+    "connection_error_message": "Не вдалося під'єднатися до пристрою",
+    "connection_error_title": "Не вдалося з'єднатися",
     "current_selection": "Поточний вибір",
     "device_disconnected": "Пристрій відключено",
     "disconnect": "Відключити",
@@ -104,10 +108,12 @@
     "loading": "Завантаження...",
     "no_images": "Немає доступних зображень",
     "no_images_description": "Додайте зображення до виклику для документування та комунікації",
+    "not_signed_in": "Щоб завантажувати зображення, потрібно увійти",
     "select_from_gallery": "Вибрати з галереї",
     "take_photo": "Зробити фото",
     "title": "Зображення виклику",
-    "upload": "Завантажити"
+    "upload": "Завантажити",
+    "upload_error": "Помилка завантаження зображення"
   },
   "callNotes": {
     "addNote": "Додати примітку",
@@ -241,15 +247,24 @@
     "destination_poi": "Destination POI",
     "destination_poi_none": "No destination selected",
     "directions": "Маршрут",
+    "directions_to_destination": "Маршрут до призначення",
     "dispatch_to": "Відправити до",
     "dispatch_to_everyone": "Відправити до всього доступного персоналу",
     "edit_call": "Редагувати виклик",
     "edit_call_description": "Оновити інформацію про виклик",
+    "errors": {
+      "load_failed": "Не вдалося завантажити виклики"
+    },
     "everyone": "Всі",
     "field_policy_loading": "Налаштування викликів вашого відділу ще завантажуються, спробуйте ще раз за мить",
     "files": {
+      "error": "Помилка отримання файлів",
+      "file_name": "Назва файлу",
       "no_files": "Немає доступних файлів",
       "no_files_description": "До цього виклику ще не додано файлів",
+      "open_error": "Помилка відкриття файлу",
+      "share_error": "Помилка надсилання файлу",
+      "sharing_unavailable": "Надсилання недоступне на цьому пристрої",
       "title": "Файли виклику"
     },
     "geocoding_error": "Пошук адреси не вдався, спробуйте ще раз",
@@ -308,6 +323,7 @@
     "users": "Користувачі",
     "viewNotes": "Примітки",
     "view_details": "Переглянути деталі",
+    "view_on_map": "Показати на карті",
     "what3words": "what3words",
     "what3words_found": "Адресу what3words знайдено та місцезнаходження оновлено",
     "what3words_geocoding_error": "Пошук адреси what3words не вдався, спробуйте ще раз",
@@ -433,6 +449,7 @@
     "add": "Додати",
     "back": "Назад",
     "cancel": "Скасувати",
+    "clear_search": "Очистити пошук",
     "close": "Закрити",
     "confirm": "Підтвердити",
     "confirm_location": "Підтвердити місцезнаходження",
@@ -454,6 +471,7 @@
     "no_address_found": "Адресу не знайдено",
     "no_location": "Немає даних про місцезнаходження",
     "no_results_found": "Результатів не знайдено",
+    "no_unit": "Немає підрозділу",
     "no_unit_selected": "Підрозділ не вибрано",
     "nothingToDisplay": "Наразі нічого не відображати",
     "of": "з",
@@ -476,6 +494,7 @@
     "tap_map_to_select": "Торкніться карти для вибору місцезнаходження",
     "tryAgainLater": "Спробуйте ще раз пізніше",
     "unknown": "Невідомо",
+    "unknown_error": "Сталася невідома помилка",
     "upload": "Завантажити",
     "uploading": "Завантаження..."
   },
@@ -555,6 +574,8 @@
     "threads": "Threads",
     "title": "Контакти",
     "twitter": "Twitter",
+    "unknown_company": "Невідома компанія",
+    "unknown_person": "Невідома особа",
     "visibility": "Видимість",
     "website": "Веб-сайт",
     "zip": "Поштовий індекс"
@@ -659,6 +680,7 @@
       "message": "Перевірте ім'я користувача та пароль і спробуйте ще раз.",
       "title": "Помилка входу"
     },
+    "hide_password": "Приховати пароль",
     "login": "Увійти",
     "login_button": "Увійти",
     "login_button_description": "Увійдіть до свого облікового запису для продовження",
@@ -667,8 +689,8 @@
     "login_button_success": "Вхід виконано успішно",
     "or_sign_in_with_password": "або увійдіть з паролем",
     "password": "Пароль",
-    "password_incorrect": "Пароль невірний",
     "password_placeholder": "Введіть пароль",
+    "show_password": "Показати пароль",
     "sso_button": "Увійти через SSO",
     "sso_department": "SSO надано {{name}}",
     "sso_department_id": "ID підрозділу (необов'язково)",
@@ -689,6 +711,7 @@
     "call_set_as_current": "Виклик встановлено як поточний",
     "failed_to_open_maps": "Не вдалося відкрити додаток карт",
     "failed_to_set_current_call": "Не вдалося встановити виклик як поточний",
+    "lock_map": "Закріпити карту на підрозділі",
     "no_location_for_routing": "Немає даних про місцезнаходження для навігації",
     "pin_address": "Address",
     "pin_color": "Колір мітки",
@@ -696,6 +719,7 @@
     "pin_type": "POI Type",
     "recenter_map": "Відцентрувати карту",
     "set_as_current_call": "Встановити як поточний виклик",
+    "unlock_map": "Відкріпити карту",
     "view_call_details": "Переглянути деталі виклику",
     "view_poi_details": "View POI Details"
   },
@@ -750,6 +774,24 @@
     "search": "Пошук приміток...",
     "title": "Примітки"
   },
+  "notifications": {
+    "confirm_delete_message_count": "Ви впевнені, що хочете видалити сповіщення ({{count}})? Цю дію не можна скасувати.",
+    "confirm_delete_message_one": "Ви впевнені, що хочете видалити це сповіщення? Цю дію не можна скасувати.",
+    "confirm_delete_title": "Підтвердити видалення",
+    "delete_selected": "Видалити вибрані сповіщення",
+    "deselect_all": "Зняти вибір",
+    "empty": "Немає оновлень",
+    "enter_selection_mode": "Вибрати сповіщення",
+    "open": "Відкрити сповіщення",
+    "remove_failed_count": "Не вдалося видалити сповіщення",
+    "remove_failed_one": "Не вдалося видалити сповіщення",
+    "removed_count": "Видалено сповіщень: {{count}}",
+    "removed_one": "Сповіщення видалено",
+    "select_all": "Вибрати все",
+    "selected_count": "Вибрано: {{count}}",
+    "title": "Сповіщення",
+    "unable_to_load": "Не вдалося завантажити сповіщення"
+  },
   "onboarding": {
     "message": "Ласкаво просимо до додатку Resgrid Unit"
   },
@@ -782,12 +824,23 @@
     "view_call": "Переглянути виклик"
   },
   "roles": {
+    "assignedElsewhere": "В іншій ролі",
+    "clearAssignment": "Очистити поточне призначення",
     "modal": {
       "title": "Призначення ролей підрозділу"
     },
+    "noUsersFound": "Користувачів не знайдено",
+    "save_error": "Помилка збереження призначень ролей",
+    "saved_successfully": "Призначення ролей збережено",
+    "searchUsers": "Пошук за іменем або групою...",
     "selectUser": "Вибрати користувача",
+    "selectUserDescription": "Виберіть людину на цю роль",
+    "selectUserForRole": "Призначити: {{role}}",
+    "selectUserLabel": "Вибрати {{name}}",
     "status": "{{active}} з {{total}} ролей",
+    "tapToAssign": "Торкніться, щоб призначити користувача на {{role}}",
     "tap_to_manage": "Торкніться для управління ролями",
+    "title": "Призначення ролей підрозділу",
     "unassigned": "Не призначено"
   },
   "routes": {
@@ -929,6 +982,11 @@
     "total_distance": "Загальна відстань",
     "total_duration": "Загальний час",
     "traffic_delay": "{{time}} затримки через трафік",
+    "traffic_heavy": "Щільний рух",
+    "traffic_light": "Вільний рух",
+    "traffic_moderate": "Помірний рух",
+    "traffic_no_data": "Немає даних про рух",
+    "traffic_severe": "Дуже щільний рух",
     "try_different_search": "Try a different search term",
     "type": "Тип",
     "unassigned": "Не призначено",

@@ -43,6 +43,7 @@ describe('useCallsStore', () => {
       callPriorities: [],
       callTypes: [],
       isLoading: false,
+      isInitialized: false,
       error: null,
     });
   });
@@ -185,6 +186,142 @@ describe('useCallsStore', () => {
       expect(mockGetCalls).toHaveBeenCalledTimes(1);
       expect(mockGetCallPriorities).toHaveBeenCalledTimes(1);
       expect(mockGetCallTypes).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears isLoading and leaves isInitialized false when a fetch throws, so init can be retried', async () => {
+      mockGetCalls.mockRejectedValue(new Error('Network down'));
+
+      const { result } = renderHook(() => useCallsStore());
+
+      await act(async () => {
+        await result.current.init();
+      });
+
+      await waitFor(() => {
+        // isLoading must clear or the guard at the top of init() blocks every retry forever
+        expect(result.current.isLoading).toBe(false);
+        // isInitialized must stay false so the TabLayout retry loop can call init() again
+        expect(result.current.isInitialized).toBe(false);
+        expect(result.current.error).toBe('Failed to initialize calls');
+      });
+    });
+
+    it('allows a subsequent init() to succeed after an initial failure', async () => {
+      mockGetCalls.mockRejectedValueOnce(new Error('Network down'));
+
+      const { result } = renderHook(() => useCallsStore());
+
+      await act(async () => {
+        await result.current.init();
+      });
+      expect(result.current.isInitialized).toBe(false);
+
+      const mockCallsData = [{ Id: '1', Name: 'Test Call' }];
+      mockGetCalls.mockResolvedValue({ Data: mockCallsData } as any);
+      mockGetCallPriorities.mockResolvedValue({ Data: [] } as any);
+      mockGetCallTypes.mockResolvedValue({ Data: [] } as any);
+
+      await act(async () => {
+        await result.current.init();
+      });
+
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+        expect(result.current.calls).toEqual(mockCallsData);
+        expect(result.current.isLoading).toBe(false);
+      });
+    });
+  });
+
+  describe('fetchCalls', () => {
+    it('sets isLoading while fetching when there is no data yet', async () => {
+      let resolveCalls: (value: any) => void = () => {};
+      mockGetCalls.mockReturnValue(new Promise((resolve) => (resolveCalls = resolve)) as any);
+
+      const { result } = renderHook(() => useCallsStore());
+
+      let pending: Promise<void>;
+      act(() => {
+        pending = result.current.fetchCalls();
+      });
+
+      expect(useCallsStore.getState().isLoading).toBe(true);
+
+      await act(async () => {
+        resolveCalls({ Data: [{ CallId: '1' }] });
+        await pending!;
+      });
+
+      expect(useCallsStore.getState().isLoading).toBe(false);
+    });
+
+    it('does NOT set isLoading when calls are already present (stale-while-revalidate)', async () => {
+      useCallsStore.setState({ calls: [{ CallId: 'existing' }] as any });
+
+      let resolveCalls: (value: any) => void = () => {};
+      mockGetCalls.mockReturnValue(new Promise((resolve) => (resolveCalls = resolve)) as any);
+
+      const { result } = renderHook(() => useCallsStore());
+
+      let pending: Promise<void>;
+      act(() => {
+        pending = result.current.fetchCalls(true);
+      });
+
+      // The stale list stays on screen instead of being replaced by a full-screen loader
+      expect(useCallsStore.getState().isLoading).toBe(false);
+      expect(useCallsStore.getState().calls).toHaveLength(1);
+
+      await act(async () => {
+        resolveCalls({ Data: [{ CallId: 'fresh' }] });
+        await pending!;
+      });
+
+      expect(useCallsStore.getState().calls).toEqual([{ CallId: 'fresh' }]);
+    });
+
+    it('defaults forceRefresh to false and forwards an explicit true to getCalls', async () => {
+      mockGetCalls.mockResolvedValue({ Data: [] } as any);
+
+      const { result } = renderHook(() => useCallsStore());
+
+      await act(async () => {
+        await result.current.fetchCalls();
+      });
+      expect(mockGetCalls).toHaveBeenLastCalledWith(false);
+
+      await act(async () => {
+        await result.current.fetchCalls(true);
+      });
+      expect(mockGetCalls).toHaveBeenLastCalledWith(true);
+    });
+
+    it('records an error and clears isLoading when the fetch fails', async () => {
+      mockGetCalls.mockRejectedValue(new Error('API Error'));
+
+      const { result } = renderHook(() => useCallsStore());
+
+      await act(async () => {
+        await result.current.fetchCalls();
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).toBe('Failed to fetch calls');
+        expect(result.current.isLoading).toBe(false);
+      });
+    });
+
+    it('clears a previous error on a new fetch', async () => {
+      useCallsStore.setState({ error: 'Failed to fetch calls' });
+      mockGetCalls.mockResolvedValue({ Data: [{ CallId: '1' }] } as any);
+
+      const { result } = renderHook(() => useCallsStore());
+
+      await act(async () => {
+        await result.current.fetchCalls(true);
+      });
+
+      expect(result.current.error).toBeNull();
     });
   });
 });

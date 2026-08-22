@@ -7,6 +7,7 @@ import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib/auth';
+import { logger } from '@/lib/logging';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 
 import { Loading } from '../common/loading';
@@ -77,7 +78,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
         setNewNote('');
         Keyboard.dismiss();
       } catch (error) {
-        console.error('Failed to add note:', error);
+        logger.error({ message: 'Failed to add call note', context: { error, callId } });
       }
     }
   }, [newNote, callId, currentUser, addNote]);

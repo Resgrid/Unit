@@ -457,6 +457,12 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       }
     }, CONNECT_OVERALL_TIMEOUT_MS);
 
+    // The room created by this attempt, kept in outer scope so the failure path
+    // can always tear it down — withTimeout rejects without cancelling
+    // room.connect(), so a late-completing connect would otherwise leak a live
+    // room (open websocket + audio session).
+    let connectingRoom: Room | null = null;
+
     try {
       const { currentRoom, voipServerWebsocketSslAddress } = get();
 
@@ -538,6 +544,7 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
 
       // Create a new room
       const room = new Room();
+      connectingRoom = room;
 
       // Setup room event listeners
       room.on(RoomEvent.ParticipantConnected, (participant) => {
@@ -794,6 +801,15 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         message: 'Failed to connect to room',
         context: { error, roomName: roomInfo?.Name },
       });
+
+      // Always tear down the locally created room: a connect that completes
+      // after the timeout rejection would otherwise stay live (websocket +
+      // audio) with nothing referencing it. Only rooms not committed to the
+      // store are torn down here — the intentional room-switch path manages the
+      // committed room itself (isConnected is cleared before it disconnects).
+      if (connectingRoom && get().currentRoom !== connectingRoom) {
+        await connectingRoom.disconnect().catch(() => {});
+      }
 
       // Stop audio session on failure since we started it above
       if (Platform.OS !== 'web') {

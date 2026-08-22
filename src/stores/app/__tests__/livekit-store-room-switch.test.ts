@@ -238,4 +238,54 @@ describe('LiveKit store room switching', () => {
       isConnected: true,
     });
   });
+
+  it('disconnects the room it created when connect fails, so no live room leaks', async () => {
+    const room = createMockRoom('failed-participant');
+    room.connect.mockRejectedValue(new Error('connect refused'));
+    room.disconnect.mockResolvedValue(undefined);
+    (Room as unknown as jest.Mock).mockImplementationOnce(() => room);
+
+    await useLiveKitStore.getState().connectToRoom(createRoomInfo('bad', 'Bad Room'), 'token');
+
+    // withTimeout rejects without cancelling room.connect(), so the room object
+    // must be torn down explicitly or its websocket/audio session stays open.
+    expect(room.disconnect).toHaveBeenCalled();
+    expect(useLiveKitStore.getState().currentRoom).toBeNull();
+    expect(useLiveKitStore.getState().isConnecting).toBe(false);
+  });
+
+  it('disconnects the room it created when a post-connect step throws', async () => {
+    const room = createMockRoom('post-connect-participant');
+    room.disconnect.mockResolvedValue(undefined);
+    (Room as unknown as jest.Mock).mockImplementationOnce(() => room);
+
+    await useLiveKitStore.getState().connectToRoom(createRoomInfo('ok', 'Room'), 'token');
+    expect(useLiveKitStore.getState().currentRoom).toBe(room);
+
+    // A room already committed to the store is owned by the store's own
+    // teardown paths and must NOT be disconnected by the failure handler.
+    room.disconnect.mockClear();
+
+    const second = createMockRoom('second-participant');
+    second.connect.mockRejectedValue(new Error('boom'));
+    second.disconnect.mockResolvedValue(undefined);
+    (Room as unknown as jest.Mock).mockImplementationOnce(() => second);
+
+    useLiveKitStore.setState({ isConnecting: false, isConnected: false });
+    await useLiveKitStore.getState().connectToRoom(createRoomInfo('two', 'Room Two'), 'token');
+
+    expect(second.disconnect).toHaveBeenCalled();
+  });
+
+  it('swallows a disconnect failure in the error path rather than masking the original error', async () => {
+    const room = createMockRoom('unstoppable');
+    room.connect.mockRejectedValue(new Error('connect refused'));
+    room.disconnect.mockRejectedValue(new Error('disconnect also failed'));
+    (Room as unknown as jest.Mock).mockImplementationOnce(() => room);
+
+    await expect(useLiveKitStore.getState().connectToRoom(createRoomInfo('bad', 'Bad Room'), 'token')).resolves.toBeUndefined();
+
+    expect(room.disconnect).toHaveBeenCalled();
+    expect(useLiveKitStore.getState().isConnecting).toBe(false);
+  });
 });

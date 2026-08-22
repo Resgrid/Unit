@@ -103,7 +103,6 @@ if (Platform.OS !== 'web') {
 // Load the selected theme from storage and apply it
 loadSelectedTheme();
 
-//useAuth().hydrate();
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 //SplashScreen.preventAutoHideAsync();
 // Set the animation options. This is optional.

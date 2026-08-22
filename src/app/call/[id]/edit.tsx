@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
 import { DestinationPoiSelector } from '@/components/calls/destination-poi-selector';
@@ -17,7 +18,7 @@ import FullScreenLocationPicker from '@/components/maps/full-screen-location-pic
 import LocationPicker from '@/components/maps/location-picker';
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Box } from '@/components/ui/box';
-import { Button, ButtonText } from '@/components/ui/button';
+import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FormControl, FormControlError, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
 import { Input, InputField } from '@/components/ui/input';
@@ -26,6 +27,7 @@ import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 import { useCallsStore } from '@/stores/calls/store';
@@ -118,7 +120,7 @@ export default function EditCall() {
   const {
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
     setValue,
     reset,
   } = useForm<FormValues>({
@@ -282,7 +284,7 @@ export default function EditCall() {
       // Navigate back to call detail
       router.back();
     } catch (error) {
-      console.error('Error updating call:', error);
+      logger.error({ message: 'Error updating call', context: { error } });
 
       // Show error toast
       toast.show({
@@ -394,7 +396,7 @@ export default function EditCall() {
         });
       }
     } catch (error) {
-      console.error('Error geocoding address:', error);
+      logger.error({ message: 'Error geocoding address', context: { error } });
 
       toast.show({
         placement: 'top',
@@ -462,7 +464,7 @@ export default function EditCall() {
         />
         <View className="size-full flex-1">
           <Box className="m-3 mt-5 min-h-[200px] w-full max-w-[600px] gap-5 self-center rounded-lg bg-background-50 p-5 lg:min-w-[700px]">
-            <Text className="error text-center">{callDetailError || callDataError || 'Call not found'}</Text>
+            <Text className="error text-center">{callDetailError || callDataError || t('call_detail.not_found')}</Text>
           </Box>
         </View>
       </>
@@ -481,243 +483,246 @@ export default function EditCall() {
       />
       <View className="size-full flex-1">
         <Box className="size-full w-full flex-1 bg-gray-50 dark:bg-gray-900">
-          <ScrollView className="flex-1 px-4 py-6">
-            <Text className="mb-6 text-2xl font-bold">{t('calls.edit_call_description')}</Text>
+          <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={10}>
+            <ScrollView className="flex-1 px-4 py-6" keyboardShouldPersistTaps="handled">
+              <Text className="mb-6 text-2xl font-bold">{t('calls.edit_call_description')}</Text>
 
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl isInvalid={!!errors.name}>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.name')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="name"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
-                  )}
-                />
-                {errors.name && (
-                  <FormControlError>
-                    <Text className="text-red-500">{errors.name.message}</Text>
-                  </FormControlError>
-                )}
-              </FormControl>
-            </Card>
-
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl isInvalid={!!errors.nature}>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.nature')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="nature"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Textarea>
-                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.nature_placeholder')} />
-                    </Textarea>
-                  )}
-                />
-                {errors.nature && (
-                  <FormControlError>
-                    <Text className="text-red-500">{errors.nature.message}</Text>
-                  </FormControlError>
-                )}
-              </FormControl>
-            </Card>
-
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl isInvalid={!!errors.priority}>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.priority')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="priority"
-                  render={({ field: { onChange, value } }) => (
-                    <Select selectedValue={value} onValueChange={onChange}>
-                      <SelectTrigger>
-                        <SelectInput placeholder={t('calls.priority_placeholder')} />
-                        <SelectIcon as={ChevronDownIcon} />
-                      </SelectTrigger>
-                      <SelectPortal>
-                        <SelectBackdrop />
-                        <SelectContent>
-                          {callPriorities.map((priority) => (
-                            <SelectItem key={priority.Id} label={priority.Name} value={priority.Name} />
-                          ))}
-                        </SelectContent>
-                      </SelectPortal>
-                    </Select>
-                  )}
-                />
-                {errors.priority && (
-                  <FormControlError>
-                    <Text className="text-red-500">{errors.priority.message}</Text>
-                  </FormControlError>
-                )}
-              </FormControl>
-            </Card>
-
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl isInvalid={!!errors.type}>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.type')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="type"
-                  render={({ field: { onChange, value } }) => (
-                    <Select selectedValue={value} onValueChange={onChange}>
-                      <SelectTrigger>
-                        <SelectInput placeholder={t('calls.select_type')} />
-                        <SelectIcon as={ChevronDownIcon} />
-                      </SelectTrigger>
-                      <SelectPortal>
-                        <SelectBackdrop />
-                        <SelectContent>
-                          {callTypes.map((type) => (
-                            <SelectItem key={type.Id} label={type.Name} value={type.Name} />
-                          ))}
-                        </SelectContent>
-                      </SelectPortal>
-                    </Select>
-                  )}
-                />
-                {errors.type && (
-                  <FormControlError>
-                    <Text className="text-red-500">{errors.type.message}</Text>
-                  </FormControlError>
-                )}
-              </FormControl>
-            </Card>
-
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.note')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="note"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Textarea>
-                      <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.note_placeholder')} />
-                    </Textarea>
-                  )}
-                />
-              </FormControl>
-            </Card>
-
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <Text className="mb-4 text-lg font-semibold">{t('calls.call_location')}</Text>
-
-              {/* Address Field */}
-              <FormControl className="mb-4">
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.address')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="address"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Box className="flex-row items-center space-x-2">
-                      <Box className="flex-1">
-                        <Input>
-                          <InputField testID="address-input" placeholder={t('calls.address_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                        </Input>
-                      </Box>
-                      <Button testID="address-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handleAddressSearch(value || '')} disabled={isGeocodingAddress || !value?.trim()}>
-                        {isGeocodingAddress ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
-                      </Button>
-                    </Box>
-                  )}
-                />
-              </FormControl>
-
-              {/* Map Preview */}
-              <Box className="mb-4">
-                {selectedLocation ? (
-                  <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
-                ) : (
-                  <Button onPress={() => setShowLocationPicker(true)} className="w-full">
-                    <ButtonText>{t('calls.select_location')}</ButtonText>
-                  </Button>
-                )}
-              </Box>
-
-              <Controller
-                control={control}
-                name="destinationPoiId"
-                render={({ field: { onChange, value } }) => (
-                  <DestinationPoiSelector
-                    destinationPois={destinationPois}
-                    poiTypes={poiTypes}
-                    selectedPoiId={value ? Number(value) : null}
-                    isLoading={callDataLoading && destinationPois.length === 0}
-                    onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl isInvalid={!!errors.name}>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.name')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="name"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Input>
+                        <InputField placeholder={t('calls.name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                      </Input>
+                    )}
                   />
-                )}
-              />
-            </Card>
+                  {errors.name ? (
+                    <FormControlError>
+                      <Text className="text-red-500">{errors.name.message}</Text>
+                    </FormControlError>
+                  ) : null}
+                </FormControl>
+              </Card>
 
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.contact_name')}</FormControlLabelText>
-                </FormControlLabel>
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl isInvalid={!!errors.nature}>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.nature')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="nature"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Textarea>
+                        <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.nature_placeholder')} />
+                      </Textarea>
+                    )}
+                  />
+                  {errors.nature ? (
+                    <FormControlError>
+                      <Text className="text-red-500">{errors.nature.message}</Text>
+                    </FormControlError>
+                  ) : null}
+                </FormControl>
+              </Card>
+
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl isInvalid={!!errors.priority}>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.priority')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="priority"
+                    render={({ field: { onChange, value } }) => (
+                      <Select selectedValue={value} onValueChange={onChange}>
+                        <SelectTrigger>
+                          <SelectInput placeholder={t('calls.priority_placeholder')} />
+                          <SelectIcon as={ChevronDownIcon} />
+                        </SelectTrigger>
+                        <SelectPortal>
+                          <SelectBackdrop />
+                          <SelectContent>
+                            {callPriorities.map((priority) => (
+                              <SelectItem key={priority.Id} label={priority.Name} value={priority.Name} />
+                            ))}
+                          </SelectContent>
+                        </SelectPortal>
+                      </Select>
+                    )}
+                  />
+                  {errors.priority ? (
+                    <FormControlError>
+                      <Text className="text-red-500">{errors.priority.message}</Text>
+                    </FormControlError>
+                  ) : null}
+                </FormControl>
+              </Card>
+
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl isInvalid={!!errors.type}>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.type')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="type"
+                    render={({ field: { onChange, value } }) => (
+                      <Select selectedValue={value} onValueChange={onChange}>
+                        <SelectTrigger>
+                          <SelectInput placeholder={t('calls.select_type')} />
+                          <SelectIcon as={ChevronDownIcon} />
+                        </SelectTrigger>
+                        <SelectPortal>
+                          <SelectBackdrop />
+                          <SelectContent>
+                            {callTypes.map((type) => (
+                              <SelectItem key={type.Id} label={type.Name} value={type.Name} />
+                            ))}
+                          </SelectContent>
+                        </SelectPortal>
+                      </Select>
+                    )}
+                  />
+                  {errors.type ? (
+                    <FormControlError>
+                      <Text className="text-red-500">{errors.type.message}</Text>
+                    </FormControlError>
+                  ) : null}
+                </FormControl>
+              </Card>
+
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.note')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="note"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Textarea>
+                        <TextareaInput value={value} onChangeText={onChange} onBlur={onBlur} numberOfLines={4} placeholder={t('calls.note_placeholder')} />
+                      </Textarea>
+                    )}
+                  />
+                </FormControl>
+              </Card>
+
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <Text className="mb-4 text-lg font-semibold">{t('calls.call_location')}</Text>
+
+                {/* Address Field */}
+                <FormControl className="mb-4">
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.address')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="address"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Box className="flex-row items-center space-x-2">
+                        <Box className="flex-1">
+                          <Input>
+                            <InputField testID="address-input" placeholder={t('calls.address_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                          </Input>
+                        </Box>
+                        <Button testID="address-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handleAddressSearch(value || '')} disabled={isGeocodingAddress || !value?.trim()}>
+                          {isGeocodingAddress ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
+                        </Button>
+                      </Box>
+                    )}
+                  />
+                </FormControl>
+
+                {/* Map Preview */}
+                <Box className="mb-4">
+                  {selectedLocation ? (
+                    <LocationPicker initialLocation={selectedLocation} onLocationSelected={handleLocationSelected} height={200} />
+                  ) : (
+                    <Button onPress={() => setShowLocationPicker(true)} className="w-full">
+                      <ButtonText>{t('calls.select_location')}</ButtonText>
+                    </Button>
+                  )}
+                </Box>
+
                 <Controller
                   control={control}
-                  name="contactName"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.contact_name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
+                  name="destinationPoiId"
+                  render={({ field: { onChange, value } }) => (
+                    <DestinationPoiSelector
+                      destinationPois={destinationPois}
+                      poiTypes={poiTypes}
+                      selectedPoiId={value ? Number(value) : null}
+                      isLoading={callDataLoading && destinationPois.length === 0}
+                      onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+                    />
                   )}
                 />
-              </FormControl>
-            </Card>
+              </Card>
 
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <FormControl>
-                <FormControlLabel>
-                  <FormControlLabelText>{t('calls.contact_info')}</FormControlLabelText>
-                </FormControlLabel>
-                <Controller
-                  control={control}
-                  name="contactInfo"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input>
-                      <InputField placeholder={t('calls.contact_info_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    </Input>
-                  )}
-                />
-              </FormControl>
-            </Card>
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.contact_name')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="contactName"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Input>
+                        <InputField placeholder={t('calls.contact_name_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                      </Input>
+                    )}
+                  />
+                </FormControl>
+              </Card>
 
-            <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-              <Text className="mb-4 text-lg font-semibold">{t('calls.dispatch_to')}</Text>
-              <Button onPress={() => setShowDispatchModal(true)} className="w-full">
-                <ButtonText>{getDispatchSummary()}</ButtonText>
-              </Button>
-            </Card>
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <FormControl>
+                  <FormControlLabel>
+                    <FormControlLabelText>{t('calls.contact_info')}</FormControlLabelText>
+                  </FormControlLabel>
+                  <Controller
+                    control={control}
+                    name="contactInfo"
+                    render={({ field: { onChange, onBlur, value } }) => (
+                      <Input>
+                        <InputField placeholder={t('calls.contact_info_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                      </Input>
+                    )}
+                  />
+                </FormControl>
+              </Card>
 
-            <Box className="mb-6 flex-row space-x-4">
-              <Button className="mr-10 flex-1" variant="outline" onPress={() => router.back()}>
-                <ButtonText>{t('common.cancel')}</ButtonText>
-              </Button>
-              <Button className="ml-10 flex-1" variant="solid" action="primary" onPress={handleSubmit(onSubmit)}>
-                <ButtonText>{t('common.save')}</ButtonText>
-              </Button>
-            </Box>
-          </ScrollView>
+              <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                <Text className="mb-4 text-lg font-semibold">{t('calls.dispatch_to')}</Text>
+                <Button onPress={() => setShowDispatchModal(true)} className="w-full">
+                  <ButtonText>{getDispatchSummary()}</ButtonText>
+                </Button>
+              </Card>
+
+              <Box className="mb-6 flex-row space-x-4">
+                <Button className="mr-10 flex-1" variant="outline" onPress={() => router.back()}>
+                  <ButtonText>{t('common.cancel')}</ButtonText>
+                </Button>
+                <Button className="ml-10 flex-1" variant="solid" action="primary" isDisabled={isSubmitting} onPress={handleSubmit(onSubmit)} testID="save-call-button">
+                  {isSubmitting ? <ButtonSpinner className="mr-2" /> : null}
+                  <ButtonText>{isSubmitting ? t('common.submitting') : t('common.save')}</ButtonText>
+                </Button>
+              </Box>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Box>
       </View>
 
       {/* Full-screen location picker overlay */}
-      {showLocationPicker && (
+      {showLocationPicker ? (
         <View
           style={{
             position: 'absolute',
@@ -735,7 +740,7 @@ export default function EditCall() {
             onClose={() => setShowLocationPicker(false)}
           />
         </View>
-      )}
+      ) : null}
 
       {/* Dispatch selection modal */}
       <DispatchSelectionModal isVisible={showDispatchModal} onClose={() => setShowDispatchModal(false)} onConfirm={handleDispatchSelection} initialSelection={dispatchSelection} />
