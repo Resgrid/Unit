@@ -366,7 +366,16 @@ class LocationService {
     this.isRealtimeGeolocationEnabled = await loadRealtimeGeolocationState();
 
     // Only request background permissions if the user has enabled background geolocation
-    const hasPermissions = await this.requestPermissions(this.isBackgroundGeolocationEnabled);
+    let hasPermissions: boolean;
+    try {
+      hasPermissions = await this.requestPermissions(this.isBackgroundGeolocationEnabled);
+    } catch (error) {
+      logger.error({
+        message: 'Failed to request location permissions before starting updates',
+        context: { operation: 'startLocationUpdates', error },
+      });
+      throw error;
+    }
     if (!hasPermissions) {
       throw new Error('Location permissions not granted');
     }
