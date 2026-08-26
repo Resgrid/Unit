@@ -67,7 +67,8 @@ const findSelfMock = (testFile: string): string | null => {
   const source = stripComments(fs.readFileSync(testFile, 'utf8'));
   // Match jest.mock('../<subject>') / jest.doMock("../<subject>"), with or without a factory.
   const selfMock = new RegExp(String.raw`jest\.(?:do)?[Mm]ock\(\s*['"\`]\.\./${subjectName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"\`]`);
-  return selfMock.test(source) ? path.relative(path.join(SRC, '..'), testFile) : null;
+  // Normalize to forward slashes so the known-debt list matches on Windows too.
+  return selfMock.test(source) ? path.relative(path.join(SRC, '..'), testFile).split(path.sep).join('/') : null;
 };
 
 describe('test suites cover their real subject', () => {

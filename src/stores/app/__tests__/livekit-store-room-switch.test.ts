@@ -24,7 +24,8 @@ jest.mock('@notifee/react-native', () => ({
     stopForegroundService: jest.fn(),
   },
   AndroidForegroundServiceType: {
-    FOREGROUND_SERVICE_TYPE_MICROPHONE: 1,
+    FOREGROUND_SERVICE_TYPE_MICROPHONE: 128,
+    FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE: 16,
   },
   AndroidImportance: {
     DEFAULT: 3,

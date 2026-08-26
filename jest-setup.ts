@@ -176,10 +176,16 @@ jest.mock('@notifee/react-native', () => {
     UNSPECIFIED: 'unspecified',
   };
 
+  const AndroidForegroundServiceType = {
+    FOREGROUND_SERVICE_TYPE_MICROPHONE: 128,
+    FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE: 16,
+  };
+
   return {
     __esModule: true,
     default: mockNotifee,
     AndroidImportance,
+    AndroidForegroundServiceType,
   };
 });
 
