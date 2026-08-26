@@ -743,7 +743,10 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
             android: {
               channelId: 'notif',
               asForegroundService: true,
-              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
+              // microphone: keeps mic capture legal while backgrounded (Android 14+).
+              // connectedDevice: covers external bluetooth PTT handsets driving the call.
+              // Playback of remote audio needs no FGS type — any running FGS keeps the process alive.
+              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE, AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE],
               smallIcon: 'ic_launcher',
             },
           });
