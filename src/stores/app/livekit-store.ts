@@ -737,25 +737,19 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
       // that triggers the already-registered handler.
       if (Platform.OS === 'android') {
         try {
-          // connectedDevice type is only legal when a bluetooth PTT handset is actually
-          // connected AND a runtime prerequisite (BLUETOOTH_CONNECT) is held — Android 14+
-          // validates both at FGS start and throws SecurityException otherwise, blocking
-          // the service. Manifest FOREGROUND_SERVICE_CONNECTED_DEVICE alone is not enough.
-          let bluetoothDeviceActive = useBluetoothAudioStore.getState().connectedDevice !== null;
-          if (bluetoothDeviceActive) {
-            bluetoothDeviceActive = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT);
-          }
           await notifee.displayNotification({
             title: 'Active PTT Call',
             body: 'There is an active PTT call in progress.',
             android: {
               channelId: 'notif',
               asForegroundService: true,
-              // microphone: keeps mic capture legal while backgrounded (Android 14+).
+              // microphone only: keeps mic capture legal while backgrounded (Android 14+).
               // Playback of remote audio needs no FGS type — any running FGS keeps the process alive.
-              foregroundServiceTypes: bluetoothDeviceActive
-                ? [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE, AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE]
-                : [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
+              // connectedDevice is deliberately NOT declared: Bluetooth PTT handsets route through
+              // the same mic session, so the type adds nothing and Play rejects FGS types whose use
+              // case cannot be demonstrated (Play policy: "Permission use is not declared or
+              // incorrectly declared").
+              foregroundServiceTypes: [AndroidForegroundServiceType.FOREGROUND_SERVICE_TYPE_MICROPHONE],
               smallIcon: 'ic_launcher',
             },
           });
