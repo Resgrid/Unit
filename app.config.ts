@@ -109,12 +109,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_MICROPHONE',
       'android.permission.FOREGROUND_SERVICE_PHONE_CALL',
-      'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE',
       'android.permission.READ_PHONE_STATE',
       'android.permission.READ_PHONE_NUMBERS',
       'android.permission.MANAGE_OWN_CALLS',
     ],
-    blockedPermissions: ['android.permission.READ_MEDIA_IMAGES', 'android.permission.READ_MEDIA_VIDEO'],
+    // FOREGROUND_SERVICE_CONNECTED_DEVICE is blocked, not merely absent: Bluetooth PTT handsets
+    // route through the microphone FGS session, so the type is unused, and Play rejects any
+    // declared foreground-service type whose use case cannot be demonstrated in the app.
+    blockedPermissions: ['android.permission.READ_MEDIA_IMAGES', 'android.permission.READ_MEDIA_VIDEO', 'android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE'],
   },
   web: {
     favicon: './assets/favicon.png',
@@ -142,8 +144,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-secure-store',
       {
-        // Biometric-gated secure storage is not used; omit NSFaceIDUsageDescription.
-        faceIDPermission: false,
+        // Required even though biometric-gated storage is not used: expo-secure-store
+        // instantiates LAContext() unconditionally (SecureStoreModule.swift), so App Store
+        // static analysis flags a missing NSFaceIDUsageDescription with ITMS-90683 — the same
+        // way it flagged the omitted NSMotionUsageDescription.
+        faceIDPermission:
+          'Resgrid Unit uses Face ID to unlock the securely stored credentials that keep you signed in to your department. For example, after your device locks, Face ID confirms it is you before the app restores your session and shows active calls.',
       },
     ],
     'expo-image',
@@ -167,8 +173,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           'Resgrid Unit uses your location, including in the background, to keep your department dispatch map updated with your unit position (automatic vehicle location). For example, while you are en route to an emergency call, your unit location is periodically sent to dispatchers so they can track your arrival and coordinate resources, even when the app is not on screen.',
         locationAlwaysPermission:
           'Resgrid Unit uses your location in the background to keep your department dispatch map updated with your unit position (automatic vehicle location). For example, while you are en route to an emergency call, your unit location is periodically sent to dispatchers so they can track your arrival and coordinate resources, even when the app is not on screen.',
-        // Motion activity APIs (getMotionActivityAsync) are not used; omit NSMotionUsageDescription.
-        motionUsagePermission: false,
+        // Required even though getMotionActivityAsync() is never called: expo-location links
+        // CoreMotion (MotionActivityPermissionRequester), and App Store static analysis rejects
+        // the binary with ITMS-90683 whenever the framework is referenced and the string is
+        // absent. Setting this to false previously caused that rejection.
+        motionUsagePermission:
+          'Resgrid Unit uses motion data to improve the accuracy of your unit location on the department map. For example, while you are driving to a call, motion data helps distinguish travel from a stop so dispatchers see an accurate position and heading for your unit.',
         isIosBackgroundLocationEnabled: true,
         isAndroidBackgroundLocationEnabled: true,
         isAndroidForegroundServiceEnabled: true,
