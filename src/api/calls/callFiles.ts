@@ -2,6 +2,7 @@ import axios, { type AxiosProgressEvent, type AxiosRequestConfig, type AxiosResp
 import { Platform } from 'react-native';
 
 import { createApiEndpoint } from '@/api/common/client';
+import useAuthStore from '@/stores/auth/store';
 import { logger } from '@/lib/logging';
 import { type CallFilesResult } from '@/models/v4/callFiles/callFilesResult';
 import { type SaveCallFileResult } from '@/models/v4/callFiles/saveCallFileResult';
@@ -40,9 +41,15 @@ export const getCallAttachmentFile = async (url: string, options: DownloadOption
       type: 'start',
     });
 
+    // Attach the signed-in bearer: authenticated file routes require it, and the anonymous
+    // signed-link route simply ignores it. Caller-supplied headers win on conflict.
+    const token = useAuthStore.getState().accessToken;
     const config: AxiosRequestConfig = {
       responseType: 'blob',
-      headers,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
       timeout,
       onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
         if (progressEvent.total) {

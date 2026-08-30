@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { LoginFormProps } from '@/app/login/login-form';
+import { LoginOtpModal } from '@/components/auth/login-otp-modal';
 import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
 import { FocusAwareStatusBar } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -17,6 +18,10 @@ import { LoginForm } from './login-form';
 export default function Login() {
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [showServerUrl, setShowServerUrl] = useState(false);
+  // Held only to resubmit with the TOTP code after an mfa_required challenge; memory-only,
+  // cleared on success/unmount with the rest of the component state. Never logged.
+  const [pendingCredentials, setPendingCredentials] = useState<{ username: string; password: string } | null>(null);
+  const [otpDismissed, setOtpDismissed] = useState(false);
 
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
@@ -48,7 +53,16 @@ export default function Login() {
   // ── Local login ───────────────────────────────────────────────────────────
   const onSubmit: LoginFormProps['onSubmit'] = async (data) => {
     logger.info({ message: 'Starting Login (button press)' });
+    setPendingCredentials({ username: data.username, password: data.password });
+    setOtpDismissed(false);
     await login({ username: data.username, password: data.password });
+  };
+
+  const onOtpSubmit = async (code: string) => {
+    if (!pendingCredentials) {
+      return;
+    }
+    await login({ ...pendingCredentials, otpCode: code });
   };
 
   return (
@@ -88,6 +102,15 @@ export default function Login() {
       </Modal>
 
       <ServerUrlBottomSheet isOpen={showServerUrl} onClose={() => setShowServerUrl(false)} />
+
+      {/* Two-factor challenge: token endpoint answered mfa_required / invalid_totp */}
+      <LoginOtpModal
+        isOpen={status === 'mfaRequired' && !otpDismissed && pendingCredentials != null}
+        isSubmitting={status === 'loading'}
+        invalidCode={error === 'invalid_totp'}
+        onSubmit={onOtpSubmit}
+        onClose={() => setOtpDismissed(true)}
+      />
     </>
   );
 }
