@@ -62,6 +62,12 @@ export interface AuthState {
   profile: ProfileModel | null;
   userId: string | null;
   refreshTimeoutId: ReturnType<typeof setTimeout> | null;
+  /**
+   * True only while an SSO exchange is waiting on an authenticator code. `status === 'mfaRequired'`
+   * cannot stand in for this: the password login sets the same status, and the SSO screen must not
+   * open its OTP prompt for a challenge it has no pending exchange to retry.
+   */
+  isSsoMfaPending: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   ssoLogin: (credentials: SsoLoginCredentials) => Promise<void>;
   /** Retries the pending SSO exchange with the user's authenticator code (2FA challenge). */

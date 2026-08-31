@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, type ColorValue, Platform, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { StepUpPromptHost } from '@/components/data-protection/step-up-prompt-host';
 import { NotificationButton } from '@/components/notifications/NotificationButton';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
 import Sidebar from '@/components/sidebar/sidebar';
@@ -32,9 +33,8 @@ import { audioService } from '@/services/audio.service';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { usePushNotifications } from '@/services/push-notification';
 import { useCoreStore } from '@/stores/app/core-store';
-import { StepUpPromptHost } from '@/components/data-protection/step-up-prompt-host';
-import { dataProtectionStore } from '@/stores/data-protection/store';
 import { useCallsStore } from '@/stores/calls/store';
+import { dataProtectionStore } from '@/stores/data-protection/store';
 import { FeatureFlagKeys, featureFlagsStore } from '@/stores/feature-flags/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
@@ -177,7 +177,14 @@ export default function TabLayout() {
 
       // These fetches are independent of each other — run in parallel to cut
       // time-to-interactive (previously 8+ serial network hops).
-      await Promise.all([useRolesStore.getState().init(), useCallsStore.getState().init(), useWeatherAlertsStore.getState().init(), securityStore.getState().getRights(), featureFlagsStore.getState().fetchFlags(), dataProtectionStore.getState().fetchCapabilities()]);
+      await Promise.all([
+        useRolesStore.getState().init(),
+        useCallsStore.getState().init(),
+        useWeatherAlertsStore.getState().init(),
+        securityStore.getState().getRights(),
+        featureFlagsStore.getState().fetchFlags(),
+        dataProtectionStore.getState().fetchCapabilities(),
+      ]);
 
       if (!isCurrentRun()) return;
 

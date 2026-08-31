@@ -6,12 +6,11 @@ import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 're
 
 import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-tab-content';
 import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
-import { ProtectedRevealBar } from '@/components/data-protection/protected-reveal-bar';
-import { ProtectedText } from '@/components/data-protection/protected-text';
-import { isFieldRedacted, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { HeaderBackButton } from '@/components/common/header-back-button';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { ProtectedRevealBar } from '@/components/data-protection/protected-reveal-bar';
+import { ProtectedText } from '@/components/data-protection/protected-text';
 import { IncidentCommandTabPanel } from '@/components/incident-command/incident-command-tab-panel';
 import { FullScreenMap } from '@/components/maps/full-screen-map';
 // Import a static map component instead of react-native-maps
@@ -27,6 +26,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
+import { isFieldRedacted, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
 import { parseApiUtcDate, safeFormatDate } from '@/lib/utils';
@@ -557,8 +557,14 @@ export default function CallDetail() {
   const showingDestination = hasDestinationCoordinates && (mapTarget === 'destination' || !hasCallCoordinates);
   const mapLatitude = showingDestination ? destinationLatitude : coordinates.latitude;
   const mapLongitude = showingDestination ? destinationLongitude : coordinates.longitude;
-  const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : call.Address;
-  const mapTitle = showingDestination ? call.DestinationName || t('call_detail.destination') : call.Name || t('call_detail.call_location');
+  // A withheld address or name must not leak through the map chrome. StaticMap prints `address`
+  // in its overlay AND its accessibility label, and FullScreenMap prints both the address overlay
+  // and the marker title, so the sentinel would surface there verbatim after being suppressed
+  // everywhere else on the screen. Destination fields are not in the protected catalog.
+  const isAddressRedacted = isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callAddress, call.Address);
+  const isNameRedacted = isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callName, call.Name);
+  const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : isAddressRedacted ? undefined : call.Address;
+  const mapTitle = showingDestination ? call.DestinationName || t('call_detail.destination') : (isNameRedacted ? undefined : call.Name) || t('call_detail.call_location');
 
   return (
     <>

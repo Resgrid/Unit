@@ -5,10 +5,10 @@ import { FlatList, Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, 
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
 import { ProtectedText } from '@/components/data-protection/protected-text';
-import { isRedactedValue, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { SearchIcon, X } from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib/auth';
+import { isRedactedValue, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
 

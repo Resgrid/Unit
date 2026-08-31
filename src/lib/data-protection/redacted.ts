@@ -54,11 +54,16 @@ export const ProtectedFieldIds = {
 /**
  * True when this field was withheld.
  *
- * `fieldId` is checked against the server's list first. When no list is present — an older payload,
- * or an endpoint that does not carry one — the sentinel value is the fallback.
+ * `fieldId` is checked against the server's list whenever a list is present. Only an ABSENT list —
+ * an older payload, or an endpoint that does not carry one — falls back to the sentinel value.
+ *
+ * An empty list is a list: the server said "nothing was withheld from this record", and that is a
+ * stronger statement than the sentinel can make. Treating `[]` as absent would re-mask a member
+ * who legitimately typed REDACTED into a note, which is exactly the false positive the list exists
+ * to prevent.
  */
 export const isFieldRedacted = (redactedFields: string[] | null | undefined, fieldId: string, value?: string | null): boolean => {
-  if (redactedFields && redactedFields.length > 0) {
+  if (redactedFields != null) {
     return redactedFields.some((field) => field?.toLowerCase() === fieldId.toLowerCase());
   }
 

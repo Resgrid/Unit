@@ -35,7 +35,6 @@ const processQueue = (error: Error | null) => {
   failedQueue = [];
 };
 
-
 // Request interceptor for API calls
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
