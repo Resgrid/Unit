@@ -8,6 +8,7 @@ import { ActivityIndicator } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
+import { LoginOtpModal } from '@/components/auth/login-otp-modal';
 import { FocusAwareStatusBar, View } from '@/components/ui';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
@@ -22,6 +23,7 @@ import { useAuth } from '@/lib/auth';
 import { logger } from '@/lib/logging';
 import type { DepartmentSsoConfig } from '@/services/sso-discovery';
 import { fetchSsoConfigForUser } from '@/services/sso-discovery';
+import useAuthStore from '@/stores/auth/store';
 
 const ssoFormSchema = z.object({
   username: z.string({ required_error: 'Username is required' }).min(3, 'Username must be at least 3 characters'),
@@ -35,11 +37,17 @@ export default function SsoLogin() {
   const [isLookingUpSso, setIsLookingUpSso] = useState(false);
   const [isSsoLoading, setIsSsoLoading] = useState(false);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
+  const [otpDismissed, setOtpDismissed] = useState(false);
   const pendingUsernameRef = useRef<string>('');
 
   const { t } = useTranslation();
   const router = useRouter();
   const { ssoLogin, status } = useAuth();
+  const authError = useAuthStore((s) => s.error);
+  // 'mfaRequired' is also how the password login reports its own 2FA challenge. Opening this
+  // screen's prompt on that status alone means retrySsoWithOtp fires with no pending SSO
+  // exchange, which drops the user into an error state instead of a code prompt.
+  const isSsoMfaPending = useAuthStore((s) => s.isSsoMfaPending);
 
   const oidc = useOidcLogin({
     authority: ssoConfig?.authority ?? '',
@@ -66,6 +74,18 @@ export default function SsoLogin() {
       setIsErrorModalVisible(true);
     }
   }, [status]);
+
+  // Re-arm the OTP prompt whenever a fresh SSO 2FA challenge arrives
+  useEffect(() => {
+    if (status === 'mfaRequired' && isSsoMfaPending) {
+      setIsSsoLoading(false);
+      setOtpDismissed(false);
+    }
+  }, [status, isSsoMfaPending]);
+
+  const handleOtpSubmit = useCallback(async (code: string) => {
+    await useAuthStore.getState().retrySsoWithOtp(code);
+  }, []);
 
   // ── OIDC response handler ─────────────────────────────────────────────────
   useEffect(() => {
@@ -290,6 +310,15 @@ export default function SsoLogin() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Two-factor challenge: SSO exchange answered mfa_required / invalid_totp */}
+      <LoginOtpModal
+        isOpen={status === 'mfaRequired' && isSsoMfaPending && !otpDismissed}
+        isSubmitting={status === 'loading'}
+        invalidCode={authError === 'invalid_totp'}
+        onSubmit={handleOtpSubmit}
+        onClose={() => setOtpDismissed(true)}
+      />
     </>
   );
 }

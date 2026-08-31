@@ -9,6 +9,8 @@ import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-con
 import { HeaderBackButton } from '@/components/common/header-back-button';
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
+import { ProtectedRevealBar } from '@/components/data-protection/protected-reveal-bar';
+import { ProtectedText } from '@/components/data-protection/protected-text';
 import { IncidentCommandTabPanel } from '@/components/incident-command/incident-command-tab-panel';
 import { FullScreenMap } from '@/components/maps/full-screen-map';
 // Import a static map component instead of react-native-maps
@@ -24,6 +26,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
+import { isFieldRedacted, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
 import { openMapsWithDirections } from '@/lib/navigation';
 import { parseApiUtcDate, safeFormatDate } from '@/lib/utils';
@@ -373,7 +376,7 @@ export default function CallDetail() {
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.address')}</Text>
-                <Text className="font-medium">{call.Address}</Text>
+                <ProtectedText value={call.Address} fieldId={ProtectedFieldIds.callAddress} redactedFields={call.RedactedFields} className="font-medium" />
               </Box>
               {destinationLabel ? (
                 <Box className="border-b border-outline-100 pb-2">
@@ -385,7 +388,16 @@ export default function CallDetail() {
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
-                  <HtmlRenderer html={call.Note ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
+                  {/*
+                    A withheld note is not empty HTML — rendering the sentinel through the HTML
+                    renderer would print the bare word REDACTED in the body copy, which reads as
+                    the note's content rather than as an absence.
+                  */}
+                  {isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callNotes, call.Note) ? (
+                    <ProtectedText value={call.Note} fieldId={ProtectedFieldIds.callNotes} redactedFields={call.RedactedFields} />
+                  ) : (
+                    <HtmlRenderer html={call.Note ?? ''} style={StyleSheet.flatten([styles.container, { height: 200 }])} />
+                  )}
                 </Box>
               </Box>
             </VStack>
@@ -409,11 +421,11 @@ export default function CallDetail() {
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.contact_name')}</Text>
-                <Text className="font-medium">{call.ContactName}</Text>
+                <ProtectedText value={call.ContactName} fieldId={ProtectedFieldIds.callContactName} redactedFields={call.RedactedFields} className="font-medium" />
               </Box>
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.contact_info')}</Text>
-                <Text className="font-medium">{call.ContactInfo}</Text>
+                <ProtectedText value={call.ContactInfo} fieldId={ProtectedFieldIds.callContactNumber} redactedFields={call.RedactedFields} className="font-medium" />
               </Box>
             </VStack>
           </Box>
@@ -545,8 +557,14 @@ export default function CallDetail() {
   const showingDestination = hasDestinationCoordinates && (mapTarget === 'destination' || !hasCallCoordinates);
   const mapLatitude = showingDestination ? destinationLatitude : coordinates.latitude;
   const mapLongitude = showingDestination ? destinationLongitude : coordinates.longitude;
-  const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : call.Address;
-  const mapTitle = showingDestination ? call.DestinationName || t('call_detail.destination') : call.Name || t('call_detail.call_location');
+  // A withheld address or name must not leak through the map chrome. StaticMap prints `address`
+  // in its overlay AND its accessibility label, and FullScreenMap prints both the address overlay
+  // and the marker title, so the sentinel would surface there verbatim after being suppressed
+  // everywhere else on the screen. Destination fields are not in the protected catalog.
+  const isAddressRedacted = isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callAddress, call.Address);
+  const isNameRedacted = isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callName, call.Name);
+  const mapAddress = showingDestination ? call.DestinationAddress || call.DestinationName || '' : isAddressRedacted ? undefined : call.Address;
+  const mapTitle = showingDestination ? call.DestinationName || t('call_detail.destination') : (isNameRedacted ? undefined : call.Name) || t('call_detail.call_location');
 
   return (
     <>
@@ -560,11 +578,25 @@ export default function CallDetail() {
         }}
       />
       <ScrollView className="size-full w-full flex-1 bg-gray-50 dark:bg-gray-900" contentContainerStyle={{ paddingBottom: 16 }}>
+        {/*
+          Protected values (call name, nature, notes, address, contact details) arrive REDACTED and
+          only come back decrypted on a request carrying a grant, so revealing has to re-read the
+          call. Renders nothing for a department without the addon.
+        */}
+        <ProtectedRevealBar onRefresh={() => fetchCallDetail(callId)} />
+
         {/* Header */}
         <Box className="mx-4 mt-3 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
           <HStack className="mb-2 items-center justify-between">
             <Heading size="md">
-              {call.Name} ({call.Number})
+              {/* The call NUMBER is not cataloged, so it stays visible and the record stays findable. */}
+              {isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callName, call.Name) ? (
+                <ProtectedText value={call.Name} fieldId={ProtectedFieldIds.callName} redactedFields={call.RedactedFields} />
+              ) : (
+                <>
+                  {call.Name} ({call.Number})
+                </>
+              )}
             </Heading>
             {/* Show "Set Active" button if this call is not the active call and there is an active unit */}
             {activeUnit && activeCall?.CallId !== call.CallId ? (
@@ -576,7 +608,11 @@ export default function CallDetail() {
           </HStack>
           <VStack className="space-y-1">
             <ScrollView style={{ height: 180 }} nestedScrollEnabled={true} showsVerticalScrollIndicator={true}>
-              <HtmlRenderer html={call.Nature ?? ''} style={StyleSheet.flatten([styles.container, { minHeight: 170 }])} />
+              {isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callNature, call.Nature) ? (
+                <ProtectedText value={call.Nature} fieldId={ProtectedFieldIds.callNature} redactedFields={call.RedactedFields} />
+              ) : (
+                <HtmlRenderer html={call.Nature ?? ''} style={StyleSheet.flatten([styles.container, { minHeight: 170 }])} />
+              )}
             </ScrollView>
           </VStack>
         </Box>
