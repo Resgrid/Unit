@@ -219,6 +219,10 @@ jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({
   VideoFeedTabContent: () => null,
 }));
 
+jest.mock('@/components/calls/call-site-info-tab-panel', () => ({
+  CallSiteInfoTabPanel: () => null,
+}));
+
 jest.mock('@/stores/check-in-timers/store', () => ({
   useCheckInTimerStore: jest.fn((selector: any) =>
     selector({

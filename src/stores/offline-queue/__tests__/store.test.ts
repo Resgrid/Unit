@@ -143,6 +143,20 @@ describe('OfflineQueueStore', () => {
       const state = useOfflineQueueStore.getState();
       expect(state.queuedEvents[0].retryCount).toBe(3);
     });
+
+    it('should exhaust retries at once for a permanent failure', () => {
+      const store = useOfflineQueueStore.getState();
+
+      store.updateEventStatus(eventId, QueuedEventStatus.FAILED, 'Rejected (HTTP 403)', { permanent: true });
+
+      const state = useOfflineQueueStore.getState();
+      expect(state.queuedEvents[0].status).toBe(QueuedEventStatus.FAILED);
+      expect(state.queuedEvents[0].retryCount).toBe(state.queuedEvents[0].maxRetries);
+      expect(state.queuedEvents[0].nextRetryAt).toBeUndefined();
+      // Not picked up again, but still listed as failed
+      expect(state.getPendingEvents()).toHaveLength(0);
+      expect(state.getFailedEvents()).toHaveLength(1);
+    });
   });
 
   describe('removeEvent', () => {

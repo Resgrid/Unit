@@ -13,6 +13,7 @@ import { FlatList } from '@/components/ui/flat-list';
 import { Modal, ModalBackdrop, ModalBody, ModalContent, ModalFooter, ModalHeader } from '@/components/ui/modal';
 import { Text } from '@/components/ui/text';
 import { logger } from '@/lib/logging';
+import { referenceFromEventCode, referenceHref } from '@/lib/notifications/inbox-reference';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useToastStore } from '@/stores/toast/store';
 import { type NotificationPayload } from '@/types/notification';
@@ -73,6 +74,37 @@ interface NotificationInboxProps {
   onClose: () => void;
 }
 
+/** The notification item shape returned by Novu's useNotifications hook. */
+type NovuNotification = NonNullable<ReturnType<typeof useNotifications>['notifications']>[number];
+
+const REFERENCE_TYPES = ['call', 'message', 'status', 'note', 'chat', 'other'] as const;
+
+const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
+
+const asReferenceType = (value: unknown): NotificationPayload['referenceType'] => REFERENCE_TYPES.find((candidate) => candidate === value);
+
+/**
+ * Maps a Novu v3 inbox item. Custom fields arrive in `data` (Novu v2 called it `payload`, which is why no
+ * reference ever reached this inbox); the Novu bridge puts the push event code there, from which the call
+ * or chat the notification is about is derived. The code itself is routing, not "Additional Information".
+ */
+export const mapNovuNotification = (item: NovuNotification): NotificationPayload => {
+  const data = item.data;
+  const reference = referenceFromEventCode(data?.eventCode);
+
+  return {
+    id: item.id,
+    title: item.subject,
+    body: item.body,
+    createdAt: item.createdAt,
+    read: item.isRead,
+    type: asString(data?.type),
+    referenceId: reference?.referenceId ?? asString(data?.referenceId),
+    referenceType: reference?.referenceType ?? asReferenceType(data?.referenceType),
+    metadata: data ? Object.fromEntries(Object.entries(data).filter(([key]) => key !== 'eventCode')) : undefined,
+  };
+};
+
 interface NotificationRowProps {
   notification: NotificationPayload;
   unread: boolean;
@@ -117,7 +149,7 @@ const NotificationRow = React.memo(
         {!isSelectionMode ? (
           notification.referenceType && notification.referenceId ? (
             <View style={styles.actionButtons}>
-              <Button onPress={handleNavigate} variant="outline" className="size-8 p-0">
+              <Button onPress={handleNavigate} variant="outline" className="size-8 p-0" testID={`notification-reference-${notification.id}`}>
                 <ExternalLink size={24} color={iconColors.accent} strokeWidth={2} />
               </Button>
               <ChevronRight size={24} color={iconColors.muted} strokeWidth={2} style={styles.chevron} />
@@ -294,8 +326,9 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
 
   const handleNavigateToReference = React.useCallback(
     (referenceType: string, referenceId: string) => {
-      if (referenceType === 'call') {
-        router.push(`/call/${referenceId}`);
+      const href = referenceHref(referenceType, referenceId);
+      if (href) {
+        router.push(href);
         onClose();
       } else {
         logger.info({ message: 'Notification reference navigation not supported for type', context: { referenceType, referenceId } });
@@ -307,15 +340,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
   const renderItem = React.useCallback(
     ({ item }: { item: any }) => {
       const notification: NotificationPayload = {
-        id: item.id,
-        title: item.subject,
-        body: item.body,
-        createdAt: item.createdAt,
-        read: item.isRead,
-        type: item.type,
-        referenceId: item.payload?.referenceId,
-        referenceType: item.payload?.referenceType,
-        metadata: item.payload?.metadata,
+        ...mapNovuNotification(item),
         markAsRead:
           !item.isRead && typeof item.read === 'function'
             ? async () => {

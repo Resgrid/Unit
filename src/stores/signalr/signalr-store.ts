@@ -219,6 +219,7 @@ function scheduleCallsRefresh(): void {
 
 /** Update-hub events that carry a per-event timestamp for targeted refetches. */
 export const UPDATE_HUB_EVENTS = [
+  'checklistUpdated',
   'personnelStatusUpdated',
   'personnelStaffingUpdated',
   'unitStatusUpdated',

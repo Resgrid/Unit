@@ -1,10 +1,28 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { ClipboardListIcon, ClockIcon, FileTextIcon, ImageIcon, InfoIcon, LoaderIcon, MapPinIcon, NavigationIcon, PaperclipIcon, RouteIcon, TimerIcon, UserIcon, UsersIcon, VideoIcon } from 'lucide-react-native';
+import {
+  BuildingIcon,
+  ClipboardListIcon,
+  ClockIcon,
+  FileTextIcon,
+  ImageIcon,
+  InfoIcon,
+  LoaderIcon,
+  MapPinIcon,
+  NavigationIcon,
+  PaperclipIcon,
+  RouteIcon,
+  TimerIcon,
+  UserIcon,
+  UsersIcon,
+  VideoIcon,
+} from 'lucide-react-native';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { VideoFeedTabContent } from '@/components/call-video-feeds/video-feed-tab-content';
+import { ActivityLinkMarker } from '@/components/calls/activity-link-marker';
+import { CallSiteInfoTabPanel } from '@/components/calls/call-site-info-tab-panel';
 import { CheckInTabContent } from '@/components/check-in-timers/check-in-tab-content';
 import { HeaderBackButton } from '@/components/common/header-back-button';
 import { Loading } from '@/components/common/loading';
@@ -15,6 +33,7 @@ import { IncidentCommandTabPanel } from '@/components/incident-command/incident-
 import { FullScreenMap } from '@/components/maps/full-screen-map';
 // Import a static map component instead of react-native-maps
 import StaticMap from '@/components/maps/static-map';
+import { RecordsQuickCreate } from '@/components/records/records-quick-create';
 import { FocusAwareStatusBar, SafeAreaView } from '@/components/ui';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -25,6 +44,7 @@ import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { useRecordsContext } from '@/hooks/use-records-context';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
 import { isFieldRedacted, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
@@ -60,6 +80,8 @@ export default function CallDetail() {
     longitude: null,
   });
   const call = useCallDetailStore((state) => state.call);
+  // Records context for this screen: the apparatus this device is signed on to, plus this Call.
+  const recordsContext = useRecordsContext();
   const callExtraData = useCallDetailStore((state) => state.callExtraData);
   const callPriority = useCallDetailStore((state) => state.callPriority);
   const isLoading = useCallDetailStore((state) => state.isLoading);
@@ -385,6 +407,8 @@ export default function CallDetail() {
                   {call.DestinationTypeName || call.DestinationAddress ? <Text className="text-sm text-gray-500">{[call.DestinationTypeName, call.DestinationAddress].filter(Boolean).join(' - ')}</Text> : null}
                 </Box>
               ) : null}
+              {/* Contextual create: the button hides itself unless the server offers something here. */}
+              <RecordsQuickCreate context={{ ...recordsContext, CallId: Number.parseInt(call.CallId, 10) }} className="self-start" />
               <Box className="border-b border-outline-100 pb-2">
                 <Text className="text-sm text-gray-500">{t('call_detail.note')}</Text>
                 <Box>
@@ -494,9 +518,13 @@ export default function CallDetail() {
               <VStack className="space-y-3">
                 {callExtraData.Activity.map((event, index) => (
                   <Box key={index} className="border-l-4 border-blue-500 py-1 pl-3">
-                    <Text className="font-semibold" style={{ color: event.StatusColor }}>
-                      {event.StatusText}
-                    </Text>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Text className="font-semibold" style={{ color: event.StatusColor }}>
+                        {event.StatusText}
+                      </Text>
+                      {/* Marks a status the sender did not link to this call themselves (auto-linked / inferred). */}
+                      <ActivityLinkMarker source={event.DestinationSource} />
+                    </HStack>
                     <Text className="text-sm text-gray-600">
                       {event.Name} - {event.Group}
                     </Text>
@@ -527,6 +555,14 @@ export default function CallDetail() {
       title: t('video_feeds.tab_title'),
       icon: <VideoIcon size={16} />,
       content: <VideoFeedTabContent callId={parseInt(call.CallId, 10)} />,
+    });
+
+    // Site Info tab: pre-plans, hazards, alert notes and files of the contacts linked to the call.
+    tabs.push({
+      key: 'site',
+      title: t('call_detail.tabs.site'),
+      icon: <BuildingIcon size={16} />,
+      content: <CallSiteInfoTabPanel callId={call.CallId} />,
     });
 
     // Conditionally add check-in tab

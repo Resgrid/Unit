@@ -204,6 +204,8 @@ export const useStatusesStore = create<StatusesState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
+      // The moment the crew set the status. It is also what the offline queue replays, so a status
+      // queued while offline keeps its real time on the unit's call timeline, not the drain time.
       const date = new Date();
       input.Timestamp = date.toISOString();
       input.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
@@ -314,7 +316,9 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           }
         }
 
-        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData);
+        // Pass the original status time: the failed request above can take up to the client
+        // timeout, and stamping at queue time would shift the status by that much.
+        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData, date);
 
         logger.info({
           message: 'Unit status queued for offline processing',

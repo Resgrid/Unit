@@ -838,8 +838,9 @@ describe('StatusBottomSheet', () => {
 
     expect(screen.getByText('Step 2 of 2')).toBeTruthy();
     expect(screen.getByText('Add Note')).toBeTruthy();
-    expect(screen.getByText('Selected Destination:')).toBeTruthy();
-    expect(screen.getByText('No Destination')).toBeTruthy();
+    // The note step is the last step: a one-line summary replaces the old review blocks
+    expect(screen.getByTestId('status-summary').props.children).toBe('Available · No Destination');
+    expect(screen.queryByText('Selected Destination:')).toBeNull();
     expect(screen.getByText('Previous')).toBeTruthy();
     expect(screen.getByText('Submit')).toBeTruthy();
   });
@@ -1086,9 +1087,9 @@ describe('StatusBottomSheet', () => {
 
     const selectedStatus = {
       Id: 'status-1',
-      Text: 'Available',
-      Detail: 0, // No destination step needed
-      Note: 0, // No note required
+      Text: 'Responding',
+      Detail: 2, // Calls — a selection only counts for a status that offers it
+      Note: 0, // No note: the destination step submits
     };
 
     // Mock core store with no active call
@@ -1136,9 +1137,9 @@ describe('StatusBottomSheet', () => {
 
     const selectedStatus = {
       Id: 'status-1',
-      Text: 'Available',
-      Detail: 0, // No destination step needed
-      Note: 0, // No note required
+      Text: 'Responding',
+      Detail: 2, // Calls — a selection only counts for a status that offers it
+      Note: 0, // No note: the destination step submits
     };
 
     // Mock core store with different active call
@@ -1186,9 +1187,9 @@ describe('StatusBottomSheet', () => {
 
     const selectedStatus = {
       Id: 'status-1',
-      Text: 'Available',
-      Detail: 0, // No destination step needed
-      Note: 0, // No note required
+      Text: 'Responding',
+      Detail: 2, // Calls — a selection only counts for a status that offers it
+      Note: 0, // No note: the destination step submits
     };
 
     // Mock core store with same active call
@@ -1268,9 +1269,9 @@ describe('StatusBottomSheet', () => {
 
     const selectedStatus = {
       Id: 'status-1',
-      Text: 'Available',
-      Detail: 0, // No destination step needed
-      Note: 0, // No note required
+      Text: 'At Station',
+      Detail: 1, // Stations
+      Note: 0, // No note: the destination step submits
     };
 
     mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
@@ -1347,27 +1348,7 @@ describe('StatusBottomSheet', () => {
     expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
     expect(mockSetActiveCall).not.toHaveBeenCalled();
 
-    // Update mock store to reflect call selection
-    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
-      const store = {
-        ...mockStore,
-        selectedCall: mockCall,
-        selectedDestinationType: 'call',
-      };
-      if (selector) {
-        return selector(store);
-      }
-      return store;
-    });
-
-    // Step 2: Navigate to next step
-    const nextButton = screen.getByText('Next');
-    fireEvent.press(nextButton);
-
-    // setActiveCall should still NOT have been called
-    expect(mockSetActiveCall).not.toHaveBeenCalled();
-
-    // Re-render to show the final step (submit)
+    // Re-render to reflect the call selection
     mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
       const store = {
         ...mockStore,
@@ -1383,8 +1364,11 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    // Step 3: Submit - NOW setActiveCall should be called
-    const submitButtonAfterFlow = screen.getByText('Next'); // This should trigger submit for no note status
+    // setActiveCall should still NOT have been called
+    expect(mockSetActiveCall).not.toHaveBeenCalled();
+
+    // Step 2: No note, so the destination step is the last step and submits - NOW setActiveCall should be called
+    const submitButtonAfterFlow = screen.getByText('Submit');
     fireEvent.press(submitButtonAfterFlow);
 
     await waitFor(() => {
@@ -2691,8 +2675,12 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    const nextButton = screen.getByText('Next');
-    fireEvent.press(nextButton);
+    // Nothing else to collect, so status selection is the last step and carries Submit
+    expect(screen.queryByText('Next')).toBeNull();
+    expect(screen.getByTestId('status-summary').props.children).toBe('Available · No Destination');
+
+    const submitButton = screen.getByText('Submit');
+    fireEvent.press(submitButton);
 
     // Submitting now takes a location fix first, so the save lands a microtask later.
     await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
@@ -3091,7 +3079,7 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('Next')).toBeTruthy();
   });
 
-  it('should maintain Next button visibility with many calls and stations in Committed status', async () => {
+  it('should maintain Submit button visibility with many calls and stations in Committed status', async () => {
     const committedStatus = {
       Id: 'committed-status',
       Text: 'Committed',
@@ -3136,15 +3124,14 @@ describe('StatusBottomSheet', () => {
     expect(screen.getByText('C001 - Emergency Call 1')).toBeTruthy();
     expect(screen.getByText('C005 - Emergency Call 5')).toBeTruthy();
 
-    // Next button should still be visible and functional
-    const nextButton = screen.getByText('Next');
-    expect(nextButton).toBeTruthy();
+    // No note, so this is the last step: Submit (not Next) should be visible and functional
+    const submitButton = screen.getByText('Submit');
+    expect(submitButton).toBeTruthy();
 
-    // Should be able to click Next button without scrolling
-    fireEvent.press(nextButton);
+    // Should be able to click Submit button without scrolling
+    fireEvent.press(submitButton);
 
-    // Since no note is required, this should trigger submit. The save lands a microtask later now
-    // that submitting takes a location fix first.
+    // The save lands a microtask later now that submitting takes a location fix first.
     await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
   });
 
@@ -3297,10 +3284,9 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    expect(screen.getByText('Selected Status:')).toBeTruthy();
-    expect(screen.getByText('Available')).toBeTruthy();
-    expect(screen.getByText('Selected Destination:')).toBeTruthy();
-    expect(screen.getByText('C123 - Emergency Call')).toBeTruthy();
+    const summary = screen.getByTestId('status-summary');
+    expect(summary.props.children).toBe('Available · C123 - Emergency Call');
+    expect(summary.props.accessibilityLabel).toBe('Selected Status: Available, Selected Destination: C123 - Emergency Call');
   });
 
   it('should disable submit button and show spinner when submitting', async () => {
@@ -3589,8 +3575,7 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    expect(screen.getByText('Selected Destination:')).toBeTruthy();
-    expect(screen.getByText('No Destination')).toBeTruthy();
+    expect(screen.getByTestId('status-summary').props.children).toBe('Available · No Destination');
   });
 
   it('should show loading state when call is being selected but selectedCall is null', () => {
@@ -3643,8 +3628,8 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    expect(screen.getByText('Selected Destination:')).toBeTruthy();
-    expect(screen.getByText('C123 - Emergency Call')).toBeTruthy(); // Should find the call from availableCalls
+    // Should find the call from availableCalls
+    expect(screen.getByTestId('status-summary').props.children).toBe('Available · C123 - Emergency Call');
   });
 
   it('should show loading text when call type is selected but no calls are available yet', () => {
@@ -3679,6 +3664,7 @@ describe('StatusBottomSheet', () => {
         selectedDestinationType: 'call', // Set to call but no selectedCall yet
         selectedCall: null, // This is the issue scenario
         availableCalls: [], // No calls available yet
+        isLoading: true, // The destination list is still on its way
       };
       if (selector) {
         return selector(store);
@@ -3688,8 +3674,16 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    expect(screen.getByText('Selected Destination:')).toBeTruthy();
-    expect(screen.getByText('Loading calls...')).toBeTruthy(); // Should show loading text
+    // Should show loading text, and not let the status be saved without its call
+    expect(screen.getByTestId('status-summary').props.children).toBe('Available · Loading calls...');
+    const submitButton = screen.getAllByTestId('button').find((button) => {
+      try {
+        return button.findAllByType('Text' as any).some((text: any) => text.props.children === 'Submit');
+      } catch (e) {
+        return false;
+      }
+    });
+    expect(submitButton?.props.accessibilityState?.disabled).toBe(true);
   });
 
   // New tests for color scheme functionality
@@ -3772,8 +3766,7 @@ describe('StatusBottomSheet', () => {
 
     render(<StatusBottomSheet />);
 
-    expect(screen.getByText('Selected Status:')).toBeTruthy();
-    expect(screen.getByText('Responding')).toBeTruthy();
+    expect(screen.getByTestId('status-summary').props.children).toBe('Responding · No Destination');
 
     // The status display should use BColor for background and calculated text color
     // We can't easily test the actual computed styles, but we verify rendering works
@@ -3827,7 +3820,7 @@ describe('StatusBottomSheet', () => {
     // Component should handle missing BColor gracefully with fallback
   });
 
-  it('should show Next button when tabs are visible with reduced ScrollView height', () => {
+  it('should show Submit button when tabs are visible with reduced ScrollView height', () => {
     const committedStatus = {
       Id: 4,
       Text: 'Committed',
@@ -3876,12 +3869,12 @@ describe('StatusBottomSheet', () => {
     // Should show some calls (even with many items)
     expect(screen.getByText('C-000 - Emergency Call 0')).toBeTruthy();
 
-    // Next button should still be visible and accessible
-    const nextButton = screen.getByText('Next');
-    expect(nextButton).toBeTruthy();
+    // No note, so the last-step Submit button should still be visible and accessible
+    const submitButton = screen.getByText('Submit');
+    expect(submitButton).toBeTruthy();
 
     // Button should be enabled (can proceed)
-    fireEvent.press(nextButton);
+    fireEvent.press(submitButton);
     // Should not throw or fail to find the button
   });
 
@@ -3917,7 +3910,7 @@ describe('StatusBottomSheet', () => {
         buildGpsRequiredStore(gpsRequiredStatus);
 
         render(<StatusBottomSheet />);
-        fireEvent.press(screen.getByText('Next'));
+        fireEvent.press(screen.getByText('Submit'));
 
         await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith('error', `fix-error:${outcome}`));
         expect(mockSaveUnitStatus).not.toHaveBeenCalled();
@@ -3928,7 +3921,7 @@ describe('StatusBottomSheet', () => {
       buildGpsRequiredStore(gpsRequiredStatus);
 
       render(<StatusBottomSheet />);
-      fireEvent.press(screen.getByText('Next'));
+      fireEvent.press(screen.getByText('Submit'));
 
       await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
       expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Latitude: '40.7128', Longitude: '-74.006' }));
@@ -3939,9 +3932,270 @@ describe('StatusBottomSheet', () => {
       buildGpsRequiredStore({ ...gpsRequiredStatus, Gps: false });
 
       render(<StatusBottomSheet />);
-      fireEvent.press(screen.getByText('Next'));
+      fireEvent.press(screen.getByText('Submit'));
 
       await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
+    });
+  });
+
+  // Call reports link a unit status to a call only through RespondingTo/RespondingToType, so these
+  // pin down which call (if any) a save carries and that the crew can always see and override it.
+  describe('call linkage and last-step submit', () => {
+    const dispatchedCall = { CallId: '555', Number: 'C555', Name: 'Structure Fire', Address: '1 Main St' };
+    const otherCall = { CallId: '777', Number: 'C777', Name: 'Medical Aid', Address: '2 Main St' };
+
+    const respondingStatus = { Id: 2, Text: 'Responding', BColor: '#ffc107', Gps: false, Detail: 2, Note: 0 };
+    const onSceneNoDestinationStatus = { Id: 3, Text: 'On Scene', BColor: '#dc3545', Gps: false, Detail: 0, Note: 0 };
+
+    // What dispatch leaves behind: a "Responding" status for the unit pointing at the dispatched call.
+    const dispatchedUnitStatus = { UnitId: 'unit-1', State: 'Responding', DestinationId: 555, DestinationType: 2 };
+
+    const setCoreStore = (overrides: Record<string, unknown>) => {
+      const store = { ...defaultCoreStore, ...overrides };
+      mockGetState.mockReturnValue(store as any);
+      mockUseCoreStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+    };
+
+    const setSheetStore = (overrides: Record<string, unknown>) => {
+      const store = { ...defaultBottomSheetStore, isOpen: true, ...overrides };
+      mockUseStatusBottomSheetStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+    };
+
+    // Setters that actually update the mocked state, so effects see the result of a tap on re-render.
+    const mountStatefulSheetStore = (overrides: Record<string, unknown>) => {
+      let state: any = { ...defaultBottomSheetStore, isOpen: true, ...overrides };
+      const update = (patch: Record<string, unknown>) => {
+        state = { ...state, ...patch };
+      };
+      state.setSelectedCall = jest.fn((selectedCall) => update({ selectedCall }));
+      state.setSelectedStation = jest.fn((selectedStation) => update({ selectedStation }));
+      state.setSelectedPoi = jest.fn((selectedPoi) => update({ selectedPoi }));
+      state.setSelectedDestinationType = jest.fn((selectedDestinationType) => update({ selectedDestinationType }));
+      mockUseStatusBottomSheetStore.mockImplementation((selector: any) => (selector ? selector(state) : state));
+      return state;
+    };
+
+    const findButton = (label: string) =>
+      screen.getAllByTestId('button').find((button) => {
+        try {
+          return button.findAllByType('Text' as any).some((text: any) => text.props.children === label);
+        } catch (e) {
+          return false;
+        }
+      });
+
+    const findRowClassName = (label: string): string | undefined => {
+      let node: any = screen.getByText(label);
+      while (node && !(typeof node.props?.className === 'string' && node.props.className.includes('border-2'))) {
+        node = node.parent;
+      }
+      return node?.props.className;
+    };
+
+    it('submits from the destination step when the status takes no note (no review step)', async () => {
+      setSheetStore({ selectedStatus: respondingStatus, availableCalls: [dispatchedCall], selectedCall: dispatchedCall, selectedDestinationType: 'call' });
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.getByText('Step 1 of 1')).toBeTruthy();
+      expect(screen.queryByText('Next')).toBeNull();
+      expect(screen.getByTestId('status-summary').props.children).toBe('Responding · C555 - Structure Fire');
+
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ RespondingTo: '555', RespondingToType: 2 })));
+      expect(mockSetCurrentStep).not.toHaveBeenCalled();
+    });
+
+    it('submits from the note step with the summary and the required-note check', async () => {
+      const noteRequiredStatus = { ...respondingStatus, Note: 2 };
+      setSheetStore({ currentStep: 'add-note', selectedStatus: noteRequiredStatus, availableCalls: [dispatchedCall], selectedCall: dispatchedCall, selectedDestinationType: 'call', note: '' });
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      expect(screen.getByTestId('status-summary').props.children).toBe('Responding · C555 - Structure Fire');
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(true);
+
+      setSheetStore({ currentStep: 'add-note', selectedStatus: noteRequiredStatus, availableCalls: [dispatchedCall], selectedCall: dispatchedCall, selectedDestinationType: 'call', note: 'Crew of 4' });
+      rerender(<StatusBottomSheet />);
+
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Note: 'Crew of 4', RespondingTo: '555', RespondingToType: 2 })));
+    });
+
+    it('keeps Next (not Submit) on the destination step when a note step follows', () => {
+      setSheetStore({ selectedStatus: { ...respondingStatus, Note: 1 }, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.queryByTestId('status-summary')).toBeNull();
+      fireEvent.press(screen.getByText('Next'));
+      expect(mockSetCurrentStep).toHaveBeenCalledWith('add-note');
+    });
+
+    it('disables Next while the destination list is loading', () => {
+      setCoreStore({ activeCallId: '555' });
+      setSheetStore({ selectedStatus: { ...respondingStatus, Note: 1 }, isLoading: true, availableCalls: [] });
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.getByText('Loading calls...')).toBeTruthy();
+      expect(findButton('Next')?.props.accessibilityState?.disabled).toBe(true);
+
+      fireEvent.press(screen.getByText('Next'));
+      expect(mockSetCurrentStep).not.toHaveBeenCalled();
+    });
+
+    it('disables Submit before the first destination fetch has landed, then enables it', () => {
+      setSheetStore({ selectedStatus: respondingStatus, isLoading: false, lastFetchedAt: 0, error: null });
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(true);
+
+      setSheetStore({ selectedStatus: respondingStatus, isLoading: false, lastFetchedAt: Date.now(), error: null });
+      rerender(<StatusBottomSheet />);
+
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(false);
+    });
+
+    it('does not hold the destination step when the destination fetch failed', () => {
+      setSheetStore({ selectedStatus: respondingStatus, isLoading: false, lastFetchedAt: 0, error: 'Failed to fetch destination data' });
+
+      render(<StatusBottomSheet />);
+
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(false);
+    });
+
+    it('keeps an explicit "No destination" choice even though an active call is open', async () => {
+      setCoreStore({ activeCallId: '555' });
+      // As left by the auto-select once the list loaded
+      const state = mountStatefulSheetStore({ selectedStatus: respondingStatus, availableCalls: [dispatchedCall], selectedCall: dispatchedCall, selectedDestinationType: 'call' });
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      fireEvent.press(screen.getByText('No Destination'));
+      rerender(<StatusBottomSheet />);
+
+      // The auto-select must not bring the call back after the crew cleared it
+      expect(state.setSelectedCall).not.toHaveBeenCalledWith(dispatchedCall);
+      expect(findRowClassName('No Destination')).toContain('border-blue-500');
+      expect(screen.getByTestId('status-summary').props.children).toBe('Responding · No Destination');
+
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ RespondingTo: '0', RespondingToType: null })));
+      expect(mockSetActiveCall).not.toHaveBeenCalled();
+    });
+
+    it("defaults to the open call on the unit's latest status when no active call is set", async () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ selectedStatus: respondingStatus, availableCalls: [otherCall, dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      await waitFor(() => {
+        expect(mockSetSelectedCall).toHaveBeenCalledWith(dispatchedCall);
+        expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('call');
+      });
+    });
+
+    it('prefers the active call over the latest status destination', async () => {
+      setCoreStore({ activeCallId: '777', activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ selectedStatus: respondingStatus, availableCalls: [otherCall, dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      await waitFor(() => expect(mockSetSelectedCall).toHaveBeenCalledWith(otherCall));
+      expect(mockSetSelectedCall).not.toHaveBeenCalledWith(dispatchedCall);
+    });
+
+    it('treats an untyped (legacy) latest-status destination as a call when it matches an open call', async () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: { ...dispatchedUnitStatus, DestinationType: null } });
+      setSheetStore({ selectedStatus: respondingStatus, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      await waitFor(() => expect(mockSetSelectedCall).toHaveBeenCalledWith(dispatchedCall));
+    });
+
+    it('does not default to a call when the latest status destination is a station', () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: { ...dispatchedUnitStatus, DestinationType: 1 } });
+      setSheetStore({ selectedStatus: respondingStatus, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      expect(mockSetSelectedCall).not.toHaveBeenCalled();
+    });
+
+    it('does not default to a call for a status that does not offer calls', () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ selectedStatus: { ...respondingStatus, Text: 'At Station', Detail: 1 }, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      expect(mockSetSelectedCall).not.toHaveBeenCalled();
+    });
+
+    it('sends the open default call with a Detail 0 status and shows it in the summary', async () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ currentStep: 'select-destination', selectedStatus: onSceneNoDestinationStatus, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      // No destination step for this status…
+      expect(screen.queryByText('No Destination')).toBeNull();
+      // …but the save is still tied to the call the unit is working
+      expect(screen.getByTestId('status-summary').props.children).toBe('On Scene · C555 - Structure Fire');
+
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Type: '3', RespondingTo: '555', RespondingToType: 2 })));
+      // Carried silently, so it must not repoint the active call
+      expect(mockSetActiveCall).not.toHaveBeenCalled();
+      // The selection itself stays empty for a status without a destination step
+      expect(mockSetSelectedCall).not.toHaveBeenCalledWith(dispatchedCall);
+    });
+
+    it('sends the active call with a Detail 0 status submitted from status selection', async () => {
+      setCoreStore({ activeCallId: '555' });
+      setSheetStore({ currentStep: 'select-status', cameFromStatusSelection: true, selectedStatus: onSceneNoDestinationStatus, availableCalls: [dispatchedCall] });
+
+      render(<StatusBottomSheet />);
+
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ RespondingTo: '555', RespondingToType: 2 })));
+    });
+
+    it('sends no destination with a Detail 0 status once the default call has closed', async () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ currentStep: 'select-destination', selectedStatus: onSceneNoDestinationStatus, availableCalls: [otherCall] });
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.getByTestId('status-summary').props.children).toBe('On Scene · No Destination');
+      fireEvent.press(screen.getByText('Submit'));
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ RespondingTo: '0', RespondingToType: null })));
+    });
+
+    it('holds a Detail 0 submit while the call list loads only when there is a call it could carry', () => {
+      setCoreStore({ activeCallId: null, activeUnitStatus: dispatchedUnitStatus });
+      setSheetStore({ currentStep: 'select-destination', selectedStatus: onSceneNoDestinationStatus, isLoading: true, availableCalls: [] });
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      expect(screen.getByTestId('status-summary').props.children).toBe('On Scene · Loading calls...');
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(true);
+
+      // Nothing open that this unit is tied to: an "Available" must not wait on the network
+      setCoreStore({ activeCallId: null, activeUnitStatus: null });
+      rerender(<StatusBottomSheet />);
+
+      expect(screen.getByTestId('status-summary').props.children).toBe('On Scene · No Destination');
+      expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(false);
     });
   });
 });

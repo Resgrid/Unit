@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { MessagesSquare, Settings, Sparkles } from 'lucide-react-native';
+import { Briefcase, FileText, MessagesSquare, Package, Settings, Sparkles } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
@@ -9,7 +9,7 @@ import { HStack } from '@/components/ui/hstack';
 import { VStack } from '@/components/ui/vstack';
 import { invertColor } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
-import { useIsChatEnabled } from '@/stores/feature-flags/store';
+import { useIsChatEnabled, useIsChecklistsEnabled, useIsDeploymentsEnabled, useIsRecordsFieldEnabled } from '@/stores/feature-flags/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
 
 import ZeroState from '../common/zero-state';
@@ -27,6 +27,10 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const activeStatuses = useCoreStore((state) => state.activeStatuses);
   const setIsOpen = useStatusBottomSheetStore((state) => state.setIsOpen);
   const isChatEnabled = useIsChatEnabled();
+  const isChecklistsEnabled = useIsChecklistsEnabled();
+  const isDeploymentsEnabled = useIsDeploymentsEnabled();
+  const hasActiveUnit = !!useCoreStore((state) => state.activeUnitId);
+  const isRecordsEnabled = useIsRecordsFieldEnabled();
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -40,6 +44,11 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const handleNavigateToChat = () => {
     onClose?.();
     router.push('/chat');
+  };
+
+  const handleNavigateToRecords = () => {
+    onClose?.();
+    router.push('/records');
   };
 
   const handleNavigateToAssistant = () => {
@@ -77,6 +86,61 @@ const Sidebar = ({ onClose }: SidebarProps) => {
               <ButtonText className="ml-2">{t('tabs.assistant')}</ButtonText>
             </Button>
           </HStack>
+        ) : null}
+
+        {isChecklistsEnabled ? (
+          <Button
+            variant="outline"
+            onPress={() => {
+              onClose?.();
+              router.push('/checklists');
+            }}
+            testID="sidebar-checklists"
+          >
+            <ButtonText>{t('checklists.labels.Checklists')}</ButtonText>
+          </Button>
+        ) : null}
+
+        {/* Deployments / daily time reports (hidden until Operations.Deployments is on) */}
+        {isDeploymentsEnabled ? (
+          <Button
+            variant="outline"
+            action="secondary"
+            size="md"
+            onPress={() => {
+              onClose?.();
+              router.push('/operations');
+            }}
+            testID="sidebar-operations"
+          >
+            <Briefcase size={18} color="#2563eb" />
+            <ButtonText className="ml-2">{t('operations.title')}</ButtonText>
+          </Button>
+        ) : null}
+
+        {/* The active unit's inventory: what it carries and the counts the crew runs (needs an active unit) */}
+        {hasActiveUnit ? (
+          <Button
+            variant="outline"
+            action="secondary"
+            size="md"
+            onPress={() => {
+              onClose?.();
+              router.push('/inventory');
+            }}
+            testID="sidebar-inventory"
+          >
+            <Package size={18} color="#2563eb" />
+            <ButtonText className="ml-2">{t('inventory.title')}</ButtonText>
+          </Button>
+        ) : null}
+
+        {/* Field Records (hidden until Records.System and this app's child flag are both on) */}
+        {isRecordsEnabled ? (
+          <Button variant="outline" action="secondary" size="md" onPress={handleNavigateToRecords} testID="sidebar-records">
+            <FileText size={18} color="#2563eb" />
+            <ButtonText className="ml-2">{t('tabs.records')}</ButtonText>
+          </Button>
         ) : null}
 
         {/* Third row - Status buttons or empty state */}

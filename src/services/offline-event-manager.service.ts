@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { saveCallImage } from '@/api/calls/callFiles';
@@ -17,6 +18,26 @@ import {
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { setOfflineQueueActivityListener, useOfflineQueueStore } from '@/stores/offline-queue/store';
+
+/**
+ * A replay the server refused outright. Sending the same payload again can only fail the same way,
+ * so the event is parked as permanently failed instead of burning its retries.
+ */
+class NonRetryableEventError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number
+  ) {
+    super(message);
+    this.name = 'NonRetryableEventError';
+  }
+}
+
+const getHttpStatus = (error: unknown): number | null => (axios.isAxiosError(error) && error.response ? error.response.status : null);
+
+// 4xx the server will keep returning for the same payload. 401 runs through the client's token
+// refresh and 408/429 are timeouts/throttling, so those stay retryable like network failures.
+const isNonRetryableClientError = (status: number | null): status is number => status !== null && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429;
 
 class OfflineEventManager {
   private static instance: OfflineEventManager;
@@ -141,9 +162,11 @@ class OfflineEventManager {
       altitudeAccuracy?: string;
       speed?: string;
       heading?: string;
-    }
+    },
+    // When the crew set the status. Replays send this, so a queued status keeps its real time.
+    recordedAt?: Date
   ): string {
-    const date = new Date();
+    const date = recordedAt ?? new Date();
     const data = {
       unitId,
       statusType,
@@ -312,6 +335,13 @@ class OfflineEventManager {
 
     try {
       switch (event.type) {
+        case QueuedEventType.CHECKLIST_COMPLETION: {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const { flushChecklistDraft } = require('@/stores/checklists/store') as typeof import('@/stores/checklists/store');
+          if (typeof event.data.scope !== 'string' || typeof event.data.id !== 'string') throw new Error('checklist_invalid_reference');
+          await flushChecklistDraft(event.data.scope, event.data.id);
+          break;
+        }
         case QueuedEventType.UNIT_STATUS:
           await this.processUnitStatusEvent(event as QueuedUnitStatusEvent);
           break;
@@ -342,6 +372,17 @@ class OfflineEventManager {
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (error instanceof NonRetryableEventError) {
+        // Stop here rather than looping on a payload the server will never accept.
+        store.updateEventStatus(event.id, QueuedEventStatus.FAILED, errorMessage, { permanent: true });
+
+        logger.error({
+          message: 'Queued event rejected by server, not retrying',
+          context: { eventId: event.id, type: event.type, status: error.status, error: errorMessage },
+        });
+        return;
+      }
 
       store.updateEventStatus(event.id, QueuedEventStatus.FAILED, errorMessage);
 
@@ -394,7 +435,46 @@ class OfflineEventManager {
       });
     }
 
-    await saveUnitStatus(input);
+    try {
+      await saveUnitStatus(input);
+    } catch (error) {
+      const status = getHttpStatus(error);
+      const hasDestination = !!input.RespondingTo && input.RespondingTo !== '0';
+
+      if (status !== 400 || !hasDestination) {
+        throw this.toReplayError(error, event);
+      }
+
+      // SaveUnitStatus rejects the whole status with 400 when its destination is no longer valid —
+      // typically the call closed before the queue drained. The status and the time it happened
+      // still belong on the unit's timeline, so replay it once without the destination (keeping the
+      // original timestamp) instead of retrying a payload that can never succeed and then dropping it.
+      logger.warn({
+        message: 'Queued unit status rejected for its destination, replaying without destination',
+        context: { eventId: event.id, unitId: input.Id, statusType: input.Type, respondingTo: input.RespondingTo, respondingToType: input.RespondingToType },
+      });
+
+      const withoutDestination: SaveUnitStatusInput = { ...input, RespondingTo: '0', RespondingToType: null };
+
+      try {
+        await saveUnitStatus(withoutDestination);
+      } catch (fallbackError) {
+        throw this.toReplayError(fallbackError, event);
+      }
+    }
+  }
+
+  /** Classify a failed unit status replay: permanent server rejections stop retrying. */
+  private toReplayError(error: unknown, event: QueuedUnitStatusEvent): unknown {
+    const status = getHttpStatus(error);
+
+    if (!isNonRetryableClientError(status)) {
+      // Network failures, 5xx and auth/throttling keep the normal retry-with-backoff.
+      return error;
+    }
+
+    // processEvent logs it and parks the event as permanently failed.
+    return new NonRetryableEventError(`Unit status ${event.data.statusType} for unit ${event.data.unitId} rejected by server (HTTP ${status})`, status);
   }
 
   /**

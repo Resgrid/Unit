@@ -342,11 +342,47 @@ describe('StatusesStore', () => {
       'call1',
       null,
       [{ roleId: 'role1', userId: 'user1' }],
-      undefined
+      undefined,
+      expect.any(Date)
     );
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
+  });
+
+  it('should queue the original status time, not the time the network request gave up', async () => {
+    const { result } = renderHook(() => useStatusesStore());
+
+    let sentTimestamp = '';
+    mockSaveUnitStatus.mockImplementationOnce(async (sent: SaveUnitStatusInput) => {
+      sentTimestamp = sent.Timestamp;
+      // The request hangs until the client timeout before failing as a network error
+      jest.setSystemTime(new Date(Date.now() + 30000));
+      throw new Error('Network error');
+    });
+    mockOfflineEventManager.queueUnitStatusEvent.mockReturnValue('queued-event-id');
+
+    const input = new SaveUnitStatusInput();
+    input.Id = 'unit1';
+    input.Type = '1';
+    input.RespondingTo = '555';
+    input.RespondingToType = 2;
+
+    jest.useFakeTimers({ now: new Date('2026-09-23T10:00:00.000Z') });
+    try {
+      await act(async () => {
+        await result.current.saveUnitStatus(input);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(sentTimestamp).toBe('2026-09-23T10:00:00.000Z');
+    const recordedAt = mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][7] as Date;
+    expect(recordedAt.toISOString()).toBe('2026-09-23T10:00:00.000Z');
+    // The destination rides along into the queue
+    expect(mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][3]).toBe('555');
+    expect(mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][4]).toBe(2);
   });
 
   it('should handle successful save and refresh active unit', async () => {
@@ -425,10 +461,11 @@ describe('StatusesStore', () => {
       'unit1',
       '1',
       '', // Note defaults to empty string
-      '', // RespondingTo defaults to empty string  
+      '', // RespondingTo defaults to empty string
       null,
       [], // Roles defaults to empty array which maps to empty array
-      undefined
+      undefined,
+      expect.any(Date)
     );
   });
 

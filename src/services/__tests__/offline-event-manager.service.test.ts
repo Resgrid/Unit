@@ -453,6 +453,99 @@ describe('OfflineEventManager', () => {
     });
   });
 
+  describe('unit status replay rejected by the server', () => {
+    const httpError = (status: number) => Object.assign(new Error(`Request failed with status code ${status}`), { isAxiosError: true, response: { status } });
+
+    const networkError = () => Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK', request: {} });
+
+    const buildEvent = (respondingTo: string, respondingToType: number | null) => ({
+      id: 'status-event',
+      type: QueuedEventType.UNIT_STATUS,
+      status: QueuedEventStatus.PENDING,
+      data: {
+        unitId: 'unit-1',
+        statusType: '3',
+        note: 'On scene',
+        respondingTo,
+        respondingToType,
+        // When the crew tapped the status — not when the queue drains
+        timestamp: '2026-09-23T10:00:00.000Z',
+        timestampUtc: 'Wed, 23 Sep 2026 10:00:00 GMT',
+      },
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt: Date.now(),
+    });
+
+    const processEvent = (event: ReturnType<typeof buildEvent>) => (offlineEventManager as any).processEvent(event);
+
+    it('replays once without the destination when the server rejects it with 400, keeping the original time', async () => {
+      mockSaveUnitStatus.mockRejectedValueOnce(httpError(400)).mockResolvedValueOnce({} as any);
+
+      await processEvent(buildEvent('555', 2));
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(2);
+      expect(mockSaveUnitStatus).toHaveBeenNthCalledWith(1, expect.objectContaining({ RespondingTo: '555', RespondingToType: 2, Timestamp: '2026-09-23T10:00:00.000Z' }));
+      expect(mockSaveUnitStatus).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ Type: '3', Note: 'On scene', RespondingTo: '0', RespondingToType: null, Timestamp: '2026-09-23T10:00:00.000Z', TimestampUtc: 'Wed, 23 Sep 2026 10:00:00 GMT' })
+      );
+      expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('status-event', QueuedEventStatus.COMPLETED);
+    });
+
+    it('stops retrying when the replay without destination is rejected too', async () => {
+      mockSaveUnitStatus.mockRejectedValueOnce(httpError(400)).mockRejectedValueOnce(httpError(400));
+
+      await processEvent(buildEvent('555', 2));
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(2);
+      expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('status-event', QueuedEventStatus.FAILED, expect.stringContaining('HTTP 400'), { permanent: true });
+    });
+
+    it('stops retrying a status without destination that the server rejects with 400', async () => {
+      mockSaveUnitStatus.mockRejectedValueOnce(httpError(400));
+
+      await processEvent(buildEvent('0', null));
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('status-event', QueuedEventStatus.FAILED, expect.any(String), { permanent: true });
+    });
+
+    it.each([[403], [404]])('stops retrying on other client errors (%p) without a destination fallback', async (status) => {
+      mockSaveUnitStatus.mockRejectedValueOnce(httpError(status));
+
+      await processEvent(buildEvent('555', 2));
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('status-event', QueuedEventStatus.FAILED, expect.stringContaining(`HTTP ${status}`), { permanent: true });
+    });
+
+    it.each([
+      ['a network error', networkError()],
+      ['a server error', httpError(500)],
+      ['an expired session', httpError(401)],
+      ['throttling', httpError(429)],
+    ])('keeps the normal retry for %s', async (_label, error) => {
+      mockSaveUnitStatus.mockRejectedValueOnce(error);
+
+      await processEvent(buildEvent('555', 2));
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('status-event', QueuedEventStatus.FAILED, (error as Error).message);
+    });
+
+    it('queues the time the status was recorded rather than the enqueue time', () => {
+      const recordedAt = new Date('2026-09-23T10:00:00.000Z');
+
+      offlineEventManager.queueUnitStatusEvent('unit-1', '3', '', '555', 2, [], undefined, recordedAt);
+
+      expect(mockStoreState.addEvent).toHaveBeenCalledWith(
+        QueuedEventType.UNIT_STATUS,
+        expect.objectContaining({ respondingTo: '555', respondingToType: 2, timestamp: '2026-09-23T10:00:00.000Z', timestampUtc: 'Wed, 23 Sep 2026 10:00:00 GMT' })
+      );
+    });
+  });
+
   describe('app state handling', () => {
     it('should have set up app state listener during initialization', () => {
       // The AppState listener should have been set up when the module was imported

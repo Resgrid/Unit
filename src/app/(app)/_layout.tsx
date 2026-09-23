@@ -626,6 +626,10 @@ export default function TabLayout() {
             <Tabs.Screen name="routes" options={routesOptions} />
 
             <Tabs.Screen name="contacts" options={contactsOptions} />
+            <Tabs.Screen name="checklists" options={{ href: null, title: t('checklists.labels.Checklists') }} />
+            <Tabs.Screen name="operations" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="records" options={{ href: null, title: t('tabs.records') }} />
+            <Tabs.Screen name="inventory" options={{ href: null, headerShown: false }} />
 
             <Tabs.Screen name="notes" options={notesOptions} />
 

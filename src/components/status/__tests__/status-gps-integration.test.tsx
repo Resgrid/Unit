@@ -224,7 +224,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '25',
           heading: '90',
-        }
+        },
+        expect.any(Date)
       );
     });
 
@@ -248,7 +249,8 @@ describe('Status GPS Integration', () => {
         '',
         null,
         [],
-        undefined
+        undefined,
+        expect.any(Date)
       );
     });
 
@@ -418,7 +420,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '',
           heading: '',
-        }
+        },
+        expect.any(Date)
       );
     });
 
@@ -464,7 +467,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '30',
           heading: '',
-        }
+        },
+        expect.any(Date)
       );
     });
   });
