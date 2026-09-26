@@ -242,6 +242,23 @@ describe('Deployments store conformance', () => {
     expect(useDeploymentsStore.getState().lastFetchedOn).toBeNull();
   });
 
+  it('does not start the follow-up reads of a run that finishes after sign-out', async () => {
+    let release!: (value: unknown) => void;
+    api.runRecordDeploymentConnector.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+
+    const running = useDeploymentsStore.getState().runConnector('c1');
+    useDeploymentsStore.getState().reset();
+    release({ Data: run('run-late') });
+    const result = await running;
+
+    expect(result.ok).toBe(true);
+    expect(api.getRecordDeploymentConnector).not.toHaveBeenCalled();
+    expect(api.getRecordDeploymentReconciliation).not.toHaveBeenCalled();
+    expect(api.getRecordDeployments).not.toHaveBeenCalled();
+    expect(useDeploymentsStore.getState().runs).toEqual({});
+    expect(useDeploymentsStore.getState().runningConnectorId).toBeNull();
+  });
+
   it('reset drops everything, including connector rows that must not outlive the session', () => {
     useDeploymentsStore.setState({ deployments: [deployment('o1', '2026-09-01T00:00:00Z')], connectors: [connector('c1', 'Alpha')], runs: { c1: [run('r1')] }, reconciliation: [], error: 'x', connectorsError: 'y' });
 

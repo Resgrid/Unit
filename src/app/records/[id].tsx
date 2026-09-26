@@ -112,7 +112,15 @@ export default function RecordScreen() {
         return null;
       }
       discardDraft(clientRecordId);
-      return fetchRecord();
+      const refreshed = await fetchRecord();
+      if (refreshed || !result.record) {
+        return refreshed;
+      }
+      // Saved, but the reload failed. The record the server accepted carries the new row version, so a
+      // further save, a submit or a finalize goes on from it instead of reporting a false conflict.
+      setRecord(result.record);
+      setDirty(false);
+      return result.record;
     },
     [values, entry, stageDraft, pushDraft, discardDraft, fetchRecord, t]
   );

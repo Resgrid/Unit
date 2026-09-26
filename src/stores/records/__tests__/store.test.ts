@@ -356,6 +356,57 @@ describe('Field Records store conformance', () => {
     expect(state.isSyncing).toBe(false);
   });
 
+  it('syncs a new context even while a sync for an earlier context is still running', async () => {
+    let releaseEarlier!: (value: unknown) => void;
+    const bundle = (scopeStamp: string, recordId: string) => ({ Data: { Ok: true, ResetRequired: false, ScopeStamp: scopeStamp, ServerTimestampMs: 900, Records: [summary(recordId, RmsRecordState.Finalized, '2026-09-02T00:00:00Z')], Tombstones: [], Drafts: [], Assignments: [] } });
+    fieldApi.syncFieldRecords.mockReturnValueOnce(new Promise((resolve) => (releaseEarlier = resolve))).mockResolvedValueOnce(bundle('scope-502', 'r502'));
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    const earlier = useRecordsStore.getState().sync();
+    useRecordsStore.getState().setContext({ CallId: 502 });
+    await useRecordsStore.getState().sync();
+
+    expect(fieldApi.syncFieldRecords).toHaveBeenCalledTimes(2);
+    expect(fieldApi.syncFieldRecords.mock.calls[1][0].Context).toEqual({ CallId: 502 });
+    expect(useRecordsStore.getState().recent.map((record) => record.RecordId)).toEqual(['r502']);
+    expect(useRecordsStore.getState().isSyncing).toBe(false);
+
+    releaseEarlier(bundle('scope-501', 'r501'));
+    await earlier;
+    expect(useRecordsStore.getState().recent.map((record) => record.RecordId)).toEqual(['r502']);
+    expect(useRecordsStore.getState().isSyncing).toBe(false);
+  });
+
+  it('keeps loading until the newest catalog request answers', async () => {
+    let releaseEarlier!: (value: unknown) => void;
+    let releaseNewer!: (value: unknown) => void;
+    fieldApi.getFieldRecordsCatalog.mockReturnValueOnce(new Promise((resolve) => (releaseEarlier = resolve))).mockReturnValueOnce(new Promise((resolve) => (releaseNewer = resolve)));
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    const earlier = useRecordsStore.getState().fetchCatalog();
+    useRecordsStore.getState().setContext({ CallId: 502 });
+    const newer = useRecordsStore.getState().fetchCatalog();
+
+    releaseEarlier({ Data: catalogOf('call-501-form') });
+    await earlier;
+    expect(useRecordsStore.getState().isLoading).toBe(true);
+
+    releaseNewer({ Data: catalogOf('call-502-form') });
+    await newer;
+    expect(useRecordsStore.getState().isLoading).toBe(false);
+    expect(useRecordsStore.getState().catalog?.Definitions.map((entry) => entry.DefinitionKey)).toEqual(['call-502-form']);
+  });
+
+  it('hands back the record the server accepted, with its new row version', async () => {
+    recordsApi.saveRecordDraft.mockResolvedValue({ Data: { RecordId: 'r1', DefinitionVersion: 3, State: RmsRecordState.Draft, RowVersion: 6 } });
+    fieldApi.syncFieldRecords.mockResolvedValue({ Data: { Ok: true, ResetRequired: false, ScopeStamp: 'scope-1', ServerTimestampMs: 10, Records: [], Tombstones: [], Drafts: [], Assignments: [] } });
+    const draft = { clientRecordId: 'edit-r1-5', recordId: 'r1', definitionKey: 'shift-log', definitionVersion: 3, name: 'Shift log', values: [], rowVersion: 5, updatedOn: '2026-09-06T00:00:00Z' };
+
+    const result = await useRecordsStore.getState().pushDraft('edit-r1-5', draft);
+
+    expect(result).toMatchObject({ ok: true, recordId: 'r1', record: { RecordId: 'r1', RowVersion: 6 } });
+  });
+
   it('removes a protected draft staged before the catalog loaded once its send fails', async () => {
     const draft = { clientRecordId: 'draft-early', recordId: null, definitionKey: 'shift-log', definitionVersion: 3, name: 'Shift log', values: [], updatedOn: '2026-09-06T00:00:00Z' };
     useRecordsStore.getState().stageDraft(draft);

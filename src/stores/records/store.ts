@@ -24,6 +24,7 @@ import {
   type FieldRecordContextInput,
   type FieldRecordPrefillData,
   type FieldRecordPreflightData,
+  type RecordData,
   type RecordDefinitionSchema,
   type RecordSummaryData,
   type RecordValueInput,
@@ -62,6 +63,12 @@ let telemetryQueue: FieldRecordTelemetryEvent[] = [];
 // Bumped by reset(). A send still in flight at sign-out must not write the previous session's draft or
 // upload back into the persisted slice, where the next sign-in would pick it up and send it as theirs.
 let sessionGeneration = 0;
+
+// The newest catalog request and the newest sync. An older request drops its answer once the context has
+// moved on, so it must not end the loading state of, or hold back, the request that replaced it.
+let catalogRequest = 0;
+let syncRequest = 0;
+let syncContext: FieldRecordContextInput | null = null;
 
 // The upload driver reaches for the camera roll and the crypto module, so it is loaded only when an
 // upload actually runs. Importing it here would drag those native modules into every screen that
@@ -120,8 +127,11 @@ interface RecordsState {
 
   stageDraft: (draft: PendingRecordDraft) => void;
   discardDraft: (clientRecordId: string) => void;
-  /** Sends a staged draft, or `draft` itself when it was not staged (a definition that seals values never is). */
-  pushDraft: (clientRecordId: string, draft?: PendingRecordDraft) => Promise<{ ok: boolean; recordId?: string; conflict?: FieldRecordConflictKind; error?: string }>;
+  /**
+   * Sends a staged draft, or `draft` itself when it was not staged (a definition that seals values never is).
+   * On success `record` is the record as the server accepted it, carrying the row version to continue from.
+   */
+  pushDraft: (clientRecordId: string, draft?: PendingRecordDraft) => Promise<{ ok: boolean; recordId?: string; record?: RecordData; conflict?: FieldRecordConflictKind; error?: string }>;
   pushAllDrafts: () => Promise<void>;
   submitForReview: (recordId: string, rowVersion: number) => Promise<{ ok: boolean; error?: string }>;
   finalize: (recordId: string, rowVersion: number, attested: boolean) => Promise<{ ok: boolean; error?: string }>;
@@ -226,6 +236,7 @@ export const useRecordsStore = create<RecordsState>()(
         // setContext() only replaces the context when it changes (and reset() always does), so an
         // answer is committed only while the context it was asked for is still the current one.
         const context = get().context;
+        const request = ++catalogRequest;
         set({ isLoading: true });
         try {
           const response = await getFieldRecordsCatalog(catalogInput(context));
@@ -242,20 +253,26 @@ export const useRecordsStore = create<RecordsState>()(
           }
           return null;
         } finally {
-          set({ isLoading: false });
+          if (request === catalogRequest) {
+            set({ isLoading: false });
+          }
         }
       },
 
       sync: async (options) => {
-        if (get().isSyncing) {
+        const context = get().context;
+        // One sync at a time for a context. One still running for an earlier context drops its answer,
+        // so it does not hold back the sync for the context now in view.
+        if (get().isSyncing && syncContext === context) {
           return;
         }
+        const request = ++syncRequest;
+        syncContext = context;
         set({ isSyncing: true });
         const full = options?.full === true;
         // A reset answers with no page, so the full re-pull is run after this one releases the
         // in-flight guard; recursing inside it would be swallowed by that same guard.
         let resetAndRetry = false;
-        const context = get().context;
         try {
           const response = await syncFieldRecords({
             ...catalogInput(context),
@@ -317,7 +334,10 @@ export const useRecordsStore = create<RecordsState>()(
             set({ error: messageFrom(error) });
           }
         } finally {
-          set({ isSyncing: false });
+          if (request === syncRequest) {
+            syncContext = null;
+            set({ isSyncing: false });
+          }
         }
 
         if (resetAndRetry) {
@@ -395,8 +415,9 @@ export const useRecordsStore = create<RecordsState>()(
                 OriginClient: RECORDS_ORIGIN_CLIENT,
               });
 
-          const recordId = result?.Data?.RecordId;
-          if (!recordId) {
+          const record = result?.Data;
+          const recordId = record?.RecordId;
+          if (!record || !recordId) {
             throw new Error('The server did not return a record.');
           }
           get().discardDraft(clientRecordId);
@@ -405,7 +426,7 @@ export const useRecordsStore = create<RecordsState>()(
             get().report({ EventType: 'draft_saved', Outcome: 'ok', RecordId: recordId, DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
             void get().sync();
           }
-          return { ok: true, recordId };
+          return { ok: true, recordId, record };
         } catch (error) {
           const conflict = conflictFrom(error);
           logger.error({ message: 'Record draft push failed', context: { error, clientRecordId, conflict } });

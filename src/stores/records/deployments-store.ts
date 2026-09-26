@@ -198,6 +198,7 @@ export const useDeploymentsStore = create<DeploymentsState>()(
           return { ok: false, error: 'busy' };
         }
         const commit = sessionSet(set);
+        const started = sessionGeneration;
         set({ runningConnectorId: connectorId, connectorsError: null });
         try {
           const response = await runRecordDeploymentConnector(connectorId);
@@ -209,8 +210,14 @@ export const useDeploymentsStore = create<DeploymentsState>()(
           // The run row is the newest entry in that connector's log; then everything it may have
           // changed is re-read from the server rather than guessed at from the counts.
           commit({ runs: { ...get().runs, [connectorId]: [run, ...(get().runs[connectorId] ?? []).filter((existing) => existing.Id !== run.Id)] }, runningConnectorId: null });
+          const outcome = { ok: run.Outcome === 'ok', run, error: run.Outcome === 'ok' ? undefined : (run.Error ?? run.Outcome) };
+          // Signed out while the run was going: the follow-up reads would start in the new session and
+          // write the previous session's deployments back, so they are not started at all.
+          if (started !== sessionGeneration) {
+            return outcome;
+          }
           await Promise.all([get().fetchConnector(connectorId), get().fetchReconciliation(connectorId), get().fetchDeployments()]);
-          return { ok: run.Outcome === 'ok', run, error: run.Outcome === 'ok' ? undefined : (run.Error ?? run.Outcome) };
+          return outcome;
         } catch (error) {
           logger.error({ message: 'Connector run failed', context: { error, connectorId } });
           const message = messageOf(error, 'run_failed');

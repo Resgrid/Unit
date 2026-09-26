@@ -182,6 +182,20 @@ describe('RecordScreen', () => {
     unmount();
   });
 
+  it('goes on from the accepted record when the reload after a save fails', async () => {
+    store.pushDraft.mockResolvedValue({ ok: true, recordId: 'r1', record: record(5) });
+    mockGetRecord.mockReset();
+    mockGetRecord.mockResolvedValueOnce({ Data: record(4) } as never).mockRejectedValue(new Error('Network Error'));
+
+    const { unmount } = render(<RecordScreen />);
+    fireEvent.press(await screen.findByTestId('record-form-edit'));
+    fireEvent.press(screen.getByTestId('record-submit'));
+
+    await waitFor(() => expect(store.submitForReview).toHaveBeenCalledWith('r1', 5));
+    expect(store.pushDraft).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
   it('does not finalize when the unsaved edits could not be saved', async () => {
     store.pushDraft.mockResolvedValue({ ok: false, conflict: 'etag' });
 
