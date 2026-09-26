@@ -70,6 +70,11 @@ let catalogRequest = 0;
 let syncRequest = 0;
 let syncContext: FieldRecordContextInput | null = null;
 
+// The context the in-memory synced lists and the delta cursor were built for. The context narrows what
+// the server returns, so only a sync for that same context may ask for a delta; any other — another Call,
+// a new session, or a fresh launch whose lists start empty — pulls in full and rebuilds the lists.
+let syncedContext: FieldRecordContextInput | null = null;
+
 // The upload driver reaches for the camera roll and the crypto module, so it is loaded only when an
 // upload actually runs. Importing it here would drag those native modules into every screen that
 // touches this store, which is most of them.
@@ -240,7 +245,8 @@ export const useRecordsStore = create<RecordsState>()(
         set({ isLoading: true });
         try {
           const response = await getFieldRecordsCatalog(catalogInput(context));
-          if (get().context !== context) {
+          // A newer request (for this context or another) owns the catalog now.
+          if (request !== catalogRequest || get().context !== context) {
             return null;
           }
           const catalog = response?.Data ?? null;
@@ -248,7 +254,7 @@ export const useRecordsStore = create<RecordsState>()(
           return catalog;
         } catch (error) {
           logger.error({ message: 'Field Records catalog failed', context: { error } });
-          if (get().context === context) {
+          if (request === catalogRequest && get().context === context) {
             set({ error: messageFrom(error) });
           }
           return null;
@@ -269,7 +275,9 @@ export const useRecordsStore = create<RecordsState>()(
         const request = ++syncRequest;
         syncContext = context;
         set({ isSyncing: true });
-        const full = options?.full === true;
+        // Lists and cursor from another context are neither sent as a delta nor merged into.
+        const rebuild = syncedContext !== context;
+        const full = options?.full === true || rebuild;
         // A reset answers with no page, so the full re-pull is run after this one releases the
         // in-flight guard; recursing inside it would be swallowed by that same guard.
         let resetAndRetry = false;
@@ -288,6 +296,7 @@ export const useRecordsStore = create<RecordsState>()(
             return;
           }
 
+          syncedContext = context;
           if (bundle.ResetRequired) {
             // Scope changed under us: everything cached for the old scope is dropped, including the
             // catalog. Staged drafts survive — they are this person's unsent work, not server state.
@@ -304,7 +313,7 @@ export const useRecordsStore = create<RecordsState>()(
           } else {
             const tombstoned = new Set(bundle.Tombstones ?? []);
             const merged = new Map<string, RecordSummaryData>();
-            for (const record of get().recent) {
+            for (const record of rebuild ? [] : get().recent) {
               if (!tombstoned.has(record.RecordId)) {
                 merged.set(record.RecordId, record);
               }
@@ -636,6 +645,7 @@ export const useRecordsStore = create<RecordsState>()(
         // letting the next session flush another member's counts under their own name.
         telemetryQueue = [];
         sessionGeneration += 1;
+        syncedContext = null;
         set({
           preflight: null,
           catalog: null,

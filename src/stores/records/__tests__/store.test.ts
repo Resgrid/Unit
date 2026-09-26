@@ -93,22 +93,26 @@ describe('Field Records store conformance', () => {
   });
 
   it('keeps the sync delta and drops what the caller may no longer read', async () => {
-    useRecordsStore.setState({ recent: [summary('r1', RmsRecordState.Finalized, '2026-09-01T00:00:00Z'), summary('r9', RmsRecordState.Finalized, '2026-09-01T00:00:00Z')] });
-    fieldApi.syncFieldRecords.mockResolvedValue({
-      Data: {
-        Ok: true,
-        ResetRequired: false,
+    const page = (overrides: Record<string, unknown>) => ({ Data: { Ok: true, ResetRequired: false, Records: [], Tombstones: [], Drafts: [], Assignments: [], ...overrides } });
+    // The first sync for a context is a full pull; it is what a later delta builds on.
+    fieldApi.syncFieldRecords.mockResolvedValueOnce(
+      page({ ScopeStamp: 'scope-1', ServerTimestampMs: 500, Records: [summary('r1', RmsRecordState.Finalized, '2026-09-01T00:00:00Z'), summary('r9', RmsRecordState.Finalized, '2026-09-01T00:00:00Z')] })
+    );
+    await useRecordsStore.getState().sync();
+
+    fieldApi.syncFieldRecords.mockResolvedValueOnce(
+      page({
         ScopeStamp: 'scope-1',
         ServerTimestampMs: 1000,
         Records: [summary('r2', RmsRecordState.Finalized, '2026-09-02T00:00:00Z')],
         Tombstones: ['r9'],
         Drafts: [summary('d1', RmsRecordState.Draft, '2026-09-02T00:00:00Z')],
         Assignments: [{ AssignmentId: 'a1', RecordId: 'r2', AssigneeKind: 'Person', Purpose: 'complete', State: 'Open', CreatedOn: '2026-09-02T00:00:00Z', RowVersion: 1 }],
-      },
-    });
-
+      })
+    );
     await useRecordsStore.getState().sync();
 
+    expect(fieldApi.syncFieldRecords.mock.calls[1][0]).toMatchObject({ Since: 500, ScopeStamp: 'scope-1' });
     const state = useRecordsStore.getState();
     expect(state.recent.map((record) => record.RecordId)).toEqual(['r2', 'r1']);
     expect(state.recent.some((record) => record.RecordId === 'r9')).toBe(false);
@@ -119,17 +123,49 @@ describe('Field Records store conformance', () => {
   });
 
   it('clears the cached working set and re-pulls when the server says the scope changed', async () => {
-    useRecordsStore.setState({ recent: [summary('r1', RmsRecordState.Finalized, '2026-09-01T00:00:00Z')], lastSyncTimestampMs: 500, scopeStamp: 'scope-0' });
     fieldApi.syncFieldRecords
+      .mockResolvedValueOnce({
+        Data: { Ok: true, ResetRequired: false, ScopeStamp: 'scope-0', ServerTimestampMs: 500, Records: [summary('r1', RmsRecordState.Finalized, '2026-09-01T00:00:00Z')], Tombstones: [], Drafts: [], Assignments: [] },
+      })
       .mockResolvedValueOnce({ Data: { Ok: true, ResetRequired: true, ScopeStamp: 'scope-2', ServerTimestampMs: 0, Records: [], Tombstones: [], Drafts: [], Assignments: [] } })
       .mockResolvedValueOnce({ Data: { Ok: true, ResetRequired: false, ScopeStamp: 'scope-2', ServerTimestampMs: 900, Records: [], Tombstones: [], Drafts: [], Assignments: [] } });
+    await useRecordsStore.getState().sync();
+    expect(useRecordsStore.getState().recent).toHaveLength(1);
 
     await useRecordsStore.getState().sync();
 
     expect(useRecordsStore.getState().recent).toEqual([]);
     expect(useRecordsStore.getState().scopeStamp).toBe('scope-2');
-    expect(fieldApi.syncFieldRecords).toHaveBeenCalledTimes(2);
-    expect(fieldApi.syncFieldRecords.mock.calls[1][0].Since).toBe(0);
+    expect(fieldApi.syncFieldRecords).toHaveBeenCalledTimes(3);
+    expect(fieldApi.syncFieldRecords.mock.calls[1][0]).toMatchObject({ Since: 500, ScopeStamp: 'scope-0' });
+    expect(fieldApi.syncFieldRecords.mock.calls[2][0]).toMatchObject({ Since: 0, ScopeStamp: null });
+  });
+
+  it('pulls in full and rebuilds the lists for a context it has not synced for', async () => {
+    const page = (recordId: string, timestamp: number) => ({
+      Data: {
+        Ok: true,
+        ResetRequired: false,
+        ScopeStamp: 'scope-1',
+        ServerTimestampMs: timestamp,
+        Records: [summary(recordId, RmsRecordState.Finalized, '2026-09-01T00:00:00Z')],
+        Tombstones: [],
+        Drafts: [],
+        Assignments: [],
+      },
+    });
+    // A cursor kept from an earlier launch is not a delta base: the lists it was built with are gone.
+    useRecordsStore.setState({ lastSyncTimestampMs: 400, scopeStamp: 'scope-1' });
+    fieldApi.syncFieldRecords.mockResolvedValueOnce(page('r501', 500)).mockResolvedValueOnce(page('r502', 600));
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    await useRecordsStore.getState().sync();
+    useRecordsStore.getState().setContext({ CallId: 502 });
+    await useRecordsStore.getState().sync();
+
+    expect(fieldApi.syncFieldRecords.mock.calls[0][0]).toMatchObject({ Since: 0, ScopeStamp: null });
+    expect(fieldApi.syncFieldRecords.mock.calls[1][0]).toMatchObject({ Since: 0, ScopeStamp: null, Context: { CallId: 502 } });
+    expect(useRecordsStore.getState().recent.map((record) => record.RecordId)).toEqual(['r502']);
   });
 
   it('refuses to stage a protected definition on the device', () => {
@@ -375,6 +411,20 @@ describe('Field Records store conformance', () => {
     await earlier;
     expect(useRecordsStore.getState().recent.map((record) => record.RecordId)).toEqual(['r502']);
     expect(useRecordsStore.getState().isSyncing).toBe(false);
+  });
+
+  it('keeps the newest catalog when an older request for the same context answers last', async () => {
+    let releaseOlder!: (value: unknown) => void;
+    fieldApi.getFieldRecordsCatalog.mockReturnValueOnce(new Promise((resolve) => (releaseOlder = resolve))).mockResolvedValueOnce({ Data: catalogOf('newer-form') });
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    const older = useRecordsStore.getState().fetchCatalog();
+    await useRecordsStore.getState().fetchCatalog();
+    releaseOlder({ Data: { ...catalogOf('older-form'), ScopeStamp: 'scope-old' } });
+
+    expect(await older).toBeNull();
+    expect(useRecordsStore.getState().catalog?.Definitions.map((entry) => entry.DefinitionKey)).toEqual(['newer-form']);
+    expect(useRecordsStore.getState().scopeStamp).not.toBe('scope-old');
   });
 
   it('keeps loading until the newest catalog request answers', async () => {
