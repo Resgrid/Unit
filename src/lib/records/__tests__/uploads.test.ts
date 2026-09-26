@@ -132,6 +132,25 @@ describe('Record attachment uploads', () => {
     ]);
   });
 
+  it('cuts chunks at the server chunk size even when it is not a multiple of 3', async () => {
+    // The server declares 512 KiB, which is not a multiple of 3; it refuses any chunk that is not exactly
+    // that size except the last, so the chunks are cut from the bytes, not from the base64 text.
+    const bytes = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    fs.getInfoAsync.mockResolvedValue({ exists: true, size: 10 });
+    fs.readAsStringAsync.mockResolvedValue(bytes.toString('base64'));
+    api.beginRecordUpload.mockResolvedValue(session(0, 4));
+    api.uploadRecordChunk.mockResolvedValueOnce(session(4, 4)).mockResolvedValueOnce(session(8, 4)).mockResolvedValueOnce(session(10, 4));
+    api.completeRecordUpload.mockResolvedValue({ Data: { AttachmentId: 'a5' } });
+
+    const outcome = await runUpload(pending({ byteSize: 10 }) as never);
+
+    expect(outcome.ok).toBe(true);
+    const chunks: { Offset: number; Data: string }[] = api.uploadRecordChunk.mock.calls.map((call: unknown[]) => call[0] as { Offset: number; Data: string });
+    expect(chunks.map((chunk) => chunk.Offset)).toEqual([0, 4, 8]);
+    expect(chunks.map((chunk) => Buffer.from(chunk.Data, 'base64').length)).toEqual([4, 4, 2]);
+    expect(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk.Data, 'base64')))).toEqual(bytes);
+  });
+
   it('resumes from the count the server reports, not the one the device remembers', async () => {
     api.getRecordUpload.mockResolvedValue(session(6));
     api.uploadRecordChunk.mockResolvedValue(session(9));

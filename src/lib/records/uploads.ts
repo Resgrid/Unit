@@ -89,12 +89,6 @@ export const fileSize = async (fileUri: string): Promise<number> => {
  */
 const chunkOf = (bytes: Uint8Array, offsetBytes: number, chunkBytes: number): string => Buffer.from(bytes.subarray(offsetBytes, offsetBytes + chunkBytes)).toString('base64');
 
-// Whole 3-byte groups keep every full chunk free of base64 padding.
-const alignChunkSize = (chunkSize: number): number => {
-  const safe = Math.max(3, Math.min(chunkSize || 0, 3 * 1024 * 1024));
-  return safe - (safe % 3);
-};
-
 export interface UploadOptions {
   onProgress?: (progress: UploadProgress) => void;
   /** Checked between chunks so a person can stop an upload without killing the screen. */
@@ -147,7 +141,9 @@ export const runUpload = async (pending: PendingUpload, options: UploadOptions =
       return { ok: false, code: 'no_session', message: 'The server did not open an upload.', uploadId: null };
     }
 
-    const chunkSize = alignChunkSize(session.ChunkSize);
+    // The server accepts a chunk only at a multiple of its own chunk size, and only the last may be
+    // shorter; 512 KiB is not a multiple of 3, so the size is used exactly as the session declares it.
+    const chunkSize = session.ChunkSize > 0 ? session.ChunkSize : pending.byteSize;
     const bytes = Buffer.from(await FileSystem.readAsStringAsync(pending.fileUri, { encoding: FileSystem.EncodingType.Base64 }), 'base64');
     // The server's count is authoritative: it is the only thing that knows what actually arrived.
     let sent = session.ReceivedBytes ?? 0;
