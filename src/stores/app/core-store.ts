@@ -21,6 +21,23 @@ import { useCallsStore } from '../calls/store';
 //import { useRolesStore } from '../roles/store';
 import { useUnitsStore } from '../units/store';
 
+/**
+ * The unit list could not be loaded, so whether a unit still exists is unknown.
+ *
+ * setActiveUnit throws this rather than treating the unit as deleted: during init() it fails the
+ * initialization so the app layout retries it (with backoff, and again on foreground), and the
+ * unit picker reports the selection as failed instead of silently dropping it.
+ */
+export class UnitListUnavailableError extends Error {
+  constructor(
+    public readonly unitId: string,
+    reason: string | null
+  ) {
+    super(`Unit list unavailable while setting active unit ${unitId}${reason ? `: ${reason}` : ''}`);
+    this.name = 'UnitListUnavailableError';
+  }
+}
+
 interface CoreState {
   activeUnitId: string | null;
   activeUnit: UnitResultData | null;
@@ -117,10 +134,11 @@ export const useCoreStore = create<CoreState>()(
             isLoading: false,
             isInitializing: false,
           });
-          // A network failure here has already been surfaced by fetchConfig; keep it
-          // at warn so the same transient, recoverable error is not reported to Sentry
-          // multiple times as it bubbles up the call stack.
-          if (isNetworkError(error)) {
+          // A network failure here has already been surfaced by fetchConfig (and an
+          // unavailable unit list by the units store); keep it at warn so the same
+          // transient, recoverable error is not reported to Sentry multiple times as it
+          // bubbles up the call stack.
+          if (isNetworkError(error) || error instanceof UnitListUnavailableError) {
             logger.warn({
               message: 'Failed to init core app data due to network connectivity',
               context: { error },
@@ -139,9 +157,16 @@ export const useCoreStore = create<CoreState>()(
         try {
           await setActiveUnitId(unitId);
           await useUnitsStore.getState().fetchUnits();
-          const units = useUnitsStore.getState().units;
-          const unitStatuses = useUnitsStore.getState().unitStatuses;
+          const { units, unitStatuses, error: unitsError, hasLoaded } = useUnitsStore.getState();
           const activeUnit = units.find((unit) => unit.UnitId === unitId);
+
+          if (!activeUnit && (unitsError || !hasLoaded)) {
+            // fetchUnits() swallows its failures, so a missing unit here usually means the list could
+            // not be loaded, not that the unit was deleted. Clearing the selection on that is how a
+            // crew reopening the app with poor signal lost their unit — keep it and fail instead.
+            throw new UnitListUnavailableError(unitId, unitsError);
+          }
+
           if (activeUnit) {
             // fetchUnits() above already fetched /Statuses/GetAllUnitStatuses and
             // stored the identical payload as unitStatuses — reuse it instead of
@@ -167,8 +192,8 @@ export const useCoreStore = create<CoreState>()(
               isLoading: false,
             });
           } else {
-            // Persisted unit no longer exists (deleted/decommissioned) — clear
-            // the stale id and ALWAYS reset isLoading or consumers spin forever.
+            // The list loaded and the persisted unit is not in it (deleted/decommissioned) —
+            // clear the stale id and ALWAYS reset isLoading or consumers spin forever.
             logger.warn({
               message: 'Active unit not found in fetched units, clearing stale selection',
               context: { unitId },
@@ -206,6 +231,16 @@ export const useCoreStore = create<CoreState>()(
           //await useRolesStore.getState().fetchRolesForUnit(unitId);
         } catch (error) {
           set({ error: 'Failed to set active unit', isLoading: false });
+
+          if (error instanceof UnitListUnavailableError) {
+            // The underlying fetch failure is already reported by the units store.
+            logger.warn({
+              message: 'Unit list unavailable, keeping the selected unit for a retry',
+              context: { unitId, error: error.message },
+            });
+            throw error;
+          }
+
           if (isNetworkError(error)) {
             logger.warn({
               message: 'Failed to set active unit due to network connectivity',
@@ -229,8 +264,18 @@ export const useCoreStore = create<CoreState>()(
 
           const unitStatus = await getUnitStatus(unitId);
 
+          // fetchUnits() swallows its own failures, so the list can be empty or stale here. Writing
+          // `undefined` over the unit we already hold would silently disable every status submit
+          // (they all require an active unit) until the app restarts — keep the one we have.
+          if (!activeUnit) {
+            logger.warn({
+              message: 'Active unit missing from refreshed units, keeping the current unit',
+              context: { unitId, unitCount: units.length },
+            });
+          }
+
           set({
-            activeUnit: activeUnit,
+            ...(activeUnit ? { activeUnit } : {}),
             activeUnitStatus: unitStatus.Data,
             isLoading: false,
           });

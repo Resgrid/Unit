@@ -229,10 +229,13 @@ function Providers({ children }: { children: React.ReactNode }) {
             <StatusBottomSheet />
             <PushNotificationModal />
             <FlashMessage position="top" />
-            <ToastContainer />
           </BottomSheetModalProvider>
         </ThemeProvider>
       </GluestackUIProvider>
+      {/* Outside GluestackUIProvider on purpose: its portal host renders every overlay (the status
+          sheet, drawers, modals) after its children, so a toast in there drew underneath them. As a
+          later sibling this layer draws on top. Native Modal windows carry their own host (NativeModal). */}
+      <ToastContainer />
     </APIProvider>
   );
 

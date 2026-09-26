@@ -575,4 +575,116 @@ describe('OfflineEventManager', () => {
       expect(mockStoreState.initializeNetworkListener).toHaveBeenCalled();
     });
   });
+
+  describe('isDeviceOffline', () => {
+    it('is true only when there is no network interface', () => {
+      mockStoreState.isConnected = false;
+      expect(offlineEventManager.isDeviceOffline()).toBe(true);
+
+      // Reachability reads false while unknown — that alone must not be treated as offline.
+      mockStoreState.isConnected = true;
+      mockStoreState.isNetworkReachable = false;
+      expect(offlineEventManager.isDeviceOffline()).toBe(false);
+    });
+  });
+
+  // The server takes a unit's most recently inserted state as current, so a newer status must not
+  // overtake an older one still in the queue — it would be reverted when the older one replays.
+  describe('delivering queued unit statuses ahead of a new one', () => {
+    const networkError = () => Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK', request: {} });
+    const httpError = (status: number) => Object.assign(new Error(`Request failed with status code ${status}`), { isAxiosError: true, response: { status } });
+
+    const statusEvent = (id: string, unitId: string, createdAt: number, overrides: Record<string, unknown> = {}) => ({
+      id,
+      type: QueuedEventType.UNIT_STATUS,
+      status: QueuedEventStatus.PENDING,
+      data: { unitId, statusType: id, timestamp: '2026-09-23T10:00:00.000Z', timestampUtc: 'Wed, 23 Sep 2026 10:00:00 GMT' },
+      retryCount: 0,
+      maxRetries: 3,
+      createdAt,
+      ...overrides,
+    });
+
+    // A queue that actually records status changes, so what a delivery left behind can be read back.
+    const useQueue = (events: any[]) => {
+      mockStoreState.queuedEvents = events;
+      mockStoreState.getEventById = jest.fn((id: string) => mockStoreState.queuedEvents.find((event: any) => event.id === id));
+      mockStoreState.getPendingEvents = jest.fn(() => mockStoreState.queuedEvents.filter((event: any) => event.status === QueuedEventStatus.PENDING));
+      mockStoreState.updateEventStatus = jest.fn((id: string, status: QueuedEventStatus, error?: string, options?: { permanent?: boolean }) => {
+        mockStoreState.queuedEvents = mockStoreState.queuedEvents.map((event: any) => {
+          if (event.id !== id) {
+            return event;
+          }
+          const retryCount = status === QueuedEventStatus.FAILED ? (options?.permanent ? event.maxRetries : event.retryCount + 1) : event.retryCount;
+          return { ...event, status, error, retryCount };
+        });
+      });
+    };
+
+    const statusOf = (id: string) => mockStoreState.queuedEvents.find((event: any) => event.id === id);
+
+    it('reports undelivered statuses per unit, ignoring other units, other event types and permanent failures', () => {
+      useQueue([
+        statusEvent('other-unit', 'unit-2', 1),
+        statusEvent('parked', 'unit-1', 2, { status: QueuedEventStatus.FAILED, retryCount: 3 }),
+        { ...statusEvent('location', 'unit-1', 3), type: QueuedEventType.LOCATION_UPDATE },
+      ]);
+      expect(offlineEventManager.hasUndeliveredUnitStatuses('unit-1')).toBe(false);
+
+      useQueue([statusEvent('retrying', 'unit-1', 1, { status: QueuedEventStatus.FAILED, retryCount: 1, nextRetryAt: Date.now() + 60000 })]);
+      expect(offlineEventManager.hasUndeliveredUnitStatuses('unit-1')).toBe(true);
+    });
+
+    it('sends the unit’s queued statuses oldest first and reports it caught up', async () => {
+      useQueue([statusEvent('second', 'unit-1', 2), statusEvent('first', 'unit-1', 1), statusEvent('other-unit', 'unit-2', 0)]);
+      mockSaveUnitStatus.mockResolvedValue({} as any);
+
+      await expect(offlineEventManager.deliverQueuedUnitStatuses('unit-1')).resolves.toBe(true);
+
+      expect(mockSaveUnitStatus.mock.calls.map(([input]) => input.Type)).toEqual(['first', 'second']);
+      expect(statusOf('first').status).toBe(QueuedEventStatus.COMPLETED);
+      expect(statusOf('second').status).toBe(QueuedEventStatus.COMPLETED);
+      expect(statusOf('other-unit').status).toBe(QueuedEventStatus.PENDING);
+    });
+
+    it('stops at a status it cannot deliver, keeping the order and the event’s retry budget', async () => {
+      useQueue([statusEvent('first', 'unit-1', 1, { retryCount: 1 }), statusEvent('second', 'unit-1', 2)]);
+      mockSaveUnitStatus.mockRejectedValueOnce(networkError());
+
+      await expect(offlineEventManager.deliverQueuedUnitStatuses('unit-1')).resolves.toBe(false);
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      // Back to pending for the background processor, not a spent retry.
+      expect(statusOf('first')).toEqual(expect.objectContaining({ status: QueuedEventStatus.PENDING, retryCount: 1 }));
+      expect(statusOf('second').status).toBe(QueuedEventStatus.PENDING);
+    });
+
+    it('is not held up by a status the server permanently rejected', async () => {
+      useQueue([statusEvent('rejected', 'unit-1', 1)]);
+      mockSaveUnitStatus.mockRejectedValueOnce(httpError(403));
+
+      await expect(offlineEventManager.deliverQueuedUnitStatuses('unit-1')).resolves.toBe(true);
+
+      expect(statusOf('rejected')).toEqual(expect.objectContaining({ status: QueuedEventStatus.FAILED, retryCount: 3 }));
+    });
+
+    it('waits for a batch the timer already started instead of sending its events twice', async () => {
+      useQueue([statusEvent('first', 'unit-1', 1)]);
+      let finishTimerSend: (value: unknown) => void = () => {};
+      mockSaveUnitStatus.mockImplementationOnce(() => new Promise((resolve) => (finishTimerSend = resolve)) as any);
+
+      const timerBatch = (offlineEventManager as any).processQueuedEvents();
+      const delivery = offlineEventManager.deliverQueuedUnitStatuses('unit-1');
+      await Promise.resolve();
+
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+
+      finishTimerSend({});
+      await timerBatch;
+
+      await expect(delivery).resolves.toBe(true);
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      expect(statusOf('first').status).toBe(QueuedEventStatus.COMPLETED);
+    });
+  });
 });

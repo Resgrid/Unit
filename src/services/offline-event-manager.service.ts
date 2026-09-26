@@ -18,6 +18,7 @@ import {
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { setOfflineQueueActivityListener, useOfflineQueueStore } from '@/stores/offline-queue/store';
+import { isNetworkError } from '@/utils/network';
 
 /**
  * A replay the server refused outright. Sending the same payload again can only fail the same way,
@@ -39,10 +40,31 @@ const getHttpStatus = (error: unknown): number | null => (axios.isAxiosError(err
 // refresh and 408/429 are timeouts/throttling, so those stay retryable like network failures.
 const isNonRetryableClientError = (status: number | null): status is number => status !== null && status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429;
 
+/**
+ * Still owed to the server: waiting, mid-send, or failed with retries left. A permanently failed
+ * event is parked for the user to see, not something later statuses should wait behind.
+ */
+const isUndelivered = (event: QueuedEvent): boolean =>
+  event.status === QueuedEventStatus.PENDING || event.status === QueuedEventStatus.PROCESSING || (event.status === QueuedEventStatus.FAILED && event.retryCount < event.maxRetries);
+
+const isUndeliveredUnitStatusFor = (event: QueuedEvent, unitId: string): boolean => event.type === QueuedEventType.UNIT_STATUS && String(event.data?.unitId) === String(unitId) && isUndelivered(event);
+
+interface ProcessEventOptions {
+  /**
+   * The crew is waiting on this delivery (it gates a status they just submitted). A connectivity
+   * failure then says nothing about the event itself, so it goes back to pending with its retry
+   * budget intact instead of burning a retry the background processor would have spent later.
+   */
+  interactive?: boolean;
+}
+
 class OfflineEventManager {
   private static instance: OfflineEventManager;
   private processingInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing = false;
+  // The batch currently replaying events, whether started by the timer or by a submitted status.
+  // Only one may run at a time, or both would send the same event.
+  private currentRun: Promise<void> | null = null;
   private appStateSubscription: { remove: () => void } | null = null;
   private readonly PROCESSING_INTERVAL = 10000; // 10 seconds
   private readonly MAX_CONCURRENT_EVENTS = 3;
@@ -292,9 +314,6 @@ class OfflineEventManager {
       return;
     }
 
-    this.isProcessing = true;
-    store._setProcessing(true);
-
     logger.info({
       message: 'Processing queued events',
       context: { eventCount: pendingEvents.length },
@@ -305,25 +324,101 @@ class OfflineEventManager {
     // the server, showing a stale status/position as current.
     const eventsToProcess = [...pendingEvents].sort((a, b) => a.createdAt - b.createdAt).slice(0, this.MAX_CONCURRENT_EVENTS);
 
-    try {
-      for (const event of eventsToProcess) {
-        await this.processEvent(event);
+    await this.beginRun(async () => {
+      try {
+        for (const event of eventsToProcess) {
+          await this.processEvent(event);
+        }
+      } catch (error) {
+        logger.error({
+          message: 'Error during batch event processing',
+          context: { error },
+        });
       }
-    } catch (error) {
-      logger.error({
-        message: 'Error during batch event processing',
-        context: { error },
-      });
-    } finally {
-      this.isProcessing = false;
-      store._setProcessing(false);
+    });
+  }
+
+  /**
+   * Claim the processor for `task`. Callers must have checked `currentRun` is empty in the same
+   * synchronous block — there is no await between that check and this claim, so nothing can slip in.
+   */
+  private beginRun(task: () => Promise<void>): Promise<void> {
+    this.isProcessing = true;
+    useOfflineQueueStore.getState()._setProcessing(true);
+
+    const run = (async () => {
+      try {
+        await task();
+      } finally {
+        this.isProcessing = false;
+        this.currentRun = null;
+        useOfflineQueueStore.getState()._setProcessing(false);
+      }
+    })();
+
+    this.currentRun = run;
+    return run;
+  }
+
+  /**
+   * True only when the device has no network interface at all, so a request cannot succeed.
+   *
+   * Deliberately ignores the reachability flag: it reads false while still unknown, and on networks
+   * that block the reachability probe but reach Resgrid fine.
+   */
+  public isDeviceOffline(): boolean {
+    return !useOfflineQueueStore.getState().isConnected;
+  }
+
+  /**
+   * True when a unit status for this unit is still waiting to reach the server.
+   *
+   * The server takes a unit's most recently *inserted* state as current (not the latest
+   * timestamp), so a newer status sent past one of these would be reverted when it replays.
+   */
+  public hasUndeliveredUnitStatuses(unitId: string): boolean {
+    return (useOfflineQueueStore.getState().queuedEvents ?? []).some((event) => isUndeliveredUnitStatusFor(event, unitId));
+  }
+
+  /**
+   * Send this unit's queued statuses now, oldest first, so a status the crew is submitting can
+   * follow them instead of overtaking them.
+   *
+   * Runs regardless of the NetInfo reachability flag — the caller is about to hit the network
+   * anyway, and reachability can read false on networks that reach Resgrid fine. Stops at the first
+   * status that cannot be delivered to keep the order. Returns true when nothing for the unit is
+   * still owed (delivered, or permanently rejected by the server), false otherwise.
+   */
+  public async deliverQueuedUnitStatuses(unitId: string): Promise<boolean> {
+    // Let a batch the timer already started finish rather than replay its events a second time.
+    // The loop re-checks after every wait, and the claim below follows it synchronously.
+    while (this.currentRun) {
+      await this.currentRun.catch(() => undefined);
     }
+
+    let caughtUp = true;
+
+    await this.beginRun(async () => {
+      const events = (useOfflineQueueStore.getState().queuedEvents ?? []).filter((event) => isUndeliveredUnitStatusFor(event, unitId)).sort((a, b) => a.createdAt - b.createdAt);
+
+      for (const event of events) {
+        await this.processEvent(event, { interactive: true });
+
+        const after = useOfflineQueueStore.getState().getEventById(event.id);
+        if (after && isUndelivered(after)) {
+          caughtUp = false;
+          return;
+        }
+      }
+    });
+
+    return caughtUp;
   }
 
   /**
    * Process a single event
    */
-  private async processEvent(event: QueuedEvent): Promise<void> {
+  private async processEvent(event: QueuedEvent, options: ProcessEventOptions = {}): Promise<void> {
     const store = useOfflineQueueStore.getState();
 
     logger.debug({
@@ -380,6 +475,16 @@ class OfflineEventManager {
         logger.error({
           message: 'Queued event rejected by server, not retrying',
           context: { eventId: event.id, type: event.type, status: error.status, error: errorMessage },
+        });
+        return;
+      }
+
+      if (options.interactive && isNetworkError(error)) {
+        store.updateEventStatus(event.id, QueuedEventStatus.PENDING, errorMessage);
+
+        logger.warn({
+          message: 'Queued event could not be delivered ahead of a new submission, left pending',
+          context: { eventId: event.id, type: event.type, error: errorMessage },
         });
         return;
       }

@@ -8,7 +8,7 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | React Native 0.81 + Expo SDK 54 (managed, prebuild) |
+| Framework | React Native 0.86 + Expo SDK 57 (managed, prebuild) |
 | Language | TypeScript (strict mode) |
 | Routing | Expo Router (file-based, typed routes) |
 | State | Zustand (with MMKV persistence) |

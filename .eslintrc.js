@@ -27,6 +27,18 @@ module.exports = {
     'import/no-cycle': 'off', // Disabled due to performance issues
     'simple-import-sort/imports': 'error', // Import configuration for `eslint-plugin-simple-import-sort`
     'simple-import-sort/exports': 'error', // Export configuration for `eslint-plugin-simple-import-sort`
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'react-native',
+            importNames: ['Modal'],
+            message: "Use NativeModal from '@/components/common/native-modal'. A native Modal is its own window, so toasts drawn in the app window are hidden under it; NativeModal carries a toast host inside.",
+          },
+        ],
+      },
+    ],
     '@typescript-eslint/no-unused-vars': 'off',
     'unused-imports/no-unused-imports': 'off',
     'unused-imports/no-unused-vars': [
@@ -39,6 +51,13 @@ module.exports = {
     ],
   },
   overrides: [
+    {
+      // The one place React Native's Modal may be used directly.
+      files: ['src/components/common/native-modal.tsx'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
     // Configuration for  translations files (i18next)
     {
       files: ['src/translations/*.json'],

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { ModalToastHost } from '@/components/toast/toast-container';
 import { Box } from '@/components/ui/box';
 import { Divider } from '@/components/ui/divider';
 import { HStack } from '@/components/ui/hstack';
@@ -122,8 +123,13 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
     [selectedUserId, isDark, handleSelect, t, currentAssignments, currentRoleId]
   );
 
+  // useRNModal: this picker opens from inside the roles sheet, which is a native Modal
+  // (CustomBottomSheet) with its own window. A default gluestack Modal portals to the host at the
+  // app root instead — underneath that window, so the picker showed behind the sheet and could not
+  // be tapped. As a native Modal it presents on top of the sheet, and Android back closes just the
+  // picker rather than the whole sheet.
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} size="lg" useRNModal>
       <ModalBackdrop />
       <ModalContent className={`rounded-2xl ${Platform.OS === 'web' ? 'max-h-[80vh] w-full max-w-lg' : 'max-h-[85%]'}`} testID="role-user-selection-modal">
         <ModalHeader className="pb-2">
@@ -188,6 +194,8 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
           </View>
         </ModalBody>
       </ModalContent>
+      {/* Native window (useRNModal) above the roles sheet: toasts must render in here to be seen. */}
+      <ModalToastHost />
     </Modal>
   );
 };

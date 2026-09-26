@@ -26,6 +26,8 @@ jest.mock('@/stores/toast/store', () => ({
   useToastStore: (selector: any) => (selector ? selector(mockToastState) : mockToastState),
 }));
 
+// NativeModal carries a toast host; toast layering is covered by the toast-container suite.
+jest.mock('@/components/toast/toast-container', () => ({ ModalToastHost: () => null }));
 jest.mock('@/lib/logging', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));

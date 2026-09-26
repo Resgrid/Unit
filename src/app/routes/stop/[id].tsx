@@ -3,9 +3,10 @@ import { CheckCircleIcon, ClockIcon, LogInIcon, LogOutIcon, MapPinIcon, SkipForw
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
+import { NativeModal } from '@/components/common/native-modal';
 import { Camera, FillLayer, LineLayer, MapView, PointAnnotation, ShapeSource, StyleURL } from '@/components/maps/mapbox';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
@@ -324,7 +325,7 @@ export default function StopDetailScreen() {
       </ScrollView>
 
       {/* Skip reason modal */}
-      <Modal visible={skipModalVisible} transparent animationType="fade" onRequestClose={() => setSkipModalVisible(false)}>
+      <NativeModal visible={skipModalVisible} transparent animationType="fade" onRequestClose={() => setSkipModalVisible(false)}>
         <Box className="flex-1 items-center justify-center bg-black/50 px-6">
           <Box className="w-full rounded-2xl bg-white p-6 dark:bg-gray-800">
             <Text className="mb-1 text-base font-semibold text-gray-900 dark:text-white">
@@ -342,7 +343,7 @@ export default function StopDetailScreen() {
             </HStack>
           </Box>
         </Box>
-      </Modal>
+      </NativeModal>
     </>
   );
 }

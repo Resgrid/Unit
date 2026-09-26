@@ -10,7 +10,7 @@ import { queryClient } from '@/api/common/api-provider';
 import { registerSessionCleanupHandler } from '@/lib/auth/session-cleanup';
 import { logger } from '@/lib/logging';
 import { storage } from '@/lib/storage';
-import { removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
+import { BASE_API_URL_STORAGE_KEY, removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
 import { locationService } from '@/services/location';
 import { pushNotificationService } from '@/services/push-notification';
 import { signalRService } from '@/services/signalr.service';
@@ -238,8 +238,10 @@ export const INITIAL_ROUTES_STATE = {
   error: null,
 };
 
-// Keys to preserve during storage clear (e.g., first-time flags)
-const STORAGE_KEYS_TO_PRESERVE = ['IS_FIRST_TIME'];
+// Keys to preserve during storage clear (e.g., first-time flags). The server
+// URL is a device setting, not user data — wiping it would silently move an
+// EU-Central (or self-hosted) device back to the default server on logout.
+const STORAGE_KEYS_TO_PRESERVE = ['IS_FIRST_TIME', BASE_API_URL_STORAGE_KEY];
 
 /**
  * Clears all persisted storage items except those in the preserve list
@@ -363,6 +365,9 @@ export const teardownServices = async (): Promise<void> => {
     lastUnitStatusTimestamp: 0,
     lastGeolocationMessage: null,
     lastGeolocationTimestamp: 0,
+    // The previous user's department positions must not move the next user's pins.
+    liveLocations: {},
+    geolocationJoinCount: 0,
     error: null,
   });
 

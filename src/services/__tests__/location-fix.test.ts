@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 
 import { translate } from '@/lib/i18n/utils';
 
-import { acquireLocationFix, getLocationFixErrorMessage } from '../location-fix';
+import { acquireLocationFix, getLocationFixErrorMessage, readRecentLocation } from '../location-fix';
 
 jest.mock('@/lib/logging', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -137,6 +137,50 @@ describe('acquireLocationFix', () => {
     mockLocation.hasServicesEnabledAsync.mockRejectedValue(new Error('unsupported'));
 
     await expect(acquireLocationFix()).resolves.toEqual({ outcome: 'acquired', location: position });
+  });
+});
+
+// Used for statuses that do not require GPS, which must never wait on the radio.
+describe('readRecentLocation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockLocation.getForegroundPermissionsAsync.mockResolvedValue(granted);
+    mockLocation.getLastKnownPositionAsync.mockResolvedValue(position);
+  });
+
+  it('returns what the OS already has from the last minute without taking a live fix', async () => {
+    await expect(readRecentLocation()).resolves.toEqual(position);
+
+    expect(mockLocation.getLastKnownPositionAsync).toHaveBeenCalledWith({ maxAge: 60 * 1000 });
+    expect(mockLocation.getCurrentPositionAsync).not.toHaveBeenCalled();
+    expect(mockLocation.hasServicesEnabledAsync).not.toHaveBeenCalled();
+  });
+
+  it('never prompts for permission', async () => {
+    mockLocation.getForegroundPermissionsAsync.mockResolvedValue(undetermined);
+
+    await expect(readRecentLocation()).resolves.toBeNull();
+
+    expect(mockLocation.requestForegroundPermissionsAsync).not.toHaveBeenCalled();
+    expect(mockLocation.getLastKnownPositionAsync).not.toHaveBeenCalled();
+  });
+
+  it('returns null rather than throwing when the platform call fails', async () => {
+    mockLocation.getLastKnownPositionAsync.mockRejectedValue(new Error('unavailable'));
+
+    await expect(readRecentLocation()).resolves.toBeNull();
+  });
+
+  it('gives up on a read that never settles rather than holding the submission', async () => {
+    jest.useFakeTimers();
+    mockLocation.getLastKnownPositionAsync.mockReturnValue(new Promise(() => {}) as Promise<Location.LocationObject>);
+
+    const pending = readRecentLocation();
+    await Promise.resolve();
+    jest.advanceTimersByTime(2000);
+
+    await expect(pending).resolves.toBeNull();
+    jest.useRealTimers();
   });
 });
 

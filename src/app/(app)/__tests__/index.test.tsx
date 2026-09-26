@@ -29,7 +29,11 @@ jest.mock('@/hooks/use-app-lifecycle');
 jest.mock('@/stores/app/location-store');
 jest.mock('@/services/location');
 jest.mock('@/hooks/use-map-signalr-updates', () => ({
-  useMapSignalRUpdates: jest.fn(),
+  useMapSignalRUpdates: jest.fn(() => ({ requestRefresh: jest.fn() })),
+}));
+jest.mock('@/hooks/use-map-live-locations', () => ({
+  useMapLiveLocations: jest.fn(),
+  applyLiveLocationsSince: jest.fn((pins: unknown) => pins),
 }));
 jest.mock('@/api/mapping/mapping', () => ({
   getMapDataAndMarkers: jest.fn().mockResolvedValue({
@@ -241,6 +245,25 @@ describe('Map Component - App Lifecycle', () => {
 
     await waitFor(() => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
+    });
+
+    unmount();
+  });
+
+  it('should move pins with realtime positions and re-apply them over the initial fetch', async () => {
+    const { useMapSignalRUpdates } = jest.requireMock('@/hooks/use-map-signalr-updates');
+    const { useMapLiveLocations, applyLiveLocationsSince } = jest.requireMock('@/hooks/use-map-live-locations');
+    const requestRefresh = jest.fn();
+    (useMapSignalRUpdates as jest.Mock).mockReturnValue({ requestRefresh });
+
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
+
+    // The live-location hook gets the map's pins, its setter and the REST refetch it may request.
+    expect(useMapLiveLocations).toHaveBeenCalledWith(expect.any(Array), expect.any(Function), requestRefresh);
+
+    // The initial REST snapshot is passed through the positions pushed while it was in flight.
+    await waitFor(() => {
+      expect(applyLiveLocationsSince).toHaveBeenCalledWith([], expect.any(Number));
     });
 
     unmount();

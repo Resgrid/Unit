@@ -221,6 +221,10 @@ jest.mock('@/services/location-fix', () => ({
     },
   })),
   getLocationFixErrorMessage: jest.fn((outcome: string) => `fix-error:${outcome}`),
+  readRecentLocation: jest.fn(async () => ({
+    coords: { latitude: 40.7128, longitude: -74.006, accuracy: 5, altitude: 10, altitudeAccuracy: 3, speed: 0, heading: 0 },
+    timestamp: 1700000000000,
+  })),
 }));
 
 jest.mock('@/lib/logging', () => ({
@@ -3927,14 +3931,17 @@ describe('StatusBottomSheet', () => {
       expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Latitude: '40.7128', Longitude: '-74.006' }));
     });
 
-    it('still submits a status that does not require GPS when no fix can be taken', async () => {
-      mockAcquireLocationFix.mockResolvedValueOnce({ outcome: 'unavailable', location: null });
+    it('does not wait on a live fix for a status that does not require GPS', async () => {
+      const mockReadRecentLocation = require('@/services/location-fix').readRecentLocation as jest.Mock;
+      mockReadRecentLocation.mockResolvedValueOnce(null);
       buildGpsRequiredStore({ ...gpsRequiredStatus, Gps: false });
 
       render(<StatusBottomSheet />);
       fireEvent.press(screen.getByText('Submit'));
 
       await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalled());
+      expect(mockReadRecentLocation).toHaveBeenCalled();
+      expect(mockAcquireLocationFix).not.toHaveBeenCalled();
     });
   });
 

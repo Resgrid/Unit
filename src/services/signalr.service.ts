@@ -4,6 +4,12 @@ import { Platform } from 'react-native';
 import { logger } from '@/lib/logging';
 import useAuthStore from '@/stores/auth/store';
 
+// Location pushes arrive every few seconds for every unit and person, so they are not logged at all:
+// a per-message line would flood the console and push useful breadcrumbs out of error reports.
+const UNLOGGED_HUB_METHODS = new Set(['onunitlocationupdated', 'onpersonnellocationupdated']);
+
+export const isUnloggedHubMethod = (method: string): boolean => UNLOGGED_HUB_METHODS.has(method.toLowerCase());
+
 export interface SignalRHubConfig {
   name: string;
   url: string;
@@ -249,10 +255,13 @@ class SignalRService {
         });
 
         connection.on(method, (...args: unknown[]) => {
-          logger.debug({
-            message: `Received ${method} message from hub: ${config.name}`,
-            context: { method, args },
-          });
+          // Never log payloads: they carry personal data (chat, call details, precise coordinates).
+          if (!isUnloggedHubMethod(method)) {
+            logger.debug({
+              message: `Received ${method} message from hub: ${config.name}`,
+              context: { method },
+            });
+          }
           this.handleMessage(config.name, method, args);
         });
       });
@@ -404,10 +413,13 @@ class SignalRService {
         });
 
         connection.on(method, (...args: unknown[]) => {
-          logger.debug({
-            message: `Received ${method} message from hub: ${config.name}`,
-            context: { method, args },
-          });
+          // Never log payloads: they carry personal data (chat, call details, precise coordinates).
+          if (!isUnloggedHubMethod(method)) {
+            logger.debug({
+              message: `Received ${method} message from hub: ${config.name}`,
+              context: { method },
+            });
+          }
           this.handleMessage(config.name, method, args);
         });
       });
@@ -538,6 +550,14 @@ class SignalRService {
         logger.info({
           message: `Successfully reconnected to hub: ${hubName} after ${currentAttempts} attempts`,
         });
+
+        // The rebuilt connection has a new connection id that belongs to no groups, and a fresh
+        // connection never raises onreconnected. Emit the same lifecycle event so subscribers
+        // re-join their groups and resync exactly as they do after an automatic reconnect —
+        // otherwise the socket is up but silent until the next background/resume cycle.
+        if (this.connections.has(hubName)) {
+          this.emitHubLifecycle(SignalRService.HUB_RECONNECTED_EVENT, hubName);
+        }
       } catch (error) {
         // Attempt failed — the old connection object is gone, so no further
         // onclose event will fire. We MUST reschedule here or the hub stays

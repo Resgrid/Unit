@@ -11,13 +11,14 @@ jest.mock('@/lib/logging', () => ({
 // Mock storage
 jest.mock('@/lib/storage', () => ({
   storage: {
-    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'key2']),
+    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'baseUrl', 'key2']),
     delete: jest.fn(),
   },
 }));
 
 // Mock storage/app functions
 jest.mock('@/lib/storage/app', () => ({
+  BASE_API_URL_STORAGE_KEY: 'baseUrl',
   removeActiveUnitId: jest.fn(),
   removeActiveCallId: jest.fn(),
   removeDeviceUuid: jest.fn(),
@@ -588,6 +589,12 @@ describe('app-reset.service', () => {
       expect(mockStorage.delete).toHaveBeenCalledWith('key1');
       expect(mockStorage.delete).toHaveBeenCalledWith('key2');
       expect(mockStorage.delete).not.toHaveBeenCalledWith('IS_FIRST_TIME');
+    });
+
+    it('should preserve the selected server URL', () => {
+      clearPersistedStorage();
+
+      expect(mockStorage.delete).not.toHaveBeenCalledWith('baseUrl');
     });
   });
 

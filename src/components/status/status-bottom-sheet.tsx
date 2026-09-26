@@ -1,3 +1,4 @@
+import type { LocationObject } from 'expo-location';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
@@ -15,7 +16,7 @@ import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEnti
 import { type GroupResultData } from '@/models/v4/groups/groupsResultData';
 import { type PoiResultData } from '@/models/v4/mapping/poiResultData';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
-import { acquireLocationFix, getLocationFixErrorMessage } from '@/services/location-fix';
+import { acquireLocationFix, getLocationFixErrorMessage, readRecentLocation } from '@/services/location-fix';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -106,6 +107,11 @@ export const StatusBottomSheet = () => {
   const keyboardHeight = useKeyboardHeight();
   const [selectedTab, setSelectedTab] = React.useState<DestinationTab>('call');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  // The submission this sheet is waiting on, if any. The sheet is mounted once at the root, so a
+  // request from an earlier open can outlive it; every open/close clears this (see the isOpen effect
+  // below) so such a request can neither hold the new sheet on "Submitting" nor close it on landing.
+  const pendingSubmissionRef = React.useRef<number | null>(null);
+  const submissionCounterRef = React.useRef(0);
   const showToast = useToastStore((state) => state.showToast);
 
   React.useEffect(() => {
@@ -279,6 +285,12 @@ export const StatusBottomSheet = () => {
     }
   }, [isOpen]);
 
+  React.useEffect(() => {
+    // Detach from any submission still in flight: it no longer owns this sheet.
+    pendingSubmissionRef.current = null;
+    setIsSubmitting(false);
+  }, [isOpen]);
+
   // The keyboard padding on ActionsheetContent reserves the covered strip, but it
   // doesn't move the note field there — if the field sits below the fold it stays
   // hidden under the keyboard. The note and its submit button are the last content
@@ -431,6 +443,12 @@ export const StatusBottomSheet = () => {
   );
 
   const handleClose = () => {
+    // Backdrop taps, Android back and swipe-down all land here. Closing mid-submit would not cancel
+    // the save, and the crew would reopen onto a sheet still tied to it — so, like Cancel, it waits.
+    if (pendingSubmissionRef.current !== null) {
+      return;
+    }
+
     reset();
   };
 
@@ -538,9 +556,15 @@ export const StatusBottomSheet = () => {
 
   const handleSubmit = React.useCallback(async () => {
     // Submitting before the destination data lands would send RespondingTo '0' and drop the call.
-    if (isSubmitting || !selectedStatus || !activeUnit || isAwaitingDestinationData) {
+    // The ref (not isSubmitting) guards re-entry so a double tap within one frame cannot send twice.
+    if (pendingSubmissionRef.current !== null || !selectedStatus || !activeUnit || isAwaitingDestinationData) {
       return;
     }
+
+    const submissionId = ++submissionCounterRef.current;
+    pendingSubmissionRef.current = submissionId;
+    // False once the sheet has been closed or reopened under this submission (see the isOpen effect).
+    const isCurrentSubmission = () => pendingSubmissionRef.current === submissionId;
 
     try {
       setIsSubmitting(true);
@@ -566,23 +590,38 @@ export const StatusBottomSheet = () => {
         input.RespondingToType = DestinationEntityTypes.Poi;
       }
 
-      // Take a fix at submission time rather than trusting whatever the watcher last left in the
-      // store. The watcher only runs once a unit is selected and permission was granted, the store
-      // is never persisted, and permission can be revoked from the OS at any point — so a cached
-      // read is not evidence of anything. It is also the only honest way to enforce a status whose
-      // custom-state definition sets GpsRequired: checking the cache would wave through a status
-      // carrying coordinates from hours ago.
-      const fix = await acquireLocationFix();
+      // A status whose custom-state definition sets GpsRequired takes a live fix at submission time:
+      // the watcher only runs once a unit is selected and permission was granted, the store is never
+      // persisted, and permission can be revoked from the OS at any point — so checking the cache
+      // would wave through a status carrying coordinates from hours ago.
+      //
+      // Every other status takes what the OS already knows. A live fix can take the full fix timeout
+      // indoors, and holding each status on "Submitting" for coordinates it does not require is what
+      // pushed crews to dismiss the sheet and force-close the app.
+      let location: LocationObject | null;
+      if (selectedStatus.Gps) {
+        const fix = await acquireLocationFix();
+        if (!isCurrentSubmission()) {
+          return;
+        }
 
-      if (fix.outcome !== 'acquired' && selectedStatus.Gps) {
-        showToast('error', getLocationFixErrorMessage(fix.outcome));
-        return;
+        if (fix.outcome !== 'acquired') {
+          showToast('error', getLocationFixErrorMessage(fix.outcome));
+          return;
+        }
+
+        location = fix.location;
+      } else {
+        location = await readRecentLocation();
+        if (!isCurrentSubmission()) {
+          return;
+        }
       }
 
-      // Read the latest GPS fix imperatively (no render subscription), preferring the fix we just
-      // took and falling back to the watcher for a status that does not require one.
+      // Read the latest GPS fix imperatively (no render subscription), preferring the position we
+      // just read and falling back to the watcher.
       const cached = useLocationStore.getState();
-      const coords = fix.location?.coords ?? null;
+      const coords = location?.coords ?? null;
       const latitude = coords?.latitude ?? cached.latitude;
       const longitude = coords?.longitude ?? cached.longitude;
       const accuracy = coords?.accuracy ?? cached.accuracy;
@@ -590,7 +629,7 @@ export const StatusBottomSheet = () => {
       const altitudeAccuracy = coords?.altitudeAccuracy ?? null;
       const speed = coords?.speed ?? cached.speed;
       const heading = coords?.heading ?? cached.heading;
-      const timestamp = fix.location?.timestamp ?? cached.timestamp;
+      const timestamp = location?.timestamp ?? cached.timestamp;
 
       if (latitude !== null && longitude !== null) {
         input.Latitude = latitude.toString();
@@ -621,35 +660,40 @@ export const StatusBottomSheet = () => {
         setActiveCall(destination.call.CallId);
       }
 
-      await saveUnitStatus(input);
-      showToast('success', t('status.status_saved_successfully'));
+      const outcome = await saveUnitStatus(input);
+
+      // The sheet was closed or reopened while this was in flight: it now belongs to another status,
+      // so this result must not toast over it or reset it.
+      if (!isCurrentSubmission()) {
+        logger.info({
+          message: 'Unit status submission settled after its sheet moved on',
+          context: { unitId: input.Id, statusType: input.Type, outcome },
+        });
+        return;
+      }
+
+      if (outcome === 'queued') {
+        showToast('warning', t('status.status_queued'));
+      } else {
+        showToast('success', t('status.status_saved_successfully'));
+      }
       reset();
     } catch (error) {
       logger.error({
         message: 'Failed to save unit status',
         context: { error },
       });
-      showToast('error', t('status.failed_to_save_status'));
+
+      if (isCurrentSubmission()) {
+        showToast('error', t('status.failed_to_save_status'));
+      }
     } finally {
-      setIsSubmitting(false);
+      if (isCurrentSubmission()) {
+        pendingSubmissionRef.current = null;
+        setIsSubmitting(false);
+      }
     }
-  }, [
-    activeCallId,
-    activeUnit,
-    effectiveDestination,
-    getStatusId,
-    isAwaitingDestinationData,
-    isSubmitting,
-    note,
-    reset,
-    saveUnitStatus,
-    selectedStatus,
-    setActiveCall,
-    shouldShowDestinationStep,
-    showToast,
-    t,
-    unitRoleAssignments,
-  ]);
+  }, [activeCallId, activeUnit, effectiveDestination, getStatusId, isAwaitingDestinationData, note, reset, saveUnitStatus, selectedStatus, setActiveCall, shouldShowDestinationStep, showToast, t, unitRoleAssignments]);
 
   // True while the default call is still to be applied (list loading, or loaded but the auto-select
   // effect has not run yet) — "No destination" must not flash as the choice in that window.
@@ -864,14 +908,19 @@ export const StatusBottomSheet = () => {
   const showPois = destinationTabs.includes('poi') && (!shouldShowDestinationTabs || selectedTab === 'poi');
 
   return (
-    <Actionsheet isOpen={isOpen} onClose={handleClose} snapPoints={[90]}>
+    // While a submission is in flight the sheet stays put (handleClose also refuses). Android back is
+    // left enabled on purpose: the sheet consumes the press and ignores it, where disabling it would
+    // let the press fall through and navigate the screen underneath.
+    <Actionsheet isOpen={isOpen} onClose={handleClose} closeOnOverlayClick={!isSubmitting} snapPoints={[90]}>
       <ActionsheetBackdrop />
       {/* The sheet renders inside a native Modal, so keyboard-controller's window-bound
           avoidance never moves it — padding by the keyboard height reserves the covered
           strip instead. shrink on the column lets the step content compress into the
           remaining space so its scrollview actually scrolls rather than Yoga clipping it. */}
       <ActionsheetContent className="bg-white dark:bg-gray-900" style={{ paddingBottom: keyboardHeight }}>
-        <ActionsheetDragIndicatorWrapper>
+        {/* The swipe-down gesture slides the sheet away before it asks to close, so it cannot be
+            refused afterwards — take it out of reach while submitting instead. */}
+        <ActionsheetDragIndicatorWrapper pointerEvents={isSubmitting ? 'none' : 'auto'}>
           <ActionsheetDragIndicator />
         </ActionsheetDragIndicatorWrapper>
 

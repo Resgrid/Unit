@@ -25,10 +25,14 @@ jest.mock('nativewind', () => ({
 
 // Mock Modal components
 jest.mock('@/components/ui/modal', () => ({
-  Modal: ({ children, isOpen }: any) => {
+  Modal: ({ children, isOpen, useRNModal }: any) => {
     if (!isOpen) return null;
     const { View } = require('react-native');
-    return <View testID="modal">{children}</View>;
+    return (
+      <View testID="modal" accessibilityHint={useRNModal ? 'native-modal' : 'portal-overlay'}>
+        {children}
+      </View>
+    );
   },
   ModalBackdrop: () => null,
   ModalBody: ({ children }: any) => {
@@ -175,6 +179,22 @@ describe('RoleUserSelectionModal', () => {
     );
 
     expect(screen.getByTestId('role-user-selection-modal')).toBeTruthy();
+  });
+
+  // The picker opens from inside the roles sheet, which is a native Modal. A portal overlay would
+  // render under that sheet's window, where it cannot be seen or tapped.
+  it('renders as a native modal so it stacks above the roles sheet', () => {
+    render(
+      <RoleUserSelectionModal
+        isOpen={true}
+        onClose={mockOnClose}
+        roleName="Captain"
+        users={mockUsers}
+        onSelectUser={mockOnSelectUser}
+      />
+    );
+
+    expect(screen.getByTestId('modal').props.accessibilityHint).toBe('native-modal');
   });
 
   it('shows the unassigned option', () => {

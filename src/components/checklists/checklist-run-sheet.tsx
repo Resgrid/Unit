@@ -5,11 +5,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, AppState, Image, Modal, ScrollView, TextInput, View } from 'react-native';
+import { Alert, AppState, Image, ScrollView, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { attestChecklistRun, getChecklistImage } from '@/api/checklists/checklists';
 import { ChecklistSignaturePad } from '@/components/checklists/signature-pad';
+import { NativeModal } from '@/components/common/native-modal';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { checklistFailed, isChecklistRequired, visibleChecklistItems } from '@/lib/checklists/form';
@@ -106,7 +107,7 @@ export const ChecklistRunSheet: React.FC = () => {
             : [];
   const evidence = item ? draft.images.filter((i) => i.itemId === item.Id).length + draft.run.Files.filter((i) => i.ItemId === item.Id).length : 0;
   return (
-    <Modal visible animationType="slide" onRequestClose={() => useChecklistsStore.getState().close()}>
+    <NativeModal visible animationType="slide" onRequestClose={() => useChecklistsStore.getState().close()}>
       <SafeAreaView className="flex-1 bg-background-0">
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
           <Text className="text-xl font-bold">{draft.run.Form.Name}</Text>
@@ -338,6 +339,6 @@ export const ChecklistRunSheet: React.FC = () => {
           </Button>
         </ScrollView>
       </SafeAreaView>
-    </Modal>
+    </NativeModal>
   );
 };

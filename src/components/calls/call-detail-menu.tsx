@@ -1,8 +1,9 @@
 import { EditIcon, MoreVerticalIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable as RNPressable, StyleSheet, View } from 'react-native';
+import { Pressable as RNPressable, StyleSheet, View } from 'react-native';
 
+import { NativeModal } from '@/components/common/native-modal';
 import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
@@ -72,7 +73,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
     }
 
     return (
-      <Modal visible={isKebabMenuOpen} transparent={true} animationType="slide" onRequestClose={closeMenu} testID="call-detail-actionsheet">
+      <NativeModal visible={isKebabMenuOpen} transparent={true} animationType="slide" onRequestClose={closeMenu} testID="call-detail-actionsheet">
         <RNPressable style={menuStyles.backdrop} onPress={closeMenu}>
           <RNPressable style={menuStyles.sheet}>
             <View style={menuStyles.handle} />
@@ -106,7 +107,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
             </RNPressable>
           </RNPressable>
         </RNPressable>
-      </Modal>
+      </NativeModal>
     );
   }, [isKebabMenuOpen, canUserCreateCalls, t, onEditCall, onCloseCall]);
 

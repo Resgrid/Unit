@@ -10,6 +10,8 @@ jest.mock('@/components/checklists/signature-pad', () => ({ ChecklistSignaturePa
 jest.mock('@/components/ui/button', () => { const { Pressable, Text } = require('react-native'); return { Button: ({ isDisabled, ...props }: { isDisabled?: boolean }) => <Pressable {...props} disabled={isDisabled} accessibilityState={{ disabled: !!isDisabled }} />, ButtonText: Text }; });
 jest.mock('@/components/ui/text', () => ({ Text: require('react-native').Text }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: require('react-native').View }));
+// NativeModal carries a toast host; toast layering is covered by the toast-container suite.
+jest.mock('@/components/toast/toast-container', () => ({ ModalToastHost: () => null }));
 jest.mock('@/stores/auth/store', () => { const { create } = jest.requireActual('zustand'); return { __esModule: true, default: create(() => ({ userId: 'author' })) }; });
 jest.mock('@/stores/checklists/store', () => { const { create } = jest.requireActual('zustand'); return { useChecklistsStore: create(() => ({ active: null, update: jest.fn().mockResolvedValue(undefined), queue: jest.fn().mockResolvedValue(undefined), close: jest.fn(), addImage: jest.fn().mockResolvedValue(undefined) })) }; });
 import React from 'react';
