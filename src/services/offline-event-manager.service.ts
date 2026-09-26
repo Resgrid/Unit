@@ -17,6 +17,7 @@ import {
 } from '@/models/offline-queue/queued-event';
 import { SaveUnitLocationInput } from '@/models/v4/unitLocation/saveUnitLocationInput';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
+import type * as ChecklistsStore from '@/stores/checklists/store';
 import { setOfflineQueueActivityListener, useOfflineQueueStore } from '@/stores/offline-queue/store';
 import { isNetworkError } from '@/utils/network';
 
@@ -432,7 +433,7 @@ class OfflineEventManager {
       switch (event.type) {
         case QueuedEventType.CHECKLIST_COMPLETION: {
           // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const { flushChecklistDraft } = require('@/stores/checklists/store') as typeof import('@/stores/checklists/store');
+          const { flushChecklistDraft } = require('@/stores/checklists/store') as typeof ChecklistsStore;
           if (typeof event.data.scope !== 'string' || typeof event.data.id !== 'string') throw new Error('checklist_invalid_reference');
           await flushChecklistDraft(event.data.scope, event.data.id);
           break;
