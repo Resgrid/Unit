@@ -59,6 +59,10 @@ export interface FieldRecordTelemetryEvent {
 // make every consumer of the store re-render each time an event is added.
 let telemetryQueue: FieldRecordTelemetryEvent[] = [];
 
+// Bumped by reset(). A send still in flight at sign-out must not write the previous session's draft or
+// upload back into the persisted slice, where the next sign-in would pick it up and send it as theirs.
+let sessionGeneration = 0;
+
 // The upload driver reaches for the camera roll and the crypto module, so it is loaded only when an
 // upload actually runs. Importing it here would drag those native modules into every screen that
 // touches this store, which is most of them.
@@ -198,7 +202,7 @@ export const useRecordsStore = create<RecordsState>()(
 
       setContext: (context) => {
         const current = get().context;
-        if (current.CallId === context.CallId && current.UnitId === context.UnitId && current.GroupId === context.GroupId && current.CommandRole === context.CommandRole) {
+        if (current.CallId === context.CallId && current.UnitId === context.UnitId && current.GroupId === context.GroupId && current.CommandRole === context.CommandRole && current.ContactId === context.ContactId) {
           return;
         }
         // The catalog is context-specific, so it is dropped rather than shown against a new context.
@@ -219,15 +223,23 @@ export const useRecordsStore = create<RecordsState>()(
       },
 
       fetchCatalog: async () => {
+        // setContext() only replaces the context when it changes (and reset() always does), so an
+        // answer is committed only while the context it was asked for is still the current one.
+        const context = get().context;
         set({ isLoading: true });
         try {
-          const response = await getFieldRecordsCatalog(catalogInput(get().context));
+          const response = await getFieldRecordsCatalog(catalogInput(context));
+          if (get().context !== context) {
+            return null;
+          }
           const catalog = response?.Data ?? null;
           set({ catalog, scopeStamp: catalog?.ScopeStamp ?? get().scopeStamp, error: null });
           return catalog;
         } catch (error) {
           logger.error({ message: 'Field Records catalog failed', context: { error } });
-          set({ error: messageFrom(error) });
+          if (get().context === context) {
+            set({ error: messageFrom(error) });
+          }
           return null;
         } finally {
           set({ isLoading: false });
@@ -243,16 +255,19 @@ export const useRecordsStore = create<RecordsState>()(
         // A reset answers with no page, so the full re-pull is run after this one releases the
         // in-flight guard; recursing inside it would be swallowed by that same guard.
         let resetAndRetry = false;
+        const context = get().context;
         try {
           const response = await syncFieldRecords({
-            ...catalogInput(get().context),
+            ...catalogInput(context),
             Since: full ? 0 : get().lastSyncTimestampMs,
             ScopeStamp: full ? null : get().scopeStamp,
             Take: SYNC_TAKE,
             IncludeCatalog: true,
           });
           const bundle = response?.Data;
-          if (!bundle) {
+          // A bundle for a context (or a session) that is no longer current is dropped whole: its
+          // records, catalog and cursor all belong to what was being viewed when it was asked for.
+          if (!bundle || get().context !== context) {
             return;
           }
 
@@ -298,7 +313,9 @@ export const useRecordsStore = create<RecordsState>()(
         } catch (error) {
           logger.error({ message: 'Field Records sync failed', context: { error } });
           get().report({ EventType: 'sync', Outcome: 'failed' });
-          set({ error: messageFrom(error) });
+          if (get().context === context) {
+            set({ error: messageFrom(error) });
+          }
         } finally {
           set({ isSyncing: false });
         }
@@ -354,6 +371,7 @@ export const useRecordsStore = create<RecordsState>()(
       },
 
       pushDraft: async (clientRecordId, supplied) => {
+        const generation = sessionGeneration;
         const draft = supplied ?? get().pendingDrafts[clientRecordId];
         if (!draft) {
           return { ok: false, error: 'not_found' };
@@ -382,22 +400,32 @@ export const useRecordsStore = create<RecordsState>()(
             throw new Error('The server did not return a record.');
           }
           get().discardDraft(clientRecordId);
-          get().report({ EventType: 'draft_saved', Outcome: 'ok', RecordId: recordId, DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
-          void get().sync();
+          // Telemetry and the follow-up sync belong to the session that sent it, not to a later sign-in.
+          if (generation === sessionGeneration) {
+            get().report({ EventType: 'draft_saved', Outcome: 'ok', RecordId: recordId, DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
+            void get().sync();
+          }
           return { ok: true, recordId };
         } catch (error) {
           const conflict = conflictFrom(error);
-          // Never replayed silently: the draft is kept and flagged so a person decides what happens —
-          // unless its definition seals values, which are never left on the device.
+          logger.error({ message: 'Record draft push failed', context: { error, clientRecordId, conflict } });
+          if (generation !== sessionGeneration) {
+            // Signed out while this was in flight: the draft belonged to that session and is not restored.
+            return { ok: false, conflict, error: messageFrom(error) };
+          }
           if (mayKeepOnDevice(get().entryFor(draft.definitionKey, draft.definitionVersion))) {
+            // Never replayed silently: the draft is kept and flagged so a person decides what happens.
             set({
               pendingDrafts: {
                 ...get().pendingDrafts,
                 [clientRecordId]: { ...draft, lastError: messageFrom(error), conflict: conflict ?? null },
               },
             });
+          } else {
+            // Its definition seals values, which are never left on the device. A copy staged before the
+            // catalog said so (or before it had loaded) is removed rather than kept after the failed send.
+            get().discardDraft(clientRecordId);
           }
-          logger.error({ message: 'Record draft push failed', context: { error, clientRecordId, conflict } });
           get().report({ EventType: 'draft_saved', Outcome: conflict ?? 'failed', DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
           if (conflict) {
             get().report({ EventType: 'conflict', Outcome: conflict, DefinitionKey: draft.definitionKey });
@@ -474,16 +502,29 @@ export const useRecordsStore = create<RecordsState>()(
           return { uploaded, failed };
         }
         const { runUpload } = loadUploader();
+        const generation = sessionGeneration;
 
         for (const upload of uploads) {
+          // Signed out mid-batch: the rest belong to that session and are neither sent nor written back.
+          if (generation !== sessionGeneration) {
+            break;
+          }
           // A file that is gone cannot be uploaded by trying again; it waits for the person instead.
           if (upload.isUnrecoverable) {
             continue;
           }
           const startedAt = Date.now();
           const outcome = await runUpload(upload, {
-            onProgress: ({ sentBytes }) => set({ uploadProgress: { ...get().uploadProgress, [upload.localId]: sentBytes } }),
+            onProgress: ({ sentBytes }) => {
+              if (generation === sessionGeneration) {
+                set({ uploadProgress: { ...get().uploadProgress, [upload.localId]: sentBytes } });
+              }
+            },
+            shouldCancel: () => generation !== sessionGeneration,
           });
+          if (generation !== sessionGeneration) {
+            break;
+          }
 
           if (outcome.ok) {
             uploaded += 1;
@@ -573,6 +614,7 @@ export const useRecordsStore = create<RecordsState>()(
         // Queued telemetry belongs to the identity that produced it; a reset drops it rather than
         // letting the next session flush another member's counts under their own name.
         telemetryQueue = [];
+        sessionGeneration += 1;
         set({
           preflight: null,
           catalog: null,

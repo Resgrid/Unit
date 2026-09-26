@@ -62,6 +62,20 @@ const messageOf = (error: unknown, fallback: string): string => {
   return error instanceof Error && error.message ? error.message : fallback;
 };
 
+// Bumped by reset(). An answer still in flight at sign-out must not write the previous session's
+// deployments back into the store, and through persistence back onto the device.
+let sessionGeneration = 0;
+
+/** A setter bound to the session a request started in; it does nothing once reset() has run. */
+const sessionSet = (set: (partial: Partial<DeploymentsState>) => void) => {
+  const started = sessionGeneration;
+  return (partial: Partial<DeploymentsState>) => {
+    if (started === sessionGeneration) {
+      set(partial);
+    }
+  };
+};
+
 export const useDeploymentsStore = create<DeploymentsState>()(
   persist(
     (set, get) => ({
@@ -77,98 +91,104 @@ export const useDeploymentsStore = create<DeploymentsState>()(
       lastFetchedOn: null,
 
       fetchDeployments: async (options) => {
+        const commit = sessionSet(set);
         const includeClosed = options?.includeClosed ?? get().includeClosed;
         set({ isLoading: true, error: null, includeClosed });
         try {
           const response = await getRecordDeployments(includeClosed);
           const deployments = sortDeployments(response?.Data ?? []);
-          set({ deployments, isLoading: false, lastFetchedOn: new Date().toISOString() });
+          commit({ deployments, isLoading: false, lastFetchedOn: new Date().toISOString() });
           return deployments;
         } catch (error) {
           logger.error({ message: 'Deployments fetch failed', context: { error } });
           // Offline keeps what was last read; a refusal drops it rather than showing it past revoked access.
-          set({ isLoading: false, error: messageOf(error, 'load_failed'), ...(isAccessAnswer(error) ? { deployments: [] } : {}) });
+          commit({ isLoading: false, error: messageOf(error, 'load_failed'), ...(isAccessAnswer(error) ? { deployments: [] } : {}) });
           return get().deployments;
         }
       },
 
       fetchDeployment: async (orderId) => {
+        const commit = sessionSet(set);
         set({ isLoading: true, error: null });
         try {
           const response = await getRecordDeployment(orderId);
           const deployment = response?.Data ?? null;
           if (deployment) {
-            set({ deployments: upsertDeployment(get().deployments, deployment), isLoading: false });
+            commit({ deployments: upsertDeployment(get().deployments, deployment), isLoading: false });
           } else {
             // Gone or no longer visible: it is dropped rather than shown from the last fetch.
-            set({ deployments: get().deployments.filter((existing) => existing.OrderId !== orderId), isLoading: false, error: 'not_found' });
+            commit({ deployments: get().deployments.filter((existing) => existing.OrderId !== orderId), isLoading: false, error: 'not_found' });
           }
           return deployment;
         } catch (error) {
           logger.error({ message: 'Deployment fetch failed', context: { error, orderId } });
           if (isAccessAnswer(error)) {
             // Refused or gone: dropped the same way as an empty answer, never shown from the last fetch.
-            set({ deployments: get().deployments.filter((existing) => existing.OrderId !== orderId), isLoading: false, error: messageOf(error, 'load_failed') });
+            commit({ deployments: get().deployments.filter((existing) => existing.OrderId !== orderId), isLoading: false, error: messageOf(error, 'load_failed') });
             return null;
           }
-          set({ isLoading: false, error: messageOf(error, 'load_failed') });
+          commit({ isLoading: false, error: messageOf(error, 'load_failed') });
           return get().deployments.find((existing) => existing.OrderId === orderId) ?? null;
         }
       },
 
       fetchReconciliation: async (connectorId) => {
+        const commit = sessionSet(set);
         try {
           const response = await getRecordDeploymentReconciliation(connectorId);
           const items = response?.Data ?? [];
           // One connector's items replace only that connector's slice; the rest stays as last seen.
           const kept = connectorId ? get().reconciliation.filter((item) => item.ConnectorId !== connectorId) : [];
-          set({ reconciliation: [...kept, ...items], connectorsError: null });
+          commit({ reconciliation: [...kept, ...items], connectorsError: null });
           return items;
         } catch (error) {
           logger.error({ message: 'Reconciliation fetch failed', context: { error, connectorId } });
-          set({ connectorsError: messageOf(error, 'load_failed') });
+          commit({ connectorsError: messageOf(error, 'load_failed') });
           return [];
         }
       },
 
       fetchConnectors: async () => {
+        const commit = sessionSet(set);
         set({ connectorsError: null });
         try {
           const response = await getRecordDeploymentConnectors();
           const connectors = (response?.Data ?? []).slice().sort((a, b) => a.Name.localeCompare(b.Name));
-          set({ connectors });
+          commit({ connectors });
           return connectors;
         } catch (error) {
           logger.error({ message: 'Connectors fetch failed', context: { error } });
-          set({ connectorsError: messageOf(error, 'load_failed') });
+          commit({ connectorsError: messageOf(error, 'load_failed') });
           return [];
         }
       },
 
       fetchConnector: async (connectorId) => {
+        const commit = sessionSet(set);
         try {
           const response = await getRecordDeploymentConnector(connectorId);
           const connector = response?.Data ?? null;
           if (connector) {
-            set({ connectors: [connector, ...get().connectors.filter((existing) => existing.Id !== connectorId)].sort((a, b) => a.Name.localeCompare(b.Name)), connectorsError: null });
+            commit({ connectors: [connector, ...get().connectors.filter((existing) => existing.Id !== connectorId)].sort((a, b) => a.Name.localeCompare(b.Name)), connectorsError: null });
           }
           return connector;
         } catch (error) {
           logger.error({ message: 'Connector fetch failed', context: { error, connectorId } });
-          set({ connectorsError: messageOf(error, 'load_failed') });
+          commit({ connectorsError: messageOf(error, 'load_failed') });
           return get().connectors.find((existing) => existing.Id === connectorId) ?? null;
         }
       },
 
       fetchRuns: async (connectorId) => {
+        const commit = sessionSet(set);
         try {
           const response = await getRecordDeploymentConnectorRuns(connectorId);
           const runs = response?.Data ?? [];
-          set({ runs: { ...get().runs, [connectorId]: runs } });
+          commit({ runs: { ...get().runs, [connectorId]: runs } });
           return runs;
         } catch (error) {
           logger.error({ message: 'Connector runs fetch failed', context: { error, connectorId } });
-          set({ connectorsError: messageOf(error, 'load_failed') });
+          commit({ connectorsError: messageOf(error, 'load_failed') });
           return get().runs[connectorId] ?? [];
         }
       },
@@ -177,28 +197,30 @@ export const useDeploymentsStore = create<DeploymentsState>()(
         if (get().runningConnectorId) {
           return { ok: false, error: 'busy' };
         }
+        const commit = sessionSet(set);
         set({ runningConnectorId: connectorId, connectorsError: null });
         try {
           const response = await runRecordDeploymentConnector(connectorId);
           const run = response?.Data;
           if (!run) {
-            set({ runningConnectorId: null, connectorsError: 'load_failed' });
+            commit({ runningConnectorId: null, connectorsError: 'load_failed' });
             return { ok: false, error: 'load_failed' };
           }
           // The run row is the newest entry in that connector's log; then everything it may have
           // changed is re-read from the server rather than guessed at from the counts.
-          set({ runs: { ...get().runs, [connectorId]: [run, ...(get().runs[connectorId] ?? []).filter((existing) => existing.Id !== run.Id)] }, runningConnectorId: null });
+          commit({ runs: { ...get().runs, [connectorId]: [run, ...(get().runs[connectorId] ?? []).filter((existing) => existing.Id !== run.Id)] }, runningConnectorId: null });
           await Promise.all([get().fetchConnector(connectorId), get().fetchReconciliation(connectorId), get().fetchDeployments()]);
           return { ok: run.Outcome === 'ok', run, error: run.Outcome === 'ok' ? undefined : (run.Error ?? run.Outcome) };
         } catch (error) {
           logger.error({ message: 'Connector run failed', context: { error, connectorId } });
           const message = messageOf(error, 'run_failed');
-          set({ runningConnectorId: null, connectorsError: message });
+          commit({ runningConnectorId: null, connectorsError: message });
           return { ok: false, error: message };
         }
       },
 
-      reset: () =>
+      reset: () => {
+        sessionGeneration += 1;
         set({
           deployments: [],
           includeClosed: false,
@@ -210,7 +232,8 @@ export const useDeploymentsStore = create<DeploymentsState>()(
           error: null,
           connectorsError: null,
           lastFetchedOn: null,
-        }),
+        });
+      },
     }),
     {
       name: 'records-deployments-storage',

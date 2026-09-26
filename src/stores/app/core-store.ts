@@ -255,14 +255,13 @@ export const useCoreStore = create<CoreState>()(
         }
       },
       setActiveUnitWithFetch: async (unitId: string) => {
+        const previousUnitId = get().activeUnitId;
         set({ isLoading: true, error: null, activeUnitId: unitId });
         try {
           await useUnitsStore.getState().fetchUnits();
 
           const units = useUnitsStore.getState().units;
           const activeUnit = units.find((unit) => unit.UnitId === unitId);
-
-          const unitStatus = await getUnitStatus(unitId);
 
           // fetchUnits() swallows its own failures, so the list can be empty or stale here. Writing
           // `undefined` over the unit we already hold would silently disable every status submit
@@ -272,6 +271,20 @@ export const useCoreStore = create<CoreState>()(
               message: 'Active unit missing from refreshed units, keeping the current unit',
               context: { unitId, unitCount: units.length },
             });
+            // Keeping it is only right when it is the unit being refreshed. A switch to another unit
+            // is refused whole, so the id, the unit and its status never describe different units.
+            if (get().activeUnit?.UnitId !== unitId) {
+              set({ activeUnitId: previousUnitId, error: 'Failed to fetch and set active unit', isLoading: false });
+              return;
+            }
+          }
+
+          const unitStatus = await getUnitStatus(unitId);
+
+          // Another unit was selected while this refresh was in flight (that switch owns the loading
+          // state now); this answer is not for the unit that is active.
+          if (get().activeUnitId !== unitId) {
+            return;
           }
 
           set({

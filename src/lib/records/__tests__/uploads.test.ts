@@ -113,6 +113,25 @@ describe('Record attachment uploads', () => {
     expect(chunks.map((chunk) => chunk.Data).join('')).toBe(tenBytesBase64);
   });
 
+  it('resumes from a server count that is not a whole base64 group without shifting the bytes', async () => {
+    // Nine distinct bytes, so a chunk that starts one byte off would send the wrong ones.
+    const file = Buffer.from([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+    fs.readAsStringAsync.mockResolvedValue(file.toString('base64'));
+    api.getRecordUpload.mockResolvedValue(session(4));
+    api.uploadRecordChunk.mockResolvedValueOnce(session(7)).mockResolvedValueOnce(session(9));
+    api.completeRecordUpload.mockResolvedValue({ Data: { AttachmentId: 'a5' } });
+
+    const outcome = await runUpload(pending({ uploadId: 'session-1' }) as never);
+
+    expect(outcome.ok).toBe(true);
+    const chunks: { Offset: number; Data: string }[] = api.uploadRecordChunk.mock.calls.map((call: unknown[]) => call[0] as { Offset: number; Data: string });
+    expect(chunks.map((chunk) => chunk.Offset)).toEqual([4, 7]);
+    expect(chunks.map((chunk) => [...Buffer.from(chunk.Data, 'base64')])).toEqual([
+      [14, 15, 16],
+      [17, 18],
+    ]);
+  });
+
   it('resumes from the count the server reports, not the one the device remembers', async () => {
     api.getRecordUpload.mockResolvedValue(session(6));
     api.uploadRecordChunk.mockResolvedValue(session(9));

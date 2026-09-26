@@ -129,6 +129,21 @@ it('opens the crew report for the scope on demand, refuses invalid entries local
   expect(useOperationsStore.getState().report?.Status).toBe(2);
 });
 
+it('drops an access answer that lands after the sign-in changed', async () => {
+  let releaseFirst!: (value: never) => void;
+  server.getDeploymentAccess.mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)) as never).mockResolvedValueOnce({ Enabled: false, CanManage: false, CanApproveTimeReports: false, ContractorBilling: false });
+  const previous = useOperationsStore.getState().loadAccess();
+
+  useAuthStore.setState({ userId: 'someone-else' });
+  await useOperationsStore.getState().loadAccess();
+  releaseFirst({ Enabled: true, CanManage: true, CanApproveTimeReports: true, ContractorBilling: false } as never);
+  await previous;
+
+  expect(useOperationsStore.getState().identity).toBe('someone-else:77');
+  expect(useOperationsStore.getState().access?.CanManage).toBe(false);
+  useAuthStore.setState({ userId: 'me' });
+});
+
 it('drops a deployment that answers after the person left it or opened another', async () => {
   let releaseFirst!: (value: never) => void;
   server.getDeployment.mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)) as never);

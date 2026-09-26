@@ -62,6 +62,17 @@ const resetStore = () => {
   });
 };
 
+const catalogOf = (definitionKey = 'shift-log', overrides: Parameters<typeof goldenCatalogEntry>[0] = {}) => ({
+  ContractVersion: 'field-catalog.v1',
+  OriginClient: 'Unit',
+  Ok: true,
+  Reasons: [],
+  ContextVerified: true,
+  Definitions: [goldenCatalogEntry({ DefinitionKey: definitionKey, ...overrides })],
+  Exclusions: [],
+  ServerTimestampMs: 0,
+});
+
 const summary = (id: string, state: number, modifiedOn: string) => ({
   RecordId: id,
   DefinitionVersion: 3,
@@ -302,5 +313,87 @@ describe('Field Records store conformance', () => {
 
     expect(useRecordsStore.getState().catalog).toBeNull();
     expect(useRecordsStore.getState().context).toEqual({ CallId: 501 });
+  });
+
+  it('treats a different contact as a different context', () => {
+    useRecordsStore.getState().setContext({ CallId: 501, ContactId: 7 });
+    useRecordsStore.setState({ catalog: catalogOf() });
+
+    useRecordsStore.getState().setContext({ CallId: 501, ContactId: 8 });
+
+    expect(useRecordsStore.getState().context).toEqual({ CallId: 501, ContactId: 8 });
+    expect(useRecordsStore.getState().catalog).toBeNull();
+  });
+
+  it('never lets a catalog asked for an earlier context replace the current one', async () => {
+    let releaseFirst!: (value: unknown) => void;
+    fieldApi.getFieldRecordsCatalog.mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve))).mockResolvedValueOnce({ Data: catalogOf('call-502-form') });
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    const earlier = useRecordsStore.getState().fetchCatalog();
+    useRecordsStore.getState().setContext({ CallId: 502 });
+    await useRecordsStore.getState().fetchCatalog();
+    releaseFirst({ Data: catalogOf('call-501-form') });
+
+    expect(await earlier).toBeNull();
+    expect(useRecordsStore.getState().catalog?.Definitions.map((entry) => entry.DefinitionKey)).toEqual(['call-502-form']);
+  });
+
+  it('drops a sync bundle that answers after the context changed', async () => {
+    let release!: (value: unknown) => void;
+    fieldApi.syncFieldRecords.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+
+    useRecordsStore.getState().setContext({ CallId: 501 });
+    const syncing = useRecordsStore.getState().sync();
+    useRecordsStore.getState().setContext({ CallId: 502 });
+    release({ Data: { Ok: true, ResetRequired: false, ScopeStamp: 'scope-501', ServerTimestampMs: 700, Catalog: catalogOf('call-501-form'), Records: [summary('r1', RmsRecordState.Finalized, '2026-09-01T00:00:00Z')], Tombstones: [], Drafts: [], Assignments: [] } });
+    await syncing;
+
+    const state = useRecordsStore.getState();
+    expect(state.catalog).toBeNull();
+    expect(state.recent).toEqual([]);
+    expect(state.lastSyncTimestampMs).toBe(0);
+    expect(state.isSyncing).toBe(false);
+  });
+
+  it('removes a protected draft staged before the catalog loaded once its send fails', async () => {
+    const draft = { clientRecordId: 'draft-early', recordId: null, definitionKey: 'shift-log', definitionVersion: 3, name: 'Shift log', values: [], updatedOn: '2026-09-06T00:00:00Z' };
+    useRecordsStore.getState().stageDraft(draft);
+    expect(useRecordsStore.getState().pendingDrafts['draft-early']).toBeDefined();
+
+    useRecordsStore.setState({ catalog: catalogOf('shift-log', { RequiresProtectedGrant: true }) });
+    recordsApi.createRecordDraft.mockRejectedValueOnce({ response: { status: 403, data: { type: 'protected_data_required', title: 'Grant required' } } });
+
+    const result = await useRecordsStore.getState().pushDraft('draft-early');
+
+    expect(result.ok).toBe(false);
+    expect(useRecordsStore.getState().pendingDrafts).toEqual({});
+  });
+
+  it('does not restore a draft whose send fails after sign-out', async () => {
+    let reject!: (reason: unknown) => void;
+    recordsApi.createRecordDraft.mockReturnValueOnce(new Promise((_resolve, rejectWith) => (reject = rejectWith)));
+    useRecordsStore.getState().stageDraft({ clientRecordId: 'draft-old', recordId: null, definitionKey: 'shift-log', definitionVersion: 3, name: 'Shift log', values: [], updatedOn: '2026-09-06T00:00:00Z' });
+
+    const pushing = useRecordsStore.getState().pushDraft('draft-old');
+    useRecordsStore.getState().reset();
+    reject({ response: { status: 500, data: { title: 'Unavailable' } } });
+    await pushing;
+
+    expect(useRecordsStore.getState().pendingDrafts).toEqual({});
+  });
+
+  it('stops an upload batch at sign-out and writes nothing back', async () => {
+    const upload = (localId: string) => ({ localId, recordId: 'r1', uploadId: null, fileUri: `file:///${localId}.jpg`, fileName: `${localId}.jpg`, contentType: 'image/jpeg', byteSize: 9, sha256: 'abc', sentBytes: 0, classification: 1, createdOn: '2026-09-06T00:00:00Z' });
+    useRecordsStore.setState({ pendingUploads: { first: upload('first'), second: upload('second') } });
+    uploads.runUpload.mockImplementationOnce(async () => {
+      useRecordsStore.getState().reset();
+      return { ok: false, code: 'failed', sentBytes: 3, uploadId: 'session-1' };
+    });
+
+    await useRecordsStore.getState().runUploads();
+
+    expect(uploads.runUpload).toHaveBeenCalledTimes(1);
+    expect(useRecordsStore.getState().pendingUploads).toEqual({});
   });
 });

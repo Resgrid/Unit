@@ -478,6 +478,37 @@ describe('Core Store', () => {
       expect(useCoreStore.getState().isLoading).toBe(false);
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Active unit missing from refreshed units, keeping the current unit' }));
     });
+
+    it('refuses a switch to a unit the refreshed list does not contain, keeping id, unit and status together', async () => {
+      const currentStatus = { UnitId: 'unit-1', State: 'Available' };
+      useCoreStore.setState({ activeUnitStatus: currentStatus as any });
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [currentUnit], unitStatuses: [] });
+
+      await useCoreStore.getState().setActiveUnitWithFetch('unit-2');
+
+      const state = useCoreStore.getState();
+      expect(state.activeUnitId).toBe('unit-1');
+      expect(state.activeUnit).toBe(currentUnit);
+      expect(state.activeUnitStatus).toBe(currentStatus);
+      expect(state.isLoading).toBe(false);
+      expect(getUnitStatus).not.toHaveBeenCalledWith('unit-2');
+    });
+
+    it('drops a refreshed status once another unit has been selected', async () => {
+      const otherUnit = { UnitId: 'unit-2', Name: 'Engine 7', Type: '3' } as any;
+      let releaseStatus!: (value: unknown) => void;
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [currentUnit, otherUnit], unitStatuses: [] });
+      (getUnitStatus as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (releaseStatus = resolve)));
+
+      const refresh = useCoreStore.getState().setActiveUnitWithFetch('unit-1');
+      await new Promise((resolve) => setImmediate(resolve));
+      useCoreStore.setState({ activeUnitId: 'unit-2', activeUnit: otherUnit });
+      releaseStatus({ Data: { UnitId: 'unit-1', State: 'Responding' } });
+      await refresh;
+
+      expect(useCoreStore.getState().activeUnit).toBe(otherUnit);
+      expect(useCoreStore.getState().activeUnitStatus).not.toEqual({ UnitId: 'unit-1', State: 'Responding' });
+    });
   });
 
   describe('Store State', () => {

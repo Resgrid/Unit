@@ -229,6 +229,19 @@ describe('Deployments store conformance', () => {
     expect(useDeploymentsStore.getState().connectorsError).toBe('forbidden');
   });
 
+  it('does not write back a deployments answer that lands after sign-out', async () => {
+    let release!: (value: unknown) => void;
+    api.getRecordDeployments.mockReturnValueOnce(new Promise((resolve) => (release = resolve)));
+
+    const loading = useDeploymentsStore.getState().fetchDeployments();
+    useDeploymentsStore.getState().reset();
+    release({ Data: [deployment('o1', '2026-09-01T00:00:00Z')] });
+    await loading;
+
+    expect(useDeploymentsStore.getState().deployments).toEqual([]);
+    expect(useDeploymentsStore.getState().lastFetchedOn).toBeNull();
+  });
+
   it('reset drops everything, including connector rows that must not outlive the session', () => {
     useDeploymentsStore.setState({ deployments: [deployment('o1', '2026-09-01T00:00:00Z')], connectors: [connector('c1', 'Alpha')], runs: { c1: [run('r1')] }, reconciliation: [], error: 'x', connectorsError: 'y' });
 

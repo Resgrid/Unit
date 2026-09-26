@@ -180,6 +180,8 @@ export const useOperationsStore = create<OperationsState>()((set, get) => {
           operationsCapabilities.recordUsage ? getFieldCostAccess().catch(() => null) : Promise.resolve(null),
           operationsCapabilities.draftF42 ? getCalOesMarsAccess().catch(() => null) : Promise.resolve(null),
         ]);
+        // The sign-in changed while this was in flight: the answer describes the previous identity.
+        if (currentIdentity() !== identity || get().identity !== identity) return;
         set({ access, costAccess, marsAccess });
       });
     },

@@ -20,6 +20,10 @@ interface ContactPreplanState {
   reset: () => void;
 }
 
+// Bumped by reset(). An answer still in flight at sign-out must not land in the cache afterwards: the
+// cache is served without a re-fetch, so the next sign-in would see what the previous grant revealed.
+let sessionGeneration = 0;
+
 /**
  * Pre-plan and site-file cache for the contact details sheet (Contacts plan Phase A). Cached per contact
  * for the life of the sheet; `force` re-fetches after a step-up so REDACTED values are replaced.
@@ -35,15 +39,18 @@ export const useContactPreplanStore = create<ContactPreplanState>((set, get) => 
     if (!contactId) return;
     if (!force && Object.prototype.hasOwnProperty.call(get().preplans, contactId)) return;
 
+    const started = sessionGeneration;
     set((state) => ({ loadingPreplan: { ...state.loadingPreplan, [contactId]: true }, error: null }));
     try {
       const result = await getContactPreplan(contactId);
+      if (started !== sessionGeneration) return;
       set((state) => ({
         preplans: { ...state.preplans, [contactId]: result.Data ?? null },
         loadingPreplan: { ...state.loadingPreplan, [contactId]: false },
       }));
     } catch (error) {
       logger.error({ message: 'Failed to fetch contact pre-plan', context: { error, contactId } });
+      if (started !== sessionGeneration) return;
       set((state) => ({
         loadingPreplan: { ...state.loadingPreplan, [contactId]: false },
         error: error instanceof Error ? error.message : 'Failed to fetch contact pre-plan',
@@ -55,15 +62,18 @@ export const useContactPreplanStore = create<ContactPreplanState>((set, get) => 
     if (!contactId) return;
     if (!force && Object.prototype.hasOwnProperty.call(get().files, contactId)) return;
 
+    const started = sessionGeneration;
     set((state) => ({ loadingFiles: { ...state.loadingFiles, [contactId]: true }, error: null }));
     try {
       const result = await getContactFiles(contactId, false);
+      if (started !== sessionGeneration) return;
       set((state) => ({
         files: { ...state.files, [contactId]: result.Data ?? [] },
         loadingFiles: { ...state.loadingFiles, [contactId]: false },
       }));
     } catch (error) {
       logger.error({ message: 'Failed to fetch contact files', context: { error, contactId } });
+      if (started !== sessionGeneration) return;
       set((state) => ({
         loadingFiles: { ...state.loadingFiles, [contactId]: false },
         error: error instanceof Error ? error.message : 'Failed to fetch contact files',
@@ -80,5 +90,8 @@ export const useContactPreplanStore = create<ContactPreplanState>((set, get) => 
       return { preplans, files };
     }),
 
-  reset: () => set({ preplans: {}, files: {}, loadingPreplan: {}, loadingFiles: {}, error: null }),
+  reset: () => {
+    sessionGeneration += 1;
+    set({ preplans: {}, files: {}, loadingPreplan: {}, loadingFiles: {}, error: null });
+  },
 }));

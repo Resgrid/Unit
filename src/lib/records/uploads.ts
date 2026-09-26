@@ -83,18 +83,13 @@ export const fileSize = async (fileUri: string): Promise<number> => {
 };
 
 /**
- * The server hashes the assembled bytes, so the hash we declare has to be of the same bytes. Reading
- * base64 once and slicing it keeps the chunk boundaries aligned: base64 encodes 3 bytes as 4 chars,
- * so a chunk size that is a multiple of 3 slices cleanly without re-encoding anything.
+ * One chunk of the file, base64 encoded for the wire. The bytes are sliced before they are encoded, so
+ * the chunk starts exactly at the server's count even when that count is not a whole 3-byte base64
+ * group — as after a partially accepted chunk — and the assembled bytes still match the declared hash.
  */
-const chunkOf = (base64: string, offsetBytes: number, chunkBytes: number): string => {
-  const start = (offsetBytes / 3) * 4;
-  // Only the final chunk can be short of a multiple of 3; its trailing 1 or 2 bytes still occupy a
-  // full padded 4-character group, and slice() would otherwise truncate the fraction and drop them.
-  const length = Math.ceil(chunkBytes / 3) * 4;
-  return base64.slice(start, start + length);
-};
+const chunkOf = (bytes: Uint8Array, offsetBytes: number, chunkBytes: number): string => Buffer.from(bytes.subarray(offsetBytes, offsetBytes + chunkBytes)).toString('base64');
 
+// Whole 3-byte groups keep every full chunk free of base64 padding.
 const alignChunkSize = (chunkSize: number): number => {
   const safe = Math.max(3, Math.min(chunkSize || 0, 3 * 1024 * 1024));
   return safe - (safe % 3);
@@ -153,7 +148,7 @@ export const runUpload = async (pending: PendingUpload, options: UploadOptions =
     }
 
     const chunkSize = alignChunkSize(session.ChunkSize);
-    const base64 = await FileSystem.readAsStringAsync(pending.fileUri, { encoding: FileSystem.EncodingType.Base64 });
+    const bytes = Buffer.from(await FileSystem.readAsStringAsync(pending.fileUri, { encoding: FileSystem.EncodingType.Base64 }), 'base64');
     // The server's count is authoritative: it is the only thing that knows what actually arrived.
     let sent = session.ReceivedBytes ?? 0;
     options.onProgress?.({ sentBytes: sent, totalBytes: pending.byteSize });
@@ -163,7 +158,7 @@ export const runUpload = async (pending: PendingUpload, options: UploadOptions =
         return { ok: false, code: 'cancelled', sentBytes: sent, uploadId: session.UploadId };
       }
       const size = Math.min(chunkSize, pending.byteSize - sent);
-      const data = chunkOf(base64, sent, size);
+      const data = chunkOf(bytes, sent, size);
       const updated = (await uploadRecordChunk({ UploadId: session.UploadId, Offset: sent, Data: data }, options.signal))?.Data;
       if (!updated) {
         return { ok: false, code: 'chunk_failed', sentBytes: sent, uploadId: session.UploadId };
