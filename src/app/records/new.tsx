@@ -15,7 +15,6 @@ import { Pressable } from '@/components/ui/pressable';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { useRecordsContext } from '@/hooks/use-records-context';
 import { canAuthorOffline, cellKey, toValueList, unsupportedFieldKeys, validate, type ValidationIssue, type ValueMap } from '@/lib/records/schema';
 import { type FieldRecordCatalogEntry, type RecordDefinitionSchema } from '@/models/v4/records';
 import { useRecordsStore } from '@/stores/records/store';
@@ -29,7 +28,9 @@ export default function NewRecordScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useLocalSearchParams<{ draft?: string; definitionKey?: string }>();
-  const context = useRecordsContext();
+  // The context the entry point set (the Records tab, or a Call being viewed): the catalog and the
+  // prefill were loaded against it, so the draft is attached to the same Call rather than the active one.
+  const context = useRecordsStore((state) => state.context);
 
   const catalog = useRecordsStore((state) => state.catalog);
   const pendingDrafts = useRecordsStore((state) => state.pendingDrafts);
@@ -132,8 +133,9 @@ export default function NewRecordScreen() {
         definitionVersion: entry.Version,
         name: entry.Name,
         values: toValueList(values),
-        callId: context.CallId ?? null,
-        stationGroupId: context.GroupId ?? null,
+        // A resumed draft stays on the Call it was started against, whatever is active now.
+        callId: resumed ? (resumed.callId ?? null) : (context.CallId ?? null),
+        stationGroupId: resumed ? (resumed.stationGroupId ?? null) : (context.GroupId ?? null),
         rowVersion: resumed?.rowVersion ?? null,
         updatedOn: new Date().toISOString(),
       };
@@ -148,9 +150,10 @@ export default function NewRecordScreen() {
 
       setIsBusy(true);
       try {
-        // Staged first so an interrupted send leaves the work on the device rather than losing it.
+        // Staged first so an interrupted send leaves the work on the device rather than losing it. A
+        // definition that seals values is not staged, so the draft is handed to the send directly.
         stageDraft(draft);
-        const result = await pushDraft(draftId);
+        const result = await pushDraft(draftId, draft);
         if (result.ok && result.recordId) {
           discardDraft(draftId);
           router.replace(`/records/${result.recordId}`);

@@ -287,6 +287,24 @@ describe('ServerUrlBottomSheet', () => {
     });
   });
 
+  describe('Unreadable stored url', () => {
+    it('still opens the url field for editing when the stored url cannot be read', async () => {
+      const { logger } = jest.requireMock('@/lib/logging');
+      mockGetUrl.mockRejectedValue(new Error('Storage unavailable'));
+
+      const { unmount } = render(<ServerUrlBottomSheet {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('server-options-loading')).toBeNull();
+      });
+
+      expect(screen.getByTestId('select-input').props.children).toBe('Custom');
+      expect(screen.getByTestId('input-field').props.editable).toBe(true);
+      expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ message: 'Failed to read the current server URL' }));
+      unmount();
+    });
+  });
+
   describe('Changing servers', () => {
     it('fills the url field with the selected location ApiUrl', async () => {
       const { unmount } = render(<ServerUrlBottomSheet {...defaultProps} />);

@@ -17,6 +17,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { isFieldRedacted } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
 import { type ContactFileResultData } from '@/models/v4/contactFiles/contactFilesResult';
+import { safeFileName } from '@/utils/file-name';
 
 /** ADP catalog v12 field ids for a contact file's cataloged text. */
 const FileFieldIds = {
@@ -55,7 +56,9 @@ export const ContactFilesList: React.FC<ContactFilesListProps> = ({ files, isLoa
 
       try {
         const base64 = await getContactFileBase64(file);
-        const fileName = (!isFieldRedacted(file.RedactedFields, FileFieldIds.fileName, file.FileName) && file.FileName) || `contact_file_${file.Id}`;
+        // The name comes from whoever uploaded the file, so it is reduced to one path segment before it
+        // is joined to the documents directory.
+        const fileName = safeFileName(isFieldRedacted(file.RedactedFields, FileFieldIds.fileName, file.FileName) ? null : file.FileName, `contact_file_${file.Id}`);
         const fileUri = `${FileSystem.documentDirectory}${fileName}`;
         await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
 

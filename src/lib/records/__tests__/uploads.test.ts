@@ -1,4 +1,4 @@
-import { runUpload } from '@/lib/records/uploads';
+import { hashFile, runUpload } from '@/lib/records/uploads';
 
 // Shared conformance suite for resumable attachment upload (RMS plan RMS-1D). Identical in all four
 // app repositories: the server owns the session, so every adapter must resume from the server's own
@@ -20,10 +20,15 @@ jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: jest.fn(),
 }));
 
+// A real SHA-256 over whatever bytes the adapter hands over, so the test proves which bytes those are.
 jest.mock('expo-crypto', () => ({
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   CryptoEncoding: { HEX: 'hex' },
-  digestStringAsync: jest.fn(),
+  digestStringAsync: jest.fn(async (_algorithm: string, data: string) => jest.requireActual('crypto').createHash('sha256').update(data, 'utf8').digest('hex')),
+  digest: jest.fn(async (_algorithm: string, data: Uint8Array) => {
+    const hash: Uint8Array = jest.requireActual('crypto').createHash('sha256').update(data).digest();
+    return hash.buffer.slice(hash.byteOffset, hash.byteOffset + hash.byteLength);
+  }),
 }));
 
 jest.mock('@/lib/logging', () => ({
@@ -152,6 +157,24 @@ describe('Record attachment uploads', () => {
     expect(outcome.ok).toBe(false);
     expect(outcome.code).toBe('upload_rejected');
     expect(outcome.message).toBe('That file type is not accepted.');
+  });
+
+  it('hashes the file bytes the server will assemble, not their base64 text', async () => {
+    fs.readAsStringAsync.mockResolvedValue('YWJj');
+
+    // SHA-256 of the three bytes "abc".
+    expect(await hashFile('file:///abc.txt')).toBe('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  });
+
+  it('stops instead of resending forever when the server count does not advance', async () => {
+    api.beginRecordUpload.mockResolvedValue(session(0));
+    api.uploadRecordChunk.mockResolvedValueOnce(session(3)).mockResolvedValue(session(3));
+
+    const outcome = await runUpload(pending() as never);
+
+    expect(outcome).toMatchObject({ ok: false, code: 'chunk_not_accepted', sentBytes: 3, uploadId: 'session-1' });
+    expect(api.uploadRecordChunk).toHaveBeenCalledTimes(2);
+    expect(api.completeRecordUpload).not.toHaveBeenCalled();
   });
 
   it('stops between chunks when the person cancels', async () => {

@@ -48,6 +48,23 @@ it('keeps values in the dedicated vault and only references in the ordinary offl
   useChecklistsStore.getState().close(); await useChecklistsStore.getState().openDraft(run().Id);
   expect(useChecklistsStore.getState().active?.input.Note).toBe('SYNTHETIC PHI');
 });
+it('queues a completion even after an earlier draft write failed', async () => {
+  await useChecklistsStore.getState().load(); await useChecklistsStore.getState().startDefinition(definition(), run().Target);
+  jest.mocked(vaultWrite).mockRejectedValueOnce(new Error('disk'));
+  await expect(useChecklistsStore.getState().update({ Revision: 0, Answers: [], Note: 'first' })).rejects.toThrow('disk');
+  await useChecklistsStore.getState().queue(true);
+  expect(useOfflineQueueStore.getState().addEvent).toHaveBeenCalledWith('checklist_completion', { scope, id: run().Id }, 5);
+  expect((await vaultRead<ReturnType<typeof draft>>(scope, `draft:${run().Id}`))?.queued).toBe(true);
+});
+it('writes a burst of edits as one vault write of the newest snapshot', async () => {
+  await useChecklistsStore.getState().load(); await useChecklistsStore.getState().startDefinition(definition(), run().Target);
+  jest.mocked(vaultWrite).mockClear();
+  const typed = ['N', 'No', 'Not', 'Note'].map((Note) => useChecklistsStore.getState().update({ Revision: 0, Answers: [], Note }));
+  await Promise.all(typed);
+  expect(jest.mocked(vaultWrite).mock.calls.filter(([, name]) => name === `draft:${run().Id}`)).toHaveLength(1);
+  expect((await vaultRead<ReturnType<typeof draft>>(scope, `draft:${run().Id}`))?.input.Note).toBe('Note');
+  expect(useChecklistsStore.getState().active?.input.Note).toBe('Note');
+});
 it('previews occurrences without starting server work and reopens prepared data offline', async () => {
   await useChecklistsStore.getState().load();
   server.previewChecklistOccurrence.mockResolvedValue({ ...run(), Revision: 0, IsPreview: true, OccurrenceId: 'occurrence', Input: { Revision: 0, Answers: [] } });

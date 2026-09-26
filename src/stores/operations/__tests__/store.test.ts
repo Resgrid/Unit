@@ -129,6 +129,24 @@ it('opens the crew report for the scope on demand, refuses invalid entries local
   expect(useOperationsStore.getState().report?.Status).toBe(2);
 });
 
+it('drops a deployment that answers after the person left it or opened another', async () => {
+  let releaseFirst!: (value: never) => void;
+  server.getDeployment.mockReturnValueOnce(new Promise((resolve) => (releaseFirst = resolve)) as never);
+  const leaving = useOperationsStore.getState().open('dep-1');
+  useOperationsStore.getState().close();
+  releaseFirst(deployment as never);
+  await leaving;
+  expect(useOperationsStore.getState().deployment).toBeNull();
+
+  let releaseSlow!: (value: never) => void;
+  server.getDeployment.mockReturnValueOnce(new Promise((resolve) => (releaseSlow = resolve)) as never).mockResolvedValueOnce({ ...deployment, Id: 'dep-2' } as never);
+  const slow = useOperationsStore.getState().open('dep-1');
+  await useOperationsStore.getState().open('dep-2');
+  releaseSlow(deployment as never);
+  await slow;
+  expect(useOperationsStore.getState().deployment?.Id).toBe('dep-2');
+});
+
 it('keeps validation refusals from the server on the report and switches scope without leaking entries', async () => {
   server.getTimeReports.mockResolvedValue([report(0, [{ Id: 'e-1', SubjectType: 0, DeploymentPersonnelId: 'dp-1', EntryType: 0, StartLocal: '2026-09-19T08:00', EndLocal: '2026-09-19T18:00' }])] as never);
   await useOperationsStore.getState().open('dep-1');

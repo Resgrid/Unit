@@ -56,7 +56,7 @@ interface CoreState {
   isInitializing: boolean;
   error: string | null;
   init: () => Promise<void>;
-  setActiveUnit: (unitId: string) => void;
+  setActiveUnit: (unitId: string) => Promise<void>;
   setActiveUnitWithFetch: (unitId: string) => Promise<void>;
   refreshActiveUnitStatus: (unitId: string) => Promise<void>;
   setActiveCall: (callId: string | null) => Promise<void>;

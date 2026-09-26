@@ -474,7 +474,7 @@
       "Answered": "Answered",
       "AssetUnavailable": "Serialized equipment is unavailable.",
       "Assignment": "Assigned to",
-      "AssignmentAutomatic": "Automatic routing",
+      "AssignmentAutomatic": "Automatic assignment",
       "AssignmentPermission": "You are not assigned to perform this check.",
       "AssignmentType1": "Person",
       "AssignmentType2": "Personnel role",

@@ -20,9 +20,11 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import { useSiteInfoStore } from '@/stores/calls/site-info-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useChatStore } from '@/stores/chat/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
+import { useContactPreplanStore } from '@/stores/contacts/preplan-store';
 import { useContactsStore } from '@/stores/contacts/store';
 import { useDispatchStore } from '@/stores/dispatch/store';
 import { featureFlagsStore } from '@/stores/feature-flags/store';
@@ -32,6 +34,8 @@ import { useOfflineQueueStore } from '@/stores/offline-queue/store';
 import { usePoisStore } from '@/stores/pois/store';
 import { useProtocolsStore } from '@/stores/protocols/store';
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
+import { useDeploymentsStore } from '@/stores/records/deployments-store';
+import { useRecordsStore } from '@/stores/records/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { securityStore } from '@/stores/security/store';
@@ -338,6 +342,16 @@ export const resetAllStores = async (): Promise<void> => {
 
   // Chat store — clears channels/messages/outbox and stops typing/outbox timers.
   useChatStore.getState().reset();
+
+  // Field Records — clearPersistedStorage() wipes the persisted drafts and uploads, but the in-memory
+  // copies would otherwise be written back on the next change and pushed under the next user's sign-in.
+  useRecordsStore.getState().reset();
+  useDeploymentsStore.getState().reset();
+
+  // Contact pre-plans, site files and call site info are cached protected data; the next user
+  // must fetch their own view rather than see what the previous grant revealed.
+  useContactPreplanStore.getState().reset();
+  useSiteInfoStore.getState().reset();
 };
 
 /**

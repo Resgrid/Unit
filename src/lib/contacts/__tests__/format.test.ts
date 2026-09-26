@@ -6,6 +6,10 @@ it('turns web-editor rich text into readable plain text', () => {
   expect(htmlToText(null)).toBe('');
 });
 
+it('drops a script that only forms once an inner script is removed', () => {
+  expect(htmlToText('Gate<scr<script>x</script>ipt>alert(1)</script> code')).toBe('Gate code');
+});
+
 it('parses coordinates and builds a maps link for an address or a point', () => {
   expect(parseCoordinates('39.7392, -104.9903')).toEqual({ latitude: 39.7392, longitude: -104.9903 });
   expect(parseCoordinates('not a place')).toBeNull();

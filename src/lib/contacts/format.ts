@@ -7,15 +7,25 @@ import { type ContactResultData } from '@/models/v4/contacts/contactResultData';
 
 const ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&nbsp;': ' ' };
 
+/** Applies a removal until nothing changes, so markup nested inside markup (`<scr<script>…</script>ipt>`) cannot reassemble. */
+const removeAll = (text: string, pattern: RegExp): string => {
+  let previous: string;
+  let current = text;
+  do {
+    previous = current;
+    current = current.replace(pattern, '');
+  } while (current !== previous);
+  return current;
+};
+
 /** Rich text from the web editor as plain readable text: line breaks kept, markup and scripts dropped. */
 export const htmlToText = (html: string | null | undefined): string => {
   if (!html) return '';
-  return html
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+  const withoutBlocks = removeAll(html, /<(script|style)[^>]*>[\s\S]*?<\/\1>/gi)
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '• ')
-    .replace(/<[^>]+>/g, '')
+    .replace(/<li[^>]*>/gi, '• ');
+  return removeAll(withoutBlocks, /<[^>]+>/g)
     .replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (entity) => ENTITIES[entity] ?? entity)
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

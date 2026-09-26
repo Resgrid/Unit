@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -65,10 +66,15 @@ const problemMessage = (error: unknown): string => {
   return response?.data?.title ?? (error instanceof Error ? error.message : 'Upload failed');
 };
 
-/** SHA-256 of the file, hex lower-case, computed without holding the whole file as a string twice. */
+/**
+ * SHA-256 of the file's bytes, hex lower-case. The server hashes the assembled bytes, so the digest is
+ * taken over the decoded file — hashing the base64 text instead would never match and every upload
+ * would be refused at completion.
+ */
 export const hashFile = async (fileUri: string): Promise<string> => {
   const base64 = await FileSystem.readAsStringAsync(fileUri, { encoding: FileSystem.EncodingType.Base64 });
-  return (await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, base64, { encoding: Crypto.CryptoEncoding.HEX })).toLowerCase();
+  const digest = await Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, Buffer.from(base64, 'base64'));
+  return Buffer.from(digest).toString('hex');
 };
 
 export const fileSize = async (fileUri: string): Promise<number> => {
@@ -161,6 +167,10 @@ export const runUpload = async (pending: PendingUpload, options: UploadOptions =
       const updated = (await uploadRecordChunk({ UploadId: session.UploadId, Offset: sent, Data: data }, options.signal))?.Data;
       if (!updated) {
         return { ok: false, code: 'chunk_failed', sentBytes: sent, uploadId: session.UploadId };
+      }
+      if (!(updated.ReceivedBytes > sent)) {
+        // The server kept nothing of this chunk; sending it again would loop forever, so stop and say so.
+        return { ok: false, code: 'chunk_not_accepted', sentBytes: sent, uploadId: session.UploadId };
       }
       // Trust the server's new count rather than adding locally, so a partially accepted chunk
       // cannot leave the client and the server disagreeing about where the file is.

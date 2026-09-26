@@ -93,20 +93,31 @@ export function ServerUrlBottomSheet({ isOpen, onClose, onUrlChanged }: ServerUr
           setSelectedServer(matchingLocation?.Name ?? CUSTOM_SERVER_VALUE);
         }
       } catch (error) {
-        // The current server could not supply its location list (e.g. an older
-        // self-hosted install) — fall back to editing the URL by hand.
-        const currentUrl = await getUrl();
-
-        if (isMounted) {
-          setLocations([]);
-          setValue('url', normalizeCustomDisplayUrl(currentUrl));
-          setSelectedServer(CUSTOM_SERVER_VALUE);
-        }
-
         logger.error({
           message: 'Failed to load system config for server URLs',
           context: { error },
         });
+
+        // The current server could not supply its location list (e.g. an older
+        // self-hosted install) — fall back to editing the URL by hand.
+        if (isMounted) {
+          setLocations([]);
+          setSelectedServer(CUSTOM_SERVER_VALUE);
+        }
+
+        // Read again on its own: the stored URL may be what failed above, and this
+        // sheet is the way out of a broken server URL, so it must still open for editing.
+        try {
+          const currentUrl = await getUrl();
+          if (isMounted) {
+            setValue('url', normalizeCustomDisplayUrl(currentUrl));
+          }
+        } catch (fallbackError) {
+          logger.error({
+            message: 'Failed to read the current server URL',
+            context: { error: fallbackError },
+          });
+        }
       } finally {
         if (isMounted) {
           setIsLoadingServerOptions(false);

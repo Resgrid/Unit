@@ -43,8 +43,16 @@ export interface DeploymentsState {
   reset: () => void;
 }
 
+const statusOf = (error: unknown): number | undefined => (error as { response?: { status?: number } })?.response?.status;
+
+/** A refusal or a missing row is an answer about access, not a transient failure; nothing cached outlives it. */
+const isAccessAnswer = (error: unknown): boolean => {
+  const status = statusOf(error);
+  return status === 403 || status === 404;
+};
+
 const messageOf = (error: unknown, fallback: string): string => {
-  const status = (error as { response?: { status?: number } })?.response?.status;
+  const status = statusOf(error);
   if (status === 403) {
     return 'forbidden';
   }
@@ -78,7 +86,8 @@ export const useDeploymentsStore = create<DeploymentsState>()(
           return deployments;
         } catch (error) {
           logger.error({ message: 'Deployments fetch failed', context: { error } });
-          set({ isLoading: false, error: messageOf(error, 'load_failed') });
+          // Offline keeps what was last read; a refusal drops it rather than showing it past revoked access.
+          set({ isLoading: false, error: messageOf(error, 'load_failed'), ...(isAccessAnswer(error) ? { deployments: [] } : {}) });
           return get().deployments;
         }
       },
@@ -97,6 +106,11 @@ export const useDeploymentsStore = create<DeploymentsState>()(
           return deployment;
         } catch (error) {
           logger.error({ message: 'Deployment fetch failed', context: { error, orderId } });
+          if (isAccessAnswer(error)) {
+            // Refused or gone: dropped the same way as an empty answer, never shown from the last fetch.
+            set({ deployments: get().deployments.filter((existing) => existing.OrderId !== orderId), isLoading: false, error: messageOf(error, 'load_failed') });
+            return null;
+          }
           set({ isLoading: false, error: messageOf(error, 'load_failed') });
           return get().deployments.find((existing) => existing.OrderId === orderId) ?? null;
         }

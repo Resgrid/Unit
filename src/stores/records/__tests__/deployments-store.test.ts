@@ -124,6 +124,23 @@ describe('Deployments store conformance', () => {
     expect(useDeploymentsStore.getState().error).toBe('not_found');
   });
 
+  it('keeps a deployment through a transient failure but drops it once access is refused', async () => {
+    useDeploymentsStore.setState({ deployments: [deployment('o1', '2026-09-01T00:00:00Z'), deployment('o2', '2026-09-02T00:00:00Z')] });
+    api.getRecordDeployment.mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(forbidden());
+
+    const offline = await useDeploymentsStore.getState().fetchDeployment('o1');
+    expect(offline?.OrderId).toBe('o1');
+    expect(useDeploymentsStore.getState().error).toBe('offline');
+
+    const refused = await useDeploymentsStore.getState().fetchDeployment('o1');
+    expect(refused).toBeNull();
+    expect(useDeploymentsStore.getState().deployments.map((d) => d.OrderId)).toEqual(['o2']);
+    expect(useDeploymentsStore.getState().error).toBe('forbidden');
+
+    api.getRecordDeployments.mockRejectedValueOnce(forbidden());
+    expect(await useDeploymentsStore.getState().fetchDeployments()).toEqual([]);
+  });
+
   it('replaces only one connector slice of the reconciliation when asked for that connector', async () => {
     useDeploymentsStore.setState({
       reconciliation: [

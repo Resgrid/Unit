@@ -137,6 +137,10 @@ const currentIdentity = (): string | null => {
   return userId && departmentId ? `${userId}:${departmentId}` : null;
 };
 
+// Bumped by every open, close and identity change, so a deployment that answers after the person has
+// left it (or opened another one) is dropped instead of repopulating the store.
+let openGeneration = 0;
+
 const copyEntries = (report: TimeReport | null) => (report ? report.Entries.map((entry) => ({ ...entry })) : []);
 
 export const useOperationsStore = create<OperationsState>()((set, get) => {
@@ -165,7 +169,10 @@ export const useOperationsStore = create<OperationsState>()((set, get) => {
     ...initial,
     loadAccess: async () => {
       const identity = currentIdentity();
-      if (get().identity !== identity) set({ ...initial, identity });
+      if (get().identity !== identity) {
+        openGeneration += 1;
+        set({ ...initial, identity });
+      }
       await settle(async () => {
         const access = await getDeploymentAccess();
         // Usage and MARS access are optional add-ons; a failure there must not hide the deployments.
@@ -183,8 +190,10 @@ export const useOperationsStore = create<OperationsState>()((set, get) => {
       });
     },
     open: async (id) => {
+      const generation = ++openGeneration;
       await settle(async () => {
         const [deployment, reports] = await Promise.all([getDeployment(id), getTimeReports(id)]);
+        if (generation !== openGeneration) return;
         set({ ...closed, deployment, reports });
       });
     },
@@ -306,6 +315,9 @@ export const useOperationsStore = create<OperationsState>()((set, get) => {
       });
       return validated === true;
     },
-    close: () => set({ ...closed, error: null }),
+    close: () => {
+      openGeneration += 1;
+      set({ ...closed, error: null });
+    },
   };
 });

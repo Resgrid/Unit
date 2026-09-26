@@ -20,6 +20,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { logger } from '@/lib/logging';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { useCallDetailStore } from '@/stores/calls/detail-store';
+import { safeFileName } from '@/utils/file-name';
 
 import { FocusAwareStatusBar } from '../ui';
 
@@ -111,8 +112,9 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
     try {
       setDownloadingFiles((prev) => ({ ...prev, [file.Id]: 0 }));
 
-      // Create a temporary file
-      const fileName = file.FileName || file.Name || `file_${file.Id}`;
+      // Create a temporary file. The name comes from whoever uploaded it, so it is reduced to one
+      // path segment before it is joined to the documents directory.
+      const fileName = safeFileName(file.FileName || file.Name, `file_${file.Id}`);
       if (!documentDirectory) {
         throw new Error('Document directory is unavailable');
       }

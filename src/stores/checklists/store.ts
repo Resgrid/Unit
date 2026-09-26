@@ -59,14 +59,33 @@ const assertOpen = (scope: string) => {
   if (!current(scope) || !state.access?.Enabled) throw new Error('denied');
   if (AppState.currentState !== 'active' || (state.access.IsProtected && !dataProtectionStore.getState().isStepUpActive())) throw new Error('locked');
 };
+// A draft is a whole snapshot, so a write still waiting at the end of the line can take a newer snapshot
+// of the same draft instead of queueing another: typing a note costs one encrypted vault write at a time,
+// not one per keystroke. Only the tail is merged, so the order against every other write is unchanged.
+interface WaitingDraftWrite {
+  key: string;
+  copy: ChecklistDraft;
+  job: Promise<void>;
+}
+let waitingDraft: WaitingDraftWrite | null = null;
 const persistDraft = (draft: ChecklistDraft): Promise<void> => {
-  const copy: ChecklistDraft = JSON.parse(JSON.stringify(draft));
-  return serializeWrite(async () => {
+  const key = `${draft.scope}:${draft.id}`;
+  const snapshot: ChecklistDraft = JSON.parse(JSON.stringify(draft));
+  if (waitingDraft?.key === key && writes === waitingDraft.job) {
+    waitingDraft.copy = snapshot;
+    return waitingDraft.job;
+  }
+  const waiting: WaitingDraftWrite = { key, copy: snapshot, job: writes };
+  waiting.job = serializeWrite(async () => {
+    if (waitingDraft === waiting) waitingDraft = null;
+    const { copy } = waiting;
     const ids = (await vaultRead<string[]>(copy.scope, 'index')) ?? [];
     if (!ids.includes(copy.id) && ids.length >= 50) throw new Error('storage_full');
     await vaultWrite(copy.scope, `draft:${copy.id}`, copy);
     if (!ids.includes(copy.id)) await vaultWrite(copy.scope, 'index', [...ids, copy.id]);
   });
+  waitingDraft = waiting;
+  return waiting.job;
 };
 // Keep a bounded, value-free receipt before erasing acknowledged content. A queue retry after
 // a process exit can consume this receipt without recreating the completed run.
@@ -255,7 +274,8 @@ export const useChecklistsStore = create<ChecklistState>()((set, get) => ({
   queue: async (submit) => {
     const draft = get().active;
     if (!draft || !draft.run.CanEdit) throw new Error('denied');
-    await writes;
+    // An earlier write's failure was already reported to its own caller; this one stages its own copy.
+    await writes.catch(() => undefined);
     const queued = { ...draft, queued: true, submit, input: { ...draft.input, ClientCompletedOn: submit ? (draft.input.ClientCompletedOn ?? new Date().toISOString()) : draft.input.ClientCompletedOn } };
     await stage(queued);
     enqueue(draft.scope, draft.id);
@@ -312,7 +332,7 @@ export const flushChecklistDraft = (scope: string, id: string): Promise<void> =>
       if (scope !== checklistScope()) throw new Error('denied');
       const verified = await readAccess();
       if (verified !== scope) throw new Error('denied');
-      await writes;
+      await writes.catch(() => undefined);
       const draft = await vaultRead<ChecklistDraft>(scope, `draft:${id}`);
       assertOpen(scope);
       if (!draft) {

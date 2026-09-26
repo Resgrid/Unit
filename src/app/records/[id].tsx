@@ -85,7 +85,7 @@ export default function RecordScreen() {
     setIsBusy(true);
     try {
       const clientRecordId = `edit-${record.RecordId}-${record.RowVersion}`;
-      stageDraft({
+      const draft = {
         clientRecordId,
         recordId: record.RecordId,
         definitionKey: record.DefinitionKey ?? '',
@@ -94,8 +94,10 @@ export default function RecordScreen() {
         values: toValueList(values),
         rowVersion: record.RowVersion,
         updatedOn: new Date().toISOString(),
-      });
-      const result = await pushDraft(clientRecordId);
+      };
+      stageDraft(draft);
+      // Passed directly as well: a definition that seals values is never staged on the device.
+      const result = await pushDraft(clientRecordId, draft);
       if (result.ok) {
         discardDraft(clientRecordId);
         setMessage(t('records.saved'));

@@ -27,13 +27,16 @@ export const RecordsQuickCreate: React.FC<RecordsQuickCreateProps> = ({ context,
   const fetchCatalog = useRecordsStore((state) => state.fetchCatalog);
   const catalog = useRecordsStore((state) => state.catalog);
 
+  // Keyed on the context's values, not its identity: callers build the object inline, and a new
+  // reference on every render must not re-request the catalog for the same context.
+  const { CallId, UnitId, GroupId, CommandRole, ContactId } = context;
   useEffect(() => {
     if (flagStatus !== 'enabled') {
       return;
     }
-    setContext(context);
+    setContext({ CallId, UnitId, GroupId, CommandRole, ContactId });
     void fetchCatalog();
-  }, [flagStatus, context, setContext, fetchCatalog]);
+  }, [flagStatus, CallId, UnitId, GroupId, CommandRole, ContactId, setContext, fetchCatalog]);
 
   if (flagStatus !== 'enabled' || (catalog?.Definitions?.length ?? 0) === 0) {
     return null;
