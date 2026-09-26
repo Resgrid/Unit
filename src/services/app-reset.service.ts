@@ -10,7 +10,7 @@ import { queryClient } from '@/api/common/api-provider';
 import { registerSessionCleanupHandler } from '@/lib/auth/session-cleanup';
 import { logger } from '@/lib/logging';
 import { storage } from '@/lib/storage';
-import { removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
+import { BASE_API_URL_STORAGE_KEY, removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
 import { locationService } from '@/services/location';
 import { pushNotificationService } from '@/services/push-notification';
 import { signalRService } from '@/services/signalr.service';
@@ -20,9 +20,11 @@ import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
 import { useLocationStore } from '@/stores/app/location-store';
+import { useSiteInfoStore } from '@/stores/calls/site-info-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { useChatStore } from '@/stores/chat/store';
 import { useCheckInTimerStore } from '@/stores/check-in-timers/store';
+import { useContactPreplanStore } from '@/stores/contacts/preplan-store';
 import { useContactsStore } from '@/stores/contacts/store';
 import { useDispatchStore } from '@/stores/dispatch/store';
 import { featureFlagsStore } from '@/stores/feature-flags/store';
@@ -32,6 +34,8 @@ import { useOfflineQueueStore } from '@/stores/offline-queue/store';
 import { usePoisStore } from '@/stores/pois/store';
 import { useProtocolsStore } from '@/stores/protocols/store';
 import { usePushNotificationModalStore } from '@/stores/push-notification/store';
+import { useDeploymentsStore } from '@/stores/records/deployments-store';
+import { useRecordsStore } from '@/stores/records/store';
 import { useRolesStore } from '@/stores/roles/store';
 import { useRoutesStore } from '@/stores/routes/store';
 import { securityStore } from '@/stores/security/store';
@@ -238,8 +242,10 @@ export const INITIAL_ROUTES_STATE = {
   error: null,
 };
 
-// Keys to preserve during storage clear (e.g., first-time flags)
-const STORAGE_KEYS_TO_PRESERVE = ['IS_FIRST_TIME'];
+// Keys to preserve during storage clear (e.g., first-time flags). The server
+// URL is a device setting, not user data — wiping it would silently move an
+// EU-Central (or self-hosted) device back to the default server on logout.
+const STORAGE_KEYS_TO_PRESERVE = ['IS_FIRST_TIME', BASE_API_URL_STORAGE_KEY];
 
 /**
  * Clears all persisted storage items except those in the preserve list
@@ -336,6 +342,16 @@ export const resetAllStores = async (): Promise<void> => {
 
   // Chat store — clears channels/messages/outbox and stops typing/outbox timers.
   useChatStore.getState().reset();
+
+  // Field Records — clearPersistedStorage() wipes the persisted drafts and uploads, but the in-memory
+  // copies would otherwise be written back on the next change and pushed under the next user's sign-in.
+  useRecordsStore.getState().reset();
+  useDeploymentsStore.getState().reset();
+
+  // Contact pre-plans, site files and call site info are cached protected data; the next user
+  // must fetch their own view rather than see what the previous grant revealed.
+  useContactPreplanStore.getState().reset();
+  useSiteInfoStore.getState().reset();
 };
 
 /**
@@ -363,6 +379,9 @@ export const teardownServices = async (): Promise<void> => {
     lastUnitStatusTimestamp: 0,
     lastGeolocationMessage: null,
     lastGeolocationTimestamp: 0,
+    // The previous user's department positions must not move the next user's pins.
+    liveLocations: {},
+    geolocationJoinCount: 0,
     error: null,
   });
 

@@ -1,7 +1,8 @@
-import { create } from 'zustand';
+import { create, type StoreApi } from 'zustand';
 
 import { useAuthStore } from '@/lib';
 import { Env } from '@/lib/env';
+import { type LiveLocationKind, type LiveLocations, mergeLiveLocation, parseLiveLocationPayload } from '@/lib/live-locations';
 import { logger } from '@/lib/logging';
 import { SignalRService, signalRService } from '@/services/signalr.service';
 
@@ -219,6 +220,7 @@ function scheduleCallsRefresh(): void {
 
 /** Update-hub events that carry a per-event timestamp for targeted refetches. */
 export const UPDATE_HUB_EVENTS = [
+  'checklistUpdated',
   'personnelStatusUpdated',
   'personnelStaffingUpdated',
   'unitStatusUpdated',
@@ -244,9 +246,19 @@ interface SignalRState {
   /** Raw payload of the latest unitStatusUpdated message (no JSON round-trip). */
   lastUnitStatusMessage: unknown;
   lastUnitStatusTimestamp: number;
+  /** True only once the geolocation hub has answered `GeolocationConnect` with `onGeolocationConnect`. */
   isGeolocationHubConnected: boolean;
+  /** @deprecated Never written — a single slot drops all but one of the positions in a frame. Use `liveLocations`. */
   lastGeolocationMessage: unknown;
+  /** @deprecated Never written. Use `liveLocations`. */
   lastGeolocationTimestamp: number;
+  /** Latest pushed position per map pin id (`u{UnitId}` / `p{userId}`), newest fix wins. */
+  liveLocations: LiveLocations;
+  /**
+   * Incremented after every successful `GeolocationConnect`. The first join of a session is covered by
+   * the map's own fetch; any later one follows a gap in which pushes were missed, so maps refetch.
+   */
+  geolocationJoinCount: number;
   isChatHubConnected: boolean;
   error: Error | null;
   connectUpdateHub: () => Promise<void>;
@@ -295,6 +307,111 @@ const joinDepartmentGroup = async (): Promise<void> => {
   await signalRService.invoke(Env.CHANNEL_HUB_NAME, 'connect', departmentId);
 };
 
+type SignalRSetState = StoreApi<SignalRState>['setState'];
+
+// Joining the department group on the geolocation hub. Membership is per connection id, so every new
+// connection — first start, automatic reconnect, or the service's rebuild after onclose — has to
+// invoke GeolocationConnect again or the map silently stops receiving positions.
+const GEOLOCATION_JOIN_RETRY_MS = 5000;
+const GEOLOCATION_JOIN_MAX_ATTEMPTS = 3;
+let geolocationJoinTimer: ReturnType<typeof setTimeout> | null = null;
+let geolocationJoinAttempts = 0;
+// Bumped whenever the connection a join was aimed at goes away (disconnect, reconnecting, a fresh
+// reconnected connection), so a join still in flight against the old connection completes as a no-op
+// instead of counting as a join or scheduling retries.
+let geolocationConnectionGeneration = 0;
+// The join in flight for the current generation, so overlapping callers share one invoke.
+let geolocationJoinOperation: { generation: number; promise: Promise<void> } | null = null;
+
+function stopGeolocationJoinRetry(): void {
+  if (geolocationJoinTimer) {
+    clearTimeout(geolocationJoinTimer);
+    geolocationJoinTimer = null;
+  }
+}
+
+/** Invalidate the current geolocation connection's join (in flight or scheduled). */
+function retireGeolocationConnection(): void {
+  geolocationConnectionGeneration += 1;
+  stopGeolocationJoinRetry();
+  geolocationJoinAttempts = 0;
+}
+
+async function runGeolocationJoin(set: SignalRSetState, generation: number): Promise<void> {
+  stopGeolocationJoinRetry();
+
+  try {
+    // No arguments: the hub method takes none, and SignalR rejects an invocation whose argument
+    // count does not match the target.
+    await signalRService.invoke(Env.REALTIME_GEO_HUB_NAME, 'GeolocationConnect');
+  } catch (error) {
+    // A failure against a connection that is already gone must not schedule retries.
+    if (generation !== geolocationConnectionGeneration) {
+      return;
+    }
+    geolocationJoinAttempts += 1;
+    logger.warn({
+      message: 'Failed to join the geolocation hub department group',
+      context: { error, attempt: geolocationJoinAttempts, maxAttempts: GEOLOCATION_JOIN_MAX_ATTEMPTS },
+    });
+    // A failed join is silent and total: the socket is up but receives nothing. Retry a bounded
+    // number of times rather than waiting for a background/resume cycle.
+    if (geolocationJoinAttempts < GEOLOCATION_JOIN_MAX_ATTEMPTS) {
+      geolocationJoinTimer = setTimeout(() => {
+        geolocationJoinTimer = null;
+        void joinGeolocationGroup(set).catch(() => {
+          // runGeolocationJoin already logged and scheduled the next retry.
+        });
+      }, GEOLOCATION_JOIN_RETRY_MS);
+    } else {
+      logger.error({
+        message: 'Giving up joining the geolocation hub department group; the next connectGeolocationHub will retry',
+        context: { attempts: geolocationJoinAttempts },
+      });
+    }
+    throw error;
+  }
+
+  if (generation !== geolocationConnectionGeneration) {
+    return;
+  }
+  geolocationJoinAttempts = 0;
+  set((state) => ({ geolocationJoinCount: state.geolocationJoinCount + 1 }));
+}
+
+function joinGeolocationGroup(set: SignalRSetState): Promise<void> {
+  const generation = geolocationConnectionGeneration;
+  if (geolocationJoinOperation && geolocationJoinOperation.generation === generation) {
+    return geolocationJoinOperation.promise;
+  }
+  const promise = runGeolocationJoin(set, generation).finally(() => {
+    if (geolocationJoinOperation?.promise === promise) {
+      geolocationJoinOperation = null;
+    }
+  });
+  geolocationJoinOperation = { generation, promise };
+  return promise;
+}
+
+/**
+ * Handler for a location push. Records the position per pin (never in a single slot: SignalR
+ * dispatches a frame's messages synchronously and React batches the renders, so a single slot would
+ * keep only the last one) and drops fixes older than the one already held.
+ */
+const recordLiveLocation =
+  (set: SignalRSetState, kind: LiveLocationKind) =>
+  (payload: unknown): void => {
+    const update = parseLiveLocationPayload(kind, payload);
+    if (!update) {
+      logger.debug({ message: 'Ignoring unusable geolocation push', context: { kind } });
+      return;
+    }
+    set((state) => {
+      const liveLocations = mergeLiveLocation(state.liveLocations, update);
+      return liveLocations === state.liveLocations ? state : { liveLocations };
+    });
+  };
+
 export const useSignalRStore = create<SignalRState>((set, get) => ({
   isUpdateHubConnected: false,
   lastUpdateMessage: null,
@@ -305,6 +422,8 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   isGeolocationHubConnected: false,
   lastGeolocationMessage: null,
   lastGeolocationTimestamp: 0,
+  liveLocations: {},
+  geolocationJoinCount: 0,
   isChatHubConnected: false,
   error: null,
   connectUpdateHub: async () => {
@@ -559,7 +678,9 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   },
   connectGeolocationHub: async () => {
     try {
-      if (get().isGeolocationHubConnected) {
+      // The flag alone must never block a repair: only skip when the service still holds the
+      // connection the flag was set for.
+      if (get().isGeolocationHubConnected && signalRService.isHubAvailable(Env.REALTIME_GEO_HUB_NAME)) {
         return;
       }
 
@@ -578,25 +699,40 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         return;
       }
 
-      // Remove any previously registered handlers to prevent accumulation
+      // Remove any previously registered handlers to prevent accumulation. Lifecycle events use
+      // hub-scoped names so this never wipes another hub's listeners.
       const geoHubDisconnected = `${SignalRService.HUB_DISCONNECTED_EVENT}:${Env.REALTIME_GEO_HUB_NAME}`;
-      const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect', geoHubDisconnected];
+      const geoHubReconnecting = `${SignalRService.HUB_RECONNECTING_EVENT}:${Env.REALTIME_GEO_HUB_NAME}`;
+      const geoHubReconnected = `${SignalRService.HUB_RECONNECTED_EVENT}:${Env.REALTIME_GEO_HUB_NAME}`;
+      const geoEvents = ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect', geoHubDisconnected, geoHubReconnecting, geoHubReconnected];
       geoEvents.forEach((event) => signalRService.removeAllListeners(event));
 
       // Register listeners BEFORE starting the connection so an early
       // onGeolocationConnect from the server cannot be dropped, which would
       // leave isGeolocationHubConnected stuck at false.
 
-      // NOTE: no per-message store writes here. Geolocation messages fire per
-      // unit per location cycle and nothing in the app consumes them — writing
-      // them to the store (previously JSON.stringify'd on every message) was
-      // pure CPU/render churn. Register no-op listeners so the hub methods stay
-      // subscribed without store updates.
-      signalRService.on('onPersonnelLocationUpdated', () => {});
-      signalRService.on('onUnitLocationUpdated', () => {});
+      // Positions go into the store per pin; the live maps apply them to their own pins.
+      signalRService.on('onPersonnelLocationUpdated', recordLiveLocation(set, 'personnel'));
+      signalRService.on('onUnitLocationUpdated', recordLiveLocation(set, 'unit'));
 
       signalRService.on(geoHubDisconnected, () => {
+        retireGeolocationConnection();
         set({ isGeolocationHubConnected: false });
+      });
+
+      signalRService.on(geoHubReconnecting, () => {
+        retireGeolocationConnection();
+        set({ isGeolocationHubConnected: false });
+      });
+
+      // Covers both SignalR's automatic reconnect and the service's own rebuild after onclose:
+      // either way it is a new connection id outside the department group.
+      signalRService.on(geoHubReconnected, () => {
+        retireGeolocationConnection();
+        set({ isGeolocationHubConnected: false });
+        void joinGeolocationGroup(set).catch(() => {
+          // runGeolocationJoin already logged and scheduled its retry.
+        });
       });
 
       signalRService.on('onGeolocationConnect', () => {
@@ -613,6 +749,10 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
         hubName: Env.REALTIME_GEO_HUB_NAME,
         methods: ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'],
       });
+
+      // The server only adds a connection to the department group — and only then replies
+      // onGeolocationConnect — in response to this call.
+      await joinGeolocationGroup(set);
     } catch (error) {
       const err = error instanceof Error ? error : new Error('Unknown error occurred');
       // The service already logged the connect failure with hub context; logging
@@ -622,6 +762,8 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   },
   disconnectGeolocationHub: async () => {
     try {
+      // A join still in flight or scheduled must not count or retry after this teardown.
+      retireGeolocationConnection();
       await signalRService.disconnectFromHub(Env.REALTIME_GEO_HUB_NAME);
       set({ isGeolocationHubConnected: false, lastGeolocationMessage: null });
     } catch (error) {

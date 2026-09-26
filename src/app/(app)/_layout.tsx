@@ -32,7 +32,7 @@ import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultDat
 import { audioService } from '@/services/audio.service';
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { usePushNotifications } from '@/services/push-notification';
-import { useCoreStore } from '@/stores/app/core-store';
+import { UnitListUnavailableError, useCoreStore } from '@/stores/app/core-store';
 import { useCallsStore } from '@/stores/calls/store';
 import { dataProtectionStore } from '@/stores/data-protection/store';
 import { FeatureFlagKeys, featureFlagsStore } from '@/stores/feature-flags/store';
@@ -237,7 +237,7 @@ export default function TabLayout() {
       // Transient connectivity failures are expected (e.g. brief network loss) and
       // already logged deeper in the stack, so keep them at warn to avoid reporting
       // the same recoverable error to Sentry. Genuine failures still report as errors.
-      if (isNetworkError(error)) {
+      if (isNetworkError(error) || error instanceof UnitListUnavailableError) {
         logger.warn({
           message: 'Failed to initialize app due to network connectivity',
           context: { error },
@@ -626,6 +626,10 @@ export default function TabLayout() {
             <Tabs.Screen name="routes" options={routesOptions} />
 
             <Tabs.Screen name="contacts" options={contactsOptions} />
+            <Tabs.Screen name="checklists" options={{ href: null, title: t('checklists.labels.Checklists') }} />
+            <Tabs.Screen name="operations" options={{ href: null, headerShown: false }} />
+            <Tabs.Screen name="records" options={{ href: null, title: t('tabs.records') }} />
+            <Tabs.Screen name="inventory" options={{ href: null, headerShown: false }} />
 
             <Tabs.Screen name="notes" options={notesOptions} />
 

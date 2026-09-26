@@ -18,6 +18,9 @@ jest.mock('@/api/units/unitStatuses', () => ({
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
     queueUnitStatusEvent: jest.fn(),
+    isDeviceOffline: jest.fn(() => false),
+    hasUndeliveredUnitStatuses: jest.fn(() => false),
+    deliverQueuedUnitStatuses: jest.fn(async () => true),
   },
 }));
 
@@ -224,7 +227,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '25',
           heading: '90',
-        }
+        },
+        expect.any(Date)
       );
     });
 
@@ -248,7 +252,8 @@ describe('Status GPS Integration', () => {
         '',
         null,
         [],
-        undefined
+        undefined,
+        expect.any(Date)
       );
     });
 
@@ -418,7 +423,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '',
           heading: '',
-        }
+        },
+        expect.any(Date)
       );
     });
 
@@ -464,7 +470,8 @@ describe('Status GPS Integration', () => {
           altitudeAccuracy: '',
           speed: '30',
           heading: '',
-        }
+        },
+        expect.any(Date)
       );
     });
   });

@@ -5,6 +5,8 @@ import { logger } from '@/lib/logging';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { type UpdateHubEvent, useSignalRStore } from '@/stores/signalr/signalr-store';
 
+import { applyLiveLocationsSince } from './use-map-live-locations';
+
 // Debounce delay in milliseconds to prevent rapid consecutive API calls
 const DEBOUNCE_DELAY = 1000;
 
@@ -56,6 +58,8 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
           context: { timestamp: timestampToProcess },
         });
 
+        // Live positions pushed while this request is in flight can be newer than its snapshot.
+        const fetchStartedAt = Date.now();
         const mapDataAndMarkers = await getMapDataAndMarkers(abortController.current.signal);
 
         // Check if request was aborted
@@ -76,7 +80,7 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
             },
           });
 
-          onMarkersUpdate(mapDataAndMarkers.Data.MapMakerInfos);
+          onMarkersUpdate(applyLiveLocationsSince(mapDataAndMarkers.Data.MapMakerInfos, fetchStartedAt));
         }
 
         // Update the last processed timestamp after successful API call
@@ -171,4 +175,20 @@ export const useMapSignalRUpdates = (onMarkersUpdate: (markers: MapMakerInfoData
       }
     };
   }, []);
+
+  /**
+   * Ask for a background refetch outside the update-hub events (live-location catch-up, pins missing
+   * from the map). Shares the event debounce, so it coalesces with any event-driven refetch.
+   */
+  const requestRefresh = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+    debounceTimer.current = setTimeout(() => {
+      debounceTimer.current = null;
+      fetchAndUpdateMarkers(Date.now());
+    }, DEBOUNCE_DELAY);
+  }, [fetchAndUpdateMarkers]);
+
+  return { requestRefresh };
 };

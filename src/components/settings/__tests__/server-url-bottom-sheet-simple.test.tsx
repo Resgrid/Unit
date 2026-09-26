@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { ServerUrlBottomSheet } from '../server-url-bottom-sheet';
@@ -29,6 +29,7 @@ jest.mock('react-hook-form', () => ({
     control: {},
     handleSubmit: jest.fn(),
     setValue: jest.fn(),
+    setError: jest.fn(),
     formState: { errors: {} },
   }),
   Controller: ({ render }: any) => render({ field: { onChange: jest.fn(), value: '' } }),
@@ -45,6 +46,10 @@ jest.mock('@/stores/app/server-url-store', () => ({
 }));
 
 jest.mock('@/lib/env', () => ({ Env: { API_VERSION: 'v4' } }));
+jest.mock('@/api/config', () => ({
+  getSystemConfig: jest.fn().mockResolvedValue({ Data: { Locations: [] } }),
+}));
+jest.mock('lucide-react-native', () => ({ ChevronDownIcon: 'ChevronDownIcon' }));
 jest.mock('@/lib/logging', () => ({ logger: { info: jest.fn(), error: jest.fn() } }));
 
 // Create mock UI component factory functions
@@ -92,6 +97,18 @@ jest.mock('../../ui/input', () => ({
   Input: createMockUIComponent('Input'),
   InputField: createMockInputComponent,
 }));
+jest.mock('../../ui/select', () => ({
+  Select: createMockUIComponent('Select'),
+  SelectBackdrop: createMockUIComponent('SelectBackdrop'),
+  SelectContent: createMockUIComponent('SelectContent'),
+  SelectDragIndicator: createMockUIComponent('SelectDragIndicator'),
+  SelectDragIndicatorWrapper: createMockUIComponent('SelectDragIndicatorWrapper'),
+  SelectIcon: createMockUIComponent('SelectIcon'),
+  SelectInput: createMockUIComponent('SelectInput'),
+  SelectItem: createMockUIComponent('SelectItem'),
+  SelectPortal: createMockUIComponent('SelectPortal'),
+  SelectTrigger: createMockUIComponent('SelectTrigger'),
+}));
 jest.mock('../../ui/text', () => ({ Text: createMockTextComponent('Text') }));
 jest.mock('../../ui/vstack', () => ({ VStack: createMockUIComponent('VStack') }));
 
@@ -101,9 +118,12 @@ describe('ServerUrlBottomSheet - Simple', () => {
     onClose: jest.fn(),
   };
 
-  it('renders when open', () => {
+  const waitForServerOptions = () => waitFor(() => expect(screen.queryByTestId('server-options-loading')).toBeNull());
+
+  it('renders when open', async () => {
     render(<ServerUrlBottomSheet {...defaultProps} />);
     expect(screen.getByTestId('actionsheet')).toBeTruthy();
+    await waitForServerOptions();
   });
 
   it('does not render when closed', () => {
@@ -111,8 +131,9 @@ describe('ServerUrlBottomSheet - Simple', () => {
     expect(screen.queryByTestId('actionsheet')).toBeNull();
   });
 
-  it('renders input field with correct keyboard properties', () => {
+  it('renders input field with correct keyboard properties', async () => {
     render(<ServerUrlBottomSheet {...defaultProps} />);
+    await waitForServerOptions();
 
     const inputField = screen.getByTestId('input-field');
     expect(inputField.props.autoCapitalize).toBe('none');

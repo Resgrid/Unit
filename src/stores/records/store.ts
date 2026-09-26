@@ -1,0 +1,690 @@
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+
+import {
+  acknowledgeAssignment as acknowledgeAssignmentApi,
+  completeAssignment as completeAssignmentApi,
+  getFieldRecordPrefill,
+  getFieldRecordsCatalog,
+  getFieldRecordsPreflight,
+  reportFieldRecordTelemetry,
+  syncFieldRecords,
+} from '@/api/records/field-records';
+import { createRecordDraft, finalizeRecord, getRecordDefinitionVersion, saveRecordDraft, submitRecordForReview } from '@/api/records/records';
+import { Env } from '@/lib/env';
+import { logger } from '@/lib/logging';
+import { canAuthorOffline, CLIENT_CAPABILITY, toValueList, type ValueMap } from '@/lib/records/schema';
+import { type PendingUpload, type UploadOptions, type UploadOutcome } from '@/lib/records/uploads';
+import { zustandStorage } from '@/lib/storage';
+import {
+  type FieldRecordAssignmentData,
+  type FieldRecordCatalogData,
+  type FieldRecordCatalogEntry,
+  type FieldRecordConflictKind,
+  type FieldRecordContextInput,
+  type FieldRecordPrefillData,
+  type FieldRecordPreflightData,
+  type RecordData,
+  type RecordDefinitionSchema,
+  type RecordSummaryData,
+  type RecordValueInput,
+  RmsOriginClient,
+  RmsRecordState,
+} from '@/models/v4/records';
+
+// Field Records working set for this app (RMS plan RMS-1D). The server owns every filter; this store
+// holds what it returned, the drafts this device is carrying, and the conflicts a person must resolve.
+// Nothing here widens access: a tombstoned or unauthorized Record is dropped rather than displayed.
+
+/** This app's origin. Every other app repo ships the same store with its own value. */
+export const RECORDS_ORIGIN_CLIENT: RmsOriginClient = RmsOriginClient.Unit;
+
+const SYNC_TAKE = 200;
+
+/** Most rollout events held before the oldest are dropped; telemetry never grows without a bound. */
+const TELEMETRY_MAX = 100;
+
+/** One safe rollout datapoint (RMS plan RMS-1D): a coded outcome, a count, a duration. Never content. */
+export interface FieldRecordTelemetryEvent {
+  EventType: string;
+  Outcome?: string;
+  DefinitionKey?: string;
+  DefinitionVersion?: number;
+  RecordId?: string;
+  DurationMs?: number;
+  ItemCount?: number;
+  OccurredOn?: string;
+}
+
+// Module scope rather than store state: the queue is transient, must not be persisted, and must not
+// make every consumer of the store re-render each time an event is added.
+let telemetryQueue: FieldRecordTelemetryEvent[] = [];
+
+// Bumped by reset(). A send still in flight at sign-out must not write the previous session's draft or
+// upload back into the persisted slice, where the next sign-in would pick it up and send it as theirs.
+let sessionGeneration = 0;
+
+// The newest catalog request and the newest sync. An older request drops its answer once the context has
+// moved on, so it must not end the loading state of, or hold back, the request that replaced it.
+let catalogRequest = 0;
+let syncRequest = 0;
+let syncContext: FieldRecordContextInput | null = null;
+
+// The context the in-memory synced lists and the delta cursor were built for. The context narrows what
+// the server returns, so only a sync for that same context may ask for a delta; any other — another Call,
+// a new session, or a fresh launch whose lists start empty — pulls in full and rebuilds the lists.
+let syncedContext: FieldRecordContextInput | null = null;
+
+// The upload driver reaches for the camera roll and the crypto module, so it is loaded only when an
+// upload actually runs. Importing it here would drag those native modules into every screen that
+// touches this store, which is most of them.
+interface UploaderModule {
+  runUpload: (pending: PendingUpload, options?: UploadOptions) => Promise<UploadOutcome>;
+  cancelUpload: (uploadId: string | null) => Promise<void>;
+}
+
+// The type-only imports above are erased, so nothing native loads until this runs.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const loadUploader = (): UploaderModule => require('@/lib/records/uploads');
+
+export interface PendingRecordDraft {
+  /** Client id until the server issues one; also the offline queue key. */
+  clientRecordId: string;
+  recordId: string | null;
+  definitionKey: string;
+  definitionVersion: number;
+  name: string;
+  values: RecordValueInput[];
+  callId?: number | null;
+  stationGroupId?: number | null;
+  rowVersion?: number | null;
+  updatedOn: string;
+  /** Set when the last push failed; the person is told rather than the write being replayed. */
+  lastError?: string | null;
+  conflict?: FieldRecordConflictKind | null;
+}
+
+interface RecordsState {
+  preflight: FieldRecordPreflightData | null;
+  catalog: FieldRecordCatalogData | null;
+  assignments: FieldRecordAssignmentData[];
+  recent: RecordSummaryData[];
+  drafts: RecordSummaryData[];
+  pendingDrafts: Record<string, PendingRecordDraft>;
+  /** Attachments this device is carrying; an interrupted upload resumes from the server's own count. */
+  pendingUploads: Record<string, PendingUpload>;
+  /** Bytes sent per upload, kept out of the persisted slice because it is only meaningful live. */
+  uploadProgress: Record<string, number>;
+  schemas: Record<string, RecordDefinitionSchema>;
+  scopeStamp: string | null;
+  lastSyncTimestampMs: number;
+  isLoading: boolean;
+  isSyncing: boolean;
+  error: string | null;
+  context: FieldRecordContextInput;
+
+  setContext: (context: FieldRecordContextInput) => void;
+  runPreflight: () => Promise<FieldRecordPreflightData | null>;
+  fetchCatalog: () => Promise<FieldRecordCatalogData | null>;
+  sync: (options?: { full?: boolean }) => Promise<void>;
+  fetchSchema: (definitionKey: string, version: number) => Promise<RecordDefinitionSchema | null>;
+  prefill: (definitionKey: string, version: number) => Promise<FieldRecordPrefillData | null>;
+
+  stageDraft: (draft: PendingRecordDraft) => void;
+  discardDraft: (clientRecordId: string) => void;
+  /**
+   * Sends a staged draft, or `draft` itself when it was not staged (a definition that seals values never is).
+   * On success `record` is the record as the server accepted it, carrying the row version to continue from.
+   */
+  pushDraft: (clientRecordId: string, draft?: PendingRecordDraft) => Promise<{ ok: boolean; recordId?: string; record?: RecordData; conflict?: FieldRecordConflictKind; error?: string }>;
+  pushAllDrafts: () => Promise<void>;
+  submitForReview: (recordId: string, rowVersion: number) => Promise<{ ok: boolean; error?: string }>;
+  finalize: (recordId: string, rowVersion: number, attested: boolean) => Promise<{ ok: boolean; error?: string }>;
+
+  stageUpload: (upload: PendingUpload) => void;
+  discardUpload: (localId: string) => Promise<void>;
+  retryUpload: (localId: string) => Promise<void>;
+  runUploads: (recordId?: string) => Promise<{ uploaded: number; failed: number }>;
+
+  report: (event: FieldRecordTelemetryEvent) => void;
+  flushTelemetry: () => Promise<void>;
+
+  acknowledge: (assignmentId: string, rowVersion: number) => Promise<void>;
+  complete: (assignmentId: string, rowVersion: number) => Promise<void>;
+
+  entryFor: (definitionKey: string, version?: number) => FieldRecordCatalogEntry | null;
+  reset: () => void;
+}
+
+const catalogInput = (context: FieldRecordContextInput) => ({
+  OriginClient: RECORDS_ORIGIN_CLIENT as number,
+  AppVersion: Env.VERSION,
+  ClientCapability: CLIENT_CAPABILITY,
+  Context: context,
+});
+
+/** An axios failure carries the server's problem type; that is what tells a conflict apart. */
+const conflictFrom = (error: unknown): FieldRecordConflictKind | undefined => {
+  const response = (error as { response?: { status?: number; data?: { type?: string } } })?.response;
+  if (!response) {
+    return undefined;
+  }
+  const type = response.data?.type ?? '';
+  if (type.includes('concurrency') || type.includes('conflict') || response.status === 412) {
+    return 'etag';
+  }
+  if (response.status === 403) {
+    return type.includes('field_records_disabled') ? 'app-version' : 'permission';
+  }
+  if (type.includes('definition')) {
+    return 'definition-retired';
+  }
+  if (type.includes('protected')) {
+    return 'protected-data';
+  }
+  if (response.status === 409) {
+    return 'etag';
+  }
+  return undefined;
+};
+
+/** An unknown definition (catalog not loaded) is kept; only one known to seal values is refused. */
+const mayKeepOnDevice = (entry: FieldRecordCatalogEntry | null): boolean => !entry || canAuthorOffline(entry);
+
+const messageFrom = (error: unknown): string => {
+  const response = (error as { response?: { data?: { title?: string } } })?.response;
+  return response?.data?.title ?? (error instanceof Error ? error.message : 'Request failed');
+};
+
+export const useRecordsStore = create<RecordsState>()(
+  persist(
+    (set, get) => ({
+      preflight: null,
+      catalog: null,
+      assignments: [],
+      recent: [],
+      drafts: [],
+      pendingDrafts: {},
+      pendingUploads: {},
+      uploadProgress: {},
+      schemas: {},
+      scopeStamp: null,
+      lastSyncTimestampMs: 0,
+      isLoading: false,
+      isSyncing: false,
+      error: null,
+      context: {},
+
+      setContext: (context) => {
+        const current = get().context;
+        if (current.CallId === context.CallId && current.UnitId === context.UnitId && current.GroupId === context.GroupId && current.CommandRole === context.CommandRole && current.ContactId === context.ContactId) {
+          return;
+        }
+        // The catalog is context-specific, so it is dropped rather than shown against a new context.
+        set({ context, catalog: null });
+      },
+
+      runPreflight: async () => {
+        try {
+          const response = await getFieldRecordsPreflight(RECORDS_ORIGIN_CLIENT, Env.VERSION, CLIENT_CAPABILITY);
+          const preflight = response?.Data ?? null;
+          set({ preflight, error: null });
+          return preflight;
+        } catch (error) {
+          logger.error({ message: 'Field Records preflight failed', context: { error } });
+          set({ error: messageFrom(error) });
+          return null;
+        }
+      },
+
+      fetchCatalog: async () => {
+        // setContext() only replaces the context when it changes (and reset() always does), so an
+        // answer is committed only while the context it was asked for is still the current one.
+        const context = get().context;
+        const request = ++catalogRequest;
+        set({ isLoading: true });
+        try {
+          const response = await getFieldRecordsCatalog(catalogInput(context));
+          // A newer request (for this context or another) owns the catalog now.
+          if (request !== catalogRequest || get().context !== context) {
+            return null;
+          }
+          const catalog = response?.Data ?? null;
+          set({ catalog, scopeStamp: catalog?.ScopeStamp ?? get().scopeStamp, error: null });
+          return catalog;
+        } catch (error) {
+          logger.error({ message: 'Field Records catalog failed', context: { error } });
+          if (request === catalogRequest && get().context === context) {
+            set({ error: messageFrom(error) });
+          }
+          return null;
+        } finally {
+          if (request === catalogRequest) {
+            set({ isLoading: false });
+          }
+        }
+      },
+
+      sync: async (options) => {
+        const context = get().context;
+        // One sync at a time for a context. One still running for an earlier context drops its answer,
+        // so it does not hold back the sync for the context now in view.
+        if (get().isSyncing && syncContext === context) {
+          return;
+        }
+        const request = ++syncRequest;
+        syncContext = context;
+        set({ isSyncing: true });
+        // Lists and cursor from another context are neither sent as a delta nor merged into.
+        const rebuild = syncedContext !== context;
+        const full = options?.full === true || rebuild;
+        // A reset answers with no page, so the full re-pull is run after this one releases the
+        // in-flight guard; recursing inside it would be swallowed by that same guard.
+        let resetAndRetry = false;
+        try {
+          const response = await syncFieldRecords({
+            ...catalogInput(context),
+            Since: full ? 0 : get().lastSyncTimestampMs,
+            ScopeStamp: full ? null : get().scopeStamp,
+            Take: SYNC_TAKE,
+            IncludeCatalog: true,
+          });
+          const bundle = response?.Data;
+          // A bundle for a context (or a session) that is no longer current is dropped whole: its
+          // records, catalog and cursor all belong to what was being viewed when it was asked for.
+          if (!bundle || get().context !== context) {
+            return;
+          }
+
+          syncedContext = context;
+          if (bundle.ResetRequired) {
+            // Scope changed under us: everything cached for the old scope is dropped, including the
+            // catalog. Staged drafts survive — they are this person's unsent work, not server state.
+            set({
+              catalog: bundle.Catalog ?? null,
+              recent: [],
+              drafts: [],
+              assignments: [],
+              scopeStamp: bundle.ScopeStamp ?? null,
+              lastSyncTimestampMs: 0,
+            });
+            // Returning here would skip the retry below, since finally runs but the function exits.
+            resetAndRetry = !full;
+          } else {
+            const tombstoned = new Set(bundle.Tombstones ?? []);
+            const merged = new Map<string, RecordSummaryData>();
+            for (const record of rebuild ? [] : get().recent) {
+              if (!tombstoned.has(record.RecordId)) {
+                merged.set(record.RecordId, record);
+              }
+            }
+            for (const record of bundle.Records ?? []) {
+              if (record.IsTombstone || tombstoned.has(record.RecordId)) {
+                merged.delete(record.RecordId);
+                continue;
+              }
+              merged.set(record.RecordId, record);
+            }
+
+            set({
+              catalog: bundle.Catalog ?? get().catalog,
+              recent: [...merged.values()].sort((a, b) => (b.ModifiedOn ?? '').localeCompare(a.ModifiedOn ?? '')).slice(0, SYNC_TAKE),
+              drafts: bundle.Drafts ?? [],
+              assignments: bundle.Assignments ?? [],
+              scopeStamp: bundle.ScopeStamp ?? get().scopeStamp,
+              lastSyncTimestampMs: bundle.ServerTimestampMs > 0 ? bundle.ServerTimestampMs : get().lastSyncTimestampMs,
+              error: bundle.Ok ? null : (bundle.Reasons ?? []).join(', '),
+            });
+          }
+        } catch (error) {
+          logger.error({ message: 'Field Records sync failed', context: { error } });
+          get().report({ EventType: 'sync', Outcome: 'failed' });
+          if (get().context === context) {
+            set({ error: messageFrom(error) });
+          }
+        } finally {
+          if (request === syncRequest) {
+            syncContext = null;
+            set({ isSyncing: false });
+          }
+        }
+
+        if (resetAndRetry) {
+          await get().sync({ full: true });
+        }
+      },
+
+      fetchSchema: async (definitionKey, version) => {
+        const key = `${definitionKey}:${version}`;
+        const cached = get().schemas[key];
+        if (cached) {
+          return cached;
+        }
+        try {
+          const response = await getRecordDefinitionVersion(definitionKey, version);
+          const schema = response?.Data?.Schema ?? null;
+          if (schema) {
+            set({ schemas: { ...get().schemas, [key]: schema } });
+          }
+          return schema;
+        } catch (error) {
+          logger.error({ message: 'Record definition schema fetch failed', context: { error, definitionKey, version } });
+          return null;
+        }
+      },
+
+      prefill: async (definitionKey, version) => {
+        try {
+          const response = await getFieldRecordPrefill({ ...catalogInput(get().context), DefinitionKey: definitionKey, Version: version });
+          return response?.Data ?? null;
+        } catch (error) {
+          // Prefill is a convenience; a refusal leaves an empty form rather than blocking authoring.
+          logger.warn({ message: 'Record prefill unavailable', context: { error, definitionKey, version } });
+          return null;
+        }
+      },
+
+      stageDraft: (draft) => {
+        if (!mayKeepOnDevice(get().entryFor(draft.definitionKey, draft.definitionVersion))) {
+          // A definition that seals values never leaves plaintext on the device, so it is not staged.
+          logger.info({ message: 'Draft not staged offline: definition requires a live protected-data grant', context: { definitionKey: draft.definitionKey } });
+          return;
+        }
+        set({ pendingDrafts: { ...get().pendingDrafts, [draft.clientRecordId]: { ...draft, updatedOn: new Date().toISOString() } } });
+      },
+
+      discardDraft: (clientRecordId) => {
+        const pending = { ...get().pendingDrafts };
+        delete pending[clientRecordId];
+        set({ pendingDrafts: pending });
+      },
+
+      pushDraft: async (clientRecordId, supplied) => {
+        const generation = sessionGeneration;
+        const draft = supplied ?? get().pendingDrafts[clientRecordId];
+        if (!draft) {
+          return { ok: false, error: 'not_found' };
+        }
+        try {
+          const result = draft.recordId
+            ? await saveRecordDraft({
+                RecordId: draft.recordId,
+                RowVersion: draft.rowVersion ?? null,
+                Values: draft.values,
+                IdempotencyKey: clientRecordId,
+                OriginClient: RECORDS_ORIGIN_CLIENT,
+              })
+            : await createRecordDraft({
+                DefinitionKey: draft.definitionKey,
+                CallId: draft.callId ?? null,
+                StationGroupId: draft.stationGroupId ?? null,
+                Values: draft.values,
+                IdempotencyKey: clientRecordId,
+                ClientRecordId: clientRecordId,
+                OriginClient: RECORDS_ORIGIN_CLIENT,
+              });
+
+          const record = result?.Data;
+          const recordId = record?.RecordId;
+          if (!record || !recordId) {
+            throw new Error('The server did not return a record.');
+          }
+          get().discardDraft(clientRecordId);
+          // Telemetry and the follow-up sync belong to the session that sent it, not to a later sign-in.
+          if (generation === sessionGeneration) {
+            get().report({ EventType: 'draft_saved', Outcome: 'ok', RecordId: recordId, DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
+            void get().sync();
+          }
+          return { ok: true, recordId, record };
+        } catch (error) {
+          const conflict = conflictFrom(error);
+          logger.error({ message: 'Record draft push failed', context: { error, clientRecordId, conflict } });
+          if (generation !== sessionGeneration) {
+            // Signed out while this was in flight: the draft belonged to that session and is not restored.
+            return { ok: false, conflict, error: messageFrom(error) };
+          }
+          if (mayKeepOnDevice(get().entryFor(draft.definitionKey, draft.definitionVersion))) {
+            // Never replayed silently: the draft is kept and flagged so a person decides what happens.
+            set({
+              pendingDrafts: {
+                ...get().pendingDrafts,
+                [clientRecordId]: { ...draft, lastError: messageFrom(error), conflict: conflict ?? null },
+              },
+            });
+          } else {
+            // Its definition seals values, which are never left on the device. A copy staged before the
+            // catalog said so (or before it had loaded) is removed rather than kept after the failed send.
+            get().discardDraft(clientRecordId);
+          }
+          get().report({ EventType: 'draft_saved', Outcome: conflict ?? 'failed', DefinitionKey: draft.definitionKey, DefinitionVersion: draft.definitionVersion });
+          if (conflict) {
+            get().report({ EventType: 'conflict', Outcome: conflict, DefinitionKey: draft.definitionKey });
+          }
+          return { ok: false, conflict, error: messageFrom(error) };
+        }
+      },
+
+      pushAllDrafts: async () => {
+        for (const clientRecordId of Object.keys(get().pendingDrafts)) {
+          const draft = get().pendingDrafts[clientRecordId];
+          if (draft?.conflict) {
+            // A conflicted draft waits for a person; retrying it in a loop would be the silent replay.
+            continue;
+          }
+          await get().pushDraft(clientRecordId);
+        }
+      },
+
+      submitForReview: async (recordId, rowVersion) => {
+        try {
+          await submitRecordForReview({ RecordId: recordId, RowVersion: rowVersion, OriginClient: RECORDS_ORIGIN_CLIENT, IdempotencyKey: `submit:${recordId}:${rowVersion}` });
+          get().report({ EventType: 'completed', Outcome: 'submitted', RecordId: recordId });
+          void get().sync();
+          return { ok: true };
+        } catch (error) {
+          logger.error({ message: 'Submit for review failed', context: { error, recordId } });
+          return { ok: false, error: messageFrom(error) };
+        }
+      },
+
+      finalize: async (recordId, rowVersion, attested) => {
+        try {
+          await finalizeRecord({ RecordId: recordId, RowVersion: rowVersion, Attested: attested, OriginClient: RECORDS_ORIGIN_CLIENT, IdempotencyKey: `finalize:${recordId}:${rowVersion}` });
+          get().report({ EventType: 'completed', Outcome: 'finalized', RecordId: recordId });
+          void get().sync();
+          return { ok: true };
+        } catch (error) {
+          logger.error({ message: 'Finalize failed', context: { error, recordId } });
+          return { ok: false, error: messageFrom(error) };
+        }
+      },
+
+      stageUpload: (upload) => {
+        set({ pendingUploads: { ...get().pendingUploads, [upload.localId]: upload }, uploadProgress: { ...get().uploadProgress, [upload.localId]: upload.sentBytes } });
+      },
+
+      discardUpload: async (localId) => {
+        const upload = get().pendingUploads[localId];
+        // Hand the session back so its chunks are not left occupying server storage.
+        const { cancelUpload } = loadUploader();
+        await cancelUpload(upload?.uploadId ?? null);
+        const uploads = { ...get().pendingUploads };
+        const progress = { ...get().uploadProgress };
+        delete uploads[localId];
+        delete progress[localId];
+        set({ pendingUploads: uploads, uploadProgress: progress });
+      },
+
+      retryUpload: async (localId) => {
+        const upload = get().pendingUploads[localId];
+        if (!upload || upload.isUnrecoverable) {
+          return;
+        }
+        set({ pendingUploads: { ...get().pendingUploads, [localId]: { ...upload, lastError: null } } });
+        await get().runUploads(upload.recordId);
+      },
+
+      runUploads: async (recordId) => {
+        const uploads = Object.values(get().pendingUploads).filter((upload) => (recordId ? upload.recordId === recordId : true));
+        let uploaded = 0;
+        let failed = 0;
+        if (uploads.length === 0) {
+          return { uploaded, failed };
+        }
+        const { runUpload } = loadUploader();
+        const generation = sessionGeneration;
+
+        for (const upload of uploads) {
+          // Signed out mid-batch: the rest belong to that session and are neither sent nor written back.
+          if (generation !== sessionGeneration) {
+            break;
+          }
+          // A file that is gone cannot be uploaded by trying again; it waits for the person instead.
+          if (upload.isUnrecoverable) {
+            continue;
+          }
+          const startedAt = Date.now();
+          const outcome = await runUpload(upload, {
+            onProgress: ({ sentBytes }) => {
+              if (generation === sessionGeneration) {
+                set({ uploadProgress: { ...get().uploadProgress, [upload.localId]: sentBytes } });
+              }
+            },
+            shouldCancel: () => generation !== sessionGeneration,
+          });
+          if (generation !== sessionGeneration) {
+            break;
+          }
+
+          if (outcome.ok) {
+            uploaded += 1;
+            get().report({ EventType: 'attachment', Outcome: 'ok', RecordId: upload.recordId, DurationMs: Date.now() - startedAt, ItemCount: Math.round(upload.byteSize / 1024) });
+            const remaining = { ...get().pendingUploads };
+            const progress = { ...get().uploadProgress };
+            delete remaining[upload.localId];
+            delete progress[upload.localId];
+            set({ pendingUploads: remaining, uploadProgress: progress });
+            continue;
+          }
+
+          failed += 1;
+          get().report({ EventType: 'attachment', Outcome: outcome.code ?? 'failed', RecordId: upload.recordId });
+          set({
+            pendingUploads: {
+              ...get().pendingUploads,
+              [upload.localId]: {
+                ...upload,
+                uploadId: outcome.uploadId ?? upload.uploadId,
+                sentBytes: outcome.sentBytes ?? upload.sentBytes,
+                lastError: outcome.message ?? outcome.code ?? 'failed',
+                isUnrecoverable: outcome.code === 'file_missing',
+              },
+            },
+          });
+        }
+
+        return { uploaded, failed };
+      },
+
+      report: (event) => {
+        // Telemetry is bounded and best-effort: it queues, it batches, and it is dropped rather than
+        // grown without limit. Nothing here carries record content — codes, counts and durations only.
+        const queued = [...telemetryQueue, { ...event, OccurredOn: event.OccurredOn ?? new Date().toISOString() }];
+        telemetryQueue = queued.slice(-TELEMETRY_MAX);
+      },
+
+      flushTelemetry: async () => {
+        if (telemetryQueue.length === 0) {
+          return;
+        }
+        const batch = telemetryQueue;
+        telemetryQueue = [];
+        try {
+          await reportFieldRecordTelemetry({
+            OriginClient: RECORDS_ORIGIN_CLIENT as number,
+            AppVersion: Env.VERSION,
+            ClientCapability: CLIENT_CAPABILITY,
+            Events: batch,
+          });
+        } catch (error) {
+          // A rollout number is never worth a retry storm; the batch is dropped and the next one goes.
+          logger.info({ message: 'Field Records telemetry batch was dropped', context: { count: batch.length } });
+        }
+      },
+
+      acknowledge: async (assignmentId, rowVersion) => {
+        try {
+          const response = await acknowledgeAssignmentApi({ AssignmentId: assignmentId, RowVersion: rowVersion, Context: get().context, OriginClient: RECORDS_ORIGIN_CLIENT });
+          const updated = response?.Data;
+          if (updated) {
+            set({ assignments: get().assignments.map((assignment) => (assignment.AssignmentId === updated.AssignmentId ? updated : assignment)) });
+          }
+        } catch (error) {
+          logger.error({ message: 'Acknowledge assignment failed', context: { error, assignmentId } });
+          set({ error: messageFrom(error) });
+        }
+      },
+
+      complete: async (assignmentId, rowVersion) => {
+        try {
+          await completeAssignmentApi({ AssignmentId: assignmentId, RowVersion: rowVersion, Context: get().context, OriginClient: RECORDS_ORIGIN_CLIENT });
+          set({ assignments: get().assignments.filter((assignment) => assignment.AssignmentId !== assignmentId) });
+        } catch (error) {
+          logger.error({ message: 'Complete assignment failed', context: { error, assignmentId } });
+          set({ error: messageFrom(error) });
+        }
+      },
+
+      entryFor: (definitionKey, version) => {
+        const definitions = get().catalog?.Definitions ?? [];
+        return definitions.find((entry) => entry.DefinitionKey.toLowerCase() === definitionKey.toLowerCase() && (version === undefined || entry.Version === version)) ?? null;
+      },
+
+      reset: () => {
+        // Queued telemetry belongs to the identity that produced it; a reset drops it rather than
+        // letting the next session flush another member's counts under their own name.
+        telemetryQueue = [];
+        sessionGeneration += 1;
+        syncedContext = null;
+        set({
+          preflight: null,
+          catalog: null,
+          assignments: [],
+          recent: [],
+          drafts: [],
+          pendingDrafts: {},
+          pendingUploads: {},
+          uploadProgress: {},
+          schemas: {},
+          scopeStamp: null,
+          lastSyncTimestampMs: 0,
+          error: null,
+          context: {},
+        });
+      },
+    }),
+    {
+      name: 'records-field-storage',
+      storage: createJSONStorage(() => zustandStorage),
+      // Server-owned lists are re-fetched on every open; only the device's own unsent work, the sync
+      // cursor and the scope it belongs to are worth keeping across launches.
+      partialize: (state) => ({
+        pendingDrafts: state.pendingDrafts,
+        // Pending uploads persist so an app killed mid-upload resumes from the server's count.
+        pendingUploads: state.pendingUploads,
+        scopeStamp: state.scopeStamp,
+        lastSyncTimestampMs: state.lastSyncTimestampMs,
+      }),
+    }
+  )
+);
+
+export const useRecordsDraftCount = () => useRecordsStore((state) => Object.keys(state.pendingDrafts).length);
+
+export const useOpenAssignments = () => useRecordsStore((state) => state.assignments.filter((assignment) => assignment.State === 'Open' || assignment.State === 'Acknowledged'));
+
+export const useReturnedRecords = () => useRecordsStore((state) => state.drafts.filter((record) => record.State === RmsRecordState.Returned));
+
+export const useOwnDrafts = () => useRecordsStore((state) => state.drafts.filter((record) => record.State === RmsRecordState.Draft));
+
+export const buildValuesPayload = (values: ValueMap): RecordValueInput[] => toValueList(values);

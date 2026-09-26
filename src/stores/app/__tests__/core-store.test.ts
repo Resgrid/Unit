@@ -19,6 +19,8 @@ jest.mock('@/lib/storage/app', () => ({
   getActiveCallId: jest.fn(),
   setActiveUnitId: jest.fn(),
   setActiveCallId: jest.fn(),
+  removeActiveUnitId: jest.fn(),
+  removeActiveCallId: jest.fn(),
 }));
 
 jest.mock('@/lib/logging', () => ({
@@ -60,8 +62,8 @@ jest.mock('@/lib/storage', () => ({
 }));
 
 // Import after mocks
-import { useCoreStore } from '../core-store';
-import { getActiveUnitId, getActiveCallId } from '@/lib/storage/app';
+import { UnitListUnavailableError, useCoreStore } from '../core-store';
+import { getActiveUnitId, getActiveCallId, removeActiveUnitId } from '@/lib/storage/app';
 import { getConfig } from '@/api/config';
 import { logger } from '@/lib/logging';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
@@ -377,6 +379,135 @@ describe('Core Store', () => {
         })
       );
       expect(logger.error).not.toHaveBeenCalled();
+    });
+  });
+
+  // The selection must survive a force close: init() restores it from the persisted id.
+  describe('restoring the selected unit on launch', () => {
+    const savedUnit = { UnitId: 'unit-1', Name: 'Engine 6', Type: '3' } as any;
+    const unitStatuses = [{ UnitType: '3', StatusId: 's3', Statuses: [{ Text: 'Available' }] }] as any[];
+
+    const unitsStore = (overrides: Record<string, unknown>) => ({
+      fetchUnits: jest.fn(async () => undefined),
+      units: [],
+      unitStatuses: [],
+      error: null,
+      hasLoaded: true,
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockGetActiveUnitId.mockReturnValue('unit-1');
+      mockGetActiveCallId.mockReturnValue(null);
+      mockGetConfig.mockResolvedValue({ Data: { EventingUrl: 'https://eventing.example.com/' } as GetConfigResultData } as any);
+      (getUnitStatus as jest.Mock).mockImplementation(async () => ({ Data: { UnitId: 'unit-1', State: 'Available' } }));
+    });
+
+    it('restores the persisted unit and its statuses', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue(unitsStore({ units: [savedUnit], unitStatuses }));
+
+      await useCoreStore.getState().init();
+
+      expect(useCoreStore.getState().activeUnitId).toBe('unit-1');
+      expect(useCoreStore.getState().activeUnit).toEqual(savedUnit);
+      expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[0]);
+      expect(useCoreStore.getState().isInitialized).toBe(true);
+    });
+
+    it('keeps the selection and fails init (so it is retried) when the unit list cannot be loaded', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue(unitsStore({ error: 'Network Error' }));
+
+      await expect(useCoreStore.getState().init()).rejects.toBeInstanceOf(UnitListUnavailableError);
+
+      expect(removeActiveUnitId).not.toHaveBeenCalled();
+      expect(useCoreStore.getState().activeUnitId).toBe('unit-1');
+      expect(useCoreStore.getState().isInitialized).toBe(false);
+      expect(useCoreStore.getState().isLoading).toBe(false);
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('treats a list that has not loaded yet as unavailable, not as the unit being deleted', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue(unitsStore({ hasLoaded: false }));
+
+      await expect(useCoreStore.getState().setActiveUnit('unit-1')).rejects.toBeInstanceOf(UnitListUnavailableError);
+
+      expect(removeActiveUnitId).not.toHaveBeenCalled();
+    });
+
+    it('clears the selection when the loaded list no longer contains the unit', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue(unitsStore({ units: [{ ...savedUnit, UnitId: 'unit-2' }] }));
+
+      await useCoreStore.getState().init();
+
+      expect(removeActiveUnitId).toHaveBeenCalled();
+      expect(useCoreStore.getState().activeUnitId).toBeNull();
+      expect(useCoreStore.getState().activeUnit).toBeNull();
+      expect(useCoreStore.getState().isInitialized).toBe(true);
+    });
+  });
+
+  // Runs after every successful status save to pick up the new state.
+  describe('setActiveUnitWithFetch', () => {
+    const currentUnit = { UnitId: 'unit-1', Name: 'Engine 6', Type: '3' } as any;
+
+    beforeEach(() => {
+      useCoreStore.setState({ activeUnitId: 'unit-1', activeUnit: currentUnit });
+      (getUnitStatus as jest.Mock).mockImplementation(async () => ({ Data: { UnitId: 'unit-1', State: 'Responding' } }));
+    });
+
+    it('refreshes the unit and its status from the fetched data', async () => {
+      const refreshedUnit = { ...currentUnit, Name: 'Engine 6 (renamed)' };
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [refreshedUnit], unitStatuses: [] });
+
+      await useCoreStore.getState().setActiveUnitWithFetch('unit-1');
+
+      expect(useCoreStore.getState().activeUnit).toEqual(refreshedUnit);
+      expect(useCoreStore.getState().activeUnitStatus).toEqual({ UnitId: 'unit-1', State: 'Responding' });
+      expect(useCoreStore.getState().isLoading).toBe(false);
+    });
+
+    it('keeps the current unit when the refreshed list does not contain it', async () => {
+      // fetchUnits() swallows its failures, so an empty list is what a failed refresh looks like.
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [], unitStatuses: [] });
+
+      await useCoreStore.getState().setActiveUnitWithFetch('unit-1');
+
+      // Clearing it would silently disable every status submit until the app restarts.
+      expect(useCoreStore.getState().activeUnit).toBe(currentUnit);
+      expect(useCoreStore.getState().activeUnitStatus).toEqual({ UnitId: 'unit-1', State: 'Responding' });
+      expect(useCoreStore.getState().isLoading).toBe(false);
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Active unit missing from refreshed units, keeping the current unit' }));
+    });
+
+    it('refuses a switch to a unit the refreshed list does not contain, keeping id, unit and status together', async () => {
+      const currentStatus = { UnitId: 'unit-1', State: 'Available' };
+      useCoreStore.setState({ activeUnitStatus: currentStatus as any });
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [currentUnit], unitStatuses: [] });
+
+      await useCoreStore.getState().setActiveUnitWithFetch('unit-2');
+
+      const state = useCoreStore.getState();
+      expect(state.activeUnitId).toBe('unit-1');
+      expect(state.activeUnit).toBe(currentUnit);
+      expect(state.activeUnitStatus).toBe(currentStatus);
+      expect(state.isLoading).toBe(false);
+      expect(getUnitStatus).not.toHaveBeenCalledWith('unit-2');
+    });
+
+    it('drops a refreshed status once another unit has been selected', async () => {
+      const otherUnit = { UnitId: 'unit-2', Name: 'Engine 7', Type: '3' } as any;
+      let releaseStatus!: (value: unknown) => void;
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({ fetchUnits: jest.fn(async () => undefined), units: [currentUnit, otherUnit], unitStatuses: [] });
+      (getUnitStatus as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (releaseStatus = resolve)));
+
+      const refresh = useCoreStore.getState().setActiveUnitWithFetch('unit-1');
+      await new Promise((resolve) => setImmediate(resolve));
+      useCoreStore.setState({ activeUnitId: 'unit-2', activeUnit: otherUnit });
+      releaseStatus({ Data: { UnitId: 'unit-1', State: 'Responding' } });
+      await refresh;
+
+      expect(useCoreStore.getState().activeUnit).toBe(otherUnit);
+      expect(useCoreStore.getState().activeUnitStatus).not.toEqual({ UnitId: 'unit-1', State: 'Responding' });
     });
   });
 

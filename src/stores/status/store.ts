@@ -191,11 +191,63 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
     }),
 }));
 
+/** 'sent' reached the server; 'queued' is held on the device and replayed by the offline queue. */
+export type SaveUnitStatusOutcome = 'sent' | 'queued';
+
 interface StatusesState {
   isLoading: boolean;
   error: string | null;
-  saveUnitStatus: (input: SaveUnitStatusInput) => Promise<void>;
+  saveUnitStatus: (input: SaveUnitStatusInput) => Promise<SaveUnitStatusOutcome>;
 }
+
+const queueUnitStatus = (input: SaveUnitStatusInput, recordedAt: Date): string => {
+  const roles =
+    input.Roles?.map((role: SaveUnitStatusRoleInput) => ({
+      roleId: role.RoleId,
+      userId: role.UserId,
+    })) ?? [];
+
+  let gpsData:
+    | {
+        latitude?: string;
+        longitude?: string;
+        accuracy?: string;
+        altitude?: string;
+        altitudeAccuracy?: string;
+        speed?: string;
+        heading?: string;
+      }
+    | undefined;
+
+  if (input.Latitude && input.Longitude) {
+    gpsData = {
+      latitude: input.Latitude,
+      longitude: input.Longitude,
+      accuracy: input.Accuracy,
+      altitude: input.Altitude,
+      altitudeAccuracy: input.AltitudeAccuracy,
+      speed: input.Speed,
+      heading: input.Heading,
+    };
+  } else {
+    const locationState = useLocationStore.getState();
+    if (locationState.latitude !== null && locationState.longitude !== null) {
+      gpsData = {
+        latitude: locationState.latitude.toString(),
+        longitude: locationState.longitude.toString(),
+        accuracy: locationState.accuracy?.toString(),
+        altitude: locationState.altitude?.toString(),
+        altitudeAccuracy: undefined,
+        speed: locationState.speed?.toString(),
+        heading: locationState.heading?.toString(),
+      };
+    }
+  }
+
+  // Pass the original status time: a failed request can take up to the client timeout, and
+  // stamping at queue time would shift the status by that much.
+  return offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData, recordedAt);
+};
 
 export const useStatusesStore = create<StatusesState>((set) => ({
   isLoading: false,
@@ -204,6 +256,8 @@ export const useStatusesStore = create<StatusesState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
+      // The moment the crew set the status. It is also what the offline queue replays, so a status
+      // queued while offline keeps its real time on the unit's call timeline, not the drain time.
       const date = new Date();
       input.Timestamp = date.toISOString();
       input.TimestampUtc = date.toUTCString().replace('UTC', 'GMT');
@@ -230,6 +284,39 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         }
       }
 
+      // No network interface at all: the request can only fail, and there is no reason to hold the
+      // crew on a spinner while it does. Queue it straight away.
+      if (offlineEventManager.isDeviceOffline()) {
+        const eventId = queueUnitStatus(input, date);
+
+        logger.info({
+          message: 'Device offline, unit status queued without attempting a direct save',
+          context: { unitId: input.Id, statusType: input.Type, eventId },
+        });
+
+        set({ isLoading: false });
+        return 'queued';
+      }
+
+      // The server treats the most recently inserted state as current. An older status still in the
+      // queue would replay after this one and revert the unit to it, so it has to go first — and if
+      // it cannot, this one waits behind it in the queue.
+      if (offlineEventManager.hasUndeliveredUnitStatuses(input.Id)) {
+        const caughtUp = await offlineEventManager.deliverQueuedUnitStatuses(input.Id);
+
+        if (!caughtUp) {
+          const eventId = queueUnitStatus(input, date);
+
+          logger.info({
+            message: 'Earlier unit statuses still undelivered, queued this one behind them',
+            context: { unitId: input.Id, statusType: input.Type, eventId },
+          });
+
+          set({ isLoading: false });
+          return 'queued';
+        }
+      }
+
       try {
         await saveUnitStatus(input);
 
@@ -252,6 +339,8 @@ export const useStatusesStore = create<StatusesState>((set) => ({
             });
           }
         }
+
+        return 'sent';
       } catch (error) {
         // Only queue the status when the failure is genuinely network-related
         // (offline/timeout, no response). Server rejections (400 validation,
@@ -271,50 +360,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
           context: { unitId: input.Id, statusType: input.Type, error },
         });
 
-        const roles =
-          input.Roles?.map((role) => ({
-            roleId: role.RoleId,
-            userId: role.UserId,
-          })) ?? [];
-
-        let gpsData:
-          | {
-              latitude?: string;
-              longitude?: string;
-              accuracy?: string;
-              altitude?: string;
-              altitudeAccuracy?: string;
-              speed?: string;
-              heading?: string;
-            }
-          | undefined;
-
-        if (input.Latitude && input.Longitude) {
-          gpsData = {
-            latitude: input.Latitude,
-            longitude: input.Longitude,
-            accuracy: input.Accuracy,
-            altitude: input.Altitude,
-            altitudeAccuracy: input.AltitudeAccuracy,
-            speed: input.Speed,
-            heading: input.Heading,
-          };
-        } else {
-          const locationState = useLocationStore.getState();
-          if (locationState.latitude !== null && locationState.longitude !== null) {
-            gpsData = {
-              latitude: locationState.latitude.toString(),
-              longitude: locationState.longitude.toString(),
-              accuracy: locationState.accuracy?.toString(),
-              altitude: locationState.altitude?.toString(),
-              altitudeAccuracy: undefined,
-              speed: locationState.speed?.toString(),
-              heading: locationState.heading?.toString(),
-            };
-          }
-        }
-
-        const eventId = offlineEventManager.queueUnitStatusEvent(input.Id, input.Type, input.Note || '', input.RespondingTo || '', input.RespondingToType, roles, gpsData);
+        const eventId = queueUnitStatus(input, date);
 
         logger.info({
           message: 'Unit status queued for offline processing',
@@ -322,6 +368,7 @@ export const useStatusesStore = create<StatusesState>((set) => ({
         });
 
         set({ isLoading: false });
+        return 'queued';
       }
     } catch (error) {
       logger.error({

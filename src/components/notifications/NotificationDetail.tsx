@@ -1,6 +1,7 @@
 import { ArrowLeft, Calendar, ExternalLink, Trash2 } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Animated, Dimensions, Platform, Pressable, SafeAreaView, StatusBar, type StyleProp, StyleSheet, Text, type TextStyle, View, type ViewStyle } from 'react-native';
 
 // Define the interface directly in this file
@@ -113,6 +114,7 @@ const useThemedStyles = () => {
 };
 
 export const NotificationDetail = ({ notification, onClose, onDelete, onNavigateToReference }: NotificationDetailProps) => {
+  const { t } = useTranslation();
   const { themed, iconColors } = useThemedStyles();
   const slideAnim = React.useRef(new Animated.Value(0)).current;
   const fadeAnim = React.useRef(new Animated.Value(1)).current;
@@ -172,7 +174,7 @@ export const NotificationDetail = ({ notification, onClose, onDelete, onNavigate
             <Pressable onPress={handleClose} style={styles.backButton}>
               <ArrowLeft size={24} color={iconColors.accent} strokeWidth={2} />
             </Pressable>
-            <Text style={[styles.headerTitle, themed.headerTitle]}>Notification</Text>
+            <Text style={[styles.headerTitle, themed.headerTitle]}>{t('notifications.detail_title')}</Text>
             <Pressable onPress={handleDelete} style={styles.deleteButton}>
               <Trash2 size={24} color={iconColors.danger} strokeWidth={2} />
             </Pressable>
@@ -201,7 +203,7 @@ export const NotificationDetail = ({ notification, onClose, onDelete, onNavigate
 
             {notification.metadata && Object.keys(notification.metadata).length > 0 ? (
               <View style={[styles.metadataDetailsContainer, themed.metadataDetailsContainer]}>
-                <Text style={[styles.metadataTitle, themed.metadataTitle]}>Additional Information</Text>
+                <Text style={[styles.metadataTitle, themed.metadataTitle]}>{t('notifications.additional_info')}</Text>
                 {Object.entries(notification.metadata).map(([key, value]) => (
                   <View key={key} style={styles.metadataItem}>
                     <Text style={[styles.metadataKey, themed.metadataKey]}>{formatKey(key)}:</Text>
@@ -212,9 +214,11 @@ export const NotificationDetail = ({ notification, onClose, onDelete, onNavigate
             ) : null}
 
             {notification.referenceType && notification.referenceId ? (
-              <Pressable onPress={handleNavigateToReference} style={[styles.referenceButton, themed.referenceButton]}>
+              <Pressable onPress={handleNavigateToReference} style={[styles.referenceButton, themed.referenceButton]} testID="notification-detail-reference">
                 <ExternalLink size={18} color={iconColors.accent} strokeWidth={2} style={styles.referenceButtonIcon} />
-                <Text style={[styles.buttonText, themed.buttonText]}>View {notification.referenceType}</Text>
+                <Text style={[styles.buttonText, themed.buttonText]}>
+                  {notification.referenceType === 'call' ? t('notifications.view_call') : notification.referenceType === 'chat' ? t('notifications.view_chat') : t('notifications.open_reference')}
+                </Text>
               </Pressable>
             ) : null}
           </View>

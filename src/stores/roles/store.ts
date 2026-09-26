@@ -91,8 +91,13 @@ export const useRolesStore = create<RolesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await setRoleAssignmentsForUnit(data);
+      set({ isLoading: false });
     } catch (error) {
-      set({ error: 'Failed to assign user to role', isLoading: false });
+      // Rethrow so the caller can tell the crew the save failed — swallowing it here made every
+      // failed save report success. `error` is deliberately left alone: it is the load-failure
+      // state, which the roles sheet shows in place of the roles list, hiding the unsaved picks.
+      set({ isLoading: false });
+      throw error;
     }
   },
   fetchAllForUnit: async (unitId: string) => {

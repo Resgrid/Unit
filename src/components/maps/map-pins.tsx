@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 
 import Mapbox from '@/components/maps/mapbox';
 import { type MAP_ICONS } from '@/constants/map-icons';
+import { getPinEntityId } from '@/lib/map-pin-ids';
 import { isPoiMarker } from '@/lib/poi-marker-utils';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 
@@ -63,7 +64,7 @@ const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress, activeCallId }) => 
   // overlapping pins.
   const orderedPins = useMemo(() => {
     if (!activeCallId) return pins;
-    const activeIndex = pins.findIndex((pin) => isCallPin(pin) && pin.Id === activeCallId);
+    const activeIndex = pins.findIndex((pin) => isCallPin(pin) && getPinEntityId(pin) === activeCallId);
     if (activeIndex === -1) return pins;
     return [...pins.slice(0, activeIndex), ...pins.slice(activeIndex + 1), pins[activeIndex]];
   }, [pins, activeCallId]);
@@ -71,7 +72,7 @@ const MapPins: React.FC<MapPinsProps> = ({ pins, onPinPress, activeCallId }) => 
   return (
     <>
       {orderedPins.map((pin) => {
-        const isActiveCall = activeCallId != null && isCallPin(pin) && pin.Id === activeCallId;
+        const isActiveCall = activeCallId != null && isCallPin(pin) && getPinEntityId(pin) === activeCallId;
         // Stacking order is fixed when the marker attaches (DOM insertion order
         // on web, imperative MarkerView attach on iOS), so reordering keyed
         // children alone updates the ring but never restacks. Folding the active

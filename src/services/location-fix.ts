@@ -28,20 +28,26 @@ const FIX_TIMEOUT_MS = 8000;
 /** A fix from the last minute is a fine answer for "where are you now" and costs no radio time. */
 const LAST_KNOWN_MAX_AGE_MS = 60 * 1000;
 
-interface TimedFix {
-  promise: Promise<Location.LocationObject | null>;
+/**
+ * Ceiling on reading what the OS already knows. Both calls are normally instant; the bound only
+ * exists so a misbehaving platform call can never hold a status submission.
+ */
+const RECENT_READ_TIMEOUT_MS = 2000;
+
+interface TimedFix<T> {
+  promise: Promise<T | null>;
   cancel: () => void;
 }
 
 /**
- * Races the live fix against a timer. The timer is cleared either way: leaving it pending keeps a
- * Jest fake-timer test from settling and, in the app, holds a needless reference for its duration.
+ * Races a location call against a timer. The timer is cleared either way: leaving it pending keeps
+ * a Jest fake-timer test from settling and, in the app, holds a needless reference for its duration.
  */
-const withTimeout = (): TimedFix => {
+const withTimeout = <T>(work: Promise<T | null>, timeoutMs: number): TimedFix<T> => {
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), FIX_TIMEOUT_MS);
+    timer = setTimeout(() => resolve(null), timeoutMs);
   });
 
   const cancel = () => {
@@ -52,19 +58,28 @@ const withTimeout = (): TimedFix => {
   };
 
   return {
-    promise: Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch((error) => {
-        logger.warn({
-          message: 'Failed to acquire current position',
-          context: { error: error instanceof Error ? error.message : String(error) },
-        });
-        return null;
-      }),
-      timeout,
-    ]),
+    promise: Promise.race([work, timeout]),
     cancel,
   };
 };
+
+const awaitWithTimeout = async <T>(work: Promise<T | null>, timeoutMs: number): Promise<T | null> => {
+  const timed = withTimeout(work, timeoutMs);
+  try {
+    return await timed.promise;
+  } finally {
+    timed.cancel();
+  }
+};
+
+const readCurrentPosition = (): Promise<Location.LocationObject | null> =>
+  Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch((error) => {
+    logger.warn({
+      message: 'Failed to acquire current position',
+      context: { error: error instanceof Error ? error.message : String(error) },
+    });
+    return null;
+  });
 
 const readLastKnown = async (): Promise<Location.LocationObject | null> => {
   try {
@@ -128,13 +143,7 @@ export const acquireLocationFix = async (): Promise<LocationFixResult> => {
     });
   }
 
-  const timedFix = withTimeout();
-  let location: Location.LocationObject | null;
-  try {
-    location = await timedFix.promise;
-  } finally {
-    timedFix.cancel();
-  }
+  let location = await awaitWithTimeout(readCurrentPosition(), FIX_TIMEOUT_MS);
 
   // A timed-out live fix is common indoors. A recent cached one is still a truthful answer and is
   // far better than refusing a GPS-required status outright.
@@ -160,6 +169,35 @@ export const acquireLocationFix = async (): Promise<LocationFixResult> => {
   }
 
   return { outcome: 'acquired', location };
+};
+
+/**
+ * A position for a status that does not require GPS: whatever the OS already holds from the last
+ * minute, or null.
+ *
+ * Unlike `acquireLocationFix` this never prompts for permission and never waits on the radio. A
+ * live fix can take the full `FIX_TIMEOUT_MS` indoors, and making every status wait that long for
+ * coordinates it does not need is how crews ended up with a sheet spinning on "Submitting".
+ */
+export const readRecentLocation = async (): Promise<Location.LocationObject | null> => {
+  const read = async (): Promise<Location.LocationObject | null> => {
+    const permission = await Location.getForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      return null;
+    }
+
+    return Location.getLastKnownPositionAsync({ maxAge: LAST_KNOWN_MAX_AGE_MS });
+  };
+
+  try {
+    return await awaitWithTimeout(read(), RECENT_READ_TIMEOUT_MS);
+  } catch (error) {
+    logger.warn({
+      message: 'Failed to read recent location for status',
+      context: { error: error instanceof Error ? error.message : String(error) },
+    });
+    return null;
+  }
 };
 
 const FIX_ERROR_KEYS = {

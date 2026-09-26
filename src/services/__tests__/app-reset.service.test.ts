@@ -11,13 +11,14 @@ jest.mock('@/lib/logging', () => ({
 // Mock storage
 jest.mock('@/lib/storage', () => ({
   storage: {
-    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'key2']),
+    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'baseUrl', 'key2']),
     delete: jest.fn(),
   },
 }));
 
 // Mock storage/app functions
 jest.mock('@/lib/storage/app', () => ({
+  BASE_API_URL_STORAGE_KEY: 'baseUrl',
   removeActiveUnitId: jest.fn(),
   removeActiveCallId: jest.fn(),
   removeDeviceUuid: jest.fn(),
@@ -233,6 +234,30 @@ jest.mock('@/stores/chat/store', () => ({
   },
 }));
 
+jest.mock('@/stores/records/store', () => ({
+  useRecordsStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/records/deployments-store', () => ({
+  useDeploymentsStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/contacts/preplan-store', () => ({
+  useContactPreplanStore: {
+    getState: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/calls/site-info-store', () => ({
+  useSiteInfoStore: {
+    getState: jest.fn(),
+  },
+}));
+
 jest.mock('@/stores/signalr/signalr-store', () => ({
   useSignalRStore: {
     setState: jest.fn(),
@@ -279,6 +304,10 @@ const mockLiveKitDisconnect = jest.fn().mockResolvedValue(undefined);
 const mockWeatherAlertsReset = jest.fn();
 const mockCheckInTimerReset = jest.fn();
 const mockChatReset = jest.fn();
+const mockRecordsReset = jest.fn();
+const mockDeploymentsReset = jest.fn();
+const mockPreplanReset = jest.fn();
+const mockSiteInfoReset = jest.fn();
 
 describe('app-reset.service', () => {
   beforeEach(() => {
@@ -328,6 +357,11 @@ describe('app-reset.service', () => {
     useChatStore.getState.mockReturnValue({
       reset: mockChatReset,
     });
+
+    jest.requireMock('@/stores/records/store').useRecordsStore.getState.mockReturnValue({ reset: mockRecordsReset });
+    jest.requireMock('@/stores/records/deployments-store').useDeploymentsStore.getState.mockReturnValue({ reset: mockDeploymentsReset });
+    jest.requireMock('@/stores/contacts/preplan-store').useContactPreplanStore.getState.mockReturnValue({ reset: mockPreplanReset });
+    jest.requireMock('@/stores/calls/site-info-store').useSiteInfoStore.getState.mockReturnValue({ reset: mockSiteInfoReset });
 
     locationService.stopLocationUpdates.mockResolvedValue(undefined);
     signalRService.disconnectAll.mockResolvedValue(undefined);
@@ -589,6 +623,12 @@ describe('app-reset.service', () => {
       expect(mockStorage.delete).toHaveBeenCalledWith('key2');
       expect(mockStorage.delete).not.toHaveBeenCalledWith('IS_FIRST_TIME');
     });
+
+    it('should preserve the selected server URL', () => {
+      clearPersistedStorage();
+
+      expect(mockStorage.delete).not.toHaveBeenCalledWith('baseUrl');
+    });
   });
 
   describe('resetAllStores', () => {
@@ -618,6 +658,11 @@ describe('app-reset.service', () => {
       expect(mockWeatherAlertsReset).toHaveBeenCalled();
       expect(mockCheckInTimerReset).toHaveBeenCalled();
       expect(mockChatReset).toHaveBeenCalled();
+      // Unsent Field Records work and cached protected contact data must not reach the next sign-in.
+      expect(mockRecordsReset).toHaveBeenCalled();
+      expect(mockDeploymentsReset).toHaveBeenCalled();
+      expect(mockPreplanReset).toHaveBeenCalled();
+      expect(mockSiteInfoReset).toHaveBeenCalled();
     });
 
     it('should disconnect from LiveKit room if connected', async () => {

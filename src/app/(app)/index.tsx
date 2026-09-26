@@ -17,12 +17,14 @@ import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { WeatherAlertBanner } from '@/components/weather-alerts/weather-alert-banner';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
+import { applyLiveLocationsSince, useMapLiveLocations } from '@/hooks/use-map-live-locations';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { applyPitchHysteresis, applyZoomHysteresis, createCirclePolygon, normalizeHeading, normalizeSpeed, smoothSpeed, zoomForSpeed } from '@/lib/map-camera';
 import { getDepartmentMapCenter } from '@/lib/map-center';
+import { getPinEntityId } from '@/lib/map-pin-ids';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -121,7 +123,9 @@ function MapContent() {
 
   const [styleURL, setStyleURL] = useState({ styleURL: getMapStyle() });
 
-  useMapSignalRUpdates(setMapPins);
+  const { requestRefresh: requestMapRefresh } = useMapSignalRUpdates(setMapPins);
+  // Realtime unit/personnel positions move the pins in place between REST refetches.
+  useMapLiveLocations(mapPins, setMapPins, requestMapRefresh);
 
   // Throttle state for programmatic camera follow (see effect below)
   const lastCameraFollowRef = useRef(0);
@@ -437,10 +441,11 @@ function MapContent() {
 
     const fetchMapDataAndMarkers = async () => {
       try {
+        const fetchStartedAt = Date.now();
         const mapDataAndMarkers = await getMapDataAndMarkers(abortController.signal);
 
         if (mapDataAndMarkers && mapDataAndMarkers.Data) {
-          setMapPins(mapDataAndMarkers.Data.MapMakerInfos);
+          setMapPins(applyLiveLocationsSince(mapDataAndMarkers.Data.MapMakerInfos, fetchStartedAt));
         }
       } catch (error) {
         // Don't log aborted requests as errors
@@ -503,19 +508,19 @@ function MapContent() {
       logger.info({
         message: 'Setting call as current call',
         context: {
-          callId: pin.Id,
+          callId: getPinEntityId(pin),
           callTitle: pin.Title,
         },
       });
 
-      await useCoreStore.getState().setActiveCall(pin.Id);
+      await useCoreStore.getState().setActiveCall(getPinEntityId(pin));
       useToastStore.getState().showToast('success', t('map.call_set_as_current'));
     } catch (error) {
       logger.error({
         message: 'Failed to set call as current call',
         context: {
           error,
-          callId: pin.Id,
+          callId: getPinEntityId(pin),
           callTitle: pin.Title,
         },
       });

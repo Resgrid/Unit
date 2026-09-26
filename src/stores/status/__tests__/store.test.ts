@@ -66,6 +66,9 @@ jest.mock('@/stores/calls/store', () => ({
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
     queueUnitStatusEvent: jest.fn(),
+    isDeviceOffline: jest.fn(() => false),
+    hasUndeliveredUnitStatuses: jest.fn(() => false),
+    deliverQueuedUnitStatuses: jest.fn(async () => true),
   },
 }));
 jest.mock('@/utils/network', () => ({
@@ -342,11 +345,47 @@ describe('StatusesStore', () => {
       'call1',
       null,
       [{ roleId: 'role1', userId: 'user1' }],
-      undefined
+      undefined,
+      expect.any(Date)
     );
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe(null);
+  });
+
+  it('should queue the original status time, not the time the network request gave up', async () => {
+    const { result } = renderHook(() => useStatusesStore());
+
+    let sentTimestamp = '';
+    mockSaveUnitStatus.mockImplementationOnce(async (sent: SaveUnitStatusInput) => {
+      sentTimestamp = sent.Timestamp;
+      // The request hangs until the client timeout before failing as a network error
+      jest.setSystemTime(new Date(Date.now() + 30000));
+      throw new Error('Network error');
+    });
+    mockOfflineEventManager.queueUnitStatusEvent.mockReturnValue('queued-event-id');
+
+    const input = new SaveUnitStatusInput();
+    input.Id = 'unit1';
+    input.Type = '1';
+    input.RespondingTo = '555';
+    input.RespondingToType = 2;
+
+    jest.useFakeTimers({ now: new Date('2026-09-23T10:00:00.000Z') });
+    try {
+      await act(async () => {
+        await result.current.saveUnitStatus(input);
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+
+    expect(sentTimestamp).toBe('2026-09-23T10:00:00.000Z');
+    const recordedAt = mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][7] as Date;
+    expect(recordedAt.toISOString()).toBe('2026-09-23T10:00:00.000Z');
+    // The destination rides along into the queue
+    expect(mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][3]).toBe('555');
+    expect(mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0][4]).toBe(2);
   });
 
   it('should handle successful save and refresh active unit', async () => {
@@ -425,10 +464,11 @@ describe('StatusesStore', () => {
       'unit1',
       '1',
       '', // Note defaults to empty string
-      '', // RespondingTo defaults to empty string  
+      '', // RespondingTo defaults to empty string
       null,
       [], // Roles defaults to empty array which maps to empty array
-      undefined
+      undefined,
+      expect.any(Date)
     );
   });
 
@@ -458,5 +498,102 @@ describe('StatusesStore', () => {
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBe('Failed to save unit status');
+  });
+
+  describe('delivery outcome and ordering', () => {
+    const buildInput = () => {
+      const input = new SaveUnitStatusInput();
+      input.Id = 'unit1';
+      input.Type = '2';
+      return input;
+    };
+
+    const save = async (input: SaveUnitStatusInput) => {
+      const { result } = renderHook(() => useStatusesStore());
+      let outcome: string | undefined;
+      await act(async () => {
+        outcome = await result.current.saveUnitStatus(input);
+      });
+      return { outcome, result };
+    };
+
+    beforeEach(() => {
+      // Earlier tests leave persistent implementations behind; pin the ones these depend on.
+      mockSaveUnitStatus.mockReset().mockResolvedValue(new UnitTypeStatusesResult());
+      mockOfflineEventManager.queueUnitStatusEvent.mockReset().mockReturnValue('queued-event-id');
+      (mockOfflineEventManager.isDeviceOffline as jest.Mock).mockReset().mockReturnValue(false);
+      (mockOfflineEventManager.hasUndeliveredUnitStatuses as jest.Mock).mockReset().mockReturnValue(false);
+      (mockOfflineEventManager.deliverQueuedUnitStatuses as jest.Mock).mockReset().mockResolvedValue(true);
+      mockSetActiveUnitWithFetch.mockResolvedValue(undefined);
+    });
+
+    it("reports 'sent' when the status reached the server", async () => {
+      const { outcome } = await save(buildInput());
+
+      expect(outcome).toBe('sent');
+      expect(mockSaveUnitStatus).toHaveBeenCalledTimes(1);
+      expect(mockOfflineEventManager.queueUnitStatusEvent).not.toHaveBeenCalled();
+    });
+
+    it("reports 'queued' when a network failure sends the status to the offline queue", async () => {
+      mockSaveUnitStatus.mockRejectedValue(new Error('Network error'));
+
+      const { outcome } = await save(buildInput());
+
+      expect(outcome).toBe('queued');
+      expect(mockOfflineEventManager.queueUnitStatusEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('queues straight away without waiting on a request when the device has no network', async () => {
+      (mockOfflineEventManager.isDeviceOffline as jest.Mock).mockReturnValue(true);
+
+      const { outcome, result } = await save(buildInput());
+
+      expect(outcome).toBe('queued');
+      expect(mockSaveUnitStatus).not.toHaveBeenCalled();
+      const queued = mockOfflineEventManager.queueUnitStatusEvent.mock.calls[0];
+      expect(queued[0]).toBe('unit1');
+      expect(queued[1]).toBe('2');
+      expect(queued[7]).toBeInstanceOf(Date);
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    it('delivers older queued statuses for the unit before sending the new one', async () => {
+      const calls: string[] = [];
+      (mockOfflineEventManager.hasUndeliveredUnitStatuses as jest.Mock).mockReturnValue(true);
+      (mockOfflineEventManager.deliverQueuedUnitStatuses as jest.Mock).mockImplementation(async () => {
+        calls.push('deliver-queued');
+        return true;
+      });
+      mockSaveUnitStatus.mockImplementation(async () => {
+        calls.push('save-new');
+        return new UnitTypeStatusesResult();
+      });
+
+      const { outcome } = await save(buildInput());
+
+      expect(outcome).toBe('sent');
+      expect(mockOfflineEventManager.hasUndeliveredUnitStatuses).toHaveBeenCalledWith('unit1');
+      expect(mockOfflineEventManager.deliverQueuedUnitStatuses).toHaveBeenCalledWith('unit1');
+      expect(calls).toEqual(['deliver-queued', 'save-new']);
+    });
+
+    it('queues the new status behind older ones that still cannot be delivered', async () => {
+      (mockOfflineEventManager.hasUndeliveredUnitStatuses as jest.Mock).mockReturnValue(true);
+      (mockOfflineEventManager.deliverQueuedUnitStatuses as jest.Mock).mockResolvedValue(false);
+
+      const { outcome } = await save(buildInput());
+
+      // Sending it directly would let the older status replay afterwards and become current again.
+      expect(outcome).toBe('queued');
+      expect(mockSaveUnitStatus).not.toHaveBeenCalled();
+      expect(mockOfflineEventManager.queueUnitStatusEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not try to deliver the queue when nothing is waiting for this unit', async () => {
+      await save(buildInput());
+
+      expect(mockOfflineEventManager.deliverQueuedUnitStatuses).not.toHaveBeenCalled();
+    });
   });
 });

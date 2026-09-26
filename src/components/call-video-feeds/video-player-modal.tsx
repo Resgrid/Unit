@@ -2,9 +2,10 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { CopyIcon, XIcon } from 'lucide-react-native';
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import { NativeModal } from '@/components/common/native-modal';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -100,7 +101,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <Modal visible={isOpen} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+    <NativeModal visible={isOpen} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
       <Box className="flex-1 bg-black">
         {/* Header */}
         <Box className="flex-row items-center justify-between px-4 pb-2 pt-12">
@@ -115,7 +116,7 @@ export const VideoPlayerModal: React.FC<VideoPlayerModalProps> = ({ isOpen, onCl
         {/* Player */}
         <Box className="flex-1 items-center justify-center">{renderPlayer()}</Box>
       </Box>
-    </Modal>
+    </NativeModal>
   );
 };
 

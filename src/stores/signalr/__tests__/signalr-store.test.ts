@@ -15,6 +15,7 @@ jest.mock('@/services/signalr.service', () => {
     invoke: jest.fn().mockResolvedValue(undefined),
     on: jest.fn(),
     removeAllListeners: jest.fn(),
+    isHubAvailable: jest.fn().mockReturnValue(false),
     connectToHub: jest.fn().mockResolvedValue(undefined),
     disconnectAll: jest.fn().mockResolvedValue(undefined),
   };
@@ -130,6 +131,8 @@ describe('useSignalRStore', () => {
       isGeolocationHubConnected: false,
       lastGeolocationMessage: null,
       lastGeolocationTimestamp: 0,
+      liveLocations: {},
+      geolocationJoinCount: 0,
       error: null,
     });
 
@@ -152,6 +155,7 @@ describe('useSignalRStore', () => {
     (signalRService.disconnectFromHub as jest.Mock).mockResolvedValue(undefined);
     (signalRService.invoke as jest.Mock).mockResolvedValue(undefined);
     (signalRService.on as jest.Mock).mockImplementation(() => {});
+    (signalRService.isHubAvailable as jest.Mock).mockReturnValue(false);
   });
 
   describe('Basic Store Functionality', () => {
@@ -173,6 +177,8 @@ describe('useSignalRStore', () => {
       expect(result.current.lastUpdateTimestamps).toEqual({});
       expect(result.current.lastUnitStatusMessage).toBeNull();
       expect(result.current.lastUnitStatusTimestamp).toBe(0);
+      expect(result.current.liveLocations).toEqual({});
+      expect(result.current.geolocationJoinCount).toBe(0);
       expect(result.current.error).toBeNull();
     });
   });
@@ -510,10 +516,51 @@ describe('useSignalRStore', () => {
       expect(result.current.error).toEqual(new Error('EventingUrl not available in config. Please ensure config is loaded first.'));
     });
 
-    it('should register no-op location handlers that do not write to the store', async () => {
+    const captureHandlers = () => {
       const handlers: Record<string, (message?: unknown) => void> = {};
-      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message: unknown) => void) => {
+      (signalRService.on as jest.Mock).mockImplementation((event: string, handler: (message?: unknown) => void) => {
         handlers[event] = handler;
+      });
+      return handlers;
+    };
+
+    const geolocationConnectCalls = () => (signalRService.invoke as jest.Mock).mock.calls.filter((call) => call[1] === 'GeolocationConnect');
+
+    const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it('should invoke GeolocationConnect with no arguments once the connection is up', async () => {
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      expect(signalRService.connectToHubWithEventingUrl).toHaveBeenCalledWith({
+        name: 'geolocationHub',
+        eventingUrl: mockEventingUrl,
+        hubName: 'geolocationHub',
+        methods: ['onPersonnelLocationUpdated', 'onUnitLocationUpdated', 'onGeolocationConnect'],
+      });
+      // Exactly (hub, method): an extra argument makes the server reject the zero-argument hub method.
+      expect(signalRService.invoke).toHaveBeenCalledWith('geolocationHub', 'GeolocationConnect');
+      expect(geolocationConnectCalls()[0]).toHaveLength(2);
+      const connectOrder = (signalRService.connectToHubWithEventingUrl as jest.Mock).mock.invocationCallOrder[0];
+      const joinOrder = (signalRService.invoke as jest.Mock).mock.invocationCallOrder[0];
+      expect(joinOrder).toBeGreaterThan(connectOrder);
+      expect(result.current.geolocationJoinCount).toBe(1);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('should register every listener BEFORE starting the connection', async () => {
+      const registeredBeforeConnect: string[] = [];
+      let connectStarted = false;
+      (signalRService.on as jest.Mock).mockImplementation((event: string) => {
+        if (!connectStarted) {
+          registeredBeforeConnect.push(event);
+        }
+      });
+      (signalRService.connectToHubWithEventingUrl as jest.Mock).mockImplementation(async () => {
+        connectStarted = true;
       });
 
       const { result } = renderHook(() => useSignalRStore());
@@ -522,13 +569,209 @@ describe('useSignalRStore', () => {
         await result.current.connectGeolocationHub();
       });
 
-      act(() => {
-        handlers['onPersonnelLocationUpdated']({ Latitude: 1, Longitude: 2 });
-        handlers['onUnitLocationUpdated']({ Latitude: 3, Longitude: 4 });
+      expect(registeredBeforeConnect).toEqual(
+        expect.arrayContaining([
+          'onPersonnelLocationUpdated',
+          'onUnitLocationUpdated',
+          'onGeolocationConnect',
+          '__hubDisconnected:geolocationHub',
+          '__hubReconnecting:geolocationHub',
+          '__hubReconnected:geolocationHub',
+        ])
+      );
+      expect(signalRService.removeAllListeners).toHaveBeenCalledWith('__hubReconnected:geolocationHub');
+    });
+
+    it('should report connected only once the server answers onGeolocationConnect, and not after the hub drops', async () => {
+      const handlers = captureHandlers();
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
       });
 
-      expect(result.current.lastGeolocationMessage).toBeNull();
-      expect(result.current.lastGeolocationTimestamp).toBe(0);
+      // Connected transport + successful invoke is not yet "connected" for the settings screen.
+      expect(result.current.isGeolocationHubConnected).toBe(false);
+
+      act(() => {
+        handlers['onGeolocationConnect']('connection-id');
+      });
+      expect(result.current.isGeolocationHubConnected).toBe(true);
+
+      act(() => {
+        handlers['__hubReconnecting:geolocationHub']();
+      });
+      expect(result.current.isGeolocationHubConnected).toBe(false);
+
+      act(() => {
+        handlers['onGeolocationConnect']('connection-id');
+      });
+      act(() => {
+        handlers['__hubDisconnected:geolocationHub']();
+      });
+      expect(result.current.isGeolocationHubConnected).toBe(false);
+    });
+
+    it('should re-invoke GeolocationConnect after every reconnect (automatic reconnect or service rebuild)', async () => {
+      const handlers = captureHandlers();
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+      expect(geolocationConnectCalls()).toHaveLength(1);
+
+      await act(async () => {
+        handlers['__hubReconnecting:geolocationHub']();
+        handlers['__hubReconnected:geolocationHub']();
+        await flushPromises();
+      });
+      expect(geolocationConnectCalls()).toHaveLength(2);
+
+      // The service emits the same event after rebuilding the connection once automatic reconnect gave up.
+      await act(async () => {
+        handlers['__hubDisconnected:geolocationHub']();
+        handlers['__hubReconnected:geolocationHub']();
+        await flushPromises();
+      });
+      expect(geolocationConnectCalls()).toHaveLength(3);
+      geolocationConnectCalls().forEach((call) => expect(call).toEqual(['geolocationHub', 'GeolocationConnect']));
+
+      // Each successful re-join counts, which is what triggers the maps' catch-up refetch.
+      expect(result.current.geolocationJoinCount).toBe(3);
+    });
+
+    it('should not count a join that completes after its connection dropped', async () => {
+      const handlers = captureHandlers();
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+      expect(result.current.geolocationJoinCount).toBe(1);
+
+      let resolveJoin: () => void = () => {};
+      (signalRService.invoke as jest.Mock).mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveJoin = resolve;
+          })
+      );
+
+      await act(async () => {
+        handlers['__hubReconnected:geolocationHub']();
+        await flushPromises();
+      });
+
+      await act(async () => {
+        handlers['__hubDisconnected:geolocationHub']();
+        resolveJoin();
+        await flushPromises();
+      });
+
+      expect(result.current.geolocationJoinCount).toBe(1);
+    });
+
+    it('should retry a failed GeolocationConnect and count the join once it succeeds', async () => {
+      jest.useFakeTimers();
+      try {
+        const joinError = new Error('join failed');
+        (signalRService.invoke as jest.Mock).mockRejectedValueOnce(joinError);
+
+        const { result } = renderHook(() => useSignalRStore());
+
+        await act(async () => {
+          await result.current.connectGeolocationHub();
+        });
+
+        expect(result.current.error).toEqual(joinError);
+        expect(result.current.geolocationJoinCount).toBe(0);
+        expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Failed to join the geolocation hub department group' }));
+
+        await act(async () => {
+          jest.advanceTimersByTime(5000);
+        });
+
+        expect(geolocationConnectCalls()).toHaveLength(2);
+        expect(result.current.geolocationJoinCount).toBe(1);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('should not let a stale connected flag block a repair', async () => {
+      useSignalRStore.setState({ isGeolocationHubConnected: true });
+      (signalRService.isHubAvailable as jest.Mock).mockReturnValue(false);
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      expect(signalRService.connectToHubWithEventingUrl).toHaveBeenCalled();
+      expect(signalRService.invoke).toHaveBeenCalledWith('geolocationHub', 'GeolocationConnect');
+    });
+
+    it('should skip reconnecting while the joined connection is still held by the service', async () => {
+      useSignalRStore.setState({ isGeolocationHubConnected: true });
+      (signalRService.isHubAvailable as jest.Mock).mockReturnValue(true);
+
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      expect(signalRService.connectToHubWithEventingUrl).not.toHaveBeenCalled();
+      expect(signalRService.invoke).not.toHaveBeenCalled();
+    });
+
+    it('should store live positions per pin from camelCase, PascalCase and JSON-string pushes', async () => {
+      const handlers = captureHandlers();
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      // One frame's worth of pushes dispatched back to back: none may be lost.
+      act(() => {
+        handlers['onUnitLocationUpdated']({ departmentId: 1, unitId: '12', latitude: 39.5, longitude: -119.8, recordId: 'r1', timestamp: '2026-09-25T14:03:11.123Z' });
+        handlers['onUnitLocationUpdated']({ UnitId: '13', Latitude: 39.6, Longitude: -119.7 });
+        handlers['onPersonnelLocationUpdated'](JSON.stringify({ userId: 'ABCDEF01-2345-6789-ABCD-EF0123456789', latitude: 39.7, longitude: -119.6 }));
+      });
+
+      const live = result.current.liveLocations;
+      expect(Object.keys(live).sort()).toEqual(['pabcdef01-2345-6789-abcd-ef0123456789', 'u12', 'u13']);
+      expect(live.u12).toEqual(expect.objectContaining({ pinId: 'u12', latitude: 39.5, longitude: -119.8, timestamp: Date.UTC(2026, 8, 25, 14, 3, 11, 123) }));
+      expect(live.u13).toEqual(expect.objectContaining({ latitude: 39.6, longitude: -119.7, timestamp: null }));
+      expect(live.u12.receivedAt).toBeGreaterThan(0);
+    });
+
+    it('should ignore an older fix for a pin and leave the store untouched for unusable pushes', async () => {
+      const handlers = captureHandlers();
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      act(() => {
+        handlers['onUnitLocationUpdated']({ unitId: '12', latitude: 40, longitude: -120, timestamp: '2026-09-25T14:05:00Z' });
+      });
+      const afterNewest = result.current.liveLocations;
+
+      act(() => {
+        // A replayed, older fix for the same unit.
+        handlers['onUnitLocationUpdated']({ unitId: '12', latitude: 39, longitude: -121, timestamp: '2026-09-25T14:04:00Z' });
+        handlers['onUnitLocationUpdated']({ unitId: '12', latitude: 0, longitude: 0 });
+        handlers['onUnitLocationUpdated']({ unitId: '12', latitude: 91, longitude: 10 });
+        handlers['onPersonnelLocationUpdated']('not json');
+      });
+
+      expect(result.current.liveLocations).toBe(afterNewest);
+      expect(result.current.liveLocations.u12.latitude).toBe(40);
     });
   });
 

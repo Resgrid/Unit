@@ -6,11 +6,12 @@ import { CameraIcon, ChevronLeftIcon, ChevronRightIcon, ImageIcon, PlusIcon, X }
 import { useColorScheme } from 'nativewind';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Keyboard, Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Keyboard, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/common/loading';
+import { NativeModal } from '@/components/common/native-modal';
 import ZeroState from '@/components/common/zero-state';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAuthStore } from '@/lib';
@@ -446,7 +447,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
 
   return (
     <>
-      <Modal visible={isOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+      <NativeModal visible={isOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
         <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
           {/* Header */}
           <View style={[styles.header, isDark && styles.headerDark]}>
@@ -467,7 +468,7 @@ const CallImagesModal: React.FC<CallImagesModalProps> = ({ isOpen, onClose, call
           {/* Content */}
           <View style={styles.contentContainer}>{renderContent()}</View>
         </SafeAreaView>
-      </Modal>
+      </NativeModal>
 
       {/* Full Screen Image Modal */}
       <FullScreenImageModal isOpen={!!fullScreenImage} onClose={() => setFullScreenImage(null)} imageSource={fullScreenImage?.source || { uri: '' }} imageName={fullScreenImage?.name} />

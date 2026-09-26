@@ -501,6 +501,43 @@ describe('SignalRService', () => {
     });
   });
 
+  describe('message logging', () => {
+    it('does not log location pushes or any message payload', async () => {
+      const unitListener = jest.fn();
+      signalRService.on('onUnitLocationUpdated', unitListener);
+
+      try {
+        await signalRService.connectToHubWithEventingUrl({
+          name: 'loggingHub',
+          eventingUrl: 'https://api.example.com/',
+          hubName: 'eventingHub',
+          methods: ['onUnitLocationUpdated', 'onPersonnelLocationUpdated', 'callsUpdated'],
+        });
+
+        const handlerFor = (method: string) => mockConnection.on.mock.calls.find((call) => call[0] === method)?.[1] as (...args: unknown[]) => void;
+        const unitPush = { departmentId: 7, unitId: '12', latitude: 47.6062123, longitude: -122.3321456, recordId: 'r1', timestamp: '2026-09-25T14:03:11Z' };
+        const personPush = { departmentId: 7, userId: 'user-1', latitude: 47.6062123, longitude: -122.3321456, recordId: 'r2', timestamp: '2026-09-25T14:03:12Z' };
+
+        handlerFor('onUnitLocationUpdated')(unitPush);
+        handlerFor('onPersonnelLocationUpdated')(personPush);
+        handlerFor('callsUpdated')({ body: 'private call notes' });
+
+        const logged = JSON.stringify([mockLogger.debug, mockLogger.info, mockLogger.warn, mockLogger.error].flatMap((log) => log.mock.calls));
+        expect(logged).not.toContain('47.6062123');
+        expect(logged).not.toContain('-122.3321456');
+        expect(logged).not.toContain('private call notes');
+        expect(logged).not.toMatch(/Received on(Unit|Personnel)LocationUpdated/);
+        expect(mockLogger.debug).toHaveBeenCalledWith({ message: 'Received callsUpdated message from hub: loggingHub', context: { method: 'callsUpdated' } });
+
+        // Logging less must not deliver less.
+        expect(unitListener).toHaveBeenCalledWith(unitPush);
+      } finally {
+        signalRService.off('onUnitLocationUpdated', unitListener);
+        await signalRService.disconnectFromHub('loggingHub');
+      }
+    });
+  });
+
   describe('hub availability and reconnecting state', () => {
     const mockConfig: SignalRHubConnectConfig = {
       name: 'testHub',
@@ -869,6 +906,59 @@ describe('SignalRService', () => {
 
       jest.useRealTimers();
       connectSpy.mockRestore();
+    });
+
+    // A rebuilt connection has a new connection id outside every group and never raises
+    // onreconnected, so subscribers (department group, GeolocationConnect, chat arm) would stay
+    // silent without this event.
+    it('should raise the reconnected lifecycle event after rebuilding a closed connection', async () => {
+      jest.useFakeTimers();
+      const scopedListener = jest.fn();
+      const genericListener = jest.fn();
+      signalRService.on('__hubReconnected:testHub', scopedListener);
+      signalRService.on('__hubReconnected', genericListener);
+
+      try {
+        await signalRService.connectToHubWithEventingUrl(mockConfig);
+        const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+
+        onCloseCallback();
+        expect(scopedListener).not.toHaveBeenCalled();
+
+        await jest.advanceTimersByTimeAsync(5000);
+
+        expect(mockRefreshAccessToken).toHaveBeenCalled();
+        expect(mockConnection.start).toHaveBeenCalledTimes(2);
+        expect(scopedListener).toHaveBeenCalledTimes(1);
+        expect(scopedListener).toHaveBeenCalledWith('testHub');
+        expect(genericListener).toHaveBeenCalledWith('testHub');
+      } finally {
+        signalRService.off('__hubReconnected:testHub', scopedListener);
+        signalRService.off('__hubReconnected', genericListener);
+        jest.useRealTimers();
+      }
+    });
+
+    it('should not raise the reconnected lifecycle event when the rebuild fails', async () => {
+      jest.useFakeTimers();
+      const scopedListener = jest.fn();
+      signalRService.on('__hubReconnected:testHub', scopedListener);
+
+      try {
+        await signalRService.connectToHubWithEventingUrl(mockConfig);
+        const onCloseCallback = mockConnection.onclose.mock.calls[0][0];
+        mockConnection.start.mockRejectedValueOnce(new Error('still down'));
+
+        onCloseCallback();
+        await jest.advanceTimersByTimeAsync(5000);
+
+        expect(mockConnection.start).toHaveBeenCalledTimes(2);
+        expect(scopedListener).not.toHaveBeenCalled();
+      } finally {
+        signalRService.off('__hubReconnected:testHub', scopedListener);
+        await signalRService.disconnectFromHub(mockConfig.name);
+        jest.useRealTimers();
+      }
     });
 
     it('should reset reconnection attempts on successful reconnection', async () => {

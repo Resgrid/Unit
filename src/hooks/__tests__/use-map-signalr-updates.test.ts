@@ -28,6 +28,10 @@ const mockStoreWithTimestamp = (timestamp: number) => {
   mockUseSignalRStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector(state) : state));
 };
 
+// Refetched pins are passed through the live positions held in the store (read imperatively).
+let mockLiveLocations: Record<string, unknown> = {};
+(useSignalRStore as unknown as { getState: () => unknown }).getState = () => ({ liveLocations: mockLiveLocations });
+
 describe('useMapSignalRUpdates', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -72,6 +76,7 @@ describe('useMapSignalRUpdates', () => {
     
     // Reset store state
     mockStoreWithTimestamp(0);
+    mockLiveLocations = {};
     // Mock successful API response by default
     mockGetMapDataAndMarkers.mockResolvedValue(mockMapData);
   });
@@ -530,5 +535,61 @@ describe('useMapSignalRUpdates', () => {
         },
       });
     });
+  });
+
+  it('should fetch once, debounced, when a refresh is requested outside the update events', async () => {
+    mockStoreWithTimestamp(0);
+
+    const { result } = renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
+
+    result.current.requestRefresh();
+    result.current.requestRefresh();
+    jest.advanceTimersByTime(500);
+    expect(mockGetMapDataAndMarkers).not.toHaveBeenCalled();
+
+    jest.runAllTimers();
+
+    await waitFor(() => {
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+    });
+    expect(mockOnMarkersUpdate).toHaveBeenCalledWith(mockMapData.Data.MapMakerInfos);
+  });
+
+  it('should re-apply live positions pushed while the refetch was in flight, but not older ones', async () => {
+    const timestamp = Date.now();
+    mockStoreWithTimestamp(timestamp);
+
+    const pins = [
+      { ...mockMapData.Data.MapMakerInfos[0], Id: 'u1', Type: 1, Latitude: 40, Longitude: -74 },
+      { ...mockMapData.Data.MapMakerInfos[0], Id: 'u2', Type: 1, Latitude: 40, Longitude: -74 },
+    ] as MapMakerInfoData[];
+    let resolveFetch: (value: GetMapDataAndMarkersResult) => void = () => {};
+    mockGetMapDataAndMarkers.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        })
+    );
+
+    renderHook(() => useMapSignalRUpdates(mockOnMarkersUpdate));
+    jest.runAllTimers();
+
+    await waitFor(() => {
+      expect(mockGetMapDataAndMarkers).toHaveBeenCalledTimes(1);
+    });
+
+    // u1's position was received long before the fetch started; u2's arrived while it was in flight.
+    mockLiveLocations = {
+      u1: { pinId: 'u1', latitude: 45, longitude: -70, timestamp: null, receivedAt: 1 },
+      u2: { pinId: 'u2', latitude: 46, longitude: -71, timestamp: null, receivedAt: Date.now() + 1 },
+    };
+    resolveFetch({ ...mockMapData, Data: { ...mockMapData.Data, MapMakerInfos: pins } });
+
+    await waitFor(() => {
+      expect(mockOnMarkersUpdate).toHaveBeenCalledTimes(1);
+    });
+    const applied = mockOnMarkersUpdate.mock.calls[0][0] as MapMakerInfoData[];
+    expect(applied[0]).toBe(pins[0]);
+    expect(applied[1]).toEqual({ ...pins[1], Latitude: 46, Longitude: -71 });
   });
 });

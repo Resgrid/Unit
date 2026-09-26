@@ -1,9 +1,10 @@
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Keyboard, Modal, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { FlatList, Keyboard, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 
+import { NativeModal } from '@/components/common/native-modal';
 import { ProtectedText } from '@/components/data-protection/protected-text';
 import { SearchIcon, X } from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
@@ -109,7 +110,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
   }
 
   return (
-    <Modal visible={isOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+    <NativeModal visible={isOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
       <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
         <KeyboardAvoidingView style={styles.keyboardAvoiding} behavior="padding" keyboardVerticalOffset={0}>
           {/* Header */}
@@ -161,7 +162,7 @@ const CallNotesModal = ({ isOpen, onClose, callId }: CallNotesModalProps) => {
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </Modal>
+    </NativeModal>
   );
 };
 

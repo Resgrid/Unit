@@ -36,12 +36,16 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
   // Add state to track pending changes
   const [pendingAssignments, setPendingAssignments] = React.useState<{ roleId: string; userId?: string }[]>([]);
   const [isSaving, setIsSaving] = React.useState(false);
+  // Shown inside the sheet rather than as a toast: the sheet is a native Modal with its own window,
+  // and toasts draw in the app window underneath it, where a failure is easy to miss entirely.
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (isOpen && activeUnit) {
       useRolesStore.getState().fetchAllForUnit(activeUnit.UnitId);
       // Reset pending assignments when bottom sheet opens
       setPendingAssignments([]);
+      setSaveError(null);
     }
   }, [isOpen, activeUnit]);
 
@@ -61,6 +65,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
   // Handle user assignment changes - auto-unassign from previous role when swapping
   const handleAssignUser = React.useCallback(
     (roleId: string, userId?: string) => {
+      setSaveError(null);
       setPendingAssignments((current) => {
         let updated = current.filter((a) => a.roleId !== roleId);
         // If assigning a user, check if they're currently in another role and unassign them
@@ -97,6 +102,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
     if (!activeUnit) return;
 
     setIsSaving(true);
+    setSaveError(null);
     try {
       // Get all roles for this unit, allowing empty UserId for unassignments
       const allUnitRoles = filteredRoles
@@ -134,7 +140,8 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
           error: err,
         },
       });
-      useToastStore.getState().showToast('error', t('roles.save_error', 'Error saving role assignments'));
+      // The sheet stays open with the picks intact, so Save retries them.
+      setSaveError(t('roles.save_error', 'Error saving role assignments'));
     } finally {
       setIsSaving(false);
     }
@@ -213,6 +220,12 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
             </VStack>
           </ScrollView>
         )}
+
+        {saveError ? (
+          <Text className="rounded-lg bg-red-50 px-3 py-2 text-center text-red-600 dark:bg-red-900/30 dark:text-red-400" testID="save-error-message" accessibilityRole="alert" accessibilityLiveRegion="polite">
+            {saveError}
+          </Text>
+        ) : null}
 
         <HStack space="md" className="pt-4">
           <Button variant="outline" action="secondary" className="flex-1" onPress={handleClose} isDisabled={isSaving} testID="cancel-button">

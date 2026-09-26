@@ -17,6 +17,9 @@ jest.mock('@/api/units/unitStatuses', () => ({
 jest.mock('@/services/offline-event-manager.service', () => ({
   offlineEventManager: {
     queueUnitStatusEvent: jest.fn(),
+    isDeviceOffline: jest.fn(() => false),
+    hasUndeliveredUnitStatuses: jest.fn(() => false),
+    deliverQueuedUnitStatuses: jest.fn(async () => true),
   },
 }));
 

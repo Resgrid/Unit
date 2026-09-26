@@ -1,7 +1,9 @@
 import { useColorScheme } from 'nativewind';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Modal, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { Animated, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+
+import { NativeModal } from '@/components/common/native-modal';
 
 import { Center } from './center';
 import { Spinner } from './spinner';
@@ -19,6 +21,14 @@ interface CustomBottomSheetProps {
   testID?: string;
 }
 
+/**
+ * Bottom sheet rendered in a native `Modal`, i.e. its own window above the app. Toasts shown while it
+ * is open render inside that window (NativeModal carries a toast host).
+ *
+ * A gluestack overlay (Modal, Actionsheet, Select, Menu, Popover…) opened from inside this sheet
+ * must pass `useRNModal` where it supports it. By default those portal to the host at the app root,
+ * which sits underneath this window, so they open hidden behind the sheet and cannot be tapped.
+ */
 export function CustomBottomSheet({
   children,
   isOpen,
@@ -114,7 +124,7 @@ export function CustomBottomSheet({
   if (!modalVisible) return null;
 
   return (
-    <Modal visible={modalVisible} transparent animationType="none" statusBarTranslucent onRequestClose={handleClose} testID={testID}>
+    <NativeModal visible={modalVisible} transparent animationType="none" statusBarTranslucent onRequestClose={handleClose} testID={testID}>
       {/* Backdrop */}
       <Pressable style={{ flex: 1 }} onPress={backdropEnabled ? handleClose : undefined} testID={testID ? `${testID}-backdrop` : undefined}>
         <Animated.View
@@ -167,6 +177,6 @@ export function CustomBottomSheet({
           </VStack>
         </ScrollView>
       </Animated.View>
-    </Modal>
+    </NativeModal>
   );
 }

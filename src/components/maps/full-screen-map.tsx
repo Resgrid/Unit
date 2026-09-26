@@ -2,9 +2,10 @@ import { MapPinIcon, XIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NativeModal } from '@/components/common/native-modal';
 import Mapbox from '@/components/maps/mapbox';
 import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
@@ -29,7 +30,7 @@ export const FullScreenMap: React.FC<FullScreenMapProps> = ({ isOpen, latitude, 
   const coordinate: [number, number] = [longitude, latitude];
 
   return (
-    <Modal visible={isOpen} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
+    <NativeModal visible={isOpen} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.container} testID="full-screen-call-map">
         <Mapbox.MapView
           style={styles.map}
@@ -65,7 +66,7 @@ export const FullScreenMap: React.FC<FullScreenMapProps> = ({ isOpen, latitude, 
           </View>
         ) : null}
       </View>
-    </Modal>
+    </NativeModal>
   );
 };
 

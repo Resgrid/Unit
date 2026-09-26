@@ -61,14 +61,28 @@ jest.mock('@/components/ui/hstack', () => ({
   HStack: jest.fn().mockImplementation(({ children }) => children),
 }));
 
+// Key of the tab the SharedTabs mock renders; undefined renders the first tab.
+let mockSelectedTabKey: string | undefined;
+
 jest.mock('@/components/ui/shared-tabs', () => ({
   SharedTabs: jest.fn().mockImplementation(({ tabs }) => {
     const React = require('react');
     const { View } = require('react-native');
 
-    // Render the first tab's content by default
-    const firstTabContent = tabs && tabs.length > 0 ? tabs[0].content : null;
-    return React.createElement(View, {}, firstTabContent);
+    // Render the selected tab's content, or the first tab's content by default
+    const selectedTab = tabs?.find((tab: any) => tab.key === mockSelectedTabKey) ?? tabs?.[0];
+    return React.createElement(View, {}, selectedTab ? selectedTab.content : null);
+  }),
+}));
+
+jest.mock('@/components/ui/badge', () => ({
+  Badge: jest.fn().mockImplementation(({ children, ...props }) => {
+    const React = require('react');
+    return React.createElement('badge', props, children);
+  }),
+  BadgeText: jest.fn().mockImplementation(({ children }) => {
+    const React = require('react');
+    return React.createElement('badge-text', {}, children);
   }),
 }));
 
@@ -310,6 +324,10 @@ jest.mock('@/components/call-video-feeds/video-feed-tab-content', () => ({
   VideoFeedTabContent: () => null,
 }));
 
+jest.mock('@/components/calls/call-site-info-tab-panel', () => ({
+  CallSiteInfoTabPanel: () => null,
+}));
+
 jest.mock('@/stores/check-in-timers/store', () => ({
   useCheckInTimerStore: jest.fn((selector: any) =>
     selector({
@@ -506,6 +524,7 @@ describe('CallDetail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSelectedTabKey = undefined;
 
     mockUseAnalytics.mockReturnValue({
       trackEvent: mockTrackEvent,
@@ -1393,6 +1412,74 @@ describe('CallDetail', () => {
         // using the current user location (40.7128, -74.0060) as the origin.
         expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(41.5, -73.5, 'Central Hospital', 40.7128, -74.006);
       });
+    });
+  });
+
+  describe('Timeline activity link markers', () => {
+    const renderTimeline = (activity: Record<string, unknown>[]) => {
+      const store = {
+        call: { CallId: 'test-call-id', Name: 'Test Call', Number: 'C2024001', Priority: 1, Type: 'Fire', Address: '123 Main St', Latitude: null, Longitude: null },
+        callExtraData: { Protocols: [], Dispatches: [], Activity: activity },
+        callPriority: { Name: 'High', Color: '#ff0000' },
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      };
+      mockUseCallDetailStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+      mockSelectedTabKey = 'timeline';
+
+      return render(<CallDetail />);
+    };
+
+    const activityEntry = (StatusText: string, DestinationSource?: number | null) => ({
+      Id: StatusText,
+      Timestamp: '2024-01-01T12:00:00Z',
+      Type: 'Unit',
+      Name: 'Engine 1',
+      Group: 'Station 1',
+      Note: '',
+      StatusText,
+      StatusColor: '#000000',
+      ...(DestinationSource === undefined ? {} : { DestinationSource }),
+    });
+
+    it.each([[2], [3], [4]])('should mark a status auto-linked from source %p', (source) => {
+      const { getByTestId, queryByTestId, toJSON } = renderTimeline([activityEntry('Responding', source)]);
+
+      // The mocked Text renders bare strings, so assert on the tree rather than getByText.
+      expect(JSON.stringify(toJSON())).toContain('Responding');
+      const marker = getByTestId('activity-link-marker-auto');
+      expect(marker.props.accessibilityLabel).toBe('call_detail.activity_link.auto');
+      expect(marker.props.accessibilityHint).toBe('call_detail.activity_link.auto_hint');
+      expect(marker.findByType('badge-text' as any).props.children).toBe('call_detail.activity_link.auto');
+      expect(queryByTestId('activity-link-marker-inferred')).toBeNull();
+    });
+
+    it('should mark an inferred status (source 5)', () => {
+      const { getByTestId, queryByTestId } = renderTimeline([activityEntry('On Scene', 5)]);
+
+      const marker = getByTestId('activity-link-marker-inferred');
+      expect(marker.props.accessibilityLabel).toBe('call_detail.activity_link.inferred');
+      expect(marker.props.accessibilityHint).toBe('call_detail.activity_link.inferred_hint');
+      expect(marker.findByType('badge-text' as any).props.children).toBe('call_detail.activity_link.inferred');
+      expect(queryByTestId('activity-link-marker-auto')).toBeNull();
+    });
+
+    it.each([[1], [null], [undefined]])('should not mark a status with source %p', (source) => {
+      const { queryByTestId, toJSON } = renderTimeline([activityEntry('Available', source)]);
+
+      expect(JSON.stringify(toJSON())).toContain('Available');
+      expect(queryByTestId('activity-link-marker-auto')).toBeNull();
+      expect(queryByTestId('activity-link-marker-inferred')).toBeNull();
+    });
+
+    it('should mark only the entries that were auto-linked or inferred', () => {
+      const { getAllByTestId, toJSON } = renderTimeline([activityEntry('Available', 1), activityEntry('Responding', 3), activityEntry('On Scene', 5), activityEntry('Dispatched')]);
+
+      expect(JSON.stringify(toJSON())).toContain('Dispatched');
+      expect(getAllByTestId('activity-link-marker-auto')).toHaveLength(1);
+      expect(getAllByTestId('activity-link-marker-inferred')).toHaveLength(1);
     });
   });
 });
