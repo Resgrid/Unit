@@ -862,6 +862,12 @@
     "step_up_unavailable": "Protected data is not available on this server yet. Contact your administrator.",
     "step_up_verify": "Verify"
   },
+  "dateTimePicker": {
+    "clear": "Clear",
+    "date": "Date",
+    "hour": "Hour",
+    "minute": "Minute"
+  },
   "form": {
     "invalid_url": "Please enter a valid URL starting with http:// or https://",
     "required": "This field is required"

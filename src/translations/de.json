@@ -862,6 +862,12 @@
     "step_up_unavailable": "Geschützte Daten sind auf diesem Server noch nicht verfügbar. Wenden Sie sich an Ihre Administration.",
     "step_up_verify": "Bestätigen"
   },
+  "dateTimePicker": {
+    "clear": "Löschen",
+    "date": "Datum",
+    "hour": "Stunde",
+    "minute": "Minute"
+  },
   "form": {
     "invalid_url": "Bitte eine gültige URL eingeben, die mit http:// oder https:// beginnt",
     "required": "Dieses Feld ist erforderlich"

@@ -862,6 +862,12 @@
     "step_up_unavailable": "البيانات المحمية غير متاحة بعد على هذا الخادم. تواصل مع المسؤول.",
     "step_up_verify": "تأكيد"
   },
+  "dateTimePicker": {
+    "clear": "مسح",
+    "date": "التاريخ",
+    "hour": "الساعة",
+    "minute": "الدقيقة"
+  },
   "form": {
     "invalid_url": "يرجى إدخال عنوان URL صالح يبدأ بـ http:// أو https://",
     "required": "هذا الحقل مطلوب"

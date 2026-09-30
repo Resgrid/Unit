@@ -862,6 +862,12 @@
     "step_up_unavailable": "Los datos protegidos aún no están disponibles en este servidor. Póngase en contacto con su administrador.",
     "step_up_verify": "Verificar"
   },
+  "dateTimePicker": {
+    "clear": "Borrar",
+    "date": "Fecha",
+    "hour": "Hora",
+    "minute": "Minuto"
+  },
   "form": {
     "invalid_url": "Por favor, introduce una URL válida que comience con http:// o https://",
     "required": "Este campo es obligatorio"

@@ -862,6 +862,12 @@
     "step_up_unavailable": "Chronione dane nie są jeszcze dostępne na tym serwerze. Skontaktuj się z administratorem.",
     "step_up_verify": "Potwierdź"
   },
+  "dateTimePicker": {
+    "clear": "Wyczyść",
+    "date": "Data",
+    "hour": "Godzina",
+    "minute": "Minuta"
+  },
   "form": {
     "invalid_url": "Wpisz prawidłowy URL zaczynający się od http:// lub https://",
     "required": "To pole jest wymagane"

@@ -862,6 +862,12 @@
     "step_up_unavailable": "Skyddade uppgifter är ännu inte tillgängliga på den här servern. Kontakta din administratör.",
     "step_up_verify": "Bekräfta"
   },
+  "dateTimePicker": {
+    "clear": "Rensa",
+    "date": "Datum",
+    "hour": "Timme",
+    "minute": "Minut"
+  },
   "form": {
     "invalid_url": "Ange en giltig URL som börjar med http:// eller https://",
     "required": "Detta fält är obligatoriskt"
