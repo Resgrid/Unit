@@ -93,5 +93,14 @@ describe('ssoExternalTokenRequest', () => {
       }),
     ).rejects.toThrow('Unauthorized');
   });
-});
 
+  it('names the department when it has one, and only then', async () => {
+    mockPost.mockResolvedValue({ status: 200, data: { access_token: 'a', refresh_token: 'r', id_token: 'i', expires_in: 3600, token_type: 'Bearer' } });
+
+    await ssoExternalTokenRequest({ provider: 'saml2', externalToken: 'saml-relay:ABC', username: 'john.doe', departmentToken: 'enc/dept+token=' });
+    await ssoExternalTokenRequest({ provider: 'oidc', externalToken: 'idp-id-token', username: 'john.doe' });
+
+    expect(mockPost.mock.calls[0][1]).toContain(`department_token=${encodeURIComponent('enc/dept+token=')}`);
+    expect(mockPost.mock.calls[1][1]).not.toContain('department_token');
+  });
+});

@@ -1,6 +1,8 @@
 import { renderHook } from '@testing-library/react-native';
 import * as AuthSession from 'expo-auth-session';
 
+import { saveSharedInstallation } from '@/lib/mfa/shared-installation';
+
 import { useOidcLogin } from '../use-oidc-login';
 
 jest.mock('expo-auth-session');
@@ -22,77 +24,67 @@ describe('useOidcLogin', () => {
       tokenEndpoint: 'https://idp.example.com/token',
     });
 
-    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
-      { codeVerifier: 'verifier123' },
-      null,
-      mockPromptAsync,
-    ]);
+    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([{ codeVerifier: 'verifier123' }, null, mockPromptAsync]);
 
-    (mockedAuthSession.makeRedirectUri as jest.Mock).mockReturnValue(
-      'resgridunit://auth/callback',
-    );
+    (mockedAuthSession.makeRedirectUri as jest.Mock).mockReturnValue('resgridunit://auth/callback');
   });
 
-  it('renders without error', () => {
-    const { result } = renderHook(() =>
-      useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
-    );
+  it('renders without error', async () => {
+    const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
 
     expect(result.current.request).toBeDefined();
-    expect(result.current.promptAsync).toBe(mockPromptAsync);
     expect(result.current.discovery).toBeDefined();
+    // A personal installation's sign-in is unchanged: the provider may use its session, in the browser's own cookies.
+    expect(mockedAuthSession.useAuthRequest).toHaveBeenLastCalledWith(expect.not.objectContaining({ prompt: expect.anything() }), expect.anything());
+    await result.current.promptAsync();
+    expect(mockPromptAsync).toHaveBeenCalledWith({ preferEphemeralSession: false });
+  });
+
+  it('asks the provider to authenticate the member again on a shared installation, in a browser that keeps no cookies', async () => {
+    saveSharedInstallation({ shared: true, label: null });
+    try {
+      const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
+
+      expect(mockedAuthSession.useAuthRequest).toHaveBeenLastCalledWith(expect.objectContaining({ prompt: 'login', extraParams: { max_age: '0' }, usePKCE: true }), expect.anything());
+      await result.current.promptAsync();
+      expect(mockPromptAsync).toHaveBeenCalledWith({ preferEphemeralSession: true });
+    } finally {
+      saveSharedInstallation({ shared: false, label: null });
+    }
   });
 
   it('returns null from exchangeForResgridToken when response is not success', async () => {
-    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
-      { codeVerifier: 'verifier123' },
-      { type: 'cancel' },
-      mockPromptAsync,
-    ]);
+    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([{ codeVerifier: 'verifier123' }, { type: 'cancel' }, mockPromptAsync]);
 
-    const { result } = renderHook(() =>
-      useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
-    );
+    const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
 
     const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();
   });
 
   it('returns null when id_token is missing from IdP response', async () => {
-    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
-      { codeVerifier: 'verifier123' },
-      { type: 'success', params: { code: 'auth-code-123' } },
-      mockPromptAsync,
-    ]);
+    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([{ codeVerifier: 'verifier123' }, { type: 'success', params: { code: 'auth-code-123' } }, mockPromptAsync]);
 
     (mockedAuthSession.exchangeCodeAsync as jest.Mock).mockResolvedValueOnce({
       idToken: undefined,
       accessToken: 'some-token',
     });
 
-    const { result } = renderHook(() =>
-      useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
-    );
+    const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
 
     const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();
   });
 
   it('returns the IdP id_token string on success', async () => {
-    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
-      { codeVerifier: 'verifier123' },
-      { type: 'success', params: { code: 'auth-code-123' } },
-      mockPromptAsync,
-    ]);
+    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([{ codeVerifier: 'verifier123' }, { type: 'success', params: { code: 'auth-code-123' } }, mockPromptAsync]);
 
     (mockedAuthSession.exchangeCodeAsync as jest.Mock).mockResolvedValueOnce({
       idToken: 'oidc-id-token',
       accessToken: 'oidc-access',
     });
 
-    const { result } = renderHook(() =>
-      useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
-    );
+    const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
 
     const tokenResult = await result.current.exchangeForResgridToken();
 
@@ -100,17 +92,11 @@ describe('useOidcLogin', () => {
   });
 
   it('returns null when IdP code exchange fails', async () => {
-    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([
-      { codeVerifier: 'verifier123' },
-      { type: 'success', params: { code: 'auth-code-123' } },
-      mockPromptAsync,
-    ]);
+    (mockedAuthSession.useAuthRequest as jest.Mock).mockReturnValue([{ codeVerifier: 'verifier123' }, { type: 'success', params: { code: 'auth-code-123' } }, mockPromptAsync]);
 
     (mockedAuthSession.exchangeCodeAsync as jest.Mock).mockRejectedValueOnce(new Error('IdP Error'));
 
-    const { result } = renderHook(() =>
-      useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }),
-    );
+    const { result } = renderHook(() => useOidcLogin({ authority: 'https://idp.example.com', clientId: 'client123' }));
 
     const tokenResult = await result.current.exchangeForResgridToken();
     expect(tokenResult).toBeNull();

@@ -26,6 +26,7 @@ import {
   HomeIcon as RawHomeIcon,
   ListTree as RawListTree,
   Loader2 as RawLoader2,
+  Lock as RawLock,
   type LucideProps,
   MailIcon as RawMailIcon,
   Map as RawMap,
@@ -49,6 +50,7 @@ import {
   StarIcon as RawStarIcon,
   Tag as RawTag,
   TrashIcon as RawTrashIcon,
+  Truck as RawTruck,
   UserIcon as RawUserIcon,
   Users as RawUsers,
   UsersIcon as RawUsersIcon,
@@ -113,6 +115,7 @@ export const Headphones = themed(RawHeadphones);
 export const HomeIcon = themed(RawHomeIcon);
 export const ListTree = themed(RawListTree);
 export const Loader2 = themed(RawLoader2);
+export const Lock = themed(RawLock);
 export const MailIcon = themed(RawMailIcon);
 export const Map = themed(RawMap);
 export const MapPinIcon = themed(RawMapPinIcon);
@@ -130,6 +133,7 @@ export const SearchIcon = themed(RawSearchIcon);
 export const Settings = themed(RawSettings);
 export const SettingsIcon = themed(RawSettingsIcon);
 export const ShieldCheck = themed(RawShieldCheck);
+export const Truck = themed(RawTruck);
 export const SmartphoneIcon = themed(RawSmartphoneIcon);
 export const Speaker = themed(RawSpeaker);
 export const StarIcon = themed(RawStarIcon);

@@ -11,7 +11,7 @@ jest.mock('@/lib/logging', () => ({
 // Mock storage
 jest.mock('@/lib/storage', () => ({
   storage: {
-    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'baseUrl', 'key2']),
+    getAllKeys: jest.fn(() => ['key1', 'IS_FIRST_TIME', 'baseUrl', 'SHARED_INSTALLATION', 'key2']),
     delete: jest.fn(),
   },
 }));
@@ -628,6 +628,12 @@ describe('app-reset.service', () => {
       clearPersistedStorage();
 
       expect(mockStorage.delete).not.toHaveBeenCalledWith('baseUrl');
+    });
+
+    it('keeps a shared device shared for the next operator', () => {
+      clearPersistedStorage();
+
+      expect(mockStorage.delete).not.toHaveBeenCalledWith('SHARED_INSTALLATION');
     });
   });
 

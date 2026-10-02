@@ -21,6 +21,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Platform queries
   getPlatform: () => ipcRenderer.invoke('get-platform'),
 
+  // Brokered SSO: a one-time loopback listener receives the broker's return (see sso-loopback.js)
+  ssoListen: () => ipcRenderer.invoke('sso:listen'),
+  ssoOpen: (id, authorizeUrl) => ipcRenderer.invoke('sso:open', id, authorizeUrl),
+  ssoCancel: (id) => ipcRenderer.invoke('sso:cancel', id),
+
+  // Legacy SSO: the main process runs the provider's sign-in in the member's browser and takes the return on this app's
+  // scheme (see legacy-sso.js). OIDC answers with the id_token; SAML with the relay's link, for the page to check.
+  legacySsoOidc: (authority, clientId, reauthenticate) => ipcRenderer.invoke('legacy-sso:oidc', authority, clientId, reauthenticate),
+  legacySsoSaml: (signInUrl) => ipcRenderer.invoke('legacy-sso:saml', signInUrl),
+  legacySsoCancel: () => ipcRenderer.invoke('legacy-sso:cancel'),
+
   // Window controls (for custom title bar if needed)
   minimizeWindow: () => ipcRenderer.send('minimize-window'),
   maximizeWindow: () => ipcRenderer.send('maximize-window'),

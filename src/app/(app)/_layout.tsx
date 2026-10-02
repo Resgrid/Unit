@@ -10,8 +10,11 @@ import { ActivityIndicator, type ColorValue, Platform, StyleSheet, useWindowDime
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StepUpPromptHost } from '@/components/data-protection/step-up-prompt-host';
+import { RecoveryCodesModal } from '@/components/mfa/recovery-codes-modal';
 import { NotificationButton } from '@/components/notifications/NotificationButton';
 import { NotificationInbox } from '@/components/notifications/NotificationInbox';
+import { SharedSessionBar } from '@/components/shared-session/shared-session-bar';
+import { SharedSessionLockScreen } from '@/components/shared-session/shared-session-lock-screen';
 import Sidebar from '@/components/sidebar/sidebar';
 import { FocusAwareStatusBar, View } from '@/components/ui';
 import { Button, ButtonText } from '@/components/ui/button';
@@ -22,6 +25,7 @@ import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
+import { useSharedSessionLifecycle } from '@/hooks/use-shared-session-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
 import { getAppTabBarHeight } from '@/lib/app-shell-layout';
 import { useAuthStore } from '@/lib/auth';
@@ -57,6 +61,8 @@ export default function TabLayout() {
   const isLandscape = width > height;
   const { isActive, appState } = useAppLifecycle();
   const { trackEvent } = useAnalytics();
+  // A shared vehicle session: lock on background and restart, follow the idle lock and shift end (plan section 10.5).
+  const sharedSession = useSharedSessionLifecycle(status === 'signedIn');
 
   // Identify user in Countly when signed in
   useEffect(() => {
@@ -285,7 +291,8 @@ export default function TabLayout() {
 
   // Handle SignalR lifecycle management
   useSignalRLifecycle({
-    isSignedIn: status === 'signedIn',
+    // A locked shared session keeps its tokens but must not reconnect the hubs on resume.
+    isSignedIn: status === 'signedIn' && !sharedSession.locked,
     hasInitialized: hasInitialized.current,
   });
 
@@ -583,13 +590,17 @@ export default function TabLayout() {
   }
 
   const content = (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container} pointerEvents="box-none" onStartShouldSetResponderCapture={sharedSession.onTouchCapture}>
       {/*
         The app's single Advanced Data Protection prompt. Mounted here so any screen can trigger it
         through the store without carrying a modal of its own, and so two screens can never stack
         two prompts over each other.
       */}
       <StepUpPromptHost />
+      <RecoveryCodesModal />
+      {/* Over everything while a shared vehicle session is locked; the same session resumes on unlock. */}
+      <SharedSessionLockScreen />
+      <SharedSessionBar />
 
       {/* Loading overlay during initialization — shown on top of Tabs so the navigator stays mounted */}
       {!isInitComplete ? (
