@@ -73,3 +73,23 @@ it('preserves a record timestamp when confirming its date and time without chang
   expect(onChange).toHaveBeenCalledWith('2026-09-26T21:15:00.000Z');
   screen.unmount();
 });
+
+it('commits the highlighted day of the month shown, never a day in a month that was navigated away from', () => {
+  const onChange = jest.fn();
+  const screen = render(<DateTimeField value="2024-01-31" label="Expires on" onChange={onChange} testID="date" />);
+  fireEvent.press(screen.getByTestId('date'));
+  fireEvent.press(screen.getByTestId('date-next'));
+  expect(screen.getByTestId('date-day-29').props.accessibilityState).toEqual({ selected: true });
+  fireEvent.press(screen.getByTestId('date-done'));
+  expect(onChange).toHaveBeenLastCalledWith('2024-02-29');
+
+  fireEvent.press(screen.getByTestId('date'));
+  fireEvent.press(screen.getByTestId('date-previous'));
+  fireEvent.press(screen.getByTestId('date-month'));
+  fireEvent.press(screen.getByTestId('date-month-1'));
+  fireEvent.press(screen.getByTestId('date-year'));
+  fireEvent.press(screen.getByTestId('date-year-2020'));
+  fireEvent.press(screen.getByTestId('date-done'));
+  expect(onChange).toHaveBeenLastCalledWith('2020-02-28');
+  screen.unmount();
+});

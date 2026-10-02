@@ -119,6 +119,18 @@ describe('runSsoRoundTrip in the desktop app', () => {
     expect(bridge.ssoOpen).not.toHaveBeenCalled();
   });
 
+  it('closes the listener when opening the provider fails, and still reports the failure', async () => {
+    const failure = new Error('bridge gone');
+    bridge.ssoOpen.mockRejectedValueOnce(failure);
+
+    await expect(runSsoRoundTrip(async () => begun)).rejects.toBe(failure);
+    expect(bridge.ssoCancel).toHaveBeenCalledWith('trip-1');
+
+    bridge.ssoOpen.mockRejectedValueOnce(failure);
+    bridge.ssoCancel.mockRejectedValueOnce(new Error('cancel failed too'));
+    await expect(runSsoRoundTrip(async () => begun)).rejects.toBe(failure);
+  });
+
   it('reads a closed or timed-out listener as cancelled, and still checks the state', async () => {
     bridge.ssoOpen.mockResolvedValueOnce(null);
     expect(await runSsoRoundTrip(async () => begun)).toEqual({ ok: false, reason: 'cancelled' });

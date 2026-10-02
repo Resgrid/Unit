@@ -81,7 +81,13 @@ export const runSsoRoundTrip = async (begin: (secrets: SsoRoundTripSecrets) => P
   let returnedUrl: string | null;
   if (desktop && listener) {
     // The provider opens in the member's own browser; the loopback listener hands back its one return.
-    returnedUrl = await desktop.ssoOpen(listener.id, begun.AuthorizeUrl);
+    try {
+      returnedUrl = await desktop.ssoOpen(listener.id, begun.AuthorizeUrl);
+    } catch (error) {
+      // A failed hand-off must not leave the listener waiting out its ten minutes.
+      await desktop.ssoCancel(listener.id).catch(() => undefined);
+      throw error;
+    }
   } else {
     const result = await WebBrowser.openAuthSessionAsync(begun.AuthorizeUrl, returnTarget, { preferEphemeralSession: ephemeral });
     returnedUrl = result.type === 'success' && result.url ? result.url : null;

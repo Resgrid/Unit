@@ -33,6 +33,19 @@ export const StepUpModal: React.FC<StepUpModalProps> = ({ isOpen, onClose, onVer
   const methods = dataProtectionStore((state) => state.stepUpMethods);
   const [approval, setApproval] = useState<{ id: string; number: string } | null>(null);
   const approvalAbort = useRef<AbortController | null>(null);
+  // The request Responder has not decided yet: withdrawn on the server when the member cancels or the modal closes.
+  const pendingApprovalId = useRef<string | null>(null);
+
+  const cancelApproval = useCallback(() => {
+    const pending = pendingApprovalId.current;
+    approvalAbort.current?.abort();
+    approvalAbort.current = null;
+    pendingApprovalId.current = null;
+    setApproval(null);
+    if (pending) {
+      void dataProtectionStore.getState().cancelApproval(pending);
+    }
+  }, []);
 
   // The methods this member has and the department accepts for protected data (passkey plan section 8.1).
   useEffect(() => {
@@ -40,11 +53,9 @@ export const StepUpModal: React.FC<StepUpModalProps> = ({ isOpen, onClose, onVer
       void dataProtectionStore.getState().loadStepUpMethods();
     } else {
       setCode('');
-      approvalAbort.current?.abort();
-      approvalAbort.current = null;
-      setApproval(null);
+      cancelApproval();
     }
-  }, [isOpen]);
+  }, [isOpen, cancelApproval]);
 
   const finished = useCallback(
     (ok: boolean) => {
@@ -61,18 +72,33 @@ export const StepUpModal: React.FC<StepUpModalProps> = ({ isOpen, onClose, onVer
   const handleProvider = useCallback(async () => finished(await dataProtectionStore.getState().verifyFederated()), [finished]);
 
   const handleApproval = useCallback(async () => {
-    const store = dataProtectionStore.getState();
-    const started = await store.requestApproval();
-    if (!started) {
+    // One request at a time: a second tap while one is starting or waiting would orphan the first.
+    if (approvalAbort.current) {
       return;
     }
-    setApproval(started);
     const controller = new AbortController();
     approvalAbort.current = controller;
-    const decided = await store.waitForApproval(started.id, controller.signal);
-    if (decided === 'aborted') {
+    const store = dataProtectionStore.getState();
+    const started = await store.requestApproval();
+    if (!started || controller.signal.aborted) {
+      if (started) {
+        // Closed while the request was being made: withdraw it, since nobody is waiting for the answer.
+        void store.cancelApproval(started.id);
+      }
+      if (approvalAbort.current === controller) {
+        approvalAbort.current = null;
+      }
       return;
     }
+    pendingApprovalId.current = started.id;
+    setApproval(started);
+    const decided = await store.waitForApproval(started.id, controller.signal);
+    if (decided === 'aborted' || controller.signal.aborted) {
+      return;
+    }
+    // Decided: nothing is left to withdraw, and another request may start.
+    pendingApprovalId.current = null;
+    approvalAbort.current = null;
     setApproval(null);
     if (decided !== 'approved') {
       dataProtectionStore.setState({ lastError: decided === 'denied' ? 'approval_denied' : 'approval_expired' });
@@ -80,16 +106,6 @@ export const StepUpModal: React.FC<StepUpModalProps> = ({ isOpen, onClose, onVer
     }
     finished(await store.completeApproval(started.id));
   }, [finished]);
-
-  const cancelApproval = useCallback(() => {
-    const current = approval;
-    approvalAbort.current?.abort();
-    approvalAbort.current = null;
-    setApproval(null);
-    if (current) {
-      void dataProtectionStore.getState().cancelApproval(current.id);
-    }
-  }, [approval]);
 
   const offersCode = methods == null || methods.includes('totp');
 

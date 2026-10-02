@@ -3,6 +3,7 @@ import type { AuthResponse } from '@/lib/auth/types';
 import { logger } from '@/lib/logging';
 import { type ApprovalWaitResult, waitForApproval } from '@/lib/mfa/approval-wait';
 import { endsTransaction, type MfaProblem, toMfaProblem } from '@/lib/mfa/errors';
+import { isMfaErrorCode } from '@/lib/mfa/messages';
 import { getPasskeyAssertion } from '@/lib/mfa/passkey';
 import { isPasskeyCeremonyError } from '@/lib/mfa/passkey-errors';
 import { runSsoRoundTrip } from '@/lib/mfa/sso-browser';
@@ -76,7 +77,18 @@ const failed = (host: LoginMfaHost, problem: MfaProblem): LoginMfaResult => {
 };
 
 const finish = async (host: LoginMfaHost, secret: string, completion: CompletionData): Promise<LoginMfaResult> => {
-  const tokens = await completionGrantRequest(secret, completion.CompletionCode);
+  let tokens: AuthResponse;
+  try {
+    tokens = await completionGrantRequest(secret, completion.CompletionCode);
+  } catch (error) {
+    // The completion code is single-use, so this transaction cannot finish any more: the member signs in again. A token
+    // endpoint refusal the app has no message for (invalid_grant) reads as the sign-in no longer being valid.
+    const refused = toMfaProblem(error).code;
+    const code = isMfaErrorCode(refused) ? refused : 'mfa_transaction_invalid';
+    forgetLoginSecrets();
+    host.restart(code);
+    return { ok: false, code, restart: true };
+  }
   loginTransaction = null;
   host.signIn(tokens, completion.RecoveryCodes ?? null);
   logger.info({ message: 'Signed in with a second factor', context: { recovery: completion.Recovery } });

@@ -22,7 +22,7 @@ jest.mock('@/stores/auth/store', () => ({ __esModule: true, default: { getState:
 jest.mock('@/stores/signalr/signalr-store', () => ({ useSignalRStore: { getState: () => mockSignalR } }));
 jest.mock('@/lib/logging', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
-import { applySharedSessionStatus, resetSharedSession, useSharedSessionStore } from '@/stores/shared-session/store';
+import { applySharedSessionStatus, markSharedSessionLocked, resetSharedSession, useSharedSessionStore } from '@/stores/shared-session/store';
 
 import { _resetSharedSessionController, afterSharedUnlock, checkSharedSession, endSharedShift, lockSharedSession, reportOperatorActivity } from '../controller';
 
@@ -179,5 +179,24 @@ describe('shared session controller', () => {
     mockAuthState.refreshTimeoutId = 42;
     await afterSharedUnlock();
     expect(mockRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('after an unlock, leaves the hubs down when the refresh signs out or the session locks again meanwhile', async () => {
+    mockRefresh.mockImplementationOnce(async () => {
+      mockAuthState.status = 'signedOut';
+    });
+    await afterSharedUnlock();
+    expect(mockRefresh).toHaveBeenCalledTimes(1);
+    expect(mockSignalR.connectUpdateHub).not.toHaveBeenCalled();
+
+    mockAuthState.status = 'signedIn';
+    mockRefresh.mockImplementationOnce(async () => {
+      markSharedSessionLocked(3);
+    });
+    await afterSharedUnlock();
+    expect(mockRefresh).toHaveBeenCalledTimes(2);
+    expect(mockSignalR.connectUpdateHub).not.toHaveBeenCalled();
+    expect(mockSignalR.connectGeolocationHub).not.toHaveBeenCalled();
+    expect(mockSignalR.connectChatHub).not.toHaveBeenCalled();
   });
 });

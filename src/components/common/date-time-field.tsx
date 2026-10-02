@@ -24,8 +24,9 @@ export const DateTimeField = ({ value, onChange, label, mode = 'date', disabled 
   const locale = i18n?.language ?? 'en';
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(() => parsePickerValue(value, mode));
-  const [month, setMonth] = useState(draft.getMonth());
-  const [year, setYear] = useState(draft.getFullYear());
+  // The calendar always shows the draft's month, so Done commits the day that is highlighted.
+  const month = draft.getMonth();
+  const year = draft.getFullYear();
   const [view, setView] = useState<'days' | 'months' | 'years'>('days');
   const [yearPage, setYearPage] = useState(year - 11);
   const selected = parsePickerValue(value, mode);
@@ -34,8 +35,6 @@ export const DateTimeField = ({ value, onChange, label, mode = 'date', disabled 
     if (disabled) return;
     const next = parsePickerValue(value, mode);
     setDraft(next);
-    setMonth(next.getMonth());
-    setYear(next.getFullYear());
     setYearPage(Math.max(1, Math.min(9976, next.getFullYear() - 11)));
     setView('days');
     setOpen(true);
@@ -52,16 +51,22 @@ export const DateTimeField = ({ value, onChange, label, mode = 'date', disabled 
   };
   const monthEnd = calendarDate(1);
   monthEnd.setMonth(month + 1, 0);
+  // Moves the draft to another month, keeping its day (or the month's last day) and its time.
+  const showMonth = (nextYear: number, nextMonth: number) => {
+    const next = new Date(draft);
+    next.setFullYear(nextYear, nextMonth, 1);
+    if (next.getFullYear() < 1 || next.getFullYear() > 9999) return;
+    const end = new Date(next);
+    end.setMonth(next.getMonth() + 1, 0);
+    next.setDate(Math.min(draft.getDate(), end.getDate()));
+    setDraft(next);
+  };
   const move = (direction: number) => {
     if (view === 'years') {
       setYearPage((page) => Math.max(1, Math.min(9976, page + direction * 24)));
       return;
     }
-    const next = calendarDate(1);
-    next.setMonth(month + direction);
-    if (next.getFullYear() < 1 || next.getFullYear() > 9999) return;
-    setMonth(next.getMonth());
-    setYear(next.getFullYear());
+    showMonth(year, month + direction);
   };
   const choice = (text: string, id: string, onPress: () => void, chosen = false, accessibilityLabel = text) => (
     <Pressable
@@ -135,7 +140,7 @@ export const DateTimeField = ({ value, onChange, label, mode = 'date', disabled 
                               String(number),
                               `year-${number}`,
                               () => {
-                                setYear(number);
+                                showMonth(number, month);
                                 setView('days');
                               },
                               year === number
@@ -151,7 +156,7 @@ export const DateTimeField = ({ value, onChange, label, mode = 'date', disabled 
                               new Date(2024, number, 1).toLocaleDateString(locale, { month: 'short' }),
                               `month-${number}`,
                               () => {
-                                setMonth(number);
+                                showMonth(year, number);
                                 setView('days');
                               },
                               month === number

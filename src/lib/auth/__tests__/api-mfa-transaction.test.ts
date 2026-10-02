@@ -1,5 +1,7 @@
 import queryString from 'query-string';
 
+import { logger } from '@/lib/logging';
+
 const mockPost = jest.fn();
 
 jest.mock('@/lib/storage/app', () => ({ getBaseApiUrl: () => 'https://api.test/api/v4' }));
@@ -73,5 +75,12 @@ describe('login on the transaction flow (passkey workbook section 7.1)', () => {
     mockPost.mockResolvedValue({ data: { access_token: 'a', refresh_token: 'r', id_token: 'i', expires_in: 60 } });
     expect(await completionGrantRequest('secret', 'code-1')).toMatchObject({ access_token: 'a' });
     expect(sentBody()).toEqual({ grant_type: 'urn:resgrid:params:oauth:grant-type:mfa_completion', transaction: 'secret', completion_code: 'code-1' });
+  });
+
+  it('logs a completion that fails, and hands the refusal back', async () => {
+    const failure = refusal({ error: 'invalid_grant' });
+    mockPost.mockRejectedValueOnce(failure);
+    await expect(completionGrantRequest('secret', 'code-1')).rejects.toBe(failure);
+    expect(logger.error).toHaveBeenCalledWith({ message: 'Login transaction completion failed', context: { error: failure } });
   });
 });

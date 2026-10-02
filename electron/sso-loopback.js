@@ -78,7 +78,13 @@ function createSsoLoopback({ openExternal, focus, waitMs = WAIT_MS }) {
       close(id, null);
       return null;
     }
-    await openExternal(parsed.toString());
+    try {
+      await openExternal(parsed.toString());
+    } catch {
+      // No browser opened, so no return can come: release the listener now instead of after ten minutes.
+      close(id, null);
+      return null;
+    }
     return trip.done;
   };
 

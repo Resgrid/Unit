@@ -82,6 +82,24 @@ describe('finishing a sign-in on the login transaction', () => {
     expect(hasLoginTransaction()).toBe(false);
   });
 
+  it('sends the member back to the start when the single-use completion cannot be redeemed', async () => {
+    const h = host();
+    holdLoginTransaction('secret');
+    mocked.completeTotp.mockResolvedValue(completion());
+    grant.mockRejectedValueOnce(Object.assign(new Error('invalid_grant'), { response: { status: 400, data: { error: 'invalid_grant' } } }));
+
+    expect(await verifyLoginMfa(h, { method: 'totp', code: '123456' })).toEqual({ ok: false, code: 'mfa_transaction_invalid', restart: true });
+    expect(h.restart).toHaveBeenCalledWith('mfa_transaction_invalid');
+    expect(h.signIn).not.toHaveBeenCalled();
+    expect(hasLoginTransaction()).toBe(false);
+
+    holdLoginTransaction('secret');
+    grant.mockRejectedValueOnce(new Error('offline'));
+    expect(await verifyLoginMfa(h, { method: 'totp', code: '123456' })).toEqual({ ok: false, code: 'network_error', restart: true });
+    expect(h.restart).toHaveBeenLastCalledWith('network_error');
+    expect(hasLoginTransaction()).toBe(false);
+  });
+
   it('finishes setting up the required authenticator and hands the new recovery codes over once', async () => {
     const h = host();
     holdLoginTransaction('setup-secret');

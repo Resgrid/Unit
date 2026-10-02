@@ -128,12 +128,15 @@ export const endSharedShift = async (switchOperator: boolean): Promise<void> => 
 
 /**
  * After an unlock: the same session resumes, so the refresh that waited for it runs now (it was left unscheduled while
- * locked) and the hubs reconnect.
+ * locked) and the hubs reconnect, unless that refresh signed the operator out or the session locked again meanwhile.
  */
 export const afterSharedUnlock = async (): Promise<void> => {
   lastActivityReport = Date.now();
   if (useAuthStore.getState().refreshTimeoutId === null) {
     await useAuthStore.getState().refreshAccessToken();
+  }
+  if (!signedIn() || useSharedSessionStore.getState().locked) {
+    return;
   }
   void resumeRealtime();
 };

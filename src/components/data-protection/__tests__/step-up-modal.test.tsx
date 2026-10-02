@@ -70,6 +70,44 @@ describe('StepUpModal with every method', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('withdraws a request Responder has not decided when the modal closes', async () => {
+    store.requestApproval.mockResolvedValue({ id: 'ap-1', number: '42' });
+    store.waitForApproval.mockImplementation((_id: string, signal: AbortSignal) => new Promise((resolve) => signal.addEventListener('abort', () => resolve('aborted'))));
+    const onClose = jest.fn();
+    const screen = render(<StepUpModal isOpen onClose={onClose} />);
+    await act(async () => fireEvent.press(screen.getByTestId('step-up-approval')));
+    expect(store.waitForApproval).toHaveBeenCalledWith('ap-1', expect.anything());
+
+    await act(async () => screen.rerender(<StepUpModal isOpen={false} onClose={onClose} />));
+    expect(store.cancelApproval).toHaveBeenCalledTimes(1);
+    expect(store.cancelApproval).toHaveBeenCalledWith('ap-1');
+    expect(store.completeApproval).not.toHaveBeenCalled();
+    screen.unmount();
+  });
+
+  it('starts one request for a double tap, and withdraws it when the modal closed before it started', async () => {
+    let start: (value: { id: string; number: string }) => void = () => undefined;
+    store.requestApproval.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          start = resolve;
+        })
+    );
+    const onClose = jest.fn();
+    const screen = render(<StepUpModal isOpen onClose={onClose} />);
+    act(() => {
+      fireEvent.press(screen.getByTestId('step-up-approval'));
+      fireEvent.press(screen.getByTestId('step-up-approval'));
+    });
+    expect(store.requestApproval).toHaveBeenCalledTimes(1);
+
+    screen.rerender(<StepUpModal isOpen={false} onClose={onClose} />);
+    await act(async () => start({ id: 'ap-2', number: '7' }));
+    expect(store.cancelApproval).toHaveBeenCalledWith('ap-2');
+    expect(store.waitForApproval).not.toHaveBeenCalled();
+    screen.unmount();
+  });
+
   it('shows a method\'s refusal in the member\'s language', () => {
     dataProtectionStore.setState({ lastError: 'passkey_cancelled' });
     const { getByTestId } = render(<StepUpModal isOpen onClose={jest.fn()} />);

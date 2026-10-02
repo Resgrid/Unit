@@ -151,9 +151,15 @@ export const completionGrantRequest = async (transaction: string, completionCode
     transaction,
     completion_code: completionCode,
   });
-  const response = await authApi.post<AuthResponse>('/connect/token', data);
-  logger.info({ message: 'Login transaction completed' });
-  return response.data;
+  try {
+    const response = await authApi.post<AuthResponse>('/connect/token', data);
+    logger.info({ message: 'Login transaction completed' });
+    return response.data;
+  } catch (error) {
+    // The sanitizer reduces axios errors to safe summaries: neither the transaction nor the completion code is logged.
+    logger.error({ message: 'Login transaction completion failed', context: { error } });
+    throw error;
+  }
 };
 
 export const refreshTokenRequest = async (refreshToken: string): Promise<AuthResponse> => {
