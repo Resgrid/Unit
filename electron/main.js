@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
-const { app, BrowserWindow, ipcMain, Notification, nativeTheme, Menu, protocol, net } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, nativeTheme, Menu, protocol, net, shell } = require('electron');
+const { registerSsoLoopback } = require('./sso-loopback');
+const { registerLegacySso } = require('./legacy-sso');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -27,6 +29,54 @@ if (require('electron-squirrel-startup')) {
 
 let mainWindow = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+// This app's own scheme, as the mobile app has it: legacy SSO returns to resgridunit://auth/callback (legacy-sso.js).
+const APP_SCHEME = 'resgridunit';
+if (process.defaultApp && process.argv.length >= 2) {
+  // Unpackaged (electron .): the OS must start Electron with this app's entry script.
+  app.setAsDefaultProtocolClient(APP_SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+} else {
+  app.setAsDefaultProtocolClient(APP_SCHEME);
+}
+
+function focusMainWindow() {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  }
+}
+
+// Legacy SSO: the provider and the SAML relay return through the OS to this app's scheme.
+const legacySso = registerLegacySso(ipcMain, {
+  scheme: APP_SCHEME,
+  openExternal: (url) => shell.openExternal(url),
+  // The main process's network stack: the system's proxy settings, and no Origin header on the provider's token request.
+  fetch: (url, init) => net.fetch(url, init),
+  focus: focusMainWindow,
+});
+
+// One instance: on Windows and Linux the OS starts a second instance with the scheme's link, which hands it to this one
+// and quits. A second launch from the dock or start menu shows this window.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    focusMainWindow();
+    const link = legacySso.linkIn(argv);
+    if (link) {
+      legacySso.handleLink(link);
+    }
+  });
+}
+
+// macOS hands this app its scheme's links here.
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  legacySso.handleLink(url);
+});
 
 function createWindow() {
   // Create the browser window.
@@ -174,6 +224,12 @@ ipcMain.handle('show-notification', async (event, { title, body, data }) => {
   return true;
 });
 
+// Brokered SSO returns to a one-time loopback listener; the provider opens in the member's own browser.
+registerSsoLoopback(ipcMain, {
+  openExternal: (url) => shell.openExternal(url),
+  focus: focusMainWindow,
+});
+
 // Handle getting platform info
 ipcMain.handle('get-platform', () => {
   return process.platform;
@@ -181,6 +237,11 @@ ipcMain.handle('get-platform', () => {
 
 // Handle app ready
 app.whenReady().then(() => {
+  // A second instance only hands its link to the first, then quits.
+  if (!gotSingleInstanceLock) {
+    return;
+  }
+
   // Register custom protocol handler for serving the Expo web export
   // This resolves absolute paths like /_expo/static/js/... from the dist directory
   const distPath = path.join(__dirname, '..', 'dist');
@@ -232,11 +293,4 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
-});
-
-// Handle deep links (for future use)
-app.on('open-url', (event, url) => {
-  event.preventDefault();
-  // Handle the URL
-  console.log('Deep link received:', url);
 });

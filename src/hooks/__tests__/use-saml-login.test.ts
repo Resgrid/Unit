@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
+import { isSharedInstallation } from '@/lib/mfa/shared-installation';
 import { getItem, removeItem, setItem } from '@/lib/storage';
 
 import { useSamlLogin } from '../use-saml-login';
@@ -17,6 +18,7 @@ jest.mock('expo-linking', () => ({
   addEventListener: jest.fn(() => ({ remove: jest.fn() })),
 }));
 jest.mock('axios');
+jest.mock('@/lib/mfa/shared-installation', () => ({ isSharedInstallation: jest.fn(() => false) }));
 jest.mock('@/lib/storage', () => ({
   getItem: jest.fn(),
   setItem: jest.fn(),
@@ -62,10 +64,43 @@ describe('useSamlLogin', () => {
     const { result } = renderHook(() => useSamlLogin());
     await result.current.startSamlLogin('https://idp.example.com/saml/sso');
 
-    expect(mockedSetItem).toHaveBeenCalledWith('saml_pending_relay_state', TEST_NONCE);
-    expect(mockedWebBrowser.openBrowserAsync).toHaveBeenCalledWith(
-      `https://idp.example.com/saml/sso?RelayState=${TEST_NONCE}`,
-    );
+    // Tagged with this app's name so the server's relay returns here (every app shares one ACS URL).
+    expect(mockedSetItem).toHaveBeenCalledWith('saml_pending_relay_state', `unit.${TEST_NONCE}`);
+    expect(mockedWebBrowser.openBrowserAsync).toHaveBeenCalledWith(`https://idp.example.com/saml/sso?RelayState=unit.${TEST_NONCE}`);
+  });
+
+  it("startSamlLogin in the desktop app hands the start page to the main process and returns the relay's link", async () => {
+    const legacySsoSaml = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: true, url: 'resgridunit://auth/callback?saml_response=r&relay_state=unit.' + TEST_NONCE })
+      .mockResolvedValueOnce({ ok: false, reason: 'cancelled' });
+    (window as unknown as { electronAPI?: unknown }).electronAPI = { legacySsoOidc: jest.fn(), legacySsoSaml, legacySsoCancel: jest.fn() };
+    try {
+      const { result } = renderHook(() => useSamlLogin());
+
+      await expect(result.current.startSamlLogin('https://api.resgrid.com/api/v4/connect/saml-mobile-login?departmentToken=t')).resolves.toBe('resgridunit://auth/callback?saml_response=r&relay_state=unit.' + TEST_NONCE);
+      expect(legacySsoSaml).toHaveBeenCalledWith(`https://api.resgrid.com/api/v4/connect/saml-mobile-login?departmentToken=t&RelayState=unit.${TEST_NONCE}`);
+      expect(mockedSetItem).toHaveBeenCalledWith('saml_pending_relay_state', `unit.${TEST_NONCE}`);
+      expect(mockedWebBrowser.openBrowserAsync).not.toHaveBeenCalled();
+
+      await expect(result.current.startSamlLogin('https://api.resgrid.com/start')).resolves.toBeNull();
+    } finally {
+      delete (window as unknown as { electronAPI?: unknown }).electronAPI;
+    }
+  });
+
+  it('startSamlLogin on a shared installation asks the IdP to authenticate the member again', async () => {
+    (isSharedInstallation as jest.Mock).mockReturnValueOnce(true);
+    (mockedWebBrowser.openBrowserAsync as jest.Mock).mockResolvedValueOnce({ type: 'opened' });
+    const { result } = renderHook(() => useSamlLogin());
+    await result.current.startSamlLogin('https://api.resgrid.com/start?departmentToken=t');
+    expect(mockedWebBrowser.openBrowserAsync).toHaveBeenCalledWith(`https://api.resgrid.com/start?departmentToken=t&RelayState=unit.${TEST_NONCE}&forceAuthn=true`);
+  });
+
+  it('startSamlLogin on a phone opens the browser and returns nothing: the deep link brings the answer', async () => {
+    (mockedWebBrowser.openBrowserAsync as jest.Mock).mockResolvedValueOnce({ type: 'opened' });
+    const { result } = renderHook(() => useSamlLogin());
+    await expect(result.current.startSamlLogin('https://api.resgrid.com/start')).resolves.toBeNull();
   });
 
   it('startSamlLogin uses & separator when the URL already has a query string', async () => {
@@ -74,9 +109,7 @@ describe('useSamlLogin', () => {
     const { result } = renderHook(() => useSamlLogin());
     await result.current.startSamlLogin('https://idp.example.com/saml/sso?foo=bar');
 
-    expect(mockedWebBrowser.openBrowserAsync).toHaveBeenCalledWith(
-      `https://idp.example.com/saml/sso?foo=bar&RelayState=${TEST_NONCE}`,
-    );
+    expect(mockedWebBrowser.openBrowserAsync).toHaveBeenCalledWith(`https://idp.example.com/saml/sso?foo=bar&RelayState=unit.${TEST_NONCE}`);
   });
 
   it('handleDeepLink returns null when saml_response param is missing', async () => {
@@ -87,10 +120,7 @@ describe('useSamlLogin', () => {
     });
 
     const { result } = renderHook(() => useSamlLogin());
-    const tokenResult = await result.current.handleDeepLink(
-      'resgridunit://auth/callback',
-      'john.doe',
-    );
+    const tokenResult = await result.current.handleDeepLink('resgridunit://auth/callback', 'john.doe');
 
     expect(tokenResult).toBeNull();
   });
@@ -104,10 +134,7 @@ describe('useSamlLogin', () => {
     mockedGetItem.mockReturnValue(TEST_NONCE);
 
     const { result } = renderHook(() => useSamlLogin());
-    const tokenResult = await result.current.handleDeepLink(
-      'resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=attacker-state',
-      'john.doe',
-    );
+    const tokenResult = await result.current.handleDeepLink('resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=attacker-state', 'john.doe');
 
     expect(tokenResult).toBeNull();
     expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -118,7 +145,7 @@ describe('useSamlLogin', () => {
     (mockedLinking.parse as jest.Mock).mockReturnValueOnce({
       scheme: 'resgridunit',
       path: 'auth/callback',
-      queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE },
+      queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE, department_token: 'enc-dept' },
     });
     mockedGetItem.mockReturnValue(TEST_NONCE);
 
@@ -132,10 +159,7 @@ describe('useSamlLogin', () => {
     });
 
     const { result } = renderHook(() => useSamlLogin());
-    const tokenResult = await result.current.handleDeepLink(
-      `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
-      'john.doe',
-    );
+    const tokenResult = await result.current.handleDeepLink(`resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`, 'john.doe');
 
     expect(tokenResult).toEqual({
       access_token: 'rg-access',
@@ -144,11 +168,9 @@ describe('useSamlLogin', () => {
       token_type: 'Bearer',
     });
 
-    expect(mockedAxios.post).toHaveBeenCalledWith(
-      'https://api.resgrid.com/api/v4/connect/external-token',
-      expect.stringContaining('provider=saml2'),
-      expect.any(Object),
-    );
+    expect(mockedAxios.post).toHaveBeenCalledWith('https://api.resgrid.com/api/v4/connect/external-token', expect.stringContaining('provider=saml2'), expect.any(Object));
+    // The exchange names the department the relay sent; without it the server refuses.
+    expect((mockedAxios.post as jest.Mock).mock.calls[0][1]).toContain('department_token=enc-dept');
 
     // Nonce consumed on success
     expect(mockedRemoveItem).toHaveBeenCalledWith('saml_pending_relay_state');
@@ -165,10 +187,7 @@ describe('useSamlLogin', () => {
     mockedAxios.post = jest.fn().mockRejectedValueOnce(new Error('API Error'));
 
     const { result } = renderHook(() => useSamlLogin());
-    const tokenResult = await result.current.handleDeepLink(
-      `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
-      'john.doe',
-    );
+    const tokenResult = await result.current.handleDeepLink(`resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`, 'john.doe');
 
     expect(tokenResult).toBeNull();
   });
@@ -182,10 +201,7 @@ describe('useSamlLogin', () => {
     mockedGetItem.mockRejectedValueOnce(new Error('Storage read failed'));
 
     const { result } = renderHook(() => useSamlLogin());
-    const tokenResult = await result.current.handleDeepLink(
-      `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
-      'john.doe',
-    );
+    const tokenResult = await result.current.handleDeepLink(`resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`, 'john.doe');
 
     expect(tokenResult).toBeNull();
     expect(mockedAxios.post).not.toHaveBeenCalled();
@@ -196,16 +212,14 @@ describe('useSamlLogin', () => {
       (mockedLinking.parse as jest.Mock).mockReturnValueOnce({
         scheme: 'resgridunit',
         path: 'auth/callback',
-        queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE },
+        queryParams: { saml_response: 'base64SamlResponse', relay_state: TEST_NONCE, department_token: 'enc-dept' },
       });
       mockedGetItem.mockResolvedValue(TEST_NONCE);
 
       const { result } = renderHook(() => useSamlLogin());
-      const samlResponse = await result.current.validateSamlCallback(
-        `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
-      );
+      const samlResponse = await result.current.validateSamlCallback(`resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`);
 
-      expect(samlResponse).toBe('base64SamlResponse');
+      expect(samlResponse).toEqual({ samlResponse: 'base64SamlResponse', departmentToken: 'enc-dept' });
       expect(mockedRemoveItem).toHaveBeenCalledWith('saml_pending_relay_state');
     });
 
@@ -218,9 +232,7 @@ describe('useSamlLogin', () => {
       mockedGetItem.mockReturnValue(null);
 
       const { result } = renderHook(() => useSamlLogin());
-      const samlResponse = await result.current.validateSamlCallback(
-        `resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`,
-      );
+      const samlResponse = await result.current.validateSamlCallback(`resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=${TEST_NONCE}`);
 
       expect(samlResponse).toBeNull();
       expect(mockedRemoveItem).not.toHaveBeenCalled();
@@ -235,9 +247,7 @@ describe('useSamlLogin', () => {
       mockedGetItem.mockReturnValue(TEST_NONCE);
 
       const { result } = renderHook(() => useSamlLogin());
-      const samlResponse = await result.current.validateSamlCallback(
-        'resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=wrong-state',
-      );
+      const samlResponse = await result.current.validateSamlCallback('resgridunit://auth/callback?saml_response=base64SamlResponse&relay_state=wrong-state');
 
       expect(samlResponse).toBeNull();
       expect(mockedRemoveItem).not.toHaveBeenCalled();
@@ -252,9 +262,7 @@ describe('useSamlLogin', () => {
       mockedGetItem.mockReturnValue(TEST_NONCE);
 
       const { result } = renderHook(() => useSamlLogin());
-      const samlResponse = await result.current.validateSamlCallback(
-        'resgridunit://auth/callback?saml_response=base64SamlResponse',
-      );
+      const samlResponse = await result.current.validateSamlCallback('resgridunit://auth/callback?saml_response=base64SamlResponse');
 
       expect(samlResponse).toBeNull();
       expect(mockedRemoveItem).not.toHaveBeenCalled();
@@ -269,9 +277,7 @@ describe('useSamlLogin', () => {
       mockedGetItem.mockReturnValue(TEST_NONCE);
 
       const { result } = renderHook(() => useSamlLogin());
-      const samlResponse = await result.current.validateSamlCallback(
-        `resgridunit://auth/callback?relay_state=${TEST_NONCE}`,
-      );
+      const samlResponse = await result.current.validateSamlCallback(`resgridunit://auth/callback?relay_state=${TEST_NONCE}`);
 
       expect(samlResponse).toBeNull();
       expect(mockedRemoveItem).not.toHaveBeenCalled();
@@ -281,18 +287,12 @@ describe('useSamlLogin', () => {
   describe('isSamlCallback', () => {
     it('returns true for SAML callback URLs', () => {
       const { result } = renderHook(() => useSamlLogin());
-      expect(
-        result.current.isSamlCallback(
-          'resgridunit://auth/callback?saml_response=abc123',
-        ),
-      ).toBe(true);
+      expect(result.current.isSamlCallback('resgridunit://auth/callback?saml_response=abc123')).toBe(true);
     });
 
     it('returns false for OIDC callback URLs without saml_response', () => {
       const { result } = renderHook(() => useSamlLogin());
-      expect(
-        result.current.isSamlCallback('resgridunit://auth/callback?code=abc&state=xyz'),
-      ).toBe(false);
+      expect(result.current.isSamlCallback('resgridunit://auth/callback?code=abc&state=xyz')).toBe(false);
     });
 
     it('returns false for unrelated URLs', () => {

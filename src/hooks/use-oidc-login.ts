@@ -2,6 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
 import { logger } from '@/lib/logging';
+import { isSharedInstallation } from '@/lib/mfa/shared-installation';
 
 // Required for iOS / Android to close the browser after redirect
 WebBrowser.maybeCompleteAuthSession();
@@ -28,16 +29,22 @@ export function useOidcLogin({ authority, clientId }: UseOidcLoginOptions) {
 
   const discovery = AuthSession.useAutoDiscovery(authority);
 
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
+  // A shared installation's browser may still hold the last operator's provider session: the provider must authenticate the
+  // member again, and on iOS the sign-in keeps no cookies (Android's browser always shares Chrome's). The server refuses a
+  // sign-in that is not fresh (plan section 12.5.2).
+  const shared = isSharedInstallation();
+  const [request, response, promptRequest] = AuthSession.useAuthRequest(
     {
       clientId,
       redirectUri,
       scopes: ['openid', 'email', 'profile', 'offline_access'],
       usePKCE: true,
       responseType: AuthSession.ResponseType.Code,
+      ...(shared ? { prompt: 'login' as AuthSession.Prompt, extraParams: { max_age: '0' } } : {}),
     },
     discovery
   );
+  const promptAsync = (options?: AuthSession.AuthRequestPromptOptions) => promptRequest({ preferEphemeralSession: shared, ...options });
 
   /**
    * Exchange the OIDC authorization code for the IdP id_token.

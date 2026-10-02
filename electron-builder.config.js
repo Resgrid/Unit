@@ -12,7 +12,18 @@ module.exports = {
     buildResources: 'assets',
   },
 
-  files: ['dist/**/*', 'electron/**/*', '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}', '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}', '!**/node_modules/.bin'],
+  files: [
+    'dist/**/*',
+    'electron/**/*',
+    '!electron/__tests__/**',
+    '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}',
+    '!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}',
+    '!**/node_modules/.bin',
+  ],
+
+  // This app's scheme (the macOS Info.plist and the Linux desktop entry): legacy SSO returns to resgridunit://auth/callback.
+  // macOS hands a packaged app only the schemes declared here.
+  protocols: [{ name: 'Resgrid Unit', schemes: ['resgridunit'] }],
 
   // macOS configuration
   mac: {
