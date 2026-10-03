@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 import { cacheManager } from '@/lib/cache/cache-manager';
+import { clearMapboxToken } from '@/lib/mapbox-token';
 import { getBaseApiUrl, setBaseApiUrl } from '@/lib/storage/app';
 
 interface ServerUrlState {
@@ -21,6 +22,8 @@ export const useServerUrlStore = create<ServerUrlState>((set) => ({
     // also scoped by base URL as a second layer of defense.)
     if (previousUrl !== url) {
       cacheManager.clear();
+      // The Mapbox token came from the previous server; the built-in one applies until the new server's config loads.
+      clearMapboxToken();
     }
   },
   getUrl: async () => {

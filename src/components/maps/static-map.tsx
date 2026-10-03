@@ -1,11 +1,11 @@
-import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Image, StyleSheet, useWindowDimensions } from 'react-native';
 
 import { Box } from '@/components/ui/box';
 import { Text } from '@/components/ui/text';
-import { Env } from '@/lib/env';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { useMapboxAccessToken } from '@/lib/mapbox-token';
 import { useLocationStore } from '@/stores/app/location-store';
 
 interface StaticMapProps {
@@ -26,7 +26,8 @@ interface StaticMapProps {
  */
 const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoom = 15, height = 200, showUserLocation = false }) => {
   const { t } = useTranslation();
-  const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
+  const mapboxAccessToken = useMapboxAccessToken();
   const { width: windowWidth } = useWindowDimensions();
 
   const imageUrl = React.useMemo(() => {
@@ -34,7 +35,8 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
       return null;
     }
 
-    const styleId = colorScheme === 'dark' ? 'mapbox/dark-v11' : 'mapbox/streets-v12';
+    // The Static Images API takes the style as owner/id, the mapbox:// url without its scheme.
+    const styleId = mapStyle.replace('mapbox://styles/', '');
     const pins: string[] = [`pin-s+E53E3E(${longitude},${latitude})`];
 
     // Snapshot of the user's own position (no subscription needed for a static image)
@@ -53,8 +55,8 @@ const StaticMap: React.FC<StaticMapProps> = ({ latitude, longitude, address, zoo
     // aspect ratio — otherwise wide landscape views crop the pins off-center.
     const width = Math.min(Math.max(Math.round(windowWidth), 1), 1280);
 
-    return `https://api.mapbox.com/styles/v1/${styleId}/static/${pins.join(',')}/${position}/${width}x${Math.round(height)}@2x?access_token=${Env.UNIT_MAPBOX_PUBKEY}&logo=false&attribution=false`;
-  }, [latitude, longitude, zoom, height, showUserLocation, colorScheme, windowWidth]);
+    return `https://api.mapbox.com/styles/v1/${styleId}/static/${pins.join(',')}/${position}/${width}x${Math.round(height)}@2x?access_token=${mapboxAccessToken}&logo=false&attribution=false`;
+  }, [latitude, longitude, zoom, height, showUserLocation, mapStyle, mapboxAccessToken, windowWidth]);
 
   if (!imageUrl) {
     return (

@@ -1,13 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock, Info, MapPin, Navigation, Phone, Play, Truck, User } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import ZeroState from '@/components/common/zero-state';
-import { Camera, MapView, PointAnnotation, StyleURL } from '@/components/maps/mapbox';
+import { Camera, MapView, PointAnnotation } from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Divider } from '@/components/ui/divider';
@@ -16,6 +15,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useDepartmentMapStyle } from '@/lib/map-style';
 import { type RouteStopResultData } from '@/models/v4/routes/routePlanResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRoutesStore } from '@/stores/routes/store';
@@ -76,7 +76,7 @@ export default function RouteViewScreen() {
   const activeUnit = useCoreStore((state) => state.activeUnit);
   const units = useUnitsStore((state) => state.units);
   const { t } = useTranslation();
-  const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
 
   const unitMap = useMemo(() => Object.fromEntries(units.map((u) => [u.UnitId, u.Name])), [units]);
 
@@ -217,7 +217,7 @@ export default function RouteViewScreen() {
         {/* Interactive stop map */}
         {mapStops.length > 0 ? (
           <View style={styles.mapContainer}>
-            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} logoEnabled={false} attributionEnabled={false} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+            <MapView style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} onDidFinishLoadingMap={() => setIsMapReady(true)}>
               <Camera ref={cameraRef} />
               {mapStops.map((stop) => (
                 <PointAnnotation key={stop.RouteStopId} id={`stop-${stop.RouteStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>

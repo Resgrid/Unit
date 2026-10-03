@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { getConfig } from '@/api/config';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
+import { applyServerMapboxToken } from '@/lib/mapbox-token';
 import { zustandStorage } from '@/lib/storage';
 import { getActiveCallId, getActiveUnitId, removeActiveCallId, removeActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
@@ -392,6 +393,16 @@ export const useCoreStore = create<CoreState>()(
           } else if (get().error) {
             // Clear error even if config hasn't changed
             set({ error: null });
+          }
+
+          if (config.Data) {
+            // Fire and forget: the token is checked with Mapbox, which must never hold up or fail config loading.
+            applyServerMapboxToken(config.Data.AppMapboxAccessToken).catch((error) => {
+              logger.warn({
+                message: 'Failed to apply the server Mapbox token',
+                context: { error },
+              });
+            });
           }
         } catch (error) {
           set({ error: 'Failed to fetch config', isLoading: false });

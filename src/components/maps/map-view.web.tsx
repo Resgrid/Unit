@@ -9,11 +9,15 @@ import React, { forwardRef, useCallback, useContext, useEffect, useImperativeHan
 // @ts-ignore - react-dom/client types may not be available
 import { createRoot } from 'react-dom/client';
 
-import { Env } from '@/lib/env';
 import { getDepartmentMapCenter } from '@/lib/map-center';
+import { FALLBACK_DAY_MAP_STYLE } from '@/lib/map-style';
+import { onMapboxAccessTokenChange } from '@/lib/mapbox-token';
 
-// Set the access token globally
-mapboxgl.accessToken = Env.UNIT_MAPBOX_PUBKEY;
+// Set the access token globally, and follow it when a server-supplied token is verified or dropped.
+// Listeners run before React re-renders, so a map never asks for a style with the old token.
+onMapboxAccessTokenChange((token) => {
+  mapboxgl.accessToken = token;
+});
 
 // Context to share map instance with child components
 export const MapContext = React.createContext<any | null>(null);
@@ -180,7 +184,8 @@ export const MapView = forwardRef<any, MapViewProps>(
   (
     {
       style,
-      styleURL = StyleURL.Street,
+      // Callers pass the department style (useDepartmentMapStyle); this only covers one that does not.
+      styleURL = FALLBACK_DAY_MAP_STYLE,
       onDidFinishLoadingMap,
       onCameraChanged,
       children,

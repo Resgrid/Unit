@@ -15,13 +15,14 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { Env } from '@/lib/env';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import { useRoutesStore } from '@/stores/routes/store';
 
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+Mapbox.setAccessToken(getMapboxAccessToken());
 
 const POLL_INTERVAL_MS = 30_000;
 const GEOFENCE_CIRCLE_STEPS = 64;
@@ -94,6 +95,7 @@ export default function ActiveRouteScreen() {
   const checkOut = useRoutesStore((s) => s.checkOut);
   const skip = useRoutesStore((s) => s.skip);
   const ackDeviation = useRoutesStore((s) => s.ackDeviation);
+  const mapStyle = useDepartmentMapStyle();
 
   // instanceId may be absent when navigating from start.tsx — fall back to store.
   // Guard against the literal string "undefined" that can appear in URL params.
@@ -242,7 +244,7 @@ export default function ActiveRouteScreen() {
     <Box className="flex-1 bg-white dark:bg-gray-900">
       {/* Map area - 60% height */}
       <Box className="h-[60%]">
-        <Mapbox.MapView style={styles.map} styleURL={Mapbox.StyleURL.Street} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+        <Mapbox.MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={() => setIsMapReady(true)}>
           <Mapbox.Camera ref={cameraRef} />
 
           {/* Route polyline */}

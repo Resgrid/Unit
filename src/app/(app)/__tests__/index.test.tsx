@@ -11,13 +11,14 @@ jest.mock('nativewind', () => ({
   __esModule: true,
 }));
 
-import { render, waitFor } from '@testing-library/react-native';
+import { render, screen, waitFor } from '@testing-library/react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import Map from '../index';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
+import { FALLBACK_DAY_MAP_STYLE, FALLBACK_NIGHT_MAP_STYLE } from '@/lib/map-style';
 import { useLocationStore } from '@/stores/app/location-store';
 import { locationService } from '@/services/location';
 
@@ -140,6 +141,7 @@ jest.mock('@/stores/app/core-store', () => {
     activePriority: null,
     activeUnit: null,
     activeUnitStatus: null,
+    config: null,
   };
   const mockFn = jest.fn((selector) => (typeof selector === 'function' ? selector(storeState) : storeState)) as jest.Mock & { getState: () => typeof storeState };
   mockFn.getState = () => storeState;
@@ -373,8 +375,8 @@ describe('Map Component - App Lifecycle', () => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
 
-    // The map should use the light style
-    // Since we can't directly test the MapView props, we test that the component renders without errors
+    // No config loaded yet: the department-style fallback for day.
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(FALLBACK_DAY_MAP_STYLE);
     unmount();
   });
 
@@ -391,8 +393,8 @@ describe('Map Component - App Lifecycle', () => {
       expect(mockLocationService.startLocationUpdates).toHaveBeenCalled();
     });
 
-    // The map should use the dark style
-    // Since we can't directly test the MapView props, we test that the component renders without errors
+    // No config loaded yet: the department-style fallback for night.
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(FALLBACK_NIGHT_MAP_STYLE);
     unmount();
   });
 
@@ -447,6 +449,61 @@ describe('Map Component - App Lifecycle', () => {
     });
 
     // Note: The analytics tracking is tested indirectly since we can't easily mock it in this setup
+    unmount();
+  });
+});
+describe('Map Component - department map style', () => {
+  const SATELLITE = 'mapbox://styles/mapbox/satellite-v9';
+  const NAVIGATION_NIGHT = 'mapbox://styles/mapbox/navigation-night-v1';
+  const coreStoreState = () => jest.requireMock('@/stores/app/core-store').useCoreStore.getState() as Record<string, unknown>;
+  const setTheme = (colorScheme: 'light' | 'dark') => mockUseColorScheme.mockReturnValue({ colorScheme, setColorScheme: jest.fn(), toggleColorScheme: jest.fn() });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+
+    mockUseAppLifecycle.mockReturnValue(defaultAppLifecycleState);
+    mockLocationService.startLocationUpdates = jest.fn().mockResolvedValue(undefined);
+    mockLocationService.stopLocationUpdates = jest.fn().mockResolvedValue(undefined);
+    currentLocationState = { ...defaultLocationState, speed: 0, accuracy: 10 };
+    setLocationState({});
+
+    coreStoreState().config = { MapDayStyleUrl: SATELLITE, MapNightStyleUrl: NAVIGATION_NIGHT };
+  });
+
+  afterEach(() => {
+    coreStoreState().config = null;
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
+
+  it('renders the configured day style in light mode', () => {
+    setTheme('light');
+
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
+
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(SATELLITE);
+    unmount();
+  });
+
+  it('renders the configured night style in dark mode', () => {
+    setTheme('dark');
+
+    const { unmount } = render(<Map />, { wrapper: TestWrapper });
+
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(NAVIGATION_NIGHT);
+    unmount();
+  });
+
+  it('switches to the night style when the theme flips', () => {
+    setTheme('light');
+    const { rerender, unmount } = render(<Map />, { wrapper: TestWrapper });
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(SATELLITE);
+
+    setTheme('dark');
+    rerender(<Map />);
+
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(NAVIGATION_NIGHT);
     unmount();
   });
 });

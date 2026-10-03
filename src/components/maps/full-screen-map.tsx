@@ -1,5 +1,4 @@
 import { MapPinIcon, XIcon } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,9 +8,10 @@ import { NativeModal } from '@/components/common/native-modal';
 import Mapbox from '@/components/maps/mapbox';
 import { Text } from '@/components/ui/text';
 import colors from '@/constants/colors';
-import { Env } from '@/lib/env';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+Mapbox.setAccessToken(getMapboxAccessToken());
 
 interface FullScreenMapProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ interface FullScreenMapProps {
 
 export const FullScreenMap: React.FC<FullScreenMapProps> = ({ isOpen, latitude, longitude, onClose, title, address }) => {
   const { t } = useTranslation();
-  const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
   const insets = useSafeAreaInsets();
   const markerTitle = title || t('call_detail.call_location');
   const coordinate: [number, number] = [longitude, latitude];
@@ -32,17 +32,7 @@ export const FullScreenMap: React.FC<FullScreenMapProps> = ({ isOpen, latitude, 
   return (
     <NativeModal visible={isOpen} animationType="slide" presentationStyle="fullScreen" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.container} testID="full-screen-call-map">
-        <Mapbox.MapView
-          style={styles.map}
-          styleURL={colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street}
-          logoEnabled={false}
-          attributionEnabled
-          compassEnabled
-          zoomEnabled
-          rotateEnabled
-          scrollEnabled
-          pitchEnabled
-        >
+        <Mapbox.MapView style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled compassEnabled zoomEnabled rotateEnabled scrollEnabled pitchEnabled>
           <Mapbox.Camera zoomLevel={15} centerCoordinate={coordinate} animationMode="none" animationDuration={0} />
           <Mapbox.PointAnnotation id="call-location" coordinate={coordinate} title={markerTitle}>
             <View style={styles.marker}>

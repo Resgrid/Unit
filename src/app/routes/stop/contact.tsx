@@ -7,7 +7,7 @@ import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getStopContact } from '@/api/routes/routes';
 import { Loading } from '@/components/common/loading';
-import { Camera, MapView, PointAnnotation, StyleURL } from '@/components/maps/mapbox';
+import { Camera, MapView, PointAnnotation } from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { Heading } from '@/components/ui/heading';
@@ -15,6 +15,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useDepartmentMapStyle } from '@/lib/map-style';
 import type { ContactResultData } from '@/models/v4/contacts/contactResultData';
 
 /**
@@ -72,6 +73,7 @@ export default function StopContactScreen() {
   const { t } = useTranslation();
   const { stopId } = useLocalSearchParams<{ stopId: string }>();
   const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
 
   const [contact, setContact] = useState<ContactResultData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -205,7 +207,7 @@ export default function StopContactScreen() {
         {/* Mini Map */}
         {mapCenter && (
           <Box className="mt-2" style={{ height: 220 }}>
-            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+            <MapView style={styles.map} styleURL={mapStyle} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
               <Camera centerCoordinate={mapCenter} zoomLevel={15} animationMode="moveTo" />
               {locationGps && (
                 <PointAnnotation id="location-marker" coordinate={[locationGps.lon, locationGps.lat]}>

@@ -6,13 +6,14 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
-import { Camera, LineLayer, MapView, PointAnnotation, ShapeSource, StyleURL, UserLocation } from '@/components/maps/mapbox';
+import { Camera, LineLayer, MapView, PointAnnotation, ShapeSource, UserLocation } from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { Env } from '@/lib/env';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 import { useRoutesStore } from '@/stores/routes/store';
 
@@ -146,7 +147,7 @@ export const deriveDrivingCondition = (congestion: CongestionSegment[]): { label
 export async function fetchMapboxDirections(waypoints: [number, number][], language: string = 'en'): Promise<RouteDirectionsInfo | null> {
   if (waypoints.length < 2) return null;
 
-  const token = Env.UNIT_MAPBOX_PUBKEY;
+  const token = getMapboxAccessToken();
   if (!token) return null;
 
   // Build the coordinate string for Mapbox Directions API
@@ -381,6 +382,7 @@ export default function RouteDirectionsScreen() {
   const { t, i18n } = useTranslation();
   const { instanceId } = useLocalSearchParams<{ instanceId: string }>();
   const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
   const cameraRef = useRef<any>(null);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isFetchingDirections, setIsFetchingDirections] = useState(false);
@@ -631,7 +633,7 @@ export default function RouteDirectionsScreen() {
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+        <MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={() => setIsMapReady(true)}>
           <UserLocation visible={true} />
           {/* Bare Camera — positioned imperatively via fitBounds once isMapReady && validStops */}
           <Camera ref={cameraRef} />

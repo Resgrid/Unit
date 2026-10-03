@@ -16,6 +16,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useDepartmentMapStyle } from '@/lib/map-style';
 import { type RouteDeviationResultData, RouteDeviationType } from '@/models/v4/routes/routeDeviationResultData';
 import { type RouteInstanceResultData, RouteInstanceStatus } from '@/models/v4/routes/routeInstanceResultData';
 import { type RouteInstanceStopResultData, RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
@@ -116,6 +117,7 @@ function getStopIcon(status: number) {
 export default function RouteInstanceDetail() {
   const { t } = useTranslation();
   const { id: instanceId } = useLocalSearchParams<{ id: string }>();
+  const mapStyle = useDepartmentMapStyle();
   // Local history state — never touches the global live-route slices
   const [activeInstance, setActiveInstance] = useState<RouteInstanceResultData | null>(null);
   const [instanceStops, setInstanceStops] = useState<RouteInstanceStopResultData[]>([]);
@@ -250,7 +252,7 @@ export default function RouteInstanceDetail() {
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* Map */}
         <Box className="h-72 overflow-hidden">
-          <Mapbox.MapView style={{ flex: 1 }} styleURL={Mapbox.StyleURL.Street} attributionEnabled={false} logoEnabled={false}>
+          <Mapbox.MapView style={{ flex: 1 }} styleURL={mapStyle} attributionEnabled={false} logoEnabled={false}>
             {/* Camera fitted to bounds */}
             {mapBounds ? (
               <Mapbox.Camera bounds={mapBounds} padding={{ paddingTop: 40, paddingBottom: 40, paddingLeft: 40, paddingRight: 40 }} animationDuration={0} />

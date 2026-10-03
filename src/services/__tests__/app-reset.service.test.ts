@@ -265,6 +265,10 @@ jest.mock('@/stores/signalr/signalr-store', () => ({
   },
 }));
 
+jest.mock('@/lib/mapbox-token', () => ({
+  clearMapboxToken: jest.fn(),
+}));
+
 import {
   clearAllAppData,
   clearAppStorageItems,
@@ -669,6 +673,8 @@ describe('app-reset.service', () => {
       expect(mockDeploymentsReset).toHaveBeenCalled();
       expect(mockPreplanReset).toHaveBeenCalled();
       expect(mockSiteInfoReset).toHaveBeenCalled();
+      // A department's own Mapbox token must not outlive its session.
+      expect(jest.requireMock('@/lib/mapbox-token').clearMapboxToken).toHaveBeenCalled();
     });
 
     it('should disconnect from LiveKit room if connected', async () => {

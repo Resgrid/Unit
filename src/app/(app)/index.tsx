@@ -20,11 +20,12 @@ import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { applyLiveLocationsSince, useMapLiveLocations } from '@/hooks/use-map-live-locations';
 import { useMapSignalRUpdates } from '@/hooks/use-map-signalr-updates';
 import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
-import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { applyPitchHysteresis, applyZoomHysteresis, createCirclePolygon, normalizeHeading, normalizeSpeed, smoothSpeed, zoomForSpeed } from '@/lib/map-camera';
 import { getDepartmentMapCenter } from '@/lib/map-center';
 import { getPinEntityId } from '@/lib/map-pin-ids';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 import { locationService } from '@/services/location';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -34,7 +35,7 @@ import { useRoutesStore } from '@/stores/routes/store';
 import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+Mapbox.setAccessToken(getMapboxAccessToken());
 
 // Minimum interval between programmatic camera-follow updates. GPS fixes
 // arrive every ~15s; without a throttle each fix drives a native camera
@@ -116,10 +117,9 @@ function MapContent() {
   const fetchActiveLayers = useMapsStore((state) => state.fetchActiveLayers);
   const fetchLayerGeoJSON = useMapsStore((state) => state.fetchLayerGeoJSON);
 
-  // Get map style based on current theme
-  const getMapStyle = useCallback(() => {
-    return colorScheme === 'dark' ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Street;
-  }, [colorScheme]);
+  // The department's day/night base map for the current theme
+  const departmentMapStyle = useDepartmentMapStyle();
+  const getMapStyle = useCallback(() => departmentMapStyle, [departmentMapStyle]);
 
   const [styleURL, setStyleURL] = useState({ styleURL: getMapStyle() });
 

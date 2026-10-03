@@ -9,6 +9,7 @@
 import { queryClient } from '@/api/common/api-provider';
 import { registerSessionCleanupHandler } from '@/lib/auth/session-cleanup';
 import { logger } from '@/lib/logging';
+import { clearMapboxToken } from '@/lib/mapbox-token';
 import { SHARED_INSTALLATION_STORAGE_KEY } from '@/lib/mfa/shared-installation';
 import { storage } from '@/lib/storage';
 import { BASE_API_URL_STORAGE_KEY, removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
@@ -336,6 +337,10 @@ export const resetAllStores = async (): Promise<void> => {
   usePoisStore.setState(INITIAL_POIS_STATE);
   useRoutesStore.setState(INITIAL_ROUTES_STATE);
   useWeatherAlertsStore.getState().reset();
+
+  // The server-supplied Mapbox token can be the department's own; maps use the built-in token until
+  // the next sign-in's config arrives.
+  clearMapboxToken();
 
   // Check-in timer store — reset() also stops the 30s polling interval that
   // would otherwise keep fetching the OLD call's timers under the NEW user's

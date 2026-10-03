@@ -65,15 +65,24 @@ jest.mock('@/components/maps/mapbox', () => {
       MapView,
       PointAnnotation,
       setAccessToken: jest.fn(),
-      StyleURL: {
-        Dark: 'dark',
-        Street: 'street',
-      },
     },
   };
 });
 
+const mockDepartmentMapStyle = 'mapbox://styles/mapbox/satellite-v9';
+
+jest.mock('@/lib/map-style', () => ({
+  useDepartmentMapStyle: () => mockDepartmentMapStyle,
+}));
+
 describe('FullScreenMap', () => {
+  it('renders the department map style', () => {
+    const { unmount } = render(<FullScreenMap isOpen latitude={40.7128} longitude={-74.006} onClose={jest.fn()} />);
+
+    expect(screen.getByTestId('map-view').props.styleURL).toBe(mockDepartmentMapStyle);
+    unmount();
+  });
+
   it('centers the camera and marker on the supplied location', () => {
     const onClose = jest.fn();
     const { unmount } = render(<FullScreenMap isOpen latitude={40.7128} longitude={-74.006} title="Test Call" address="123 Main St" onClose={onClose} />);

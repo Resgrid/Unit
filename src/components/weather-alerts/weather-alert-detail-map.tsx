@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import Mapbox from '@/components/maps/mapbox';
 import { Text } from '@/components/ui/text';
+import { useDepartmentMapStyle } from '@/lib/map-style';
 import { getPolygonBounds, getSeverityColor, parseCenterLocation, parsePolygonGeoJSON } from '@/lib/weather-alert-utils';
 import { type WeatherAlertResultData } from '@/models/v4/weatherAlerts/weatherAlertResultData';
 
@@ -18,6 +19,7 @@ export const WeatherAlertDetailMap: React.FC<WeatherAlertDetailMapProps> = ({ al
   const { t } = useTranslation();
   const cameraRef = useRef<MapboxCamera>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+  const mapStyle = useDepartmentMapStyle();
   const severityColor = getSeverityColor(alert.Severity);
 
   const polygonGeoJSON = useMemo(() => parsePolygonGeoJSON(alert.Polygon), [alert.Polygon]);
@@ -60,7 +62,7 @@ export const WeatherAlertDetailMap: React.FC<WeatherAlertDetailMapProps> = ({ al
 
   return (
     <View style={styles.container}>
-      <Mapbox.MapView style={styles.map} scrollEnabled={false} zoomEnabled={false} rotateEnabled={false} pitchEnabled={false} onDidFinishLoadingMap={handleMapReady}>
+      <Mapbox.MapView style={styles.map} styleURL={mapStyle} scrollEnabled={false} zoomEnabled={false} rotateEnabled={false} pitchEnabled={false} onDidFinishLoadingMap={handleMapReady}>
         <Mapbox.Camera ref={cameraRef} centerCoordinate={[mapCenter.longitude, mapCenter.latitude]} zoomLevel={8} animationDuration={0} animationMode="moveTo" />
 
         {polygonGeoJSON ? (
