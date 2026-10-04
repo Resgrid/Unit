@@ -102,7 +102,7 @@ describe('service worker', () => {
 
     await expect(worker.push(fcmPush('C1234', 'calls'))).resolves.toBeUndefined();
 
-    expect(consoleError).toHaveBeenCalledWith('Web push: the push could not be handled', { eventCode: 'C1234', error: failure });
+    expect(consoleError).toHaveBeenCalledWith('Web push: the push could not be handled', { operation: 'push', eventCode: 'C1234', error: failure });
     consoleError.mockRestore();
   });
 

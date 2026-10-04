@@ -138,7 +138,7 @@ function registerPushReceiver(ipcMain, options) {
 
     // No native notifications on this system: the page's in-app alert is all that is left, focused or not.
     if (!options.send('push:received', payload)) {
-      log.warn('Desktop push: a push could not be shown', { eventCode: payload.eventCode });
+      log.warn('Desktop push: a push could not be shown', { operation: 'push', eventCode: payload.eventCode });
     }
   }
 

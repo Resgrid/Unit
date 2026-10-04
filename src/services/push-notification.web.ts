@@ -82,6 +82,25 @@ const ASKED_KEY = 'rg.webPush.asked';
 const ASK_AGAIN_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 /** FCM rotates web tokens; re-registering daily keeps the server's copy current. */
 const REREGISTER_AFTER_MS = 24 * 60 * 60 * 1000;
+/** A stalled SDK or IPC operation must release the queue so sign-out can remove the previous token. */
+const PUSH_OPERATION_TIMEOUT_MS = 10_000;
+
+async function withPushTimeout<T>(operation: string, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Web push: ${operation} timed out`));
+      controller.abort();
+    }, PUSH_OPERATION_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([work(controller.signal), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 const DEEP_LINK_RETRY = {
   maxAttempts: 40,
@@ -167,7 +186,7 @@ const keyOf = (identity: UnitIdentity): string => `unit:${identity.unitId}:${ide
 // --- Browser (Firebase JS SDK) ---
 
 async function loadMessaging(config: WebPushFirebaseConfig) {
-  if (!(await isSupported())) {
+  if (!(await withPushTimeout('messaging support', () => isSupported()))) {
     return null;
   }
 
@@ -180,7 +199,7 @@ async function loadMessaging(config: WebPushFirebaseConfig) {
 }
 
 async function findServiceWorker(): Promise<ServiceWorkerRegistration | null> {
-  const registrations = await navigator.serviceWorker.getRegistrations();
+  const registrations = await withPushTimeout('find service worker', () => navigator.serviceWorker.getRegistrations());
   return (
     registrations.find((registration) => {
       const worker = registration.active ?? registration.waiting ?? registration.installing;
@@ -195,12 +214,13 @@ async function mintBrowserToken(config: WebPushFirebaseConfig): Promise<string |
     return null;
   }
 
-  const serviceWorkerRegistration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' });
+  const serviceWorkerRegistration = await withPushTimeout('register service worker', () => navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' }));
   if (!serviceWorkerRegistration.active) {
-    await navigator.serviceWorker.ready;
+    await withPushTimeout('service worker readiness', () => navigator.serviceWorker.ready);
   }
 
-  return (await getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration })) || null;
+  // Each wait is bounded inside the mint: a late worker must not start getToken after this operation timed out.
+  return (await withPushTimeout('mint browser token', () => getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration }))) || null;
 }
 
 /** Kills the browser's token at FCM, so every channel still holding it stops delivering here. */
@@ -214,7 +234,7 @@ async function deleteBrowserToken(config: WebPushFirebaseConfig | null): Promise
     const messaging = config ? await loadMessaging(config) : null;
     if (messaging && config && Notification.permission === 'granted') {
       // deleteToken acts on the worker getToken last named; with a token stored this getToken is a local read.
-      await getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
+      await withPushTimeout('read browser token', () => getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration }));
       await deleteToken(messaging);
       return;
     }
@@ -234,7 +254,7 @@ async function deleteBrowserToken(config: WebPushFirebaseConfig | null): Promise
 // --- Desktop (Electron main process) ---
 
 async function startDesktop(bridge: DesktopPushBridge, config: WebPushFirebaseConfig): Promise<string | null> {
-  const result = await bridge.pushStart(config);
+  const result = await withPushTimeout('start desktop receiver', () => bridge.pushStart(config));
   if (!result?.token) {
     logger.warn({ message: 'Desktop push could not start', context: { error: result?.error } });
     return null;
@@ -260,7 +280,7 @@ async function deleteLocalToken(config: WebPushFirebaseConfig | null): Promise<v
 
 async function unregisterQuietly(registration: StoredRegistration): Promise<void> {
   try {
-    await unRegisterWebPush({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId });
+    await withPushTimeout('unregister previous token', (signal) => unRegisterWebPush({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }, signal));
   } catch (error) {
     logger.warn({ message: 'Web push: the previous registration could not be removed', context: { error } });
   }
@@ -269,6 +289,7 @@ async function unregisterQuietly(registration: StoredRegistration): Promise<void
 async function runSync(): Promise<void> {
   const identity = currentIdentity();
   const config = getWebPushConfig();
+  const accessToken = useAuthStore.getState().accessToken;
   if (!identity || !config) {
     return;
   }
@@ -310,8 +331,20 @@ async function runSync(): Promise<void> {
     await unregisterQuietly(current);
   }
 
-  await registerUnitDevice({ UnitId: identity.unitId, Token: token, Platform: WEB_PLATFORM, DeviceUuid: getDeviceUuid() || '', Prefix: identity.prefix });
-  writeRegistration({ key: keyOf(identity), unitId: identity.unitId, prefix: identity.prefix, token, registeredAt: Date.now() });
+  const registration = { key: keyOf(identity), unitId: identity.unitId, prefix: identity.prefix, token, registeredAt: Date.now() };
+  try {
+    await withPushTimeout('register unit device', (signal) => registerUnitDevice({ UnitId: identity.unitId, Token: token, Platform: WEB_PLATFORM, DeviceUuid: getDeviceUuid() || '', Prefix: identity.prefix }, signal));
+  } catch (error) {
+    // A timed-out request may have reached Core. Keep the token available for the queued sign-out cleanup.
+    writeRegistration({ ...registration, registeredAt: 0 });
+    throw error;
+  }
+  const registeredIdentity = currentIdentity();
+  if (!registeredIdentity || keyOf(registeredIdentity) !== keyOf(identity)) {
+    await Promise.all([accessToken ? unregisterAtSignOut(registration, accessToken) : undefined, deleteLocalToken(config)]);
+    return;
+  }
+  writeRegistration(registration);
   notify();
 }
 
@@ -368,13 +401,16 @@ async function unregisterAtSignOut(registration: StoredRegistration, accessToken
   // Straight to the server, not through the api client: its 401 handling would re-enter logout. Awaited (sign-out
   // waits on it), so no keepalive: some browsers refuse keepalive on a cross-origin call that needs a preflight.
   try {
-    await fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
-      body: JSON.stringify({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }),
-    });
+    await withPushTimeout('unregister at sign-out', (signal) =>
+      fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
+        body: JSON.stringify({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }),
+        signal,
+      })
+    );
   } catch (error) {
-    logger.warn({ message: 'Web push: the token could not be unregistered at sign-out', context: { error } });
+    logger.warn({ message: 'Web push: the token could not be unregistered at sign-out', operation: 'signOutCleanup', context: { error } });
   }
 }
 
@@ -384,7 +420,7 @@ async function signOutCleanup(accessToken: string | null, config: WebPushFirebas
 
   // Killing the token here runs beside the server call, not after it: sign-out only waits so long, and this device has
   // to stop showing the session's pushes even when the server is slow to answer.
-  await Promise.all([stored || getDesktopBridge() ? deleteLocalToken(config) : undefined, stored && accessToken ? unregisterAtSignOut(stored, accessToken) : undefined]);
+  await Promise.all([deleteLocalToken(config), stored && accessToken ? unregisterAtSignOut(stored, accessToken) : undefined]);
 
   notify();
 }
@@ -394,7 +430,9 @@ registerSignOutHook((accessToken) => {
   const config = getWebPushConfig();
   // Queued behind any sync in flight, so the registration that sync is still writing is the one taken off. The next
   // sign-in's sync queues behind this in turn: a cleanup that outlasts sign-out's wait never tears down that session's token.
-  return enqueue(() => signOutCleanup(accessToken, config));
+  return enqueue(() => signOutCleanup(accessToken, config)).catch((error) => {
+    logger.warn({ message: 'Web push sign-out cleanup failed', operation: 'signOutCleanup', context: { error } });
+  });
 });
 
 // --- Incoming pushes ---

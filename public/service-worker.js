@@ -60,7 +60,7 @@ self.addEventListener('push', (event) => {
       }),
     ]).catch((error) => {
       // A rejected waitUntil is dropped without a word: this is the only trace a failed push leaves.
-      console.error('Web push: the push could not be handled', { eventCode: push.eventCode, error });
+      console.error('Web push: the push could not be handled', { operation: 'push', eventCode: push.eventCode, error });
     })
   );
 });
