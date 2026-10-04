@@ -23,6 +23,11 @@ jest.mock('@/lib/map-center', () => ({
   getDepartmentMapCenter: jest.fn(() => mockDepartmentCenter),
 }));
 
+const mockDepartmentMapStyle = 'mapbox://styles/mapbox/satellite-streets-v12';
+jest.mock('@/lib/map-style', () => ({
+  useDepartmentMapStyle: () => mockDepartmentMapStyle,
+}));
+
 jest.mock('expo-location', () => ({
   Accuracy: { Lowest: 1, Low: 2, Balanced: 3, High: 4, Highest: 5, BestForNavigation: 6 },
   requestForegroundPermissionsAsync: jest.fn(),
@@ -163,6 +168,16 @@ describe('FullScreenLocationPicker', () => {
   });
 
   describe('initial location handling', () => {
+    it('renders the department map style', async () => {
+      const { unmount } = render(<FullScreenLocationPicker initialLocation={INITIAL_LOCATION} onLocationSelected={jest.fn()} onClose={jest.fn()} />);
+
+      await waitFor(() => expect(mockReverseGeocode).toHaveBeenCalled());
+
+      expect(screen.getByTestId('map-view').props.styleURL).toBe(mockDepartmentMapStyle);
+
+      unmount();
+    });
+
     it('opens on the supplied initial location at street zoom and skips the device fix', async () => {
       const { unmount } = render(<FullScreenLocationPicker initialLocation={INITIAL_LOCATION} onLocationSelected={jest.fn()} onClose={jest.fn()} />);
 

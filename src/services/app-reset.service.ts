@@ -9,6 +9,7 @@
 import { queryClient } from '@/api/common/api-provider';
 import { registerSessionCleanupHandler } from '@/lib/auth/session-cleanup';
 import { logger } from '@/lib/logging';
+import { clearMapboxToken } from '@/lib/mapbox-token';
 import { SHARED_INSTALLATION_STORAGE_KEY } from '@/lib/mfa/shared-installation';
 import { storage } from '@/lib/storage';
 import { BASE_API_URL_STORAGE_KEY, removeActiveCallId, removeActiveUnitId, removeDeviceUuid } from '@/lib/storage/app';
@@ -17,7 +18,7 @@ import { pushNotificationService } from '@/services/push-notification';
 import { signalRService } from '@/services/signalr.service';
 import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 import { INITIAL_STATE as BLUETOOTH_INITIAL_STATE, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import { useCoreStore } from '@/stores/app/core-store';
+import { invalidateConfigRequests, useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -275,6 +276,10 @@ export const clearAppStorageItems = (): void => {
  * Uses existing reset methods where available
  */
 export const resetAllStores = async (): Promise<void> => {
+  // A config request still in flight belongs to the session being cleared; its answer must not
+  // repopulate the config or the Mapbox token.
+  invalidateConfigRequests();
+
   // Core stores - use setState with initial state constants
   useCoreStore.setState(INITIAL_CORE_STATE);
   useCallsStore.setState(INITIAL_CALLS_STATE);
@@ -336,6 +341,10 @@ export const resetAllStores = async (): Promise<void> => {
   usePoisStore.setState(INITIAL_POIS_STATE);
   useRoutesStore.setState(INITIAL_ROUTES_STATE);
   useWeatherAlertsStore.getState().reset();
+
+  // The server-supplied Mapbox token can be the department's own; maps use the built-in token until
+  // the next sign-in's config arrives.
+  clearMapboxToken();
 
   // Check-in timer store — reset() also stops the 30s polling interval that
   // would otherwise keep fetching the OLD call's timers under the NEW user's

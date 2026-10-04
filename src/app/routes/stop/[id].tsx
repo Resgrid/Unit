@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react
 
 import { Loading } from '@/components/common/loading';
 import { NativeModal } from '@/components/common/native-modal';
-import { Camera, FillLayer, LineLayer, MapView, PointAnnotation, ShapeSource, StyleURL } from '@/components/maps/mapbox';
+import { Camera, FillLayer, LineLayer, MapView, PointAnnotation, ShapeSource } from '@/components/maps/mapbox';
 import { Badge, BadgeText } from '@/components/ui/badge';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonIcon, ButtonText } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { VStack } from '@/components/ui/vstack';
+import { useDepartmentMapStyle } from '@/lib/map-style';
 import { safeFormatDate } from '@/lib/utils';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -74,6 +75,7 @@ export default function StopDetailScreen() {
   const { t } = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colorScheme } = useColorScheme();
+  const mapStyle = useDepartmentMapStyle();
 
   const instanceStops = useRoutesStore((s) => s.instanceStops);
   const checkIn = useRoutesStore((s) => s.checkIn);
@@ -233,7 +235,7 @@ export default function StopDetailScreen() {
         {/* Mini Map with geofence */}
         {stop.Latitude && stop.Longitude ? (
           <Box className="mt-2" style={{ height: 200 }}>
-            <MapView style={styles.map} styleURL={colorScheme === 'dark' ? StyleURL.Dark : StyleURL.Street} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
+            <MapView style={styles.map} styleURL={mapStyle} scrollEnabled={false} pitchEnabled={false} rotateEnabled={false}>
               <Camera centerCoordinate={[stop.Longitude, stop.Latitude]} zoomLevel={15} animationMode="moveTo" />
               <PointAnnotation id="stop-marker" coordinate={[stop.Longitude, stop.Latitude]}>
                 <View style={styles.markerContainer}>

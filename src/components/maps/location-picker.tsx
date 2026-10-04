@@ -8,14 +8,16 @@ import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { Env } from '@/lib/env';
 import { getDepartmentMapCenter } from '@/lib/map-center';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 
 // Ensure Mapbox access token is set before using any Mapbox components
-if (!Env.UNIT_MAPBOX_PUBKEY) {
+const mapboxAccessToken = getMapboxAccessToken();
+if (!mapboxAccessToken) {
   console.error('Mapbox access token is not configured. Please set UNIT_MAPBOX_PUBKEY in your environment.');
 } else {
-  Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+  Mapbox.setAccessToken(mapboxAccessToken);
 }
 
 // Falls back to the department's configured map center rather than a hardcoded point, so a
@@ -35,6 +37,7 @@ interface LocationPickerProps {
 
 const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLocationSelected, height = 200 }) => {
   const { t } = useTranslation();
+  const mapStyle = useDepartmentMapStyle();
   const mapRef = useRef<React.ElementRef<typeof Mapbox.MapView>>(null);
   const cameraRef = useRef<any>(null); // Using any due to imperative handle
   const isMountedRef = useRef(true);
@@ -140,7 +143,7 @@ const LocationPicker: React.FC<LocationPickerProps> = ({ initialLocation, onLoca
 
   return (
     <Box style={[styles.container, { height }]}>
-      <Mapbox.MapView ref={mapRef} style={styles.map} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
+      <Mapbox.MapView ref={mapRef} style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
         {/* Camera is driven imperatively only (see getUserLocation). Passing
             centerCoordinate as well made every map tap re-fly the camera to the
             tapped point and updated the camera mid-pan, fighting the gesture. */}

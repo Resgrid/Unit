@@ -9,12 +9,13 @@ import Mapbox from '@/components/maps/mapbox';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonText } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
-import { Env } from '@/lib/env';
 import { logger } from '@/lib/logging';
 import { getDepartmentMapCenter } from '@/lib/map-center';
+import { useDepartmentMapStyle } from '@/lib/map-style';
+import { getMapboxAccessToken } from '@/lib/mapbox-token';
 
 // Ensure Mapbox access token is set before using any Mapbox components
-Mapbox.setAccessToken(Env.UNIT_MAPBOX_PUBKEY);
+Mapbox.setAccessToken(getMapboxAccessToken());
 
 // Falls back to the department's configured map center rather than a hardcoded point, so a
 // department outside the US does not open every picker on the middle of Kansas.
@@ -40,6 +41,7 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
   // Read live rather than at StyleSheet-create time — a module-level
   // Dimensions.get('window') keeps the pre-rotation size forever.
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const mapStyle = useDepartmentMapStyle();
   const cameraRef = useRef<any>(null); // Using any due to imperative handle
   // Always start with a location - either initial, or default
   const [currentLocation, setCurrentLocation] = useState<{
@@ -212,7 +214,7 @@ const FullScreenLocationPicker: React.FC<FullScreenLocationPickerProps> = ({ ini
 
   return (
     <Box style={[styles.container, { width: windowWidth, height: windowHeight }]}>
-      <Mapbox.MapView style={styles.map} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
+      <Mapbox.MapView style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled={true} compassEnabled={true} zoomEnabled={true} rotateEnabled={true} onPress={handleMapPress}>
         {/* Camera is driven imperatively only (see getUserLocation). Passing
             centerCoordinate as well made every map tap re-fly the camera to the
             tapped point and updated the camera mid-pan, fighting the gesture. */}

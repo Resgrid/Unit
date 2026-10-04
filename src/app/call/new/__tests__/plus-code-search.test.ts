@@ -94,6 +94,10 @@ describe('Plus Code Search Logic', () => {
     MapCenterLatitude: 0,
     MapCenterLongitude: 0,
     MapCenterZoomLevel: 9,
+    MapDayStyleUrl: '',
+    MapNightStyleUrl: '',
+    AppMapboxAccessToken: '',
+    IsDepartmentMapOverride: false,
   };
 
   beforeEach(() => {
@@ -145,6 +149,10 @@ describe('Plus Code Search Logic', () => {
         MapCenterLatitude: 0,
         MapCenterLongitude: 0,
         MapCenterZoomLevel: 9,
+        MapDayStyleUrl: '',
+        MapNightStyleUrl: '',
+        AppMapboxAccessToken: '',
+        IsDepartmentMapOverride: false,
       };
 
       const result = await performPlusCodeSearch('849VCWC8+R9', configWithoutKey);

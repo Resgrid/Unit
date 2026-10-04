@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { getConfig } from '@/api/config';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { logger } from '@/lib/logging';
+import { applyServerMapboxToken } from '@/lib/mapbox-token';
 import { zustandStorage } from '@/lib/storage';
 import { getActiveCallId, getActiveUnitId, removeActiveCallId, removeActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
@@ -20,6 +21,17 @@ import { isNetworkError } from '@/utils/network';
 import { useCallsStore } from '../calls/store';
 //import { useRolesStore } from '../roles/store';
 import { useUnitsStore } from '../units/store';
+
+/**
+ * Bumped on sign-out and on a server switch. A config response for a request started before that
+ * belongs to the previous session or server; applying it would bring back that department's config
+ * and Mapbox token, so fetchConfig drops it.
+ */
+let configSessionGeneration = 0;
+
+export const invalidateConfigRequests = (): void => {
+  configSessionGeneration += 1;
+};
 
 /**
  * The unit list could not be loaded, so whether a unit still exists is unknown.
@@ -383,8 +395,17 @@ export const useCoreStore = create<CoreState>()(
         }
       },
       fetchConfig: async () => {
+        const sessionGeneration = configSessionGeneration;
         try {
           const config = await getConfig(Env.APP_KEY);
+
+          if (sessionGeneration !== configSessionGeneration) {
+            logger.info({
+              message: 'Dropping a config response from before sign-out or a server switch',
+            });
+            return;
+          }
+
           // Only update if config actually changed to prevent unnecessary re-renders
           const current = get().config;
           if (!current || JSON.stringify(current) !== JSON.stringify(config.Data)) {
@@ -392,6 +413,16 @@ export const useCoreStore = create<CoreState>()(
           } else if (get().error) {
             // Clear error even if config hasn't changed
             set({ error: null });
+          }
+
+          if (config.Data) {
+            // Fire and forget: the token is checked with Mapbox, which must never hold up or fail config loading.
+            applyServerMapboxToken(config.Data.AppMapboxAccessToken).catch((error) => {
+              logger.warn({
+                message: 'Failed to apply the server Mapbox token',
+                context: { error },
+              });
+            });
           }
         } catch (error) {
           set({ error: 'Failed to fetch config', isLoading: false });

@@ -4,6 +4,23 @@
  */
 import Mapbox from '@rnmapbox/maps';
 
+import { logger } from '@/lib/logging';
+import { onMapboxAccessTokenChange } from '@/lib/mapbox-token';
+
+// Keep the SDK on the token in use (built-in, or the server-supplied one once Mapbox verified it). Every map
+// imports this module, so the subscription exists before any map renders; store listeners run before React
+// re-renders, so the SDK has a new token before a map re-renders with a style that needs it. The subscription
+// lives as long as the app, so it is never torn down.
+onMapboxAccessTokenChange((token) => {
+  // The native call is asynchronous; a failure must not surface as an unhandled rejection.
+  Promise.resolve(Mapbox.setAccessToken(token)).catch((error: unknown) => {
+    logger.error({
+      message: 'Failed to set the Mapbox access token',
+      context: { error },
+    });
+  });
+});
+
 // Re-export all Mapbox components for native platforms
 export const MapView = Mapbox.MapView;
 export const Camera = Mapbox.Camera;
