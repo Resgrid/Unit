@@ -57,6 +57,7 @@ jest.mock('@/services/signalr.service', () => ({
 
 // Mock all the store imports
 jest.mock('@/stores/app/core-store', () => ({
+  invalidateConfigRequests: jest.fn(),
   useCoreStore: {
     setState: jest.fn(),
     getState: jest.fn(() => ({})),
@@ -675,6 +676,8 @@ describe('app-reset.service', () => {
       expect(mockSiteInfoReset).toHaveBeenCalled();
       // A department's own Mapbox token must not outlive its session.
       expect(jest.requireMock('@/lib/mapbox-token').clearMapboxToken).toHaveBeenCalled();
+      // A config response still in flight for the old session must not repopulate config or the token.
+      expect(jest.requireMock('@/stores/app/core-store').invalidateConfigRequests).toHaveBeenCalled();
     });
 
     it('should disconnect from LiveKit room if connected', async () => {

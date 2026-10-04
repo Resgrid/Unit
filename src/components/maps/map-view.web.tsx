@@ -14,7 +14,8 @@ import { FALLBACK_DAY_MAP_STYLE } from '@/lib/map-style';
 import { onMapboxAccessTokenChange } from '@/lib/mapbox-token';
 
 // Set the access token globally, and follow it when a server-supplied token is verified or dropped.
-// Listeners run before React re-renders, so a map never asks for a style with the old token.
+// Listeners run before React re-renders, so a map never asks for a style with the old token. The
+// subscription lives as long as the app, so it is never torn down.
 onMapboxAccessTokenChange((token) => {
   mapboxgl.accessToken = token;
 });

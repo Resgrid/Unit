@@ -66,7 +66,7 @@ jest.mock('@/lib/mapbox-token', () => ({
 }));
 
 // Import after mocks
-import { UnitListUnavailableError, useCoreStore } from '../core-store';
+import { invalidateConfigRequests, UnitListUnavailableError, useCoreStore } from '../core-store';
 import { applyServerMapboxToken } from '@/lib/mapbox-token';
 import { getActiveUnitId, getActiveCallId, removeActiveUnitId } from '@/lib/storage/app';
 import { getConfig } from '@/api/config';
@@ -367,6 +367,51 @@ describe('Core Store', () => {
       expect(result.current.error).toBe(null);
       expect(result.current.config?.AppMapboxAccessToken).toBe('pk.server.token');
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Mapbox token') }));
+    });
+
+    it('drops a config response that arrives after sign-out or a server switch', async () => {
+      let resolveConfig: (value: unknown) => void = () => undefined;
+      mockGetConfig.mockReturnValue(
+        new Promise((resolve) => {
+          resolveConfig = resolve;
+        }) as any
+      );
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        const pending = result.current.fetchConfig();
+        invalidateConfigRequests();
+        resolveConfig({
+          Data: {
+            EventingUrl: 'https://previous-server.example.com/',
+            AppMapboxAccessToken: 'pk.previous.token',
+          } as GetConfigResultData,
+        });
+        await pending;
+      });
+
+      expect(result.current.config).toBe(null);
+      expect(mockApplyServerMapboxToken).not.toHaveBeenCalled();
+    });
+
+    it('applies config requested after an invalidation', async () => {
+      invalidateConfigRequests();
+      mockGetConfig.mockResolvedValue({
+        Data: {
+          EventingUrl: 'https://next-server.example.com/',
+          AppMapboxAccessToken: 'pk.next.token',
+        } as GetConfigResultData,
+      } as any);
+
+      const { result } = renderHook(() => useCoreStore());
+
+      await act(async () => {
+        await result.current.fetchConfig();
+      });
+
+      expect(result.current.config?.EventingUrl).toBe('https://next-server.example.com/');
+      expect(mockApplyServerMapboxToken).toHaveBeenCalledWith('pk.next.token');
     });
   });
 

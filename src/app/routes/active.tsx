@@ -240,11 +240,15 @@ export default function ActiveRouteScreen() {
     // Could navigate to a deviations detail screen in the future
   }, []);
 
+  const handleMapLoaded = useCallback(() => {
+    setIsMapReady(true);
+  }, []);
+
   return (
     <Box className="flex-1 bg-white dark:bg-gray-900">
       {/* Map area - 60% height */}
       <Box className="h-[60%]">
-        <Mapbox.MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+        <Mapbox.MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={handleMapLoaded}>
           <Mapbox.Camera ref={cameraRef} />
 
           {/* Route polyline */}

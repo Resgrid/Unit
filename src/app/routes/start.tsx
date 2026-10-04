@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Clock, Info, MapPin, Navigation, Phone, Play, Truck, User } from 'lucide-react-native';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
@@ -90,6 +90,10 @@ export default function RouteViewScreen() {
 
   const cameraRef = useRef<any>(null);
   const [isMapReady, setIsMapReady] = useState(false);
+
+  const handleMapLoaded = useCallback(() => {
+    setIsMapReady(true);
+  }, []);
 
   // Fit bounds to show all stops once the map is ready
   useEffect(() => {
@@ -217,7 +221,7 @@ export default function RouteViewScreen() {
         {/* Interactive stop map */}
         {mapStops.length > 0 ? (
           <View style={styles.mapContainer}>
-            <MapView style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+            <MapView style={styles.map} styleURL={mapStyle} logoEnabled={false} attributionEnabled={false} onDidFinishLoadingMap={handleMapLoaded}>
               <Camera ref={cameraRef} />
               {mapStops.map((stop) => (
                 <PointAnnotation key={stop.RouteStopId} id={`stop-${stop.RouteStopId}`} coordinate={[stop.Longitude, stop.Latitude]}>

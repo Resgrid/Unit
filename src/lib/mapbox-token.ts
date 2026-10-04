@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import { logger } from '@/lib/logging';
 import { MAPBOX_BUILT_IN_TOKEN } from '@/lib/mapbox-built-in-token';
 import { zustandStorage } from '@/lib/storage';
 
@@ -37,6 +38,13 @@ interface MapboxTokenState {
 
 const EMPTY_STATE: MapboxTokenState = { token: null, verifiedAt: null, rejectedToken: null, rejectedAt: null };
 
+/**
+ * Bumped by every apply and every clear. A Mapbox check is a network round trip: an answer that lands
+ * after a sign-out, a server switch or a newer config load is dropped, so it cannot bring back a token
+ * (possibly another department's) that no longer belongs to this session.
+ */
+let tokenGeneration = 0;
+
 export const useMapboxTokenStore = create<MapboxTokenState>()(
   persist(() => ({ ...EMPTY_STATE }), {
     name: 'mapbox-token-storage',
@@ -57,18 +65,33 @@ export const getMapboxAccessToken = (): string => resolveToken(useMapboxTokenSto
 export const useMapboxAccessToken = (): string => useMapboxTokenStore((state) => resolveToken(state.token));
 
 /**
+ * A listener runs inside whatever changed the store, sign-out included: one that throws is logged
+ * rather than allowed to abort that caller.
+ */
+const notifyTokenListener = (listener: (token: string) => void, token: string): void => {
+  try {
+    listener(token);
+  } catch (error) {
+    logger.error({
+      message: 'Mapbox access token listener failed',
+      context: { error },
+    });
+  }
+};
+
+/**
  * Calls `listener` with the token in use now and again whenever it changes. Store listeners run
  * synchronously inside the state change, before React re-renders, so an SDK token set here is in place
  * before any map re-renders with a style that needs it.
  */
 export const onMapboxAccessTokenChange = (listener: (token: string) => void): (() => void) => {
-  listener(getMapboxAccessToken());
+  notifyTokenListener(listener, getMapboxAccessToken());
 
   return useMapboxTokenStore.subscribe((state, previous) => {
     const next = resolveToken(state.token);
 
     if (next !== resolveToken(previous.token)) {
-      listener(next);
+      notifyTokenListener(listener, next);
     }
   });
 };
@@ -102,6 +125,7 @@ export const verifyMapboxToken = async (token: string): Promise<MapboxTokenVerdi
  * empty or missing token (an older server, or none configured) drops back to the built-in token.
  */
 export const applyServerMapboxToken = async (serverToken: string | null | undefined, now: number = Date.now()): Promise<void> => {
+  const generation = ++tokenGeneration;
   const candidate = typeof serverToken === 'string' ? serverToken.trim() : '';
   const state = useMapboxTokenStore.getState();
 
@@ -126,6 +150,11 @@ export const applyServerMapboxToken = async (serverToken: string | null | undefi
 
   const verdict = await verifyMapboxToken(candidate);
 
+  if (generation !== tokenGeneration) {
+    // Cleared (sign-out, server switch) or superseded by a newer config load while Mapbox answered.
+    return;
+  }
+
   if (verdict === 'valid') {
     useMapboxTokenStore.setState({ token: candidate, verifiedAt: Date.now(), rejectedToken: null, rejectedAt: null });
   } else if (verdict === 'invalid') {
@@ -136,5 +165,6 @@ export const applyServerMapboxToken = async (serverToken: string | null | undefi
 
 /** Forget the server token (sign-out, server switch); the built-in token is used until config loads again. */
 export const clearMapboxToken = (): void => {
+  tokenGeneration += 1;
   useMapboxTokenStore.setState({ ...EMPTY_STATE });
 };

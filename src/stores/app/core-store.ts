@@ -23,6 +23,17 @@ import { useCallsStore } from '../calls/store';
 import { useUnitsStore } from '../units/store';
 
 /**
+ * Bumped on sign-out and on a server switch. A config response for a request started before that
+ * belongs to the previous session or server; applying it would bring back that department's config
+ * and Mapbox token, so fetchConfig drops it.
+ */
+let configSessionGeneration = 0;
+
+export const invalidateConfigRequests = (): void => {
+  configSessionGeneration += 1;
+};
+
+/**
  * The unit list could not be loaded, so whether a unit still exists is unknown.
  *
  * setActiveUnit throws this rather than treating the unit as deleted: during init() it fails the
@@ -384,8 +395,17 @@ export const useCoreStore = create<CoreState>()(
         }
       },
       fetchConfig: async () => {
+        const sessionGeneration = configSessionGeneration;
         try {
           const config = await getConfig(Env.APP_KEY);
+
+          if (sessionGeneration !== configSessionGeneration) {
+            logger.info({
+              message: 'Dropping a config response from before sign-out or a server switch',
+            });
+            return;
+          }
+
           // Only update if config actually changed to prevent unnecessary re-renders
           const current = get().config;
           if (!current || JSON.stringify(current) !== JSON.stringify(config.Data)) {

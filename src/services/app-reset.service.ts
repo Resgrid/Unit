@@ -18,7 +18,7 @@ import { pushNotificationService } from '@/services/push-notification';
 import { signalRService } from '@/services/signalr.service';
 import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 import { INITIAL_STATE as BLUETOOTH_INITIAL_STATE, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import { useCoreStore } from '@/stores/app/core-store';
+import { invalidateConfigRequests, useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
 import { useLoadingStore } from '@/stores/app/loading-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -276,6 +276,10 @@ export const clearAppStorageItems = (): void => {
  * Uses existing reset methods where available
  */
 export const resetAllStores = async (): Promise<void> => {
+  // A config request still in flight belongs to the session being cleared; its answer must not
+  // repopulate the config or the Mapbox token.
+  invalidateConfigRequests();
+
   // Core stores - use setState with initial state constants
   useCoreStore.setState(INITIAL_CORE_STATE);
   useCallsStore.setState(INITIAL_CALLS_STATE);

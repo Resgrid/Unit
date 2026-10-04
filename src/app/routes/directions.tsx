@@ -611,6 +611,10 @@ export default function RouteDirectionsScreen() {
     }
   }, [destination, t]);
 
+  const handleMapLoaded = useCallback(() => {
+    setIsMapReady(true);
+  }, []);
+
   // --- Loading states ---
   if (isLoadingDirections && sortedStops.length === 0) {
     return (
@@ -633,7 +637,7 @@ export default function RouteDirectionsScreen() {
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapContainer}>
-        <MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={() => setIsMapReady(true)}>
+        <MapView style={styles.map} styleURL={mapStyle} onDidFinishLoadingMap={handleMapLoaded}>
           <UserLocation visible={true} />
           {/* Bare Camera — positioned imperatively via fitBounds once isMapReady && validStops */}
           <Camera ref={cameraRef} />

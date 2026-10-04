@@ -178,6 +178,75 @@ describe('mapbox-token', () => {
     expect(listener.mock.calls.map((call) => call[0])).toEqual(['pk.builtin.signature', SERVER_TOKEN, 'pk.builtin.signature']);
   });
 
+  it('does not restore a token whose check finishes after it was cleared', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    (global as any).fetch = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+    );
+
+    const pending = applyServerMapboxToken(SERVER_TOKEN);
+    clearMapboxToken();
+    answer({ json: () => Promise.resolve({ code: 'TokenValid' }) });
+    await pending;
+
+    expect(getMapboxAccessToken()).toBe('pk.builtin.signature');
+    expect(useMapboxTokenStore.getState().token).toBe(null);
+  });
+
+  it('lets a newer config load win over an older check still in flight', async () => {
+    const answers: ((value: unknown) => void)[] = [];
+    (global as any).fetch = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answers.push(resolve);
+        })
+    );
+
+    const older = applyServerMapboxToken(OTHER_TOKEN);
+    const newer = applyServerMapboxToken(SERVER_TOKEN);
+    answers[1]({ json: () => Promise.resolve({ code: 'TokenValid' }) });
+    await newer;
+    answers[0]({ json: () => Promise.resolve({ code: 'TokenValid' }) });
+    await older;
+
+    expect(getMapboxAccessToken()).toBe(SERVER_TOKEN);
+  });
+
+  it('does not let a check still in flight bring back a token the server stopped sending', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    (global as any).fetch = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+    );
+
+    const pending = applyServerMapboxToken(SERVER_TOKEN);
+    await applyServerMapboxToken('');
+    answer({ json: () => Promise.resolve({ code: 'TokenValid' }) });
+    await pending;
+
+    expect(getMapboxAccessToken()).toBe('pk.builtin.signature');
+  });
+
+  it('keeps notifying and lets the change complete when a listener throws', async () => {
+    const failing = jest.fn(() => {
+      throw new Error('SDK unavailable');
+    });
+    const unsubscribe = onMapboxAccessTokenChange(failing);
+
+    mockFetchCode('TokenValid');
+    await applyServerMapboxToken(SERVER_TOKEN);
+    expect(() => clearMapboxToken()).not.toThrow();
+    unsubscribe();
+
+    expect(failing).toHaveBeenCalledTimes(3);
+    expect(getMapboxAccessToken()).toBe('pk.builtin.signature');
+  });
+
   it('starts from the stored token', () => {
     useMapboxTokenStore.setState({ token: SERVER_TOKEN, verifiedAt: Date.now() });
 
