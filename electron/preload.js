@@ -21,6 +21,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Platform queries
   getPlatform: () => ipcRenderer.invoke('get-platform'),
 
+  // Desktop push (push-receiver.js): the main process holds the FCM connection; the page registers its token.
+  pushStart: (firebaseConfig) => ipcRenderer.invoke('push:start', firebaseConfig),
+  pushStop: (forget) => ipcRenderer.invoke('push:stop', forget),
+  pushTakePendingClick: () => ipcRenderer.invoke('push:take-pending-click'),
+  onPushReceived: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('push:received', listener);
+    return () => ipcRenderer.removeListener('push:received', listener);
+  },
+  onPushNotificationClick: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('push:notification-click', listener);
+    return () => ipcRenderer.removeListener('push:notification-click', listener);
+  },
+
   // Brokered SSO: a one-time loopback listener receives the broker's return (see sso-loopback.js)
   ssoListen: () => ipcRenderer.invoke('sso:listen'),
   ssoOpen: (id, authorizeUrl) => ipcRenderer.invoke('sso:open', id, authorizeUrl),

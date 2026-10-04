@@ -45,6 +45,7 @@ jest.mock('@/lib/cache/cache-scope', () => ({
 }));
 
 import { registerSessionCleanupHandler } from '@/lib/auth/session-cleanup';
+import { _clearSignOutHooks, registerSignOutHook } from '@/lib/auth/sign-out-hooks';
 
 import { resetInFlightRefresh } from '../../../lib/auth/refresh-lock';
 import useAuthStore, { restoreSession } from '../store';
@@ -311,6 +312,34 @@ describe('auth store cold start', () => {
       await Promise.all([useAuthStore.getState().logout(), useAuthStore.getState().logout()]);
 
       expect(sessionCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('runs the sign-out hooks once, with the session still signed in, before anything is cleared', async () => {
+      const seen: { token: string | null; status: string }[] = [];
+      registerSignOutHook(async (token) => {
+        seen.push({ token, status: useAuthStore.getState().status });
+      });
+      useAuthStore.setState({ accessToken: 'live-access-token', refreshToken: 'stored-refresh-token', status: 'signedIn' });
+
+      await Promise.all([useAuthStore.getState().logout(), useAuthStore.getState().logout()]);
+
+      expect(seen).toEqual([{ token: 'live-access-token', status: 'signedIn' }]);
+      expect(useAuthStore.getState().accessToken).toBeNull();
+      expect(sessionCleanup).toHaveBeenCalledTimes(1);
+      _clearSignOutHooks();
+    });
+
+    it('still signs out when a sign-out hook fails', async () => {
+      registerSignOutHook(async () => {
+        throw new Error('server unreachable');
+      });
+      useAuthStore.setState({ accessToken: 'live-access-token', refreshToken: 'stored-refresh-token', status: 'signedIn' });
+
+      await useAuthStore.getState().logout();
+
+      expect(useAuthStore.getState().status).toBe('signedOut');
+      expect(sessionCleanup).toHaveBeenCalledTimes(1);
+      _clearSignOutHooks();
     });
 
     it('still performs a later logout after the guard has settled', async () => {

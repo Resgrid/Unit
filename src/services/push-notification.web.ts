@@ -1,333 +1,582 @@
 /**
- * Web Push Notification Service
- * Handles push notifications for web browsers using the Web Push API
+ * Push on the web and desktop (Electron) editions.
+ *
+ * Both end with an FCM token registered on the active unit's subscriber as Platform 3 (Core keeps those on
+ * a web channel beside the unit's other browsers, never replacing its phones). They differ in where the
+ * token comes from:
+ *  - a browser mints it with the Firebase JS SDK against /service-worker.js, which shows each push and
+ *    hands clicks back here;
+ *  - Electron has no browser push service, so its main process holds an FCM connection of its own
+ *    (electron/push-receiver.js) and shows the notifications natively.
+ * The Firebase web app comes from Core's config (WebPush* fields); without it there is no push here.
+ *
+ * Like the phone apps there is no setting for it: a browser with notification permission (asked for once,
+ * on the first click after sign-in, the way the phone asks at sign-in) is registered, and a desktop always is.
+ * Which pushes reach it is decided by the push preferences on the server, as for any device.
+ *
+ * Nothing registered may outlive its session: signing out takes the token off the server and kills it
+ * on this device (a sign-out hook, run while the session's token still works), and a different unit or
+ * department on this device rotates the token before registering.
  */
+import { type Href } from 'expo-router';
+import { getApps, initializeApp } from 'firebase/app';
+import { deleteToken, getMessaging, getToken, isSupported } from 'firebase/messaging';
+import { useEffect, useState } from 'react';
+
+import { registerUnitDevice, unRegisterWebPush } from '@/api/devices/push';
+import { registerSignOutHook } from '@/lib/auth/sign-out-hooks';
 import { logger } from '@/lib/logging';
-import { usePushNotificationModalStore } from '@/stores/push-notification/store';
+import { CLIENT_HEADER, RESGRID_CLIENT } from '@/lib/mfa/client-app';
+import { routerPushWithRetry } from '@/lib/navigation';
+import { getBaseApiUrl, getDeviceUuid } from '@/lib/storage/app';
+import { useCoreStore } from '@/stores/app/core-store';
+import useAuthStore from '@/stores/auth/store';
+import { isSafeRouteId, parseNotificationData, usePushNotificationModalStore } from '@/stores/push-notification/store';
+import { securityStore } from '@/stores/security/store';
 
-class WebPushNotificationService {
-  private static instance: WebPushNotificationService;
-  private registration: ServiceWorkerRegistration | null = null;
-  private pushSubscription: PushSubscription | null = null;
-  private isInitialized = false;
+/** One push as the service worker or the Electron main process hands it over. */
+export interface WebPushPayload {
+  title: string;
+  body: string;
+  eventCode: string;
+  type?: string;
+  category?: string;
+}
 
-  static getInstance(): WebPushNotificationService {
-    if (!WebPushNotificationService.instance) {
-      WebPushNotificationService.instance = new WebPushNotificationService();
-    }
-    return WebPushNotificationService.instance;
-  }
+export interface WebPushFirebaseConfig {
+  apiKey: string;
+  authDomain?: string;
+  projectId: string;
+  messagingSenderId: string;
+  appId: string;
+  vapidKey: string;
+}
 
-  /**
-   * Initialize the web push notification service
-   */
-  async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
+/** What electron/preload.js exposes for push. */
+interface DesktopPushBridge {
+  pushStart: (config: WebPushFirebaseConfig) => Promise<{ token?: string; error?: string }>;
+  pushStop: (forget: boolean) => Promise<void>;
+  pushTakePendingClick: () => Promise<WebPushPayload | null>;
+  onPushReceived: (callback: (payload: WebPushPayload) => void) => () => void;
+  onPushNotificationClick: (callback: (payload: WebPushPayload) => void) => () => void;
+}
 
-    // Check if push notifications are supported
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      logger.warn({
-        message: 'Web Push notifications are not supported in this browser',
-      });
-      return;
-    }
+interface UnitIdentity {
+  unitId: string;
+  prefix: string;
+}
 
-    try {
-      // Register service worker
-      this.registration = await navigator.serviceWorker.register('/service-worker.js');
-      logger.info({
-        message: 'Service worker registered for push notifications',
-        context: { scope: this.registration.scope },
-      });
+interface StoredRegistration extends UnitIdentity {
+  key: string;
+  token: string;
+  registeredAt: number;
+}
 
-      // Listen for messages from service worker
-      navigator.serviceWorker.addEventListener('message', this.handleServiceWorkerMessage);
+/** Platforms.Web on the server. */
+const WEB_PLATFORM = 3;
+const SERVICE_WORKER_URL = '/service-worker.js';
+const REGISTRATION_KEY = 'rg.webPush.registration';
+/** When the permission prompt was last dismissed without an answer. */
+const ASKED_KEY = 'rg.webPush.asked';
+/** A dismissed prompt waits a week: browsers stop a site's prompts for a while after a few dismissals. */
+const ASK_AGAIN_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+/** FCM rotates web tokens; re-registering daily keeps the server's copy current. */
+const REREGISTER_AFTER_MS = 24 * 60 * 60 * 1000;
+/** A stalled SDK or IPC operation must release the queue so sign-out can remove the previous token. */
+const PUSH_OPERATION_TIMEOUT_MS = 10_000;
 
-      // Wait for service worker to be ready, then send CLIENT_READY handshake
-      await navigator.serviceWorker.ready;
-      this.sendClientReadyHandshake();
+async function withPushTimeout<T>(operation: string, work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Web push: ${operation} timed out`));
+      controller.abort();
+    }, PUSH_OPERATION_TIMEOUT_MS);
+  });
 
-      // Additionally add a one-time 'controllerchange' listener to handle cases where controller is null initially (first-install)
-      const onControllerChange = () => {
-        if (navigator.serviceWorker.controller) {
-          logger.info({
-            message: 'Service worker controller changed, sending CLIENT_READY',
-          });
-          navigator.serviceWorker.controller.postMessage({
-            type: 'CLIENT_READY',
-          });
-          navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
-        }
-      };
-      navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
-
-      this.isInitialized = true;
-    } catch (error) {
-      logger.error({
-        message: 'Failed to register service worker',
-        context: { error },
-      });
-    }
-  }
-
-  /**
-   * Send CLIENT_READY handshake to service worker
-   * This signals that the client is ready to receive notification messages
-   */
-  private sendClientReadyHandshake(): void {
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'CLIENT_READY',
-      });
-      logger.info({
-        message: 'Sent CLIENT_READY handshake to service worker controller',
-      });
-    } else if (this.registration?.active) {
-      this.registration.active.postMessage({
-        type: 'CLIENT_READY',
-      });
-      logger.info({
-        message: 'Sent CLIENT_READY handshake to active service worker (registration.active fallback)',
-      });
-    } else {
-      logger.info({
-        message: 'Silently skipping send CLIENT_READY: no controller or active registration available',
-      });
-    }
-  }
-
-  /**
-   * Handle messages from the service worker
-   */
-  private handleServiceWorkerMessage = (event: MessageEvent): void => {
-    if (event.data?.type === 'NOTIFICATION_CLICK') {
-      const data = event.data?.data ?? undefined;
-
-      // Only proceed if data is an object and has the expected fields
-      if (data && typeof data === 'object' && data.eventCode) {
-        logger.info({
-          message: 'Notification clicked from service worker',
-          context: { data },
-        });
-
-        // Show the notification modal
-        usePushNotificationModalStore.getState().showNotificationModal({
-          eventCode: data.eventCode,
-          title: data.title,
-          body: data.body || data.message,
-          data,
-        });
-      } else {
-        logger.warn({
-          message: 'Notification click received with missing or invalid data',
-          context: { data: event.data },
-        });
-      }
-    }
-  };
-
-  /**
-   * Request permission and subscribe to push notifications
-   */
-  async requestPermission(): Promise<NotificationPermission> {
-    if (!('Notification' in window)) {
-      logger.warn({
-        message: 'Notifications not supported in this browser',
-      });
-      return 'denied';
-    }
-
-    const permission = await Notification.requestPermission();
-    logger.info({
-      message: 'Notification permission result',
-      context: { permission },
-    });
-
-    return permission;
-  }
-
-  /**
-   * Subscribe to push notifications with VAPID key
-   */
-  async subscribe(vapidPublicKey: string): Promise<PushSubscription | null> {
-    if (!this.registration) {
-      await this.initialize();
-    }
-
-    if (!this.registration) {
-      logger.error({
-        message: 'Cannot subscribe: service worker not registered',
-      });
-      return null;
-    }
-
-    try {
-      // Check permission first
-      const permission = await this.requestPermission();
-      if (permission !== 'granted') {
-        logger.warn({
-          message: 'Notification permission not granted',
-          context: { permission },
-        });
-        return null;
-      }
-
-      // Subscribe to push manager
-      this.pushSubscription = await this.registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToArrayBuffer(vapidPublicKey),
-      });
-
-      logger.info({
-        message: 'Successfully subscribed to push notifications',
-        context: {
-          endpoint: this.pushSubscription.endpoint,
-        },
-      });
-
-      return this.pushSubscription;
-    } catch (error) {
-      logger.error({
-        message: 'Failed to subscribe to push notifications',
-        context: { error },
-      });
-      return null;
-    }
-  }
-
-  /**
-   * Unsubscribe from push notifications
-   */
-  async unsubscribe(): Promise<boolean> {
-    try {
-      // If pushSubscription is null, try to retrieve it from the push manager as a fallback
-      if (!this.pushSubscription && this.registration) {
-        try {
-          this.pushSubscription = await this.registration.pushManager.getSubscription();
-        } catch (error) {
-          logger.error({
-            message: 'Failed to retrieve active push subscription during unsubscribe',
-            context: { error },
-          });
-        }
-      }
-
-      if (!this.pushSubscription) {
-        logger.info({
-          message: 'No active push subscription found to unsubscribe',
-        });
-        return true;
-      }
-
-      const success = await this.pushSubscription.unsubscribe();
-
-      if (success) {
-        this.pushSubscription = null;
-
-        // Clear any potential persisted client-side records
-        // Explicitly clearing any typical local storage keys as a safety measure
-        try {
-          localStorage.removeItem('push_subscription');
-          localStorage.removeItem('push_endpoint');
-        } catch (storageError) {
-          // Ignore errors from localStorage if it's not available
-        }
-
-        logger.info({
-          message: 'Successfully unsubscribed from push notifications',
-        });
-      } else {
-        logger.warn({
-          message: 'Push subscription unsubscribe returned false',
-        });
-      }
-
-      return success;
-    } catch (error) {
-      logger.error({
-        message: 'Failed to unsubscribe from push notifications',
-        context: { error },
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Get the current push subscription
-   */
-  getSubscription(): PushSubscription | null {
-    return this.pushSubscription;
-  }
-
-  /**
-   * Show a local notification (for testing or immediate notifications)
-   */
-  async showLocalNotification(title: string, body: string, data?: any): Promise<void> {
-    const permission = await this.requestPermission();
-    if (permission !== 'granted') {
-      return;
-    }
-
-    // Use the Notification API directly
-    const notification = new Notification(title, {
-      body,
-      icon: '/icon-192.png',
-      badge: '/badge-72.png',
-      data,
-      requireInteraction: true,
-      tag: data?.eventCode || 'notification',
-    });
-
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-
-      if (data?.eventCode) {
-        usePushNotificationModalStore.getState().showNotificationModal({
-          eventCode: data.eventCode,
-          title,
-          body,
-          data,
-        });
-      }
-    };
-  }
-
-  /**
-   * Convert VAPID key from base64url to ArrayBuffer.
-   *
-   * @returns An ArrayBuffer containing the decoded key bytes.
-   */
-  private urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const buffer = new ArrayBuffer(rawData.length);
-    const outputArray = new Uint8Array(buffer);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return buffer;
-  }
-
-  /**
-   * Check if push notifications are supported
-   */
-  static isSupported(): boolean {
-    return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  try {
+    return await Promise.race([work(controller.signal), timeout]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-export const webPushNotificationService = WebPushNotificationService.getInstance();
+const DEEP_LINK_RETRY = {
+  maxAttempts: 40,
+  retryDelayMs: 250,
+  waitUntil: () => useAuthStore.getState().status === 'signedIn',
+};
 
-// Alias for cross-platform compatibility
-export const pushNotificationService = webPushNotificationService;
+const listeners = new Set<() => void>();
 
-// React hook for component usage (web stub)
-export const usePushNotifications = () => {
-  return {
-    pushToken: null,
+function notify(): void {
+  listeners.forEach((listener) => listener());
+}
+
+/** Calls back whenever this device's push status may have changed. Returns the unsubscribe. */
+export function subscribeWebPush(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
   };
+}
+
+function readJson<T>(key: string): T | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(key: string, value: unknown): void {
+  try {
+    if (value === null) {
+      window.localStorage.removeItem(key);
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch {
+    // storage unavailable: the registration just isn't remembered across reloads
+  }
+}
+
+const readRegistration = (): StoredRegistration | null => readJson<StoredRegistration>(REGISTRATION_KEY);
+const writeRegistration = (registration: StoredRegistration | null): void => writeJson(REGISTRATION_KEY, registration);
+
+function getDesktopBridge(): DesktopPushBridge | null {
+  const api = typeof window !== 'undefined' ? (window.electronAPI as unknown as Partial<DesktopPushBridge> | undefined) : undefined;
+  return api && typeof api.pushStart === 'function' ? (api as DesktopPushBridge) : null;
+}
+
+export function getWebPushConfig(): WebPushFirebaseConfig | null {
+  const config = useCoreStore.getState().config;
+  if (!config?.WebPushApiKey || !config.WebPushProjectId || !config.WebPushMessagingSenderId || !config.WebPushAppId || !config.WebPushVapidKey) {
+    return null;
+  }
+
+  return {
+    apiKey: config.WebPushApiKey,
+    authDomain: config.WebPushAuthDomain || undefined,
+    projectId: config.WebPushProjectId,
+    messagingSenderId: config.WebPushMessagingSenderId,
+    appId: config.WebPushAppId,
+    vapidKey: config.WebPushVapidKey,
+  };
+}
+
+function browserCanPush(): boolean {
+  return typeof window !== 'undefined' && window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function currentIdentity(): UnitIdentity | null {
+  if (useAuthStore.getState().status !== 'signedIn') {
+    return null;
+  }
+
+  const unitId = useCoreStore.getState().activeUnitId;
+  const prefix = securityStore.getState().rights?.DepartmentCode;
+  return unitId && prefix ? { unitId, prefix } : null;
+}
+
+const keyOf = (identity: UnitIdentity): string => `unit:${identity.unitId}:${identity.prefix}`;
+
+// --- Browser (Firebase JS SDK) ---
+
+async function loadMessaging(config: WebPushFirebaseConfig) {
+  if (!(await withPushTimeout('messaging support', () => isSupported()))) {
+    return null;
+  }
+
+  const appName = 'rg-web-push';
+  const app =
+    getApps().find((candidate) => candidate.name === appName) ??
+    initializeApp({ apiKey: config.apiKey, authDomain: config.authDomain, projectId: config.projectId, messagingSenderId: config.messagingSenderId, appId: config.appId }, appName);
+
+  return getMessaging(app);
+}
+
+async function findServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  const registrations = await withPushTimeout('find service worker', () => navigator.serviceWorker.getRegistrations());
+  return (
+    registrations.find((registration) => {
+      const worker = registration.active ?? registration.waiting ?? registration.installing;
+      return !!worker && new URL(worker.scriptURL).pathname === SERVICE_WORKER_URL;
+    }) ?? null
+  );
+}
+
+async function mintBrowserToken(config: WebPushFirebaseConfig): Promise<string | null> {
+  const messaging = await loadMessaging(config);
+  if (!messaging) {
+    return null;
+  }
+
+  const serviceWorkerRegistration = await withPushTimeout('register service worker', () => navigator.serviceWorker.register(SERVICE_WORKER_URL, { scope: '/' }));
+  if (!serviceWorkerRegistration.active) {
+    await withPushTimeout('service worker readiness', () => navigator.serviceWorker.ready);
+  }
+
+  // Each wait is bounded inside the mint: a late worker must not start getToken after this operation timed out.
+  return (await withPushTimeout('mint browser token', () => getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration }))) || null;
+}
+
+/** Kills the browser's token at FCM, so every channel still holding it stops delivering here. */
+async function deleteBrowserToken(config: WebPushFirebaseConfig | null): Promise<void> {
+  const registration = await findServiceWorker().catch(() => null);
+  if (!registration) {
+    return;
+  }
+
+  try {
+    const messaging = config ? await loadMessaging(config) : null;
+    if (messaging && config && Notification.permission === 'granted') {
+      // deleteToken acts on the worker getToken last named; with a token stored this getToken is a local read.
+      await withPushTimeout('read browser token', () => getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration }));
+      await deleteToken(messaging);
+      return;
+    }
+  } catch (error) {
+    logger.warn({ message: 'Web push: the FCM token could not be deleted', context: { error } });
+  }
+
+  // Without Firebase, dropping the push subscription still leaves FCM nowhere to deliver.
+  try {
+    const subscription = await registration.pushManager.getSubscription();
+    await subscription?.unsubscribe();
+  } catch {
+    // nothing more can be done from here
+  }
+}
+
+// --- Desktop (Electron main process) ---
+
+async function startDesktop(bridge: DesktopPushBridge, config: WebPushFirebaseConfig): Promise<string | null> {
+  const result = await withPushTimeout('start desktop receiver', () => bridge.pushStart(config));
+  if (!result?.token) {
+    logger.warn({ message: 'Desktop push could not start', context: { error: result?.error } });
+    return null;
+  }
+
+  return result.token;
+}
+
+async function deleteLocalToken(config: WebPushFirebaseConfig | null): Promise<void> {
+  const desktop = getDesktopBridge();
+  if (desktop) {
+    // Forgetting the credentials leaves nothing on this device able to receive with the old token.
+    await desktop.pushStop(true).catch(() => undefined);
+    return;
+  }
+
+  if (browserCanPush()) {
+    await deleteBrowserToken(config);
+  }
+}
+
+// --- Registration ---
+
+async function unregisterQuietly(registration: StoredRegistration): Promise<void> {
+  try {
+    await withPushTimeout('unregister previous token', (signal) => unRegisterWebPush({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }, signal));
+  } catch (error) {
+    logger.warn({ message: 'Web push: the previous registration could not be removed', context: { error } });
+  }
+}
+
+async function runSync(): Promise<void> {
+  const identity = currentIdentity();
+  const config = getWebPushConfig();
+  const accessToken = useAuthStore.getState().accessToken;
+  if (!identity || !config) {
+    return;
+  }
+
+  const stored = readRegistration();
+  if (stored && stored.key !== keyOf(identity)) {
+    // Another unit or department on this device: take the device off the old one, then rotate the token so
+    // the old channel holds a dead one even if that call failed.
+    await unregisterQuietly(stored);
+    writeRegistration(null);
+    await deleteLocalToken(config);
+  }
+
+  const desktop = getDesktopBridge();
+  if (!desktop && Notification.permission !== 'granted') {
+    notify();
+    return;
+  }
+
+  const token = desktop ? await startDesktop(desktop, config) : await mintBrowserToken(config);
+  if (!token) {
+    notify();
+    return;
+  }
+
+  // Signed out or moved to another unit while the token was minted: the sign-out cleanup or the sync queued behind this
+  // one owns the device now, and registering here would put the token on a session that has ended.
+  const latest = currentIdentity();
+  if (!latest || keyOf(latest) !== keyOf(identity)) {
+    return;
+  }
+
+  const current = readRegistration();
+  if (current && current.key === keyOf(identity) && current.token === token && Date.now() - current.registeredAt < REREGISTER_AFTER_MS) {
+    return;
+  }
+
+  if (current && current.token !== token) {
+    await unregisterQuietly(current);
+  }
+
+  const registration = { key: keyOf(identity), unitId: identity.unitId, prefix: identity.prefix, token, registeredAt: Date.now() };
+  try {
+    await withPushTimeout('register unit device', (signal) => registerUnitDevice({ UnitId: identity.unitId, Token: token, Platform: WEB_PLATFORM, DeviceUuid: getDeviceUuid() || '', Prefix: identity.prefix }, signal));
+  } catch (error) {
+    // A timed-out request may have reached Core. Keep the token available for the queued sign-out cleanup.
+    writeRegistration({ ...registration, registeredAt: 0 });
+    throw error;
+  }
+  const registeredIdentity = currentIdentity();
+  if (!registeredIdentity || keyOf(registeredIdentity) !== keyOf(identity)) {
+    await Promise.all([accessToken ? unregisterAtSignOut(registration, accessToken) : undefined, deleteLocalToken(config)]);
+    return;
+  }
+  writeRegistration(registration);
+  notify();
+}
+
+let syncQueue: Promise<void> = Promise.resolve();
+let askArmed = false;
+
+/** Registration work (syncs and sign-out cleanups) runs one at a time, in the order it was asked for. */
+function enqueue(work: () => Promise<void>): Promise<void> {
+  const run = syncQueue.then(work, work);
+  syncQueue = run.catch(() => undefined);
+  return run;
+}
+
+/** Brings this device's registration in line with the signed-in unit. Calls run one at a time. */
+export function syncWebPush(): Promise<void> {
+  return enqueue(runSync);
+}
+
+/**
+ * Asks for notification permission the way the phone app does after sign-in, once. Browsers only show the prompt
+ * from a click, so it waits for the first one. A granted permission registers this browser straight away.
+ */
+export function askForPermissionOnce(): void {
+  if (getDesktopBridge() || !getWebPushConfig() || !browserCanPush() || Notification.permission !== 'default' || askArmed) {
+    return;
+  }
+
+  const lastAsked = readJson<number>(ASKED_KEY);
+  if (lastAsked && Date.now() - lastAsked < ASK_AGAIN_AFTER_MS) {
+    return;
+  }
+
+  askArmed = true;
+  const ask = () => {
+    document.removeEventListener('click', ask, true);
+    // Asked inside the click, while the browser still counts it as the person's.
+    void Notification.requestPermission()
+      .then((permission) => {
+        // Denied is remembered by the browser; a dismissed prompt waits a week before asking again.
+        writeJson(ASKED_KEY, permission === 'default' ? Date.now() : null);
+        notify();
+        return permission === 'granted' ? syncWebPush() : undefined;
+      })
+      .catch((error) => logger.warn({ message: 'Web push: the permission request failed', context: { error } }))
+      .finally(() => {
+        askArmed = false;
+      });
+  };
+
+  document.addEventListener('click', ask, true);
+}
+
+async function unregisterAtSignOut(registration: StoredRegistration, accessToken: string): Promise<void> {
+  // Straight to the server, not through the api client: its 401 handling would re-enter logout. Awaited (sign-out
+  // waits on it), so no keepalive: some browsers refuse keepalive on a cross-origin call that needs a preflight.
+  try {
+    await withPushTimeout('unregister at sign-out', (signal) =>
+      fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
+        body: JSON.stringify({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }),
+        signal,
+      })
+    );
+  } catch (error) {
+    logger.warn({ message: 'Web push: the token could not be unregistered at sign-out', operation: 'signOutCleanup', context: { error } });
+  }
+}
+
+async function signOutCleanup(accessToken: string | null, config: WebPushFirebaseConfig | null): Promise<void> {
+  const stored = readRegistration();
+  writeRegistration(null);
+
+  // Killing the token here runs beside the server call, not after it: sign-out only waits so long, and this device has
+  // to stop showing the session's pushes even when the server is slow to answer.
+  await Promise.all([deleteLocalToken(config), stored && accessToken ? unregisterAtSignOut(stored, accessToken) : undefined]);
+
+  notify();
+}
+
+registerSignOutHook((accessToken) => {
+  // Read while the session's config is still loaded: the cleanup can run after sign-out has moved on.
+  const config = getWebPushConfig();
+  // Queued behind any sync in flight, so the registration that sync is still writing is the one taken off. The next
+  // sign-in's sync queues behind this in turn: a cleanup that outlasts sign-out's wait never tears down that session's token.
+  return enqueue(() => signOutCleanup(accessToken, config)).catch((error) => {
+    logger.warn({ message: 'Web push sign-out cleanup failed', operation: 'signOutCleanup', context: { error } });
+  });
+});
+
+// --- Incoming pushes ---
+
+function showInApp(payload: WebPushPayload): void {
+  if (!payload?.eventCode) {
+    return;
+  }
+
+  void usePushNotificationModalStore.getState().showNotificationModal({
+    eventCode: payload.eventCode,
+    title: payload.title,
+    body: payload.body,
+    data: { ...payload },
+  });
+}
+
+async function deepLink(href: Href, eventCode: string): Promise<boolean> {
+  try {
+    await routerPushWithRetry(href, DEEP_LINK_RETRY);
+    return true;
+  } catch (error) {
+    logger.error({ message: 'Failed to deep-link from a web push', context: { error, eventCode } });
+    return false;
+  }
+}
+
+/** A clicked notification goes where a tapped one does on the phone: chat or call, else the in-app alert. */
+export async function openWebPush(payload: WebPushPayload): Promise<void> {
+  const eventCode = payload?.eventCode;
+  if (!eventCode) {
+    return;
+  }
+
+  const chat = /^([tg]):(.+)$/i.exec(eventCode);
+  if (chat && isSafeRouteId(chat[2])) {
+    if (await deepLink({ pathname: '/chat/[channelId]', params: { channelId: chat[2] } }, eventCode)) {
+      return;
+    }
+  } else {
+    const parsed = parseNotificationData({ eventCode });
+    if (parsed.type === 'call' && isSafeRouteId(parsed.id) && (await deepLink({ pathname: '/call/[id]', params: { id: parsed.id } }, eventCode))) {
+      return;
+    }
+  }
+
+  showInApp(payload);
+}
+
+/** A push arriving while the person is looking at the app gets the in-app alert, as on the phone. */
+function onPushReceived(payload: WebPushPayload): void {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible' && document.hasFocus()) {
+    showInApp(payload);
+  }
+}
+
+let detachListeners: (() => void) | null = null;
+
+/** Wires clicks and foreground pushes to the app. Safe to call repeatedly. */
+export function attachWebPushListeners(): void {
+  if (detachListeners || typeof window === 'undefined') {
+    return;
+  }
+
+  const desktop = getDesktopBridge();
+  if (desktop) {
+    const offReceived = desktop.onPushReceived(showInApp);
+    const offClick = desktop.onPushNotificationClick((payload) => void openWebPush(payload));
+    detachListeners = () => {
+      offReceived();
+      offClick();
+    };
+
+    // A click that started (or re-opened) the window arrived before this page could listen.
+    void desktop
+      .pushTakePendingClick()
+      .then((payload) => payload && openWebPush(payload))
+      .catch(() => undefined);
+    return;
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    return;
+  }
+
+  const onMessage = (event: MessageEvent) => {
+    const message = event.data as { type?: string; data?: WebPushPayload } | undefined;
+    if (message?.type === 'NOTIFICATION_CLICK' && message.data) {
+      void openWebPush(message.data);
+    } else if (message?.type === 'PUSH_RECEIVED' && message.data) {
+      onPushReceived(message.data);
+    }
+  };
+
+  navigator.serviceWorker.addEventListener('message', onMessage);
+  detachListeners = () => navigator.serviceWorker.removeEventListener('message', onMessage);
+
+  // If the worker opened this window for a click, it hands the click over once told the page is ready.
+  void findServiceWorker()
+    .then((registration) => (navigator.serviceWorker.controller ?? registration?.active)?.postMessage({ type: 'CLIENT_READY' }))
+    .catch(() => undefined);
+}
+
+/** Test hook. */
+export function _resetWebPushForTests(): void {
+  detachListeners?.();
+  detachListeners = null;
+  syncQueue = Promise.resolve();
+  askArmed = false;
+  listeners.clear();
+}
+
+// --- The app's push API, as the native module offers it ---
+
+export const pushNotificationService = {
+  initialize: async (): Promise<void> => attachWebPushListeners(),
+  getPushToken: (): string | null => readRegistration()?.token ?? null,
+  // The sign-out hook already took the token off the server before the session ended.
+  unregisterFromPushNotifications: async (): Promise<void> => undefined,
+  refreshAndroidNotificationChannels: async (): Promise<void> => undefined,
+};
+
+/** Keeps this device registered for the active unit while signed in. */
+export const usePushNotifications = () => {
+  const authStatus = useAuthStore((state) => state.status);
+  const activeUnitId = useCoreStore((state) => state.activeUnitId);
+  const hasConfig = useCoreStore((state) => !!state.config?.WebPushProjectId);
+  const departmentCode = securityStore((state) => state.rights?.DepartmentCode);
+  const [pushToken, setPushToken] = useState<string | null>(() => readRegistration()?.token ?? null);
+
+  useEffect(() => {
+    attachWebPushListeners();
+    return subscribeWebPush(() => setPushToken(readRegistration()?.token ?? null));
+  }, []);
+
+  useEffect(() => {
+    // Registering before auth settles would send a stale token (see the native hook).
+    if (authStatus !== 'signedIn' || !useAuthStore.getState().accessToken || !activeUnitId || !departmentCode || !hasConfig) {
+      return;
+    }
+
+    syncWebPush().catch((error) => logger.error({ message: 'Web push registration failed', context: { error } }));
+    askForPermissionOnce();
+  }, [authStatus, activeUnitId, departmentCode, hasConfig]);
+
+  return { pushToken };
 };

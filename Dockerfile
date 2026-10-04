@@ -34,7 +34,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copy entrypoint script
 COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+# Windows checkouts can supply CRLF; the Linux shebang and shell require LF.
+RUN sed -i 's/\r$//' /docker-entrypoint.sh && chmod +x /docker-entrypoint.sh
 
 # Expose port 80
 EXPOSE 80

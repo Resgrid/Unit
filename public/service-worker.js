@@ -1,143 +1,116 @@
 /* eslint-disable no-undef */
-/* eslint-disable no-unused-vars */
 /**
- * Service Worker for Resgrid Unit Web Push Notifications
- * This file handles background push notifications when the app is not in focus
+ * Service worker for Resgrid Unit web push.
+ *
+ * The page mints its FCM web token against this registration (services/push-notification.web.ts), but
+ * Firebase is not loaded here: every push is shown below. Core sends the fields in the FCM webpush
+ * block (NovuProvider.SendNotification): data carries title, message, eventCode, type and category.
+ *
+ * The app does the routing. A click focuses an open window and posts NOTIFICATION_CLICK to it; with no
+ * window open, the new one is handed the push after it says CLIENT_READY. Every push is also posted as
+ * PUSH_RECEIVED so a window the person is looking at can show its in-app alert.
  */
 
-// Cache name for offline support (optional)
-const CACHE_NAME = 'resgrid-unit-v1';
+const DEFAULT_TITLE = 'Resgrid Unit';
 
-// Store pending notification data for newly opened windows
-const pendingNotifications = new Map();
+// Clicks waiting for the window they opened to finish loading, by client id.
+const pendingClicks = new Map();
 
-// Handle push events
-self.addEventListener('push', function (event) {
-  console.log('[Service Worker] Push received:', event);
-
-  let data = {};
+function readPush(event) {
+  let payload = {};
   if (event.data) {
     try {
-      data = event.data.json();
+      payload = event.data.json() || {};
     } catch (e) {
-      data = {
-        title: 'New Notification',
-        body: event.data.text(),
-      };
+      payload = { notification: { body: event.data.text() } };
     }
   }
 
-  const title = data.title || 'Resgrid Unit';
-  const options = {
-    body: data.body || data.message || 'You have a new notification',
-    icon: '/icon-192.png',
-    badge: '/badge-72.png',
-    vibrate: [100, 50, 100],
-    data: data,
-    requireInteraction: true,
-    tag: data.eventCode || `notification-${Date.now()}`,
-    actions: [
-      {
-        action: 'open',
-        title: 'Open',
-      },
-      {
-        action: 'dismiss',
-        title: 'Dismiss',
-      },
-    ],
+  const notification = payload.notification || {};
+  const data = payload.data || {};
+
+  return {
+    title: data.title || notification.title || payload.title || DEFAULT_TITLE,
+    body: data.message || notification.body || data.body || payload.body || payload.message || '',
+    eventCode: data.eventCode || payload.eventCode || '',
+    type: data.type || '',
+    category: data.category || '',
   };
+}
 
-  event.waitUntil(self.registration.showNotification(title, options));
-});
+function isCall(push) {
+  return push.category === 'calls' || /^c(?!t)/i.test(push.eventCode);
+}
 
-// Handle notification click
-self.addEventListener('notificationclick', function (event) {
-  console.log('[Service Worker] Notification clicked:', event);
+self.addEventListener('push', (event) => {
+  const push = readPush(event);
 
-  event.notification.close();
-
-  const action = event.action;
-  const data = event.notification.data;
-
-  // Handle dismiss action
-  if (action === 'dismiss') {
-    return;
-  }
-
-  // Open the app and send message to main thread
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      // Try to focus an existing window
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.focus();
-          client.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            data: data,
-          });
-          return;
-        }
-      }
-
-      // Open new window if no existing window found
-      if (clients.openWindow) {
-        return clients.openWindow('/').then(function (client) {
-          // Store notification data for handshake with the new window
-          if (client) {
-            pendingNotifications.set(client.id, data);
-            console.log('[Service Worker] Stored pending notification for client:', client.id);
-          }
-        });
-      }
+    Promise.all([
+      self.registration.showNotification(push.title, {
+        body: push.body,
+        icon: '/favicon.ico',
+        tag: push.eventCode || undefined,
+        renotify: !!push.eventCode,
+        requireInteraction: isCall(push),
+        data: push,
+      }),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+        windows.forEach((client) => client.postMessage({ type: 'PUSH_RECEIVED', data: push }));
+      }),
+    ]).catch((error) => {
+      // A rejected waitUntil is dropped without a word: this is the only trace a failed push leaves.
+      console.error('Web push: the push could not be handled', { operation: 'push', eventCode: push.eventCode, error });
     })
   );
 });
 
-// Handle notification close
-self.addEventListener('notificationclose', function (event) {
-  console.log('[Service Worker] Notification closed:', event);
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+      const client = windows.find((candidate) => 'focus' in candidate);
+      if (client) {
+        return client.focus().then((focused) => (focused || client).postMessage({ type: 'NOTIFICATION_CLICK', data }));
+      }
+
+      if (!self.clients.openWindow) {
+        return undefined;
+      }
+
+      return self.clients.openWindow('/').then((opened) => {
+        if (opened) {
+          pendingClicks.set(opened.id, data);
+        }
+      });
+    })
+  );
 });
 
-// Handle service worker installation
-self.addEventListener('install', function (event) {
-  console.log('[Service Worker] Installing...');
-  // Skip waiting to activate immediately
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Handle service worker activation
-self.addEventListener('activate', function (event) {
-  console.log('[Service Worker] Activating...');
-  // Take control of all pages immediately
-  event.waitUntil(clients.claim());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
 });
 
-// Handle messages from the main thread
-self.addEventListener('message', function (event) {
-  console.log('[Service Worker] Message received:', event.data);
+self.addEventListener('message', (event) => {
+  if (!event.data || !event.source) {
+    return;
+  }
 
-  // Handle skip waiting message
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
     return;
   }
 
-  // Handle client ready handshake
-  if (event.data && event.data.type === 'CLIENT_READY') {
-    const clientId = event.source.id;
-    console.log('[Service Worker] Client ready handshake received:', clientId);
-
-    // Check if there's a pending notification for this client
-    if (pendingNotifications.has(clientId)) {
-      const notificationData = pendingNotifications.get(clientId);
-      pendingNotifications.delete(clientId);
-
-      console.log('[Service Worker] Sending pending notification to client:', clientId);
-      event.source.postMessage({
-        type: 'NOTIFICATION_CLICK',
-        data: notificationData,
-      });
-    }
+  // A window this worker opened has loaded: hand it the click that opened it.
+  if (event.data.type === 'CLIENT_READY' && pendingClicks.has(event.source.id)) {
+    const data = pendingClicks.get(event.source.id);
+    pendingClicks.delete(event.source.id);
+    event.source.postMessage({ type: 'NOTIFICATION_CLICK', data });
   }
 });
