@@ -10,6 +10,7 @@ import { loginRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
 import { decodeJwtPayload, getJwtExpiryMs } from '../../lib/auth/jwt';
 import { refreshTokenSingleFlight } from '../../lib/auth/refresh-lock';
 import { runSessionCleanup } from '../../lib/auth/session-cleanup';
+import { runSignOutHooks } from '../../lib/auth/sign-out-hooks';
 import { isRefreshCredentialRejection, isSharedSessionLockedRefresh } from '../../lib/auth/token-refresh';
 import type { AuthResponse, AuthState, LoginCredentials, SsoLoginCredentials } from '../../lib/auth/types';
 import { type ProfileModel } from '../../lib/auth/types';
@@ -292,6 +293,17 @@ const useAuthStore = create<AuthState>()(
         }
 
         logoutInFlight = (async () => {
+          // Whatever must still reach the server as this session (this device's web push token) goes
+          // first: the token is cleared just below. Bounded, so a dead server never holds sign-out up.
+          try {
+            await runSignOutHooks(get().accessToken);
+          } catch (error) {
+            logger.warn({
+              message: 'A sign-out hook failed',
+              context: { error },
+            });
+          }
+
           // Clear any pending refresh timer to prevent stacked timeouts
           const existingTimeoutId = get().refreshTimeoutId;
           if (existingTimeoutId !== null) {
