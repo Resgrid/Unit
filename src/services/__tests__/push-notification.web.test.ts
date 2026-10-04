@@ -66,6 +66,21 @@ let clickListeners: Set<() => void>;
 /** A click anywhere on the page, as the person would make one. */
 const clickPage = () => [...clickListeners].forEach((listener) => listener());
 
+/** Lets every promise already settled run its callbacks. */
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+/** Holds the next FCM token mint; the returned wait resolves, once a sync has reached it, to what releases it. */
+function holdNextMint(): () => Promise<(token: string) => void> {
+  const held: { release?: (token: string) => void } = {};
+  mockFirebaseGetToken.mockImplementationOnce(() => new Promise<string>((resolve) => (held.release = resolve)));
+  return async () => {
+    while (!held.release) {
+      await flush();
+    }
+    return held.release;
+  };
+}
+
 function installBrowser() {
   storage = new Map();
   worker = { scriptURL: 'https://unit.test/service-worker.js', postMessage: jest.fn() };
@@ -260,6 +275,63 @@ describe('browser', () => {
     await hooks.runSignOutHooks('access-token');
 
     expect(mockFirebaseDeleteToken).toHaveBeenCalledTimes(1);
+  });
+
+  it('takes off the registration a sync in flight at sign-out was still writing', async () => {
+    permission = 'granted';
+    const { push, hooks } = load();
+    const reachedMint = holdNextMint();
+
+    const sync = push.syncWebPush();
+    const releaseToken = await reachedMint();
+    const signOut = hooks.runSignOutHooks('access-token');
+    releaseToken('browser-token');
+    await Promise.all([sync, signOut]);
+
+    expect(mockRegisterUnitDevice).toHaveBeenCalledTimes(1);
+    expect(globals.fetch).toHaveBeenCalledWith('https://api.test/api/v4/Devices/UnRegisterWebPush', expect.objectContaining({ body: JSON.stringify({ Token: 'browser-token', Prefix: 'DEPT', UnitId: '12' }) }));
+    expect(mockFirebaseDeleteToken).toHaveBeenCalledTimes(1);
+    expect(push.pushNotificationService.getPushToken()).toBeNull();
+  });
+
+  it('registers nothing for a session that ended while its token was minted', async () => {
+    permission = 'granted';
+    const { push } = load();
+    const reachedMint = holdNextMint();
+
+    const sync = push.syncWebPush();
+    const releaseToken = await reachedMint();
+    mockState.auth = { status: 'signedOut', accessToken: null };
+    releaseToken('browser-token');
+    await sync;
+
+    expect(mockRegisterUnitDevice).not.toHaveBeenCalled();
+    expect(push.pushNotificationService.getPushToken()).toBeNull();
+  });
+
+  it('lets the next sign-in register only once a slow sign-out cleanup is done', async () => {
+    permission = 'granted';
+    const { push, hooks } = load();
+    await push.syncWebPush();
+    const server: { answer?: () => void } = {};
+    (globals.fetch as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (server.answer = () => resolve({ ok: true }))));
+
+    const signOut = hooks.runSignOutHooks('access-token');
+    mockState.core.activeUnitId = '15';
+    const signIn = push.syncWebPush();
+    await flush();
+    await flush();
+
+    expect(server.answer).toBeDefined();
+    expect(mockRegisterUnitDevice).toHaveBeenCalledTimes(1);
+
+    server.answer?.();
+    await Promise.all([signOut, signIn]);
+
+    expect(mockFirebaseDeleteToken).toHaveBeenCalledTimes(1);
+    expect(mockRegisterUnitDevice).toHaveBeenCalledTimes(2);
+    expect(mockRegisterUnitDevice).toHaveBeenLastCalledWith(expect.objectContaining({ UnitId: '15' }));
+    expect(mockFirebaseDeleteToken.mock.invocationCallOrder[0]).toBeLessThan(mockRegisterUnitDevice.mock.invocationCallOrder[1]);
   });
 
 });

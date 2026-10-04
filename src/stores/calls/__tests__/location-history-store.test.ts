@@ -68,6 +68,25 @@ describe('useLocationHistoryStore', () => {
     expect(useLocationHistoryStore.getState().entries['call:42'].history?.Calls[0].CallId).toBe('new');
   });
 
+  it('keeps the current history while reloading, unless asked to discard it', async () => {
+    mockCallHistory.mockResolvedValueOnce({ Data: history(['1']) } as never);
+    await act(async () => {
+      await useLocationHistoryStore.getState().fetchHistory({ kind: 'call', id: '42' });
+    });
+
+    mockCallHistory.mockReturnValue(deferred<never>().promise);
+    act(() => {
+      void useLocationHistoryStore.getState().fetchHistory({ kind: 'call', id: '42' });
+    });
+    expect(useLocationHistoryStore.getState().entries['call:42']).toEqual(expect.objectContaining({ isLoading: true, history: expect.objectContaining({ Calls: [expect.objectContaining({ CallId: '1' })] }) }));
+
+    act(() => {
+      void useLocationHistoryStore.getState().fetchHistory({ kind: 'call', id: '42' }, { discard: true });
+    });
+    expect(useLocationHistoryStore.getState().entries['call:42']).toEqual({ history: null, isLoading: true, error: null });
+    mockCallHistory.mockReset();
+  });
+
   it('records an error and clears the history when the request fails', async () => {
     mockCallHistory.mockRejectedValueOnce(new Error('boom'));
 

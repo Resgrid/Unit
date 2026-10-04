@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import React from 'react';
 
@@ -6,6 +6,7 @@ import { getCallLocationHistory } from '@/api/calls/callLocationHistory';
 import { getContactCallHistory } from '@/api/contacts/contactCallHistory';
 import { type LocationHistoryData } from '@/models/v4/calls/locationHistoryResult';
 import { useLocationHistoryStore } from '@/stores/calls/location-history-store';
+import { dataProtectionStore } from '@/stores/data-protection/store';
 
 import { LocationHistoryPanel } from '../location-history-panel';
 
@@ -16,7 +17,7 @@ jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
 jest.mock('@/stores/data-protection/store', () => {
   const { create } = jest.requireActual('zustand');
-  return { dataProtectionStore: create(() => ({ grantToken: null })) };
+  return { dataProtectionStore: create(() => ({ grantToken: null, stepUpExpiresAt: null })) };
 });
 
 const mockTrackEvent = jest.fn();
@@ -88,6 +89,7 @@ describe('LocationHistoryPanel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useLocationHistoryStore.setState({ entries: {} });
+    dataProtectionStore.setState({ grantToken: null, stepUpExpiresAt: null });
   });
 
   it('lists previous calls with their match reasons and expands notes and closing notes', async () => {
@@ -148,6 +150,57 @@ describe('LocationHistoryPanel', () => {
 
     await waitFor(() => expect(screen.getByTestId('location-history-address-matching-off')).toBeTruthy());
     expect(screen.getByTestId('location-history-empty')).toBeTruthy();
+  });
+
+  it('shows note times in the device time zone, read from their UTC instants', async () => {
+    mockCallHistory.mockResolvedValueOnce({ Data: baseHistory } as never);
+    const noted = new Date('2026-10-01T14:20:00Z');
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const local = `${noted.getFullYear()}-${pad(noted.getMonth() + 1)}-${pad(noted.getDate())} ${pad(noted.getHours())}:${pad(noted.getMinutes())}`;
+
+    render(<LocationHistoryPanel source={{ kind: 'call', id: '42' }} />);
+    await waitFor(() => expect(screen.getByTestId('location-history-notes-toggle-9012')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('location-history-notes-toggle-9012'));
+
+    expect(screen.getByText(`${local} · Taylor Reed`)).toBeTruthy();
+  });
+
+  it('drops revealed history at once when the grant is cleared, without waiting for the redacted reload', async () => {
+    dataProtectionStore.setState({ grantToken: 'grant', stepUpExpiresAt: Date.now() + 60 * 60 * 1000 });
+    mockCallHistory.mockResolvedValueOnce({ Data: baseHistory } as never);
+    render(<LocationHistoryPanel source={{ kind: 'call', id: '42' }} />);
+    await waitFor(() => expect(screen.getByText('Structure fire')).toBeTruthy());
+
+    mockCallHistory.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => dataProtectionStore.setState({ grantToken: null, stepUpExpiresAt: null }));
+
+    expect(screen.getByTestId('location-history-loading')).toBeTruthy();
+    expect(screen.queryByText('Structure fire')).toBeNull();
+    expect(mockCallHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops revealed history when the grant window lapses', async () => {
+    dataProtectionStore.setState({ grantToken: 'grant', stepUpExpiresAt: Date.now() + 200 });
+    mockCallHistory.mockResolvedValueOnce({ Data: baseHistory } as never);
+    mockCallHistory.mockReturnValueOnce(new Promise(() => undefined));
+    render(<LocationHistoryPanel source={{ kind: 'call', id: '42' }} />);
+    await waitFor(() => expect(screen.getByText('Structure fire')).toBeTruthy());
+
+    await waitFor(() => expect(screen.getByTestId('location-history-loading')).toBeTruthy());
+    expect(screen.queryByText('Structure fire')).toBeNull();
+    expect(mockCallHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the list up while a new grant reloads it', async () => {
+    mockCallHistory.mockResolvedValueOnce({ Data: baseHistory } as never);
+    render(<LocationHistoryPanel source={{ kind: 'call', id: '42' }} />);
+    await waitFor(() => expect(screen.getByText('Structure fire')).toBeTruthy());
+
+    mockCallHistory.mockReturnValueOnce(new Promise(() => undefined));
+    act(() => dataProtectionStore.setState({ grantToken: 'grant', stepUpExpiresAt: Date.now() + 60 * 60 * 1000 }));
+
+    expect(mockCallHistory).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Structure fire')).toBeTruthy();
   });
 
   it('shows the load error when the request fails', async () => {

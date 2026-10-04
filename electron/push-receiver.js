@@ -76,6 +76,9 @@ function registerPushReceiver(ipcMain, options) {
   let receiverKey = null;
   let starting = null;
   let pendingClick = null;
+  // Bumped by every stop. A start that a stop overtook (a sign-out while it was registering) must not save credentials,
+  // connect or hand out a token: the stop already destroyed its receiver and forgot what it had.
+  let generation = 0;
 
   function load() {
     try {
@@ -129,10 +132,19 @@ function registerPushReceiver(ipcMain, options) {
       return;
     }
 
-    options.notify(payload, () => deliverClick(payload));
+    if (options.notify(payload, () => deliverClick(payload))) {
+      return;
+    }
+
+    // No native notifications on this system: the page's in-app alert is all that is left, focused or not.
+    if (!options.send('push:received', payload)) {
+      log.warn('Desktop push: a push could not be shown', { eventCode: payload.eventCode });
+    }
   }
 
   function stop(shouldForget) {
+    generation += 1;
+
     if (receiver) {
       try {
         receiver.destroy();
@@ -157,6 +169,8 @@ function registerPushReceiver(ipcMain, options) {
     }
 
     stop(false);
+    const startGeneration = generation;
+    const isCurrent = () => generation === startGeneration;
 
     const state = load();
     // Credentials minted for another Firebase app or key can't receive this one's pushes.
@@ -171,7 +185,10 @@ function registerPushReceiver(ipcMain, options) {
     });
 
     instance.onCredentialsChanged(({ newCredentials }) => {
-      save({ ...load(), configKey: key, credentials: newCredentials, persistentIds: [] });
+      // Saved after a sign-out forgot the old ones, these would be back on disk for the next launch.
+      if (isCurrent()) {
+        save({ ...load(), configKey: key, credentials: newCredentials, persistentIds: [] });
+      }
     });
     instance.onNotification(handleMessage);
 
@@ -180,7 +197,19 @@ function registerPushReceiver(ipcMain, options) {
 
     // The token exists once registration is done; the connection that delivers pushes can come up after
     // (and keeps retrying on its own), so the page can register without waiting on it.
-    await instance.registerIfNeeded();
+    try {
+      await instance.registerIfNeeded();
+    } catch (error) {
+      if (!isCurrent()) {
+        return null;
+      }
+      throw error;
+    }
+
+    if (!isCurrent()) {
+      return null;
+    }
+
     instance.connect().catch((error) => log.warn('Desktop push: connection failed', error));
 
     return instance.fcmToken;
@@ -192,9 +221,13 @@ function registerPushReceiver(ipcMain, options) {
     }
 
     if (!starting) {
-      starting = start(firebase).finally(() => {
-        starting = null;
+      // A start a stop overtook settles after the next one began: only the newest may clear the slot.
+      const run = start(firebase).finally(() => {
+        if (starting === run) {
+          starting = null;
+        }
       });
+      starting = run;
     }
 
     try {

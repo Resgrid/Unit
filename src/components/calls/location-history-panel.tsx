@@ -13,7 +13,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { ProtectedFieldIds } from '@/lib/data-protection/redacted';
-import { formatDateForDisplay, parseDateISOString } from '@/lib/utils';
+import { formatDateForDisplay, parseApiUtcDate } from '@/lib/utils';
 import { type LocationHistoryCallData, type LocationHistoryMatch } from '@/models/v4/calls/locationHistoryResult';
 import { locationHistoryKey, type LocationHistorySource, useLocationHistoryStore } from '@/stores/calls/location-history-store';
 import { dataProtectionStore } from '@/stores/data-protection/store';
@@ -31,15 +31,10 @@ const MATCH_STYLES: Record<LocationHistoryMatch, { box: string; text: string; ke
   SameContact: { box: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-800 dark:text-green-200', key: 'location_history.match.same_contact' },
 };
 
+// The *Utc fields are instants: read as UTC, shown in the device's time.
 const formatTimestamp = (value?: string | null): string => {
-  if (!value) {
-    return '';
-  }
-  try {
-    return formatDateForDisplay(parseDateISOString(value), 'yyyy-MM-dd HH:mm');
-  } catch {
-    return '';
-  }
+  const date = parseApiUtcDate(value);
+  return date ? formatDateForDisplay(date, 'yyyy-MM-dd HH:mm') : '';
 };
 
 interface HistoryCallCardProps {
@@ -47,15 +42,18 @@ interface HistoryCallCardProps {
   onOpenCall: (callId: string) => void;
 }
 
-const HistoryCallCard: React.FC<HistoryCallCardProps> = ({ call, onOpenCall }) => {
+const HistoryCallCard: React.FC<HistoryCallCardProps> = React.memo(({ call, onOpenCall }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const hasNotes = call.Notes.length > 0 || !!call.CompletedNotes;
   const loggedOn = call.LoggedOn || formatTimestamp(call.LoggedOnUtc);
+  const { CallId: callId } = call;
+  const openCall = useCallback(() => onOpenCall(callId), [onOpenCall, callId]);
+  const toggleNotes = useCallback(() => setExpanded((value) => !value), []);
 
   return (
     <Box className="mb-3 rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900" testID={`location-history-call-${call.CallId}`}>
-      <Pressable onPress={() => onOpenCall(call.CallId)} className="p-3" testID={`location-history-open-${call.CallId}`}>
+      <Pressable onPress={openCall} className="p-3" testID={`location-history-open-${call.CallId}`}>
         <HStack space="sm" className="items-start">
           <VStack className="flex-1">
             <HStack space="xs" className="flex-wrap items-center">
@@ -97,7 +95,7 @@ const HistoryCallCard: React.FC<HistoryCallCardProps> = ({ call, onOpenCall }) =
 
       {hasNotes ? (
         <Box className="border-t border-gray-100 dark:border-gray-800">
-          <Pressable onPress={() => setExpanded((value) => !value)} className="px-3 py-2" testID={`location-history-notes-toggle-${call.CallId}`}>
+          <Pressable onPress={toggleNotes} className="px-3 py-2" testID={`location-history-notes-toggle-${call.CallId}`}>
             <HStack space="xs" className="items-center">
               {expanded ? <ChevronUpIcon size={16} color="#6366F1" /> : <ChevronDownIcon size={16} color="#6366F1" />}
               <Text className="text-sm text-primary-600 dark:text-primary-400">{expanded ? t('location_history.hide_notes') : t('location_history.show_notes', { count: call.Notes.length })}</Text>
@@ -125,7 +123,7 @@ const HistoryCallCard: React.FC<HistoryCallCardProps> = ({ call, onOpenCall }) =
       ) : null}
     </Box>
   );
-};
+});
 
 /**
  * Previous calls at a location: on the call detail screen, other calls at the same address (however it was typed), nearby
@@ -141,6 +139,7 @@ export const LocationHistoryPanel: React.FC<LocationHistoryPanelProps> = ({ sour
   const fetchHistory = useLocationHistoryStore((state) => state.fetchHistory);
   const clear = useLocationHistoryStore((state) => state.clear);
   const grantToken = dataProtectionStore((state) => state.grantToken);
+  const stepUpExpiresAt = dataProtectionStore((state) => state.stepUpExpiresAt);
   const { kind, id } = source;
 
   React.useEffect(() => {
@@ -157,10 +156,20 @@ export const LocationHistoryPanel: React.FC<LocationHistoryPanelProps> = ({ sour
     if (previousGrant.current !== grantToken) {
       previousGrant.current = grantToken;
       if (id) {
-        fetchHistory({ kind, id });
+        // A new grant only replaces REDACTED values, so the list stays up meanwhile; a cleared one takes what it revealed with it.
+        fetchHistory({ kind, id }, { discard: !grantToken });
       }
     }
   }, [grantToken, kind, id, fetchHistory]);
+
+  // The grant's window is absolute and nothing clears the token when it lapses: what it revealed goes then.
+  React.useEffect(() => {
+    if (!id || !grantToken || stepUpExpiresAt == null) {
+      return;
+    }
+    const timer = setTimeout(() => fetchHistory({ kind, id }, { discard: true }), Math.max(0, stepUpExpiresAt - Date.now()));
+    return () => clearTimeout(timer);
+  }, [grantToken, stepUpExpiresAt, kind, id, fetchHistory]);
 
   const history = entry?.history ?? null;
   React.useEffect(() => {

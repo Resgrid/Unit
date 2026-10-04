@@ -122,7 +122,10 @@ describe('push:start', () => {
 
     const saved = JSON.parse(fs.readFileSync(storePath, 'utf8'));
     expect(saved.credentials).toEqual({ fcm: { token: 'token-1' } });
-    expect(fs.statSync(storePath).mode & 0o777).toBe(0o600);
+    // Windows has no POSIX permission bits to check.
+    if (process.platform !== 'win32') {
+      expect(fs.statSync(storePath).mode & 0o777).toBe(0o600);
+    }
 
     // A restart reuses the saved credentials, so the token the server holds stays valid.
     const restarted = setup({ storePath });
@@ -196,6 +199,17 @@ describe('incoming pushes', () => {
     expect(send).toHaveBeenCalledWith('push:notification-click', expect.objectContaining({ eventCode: 'C1234' }));
   });
 
+  it('hands a push to the page when the system has no native notifications', async () => {
+    const { ipcMain, notify, send } = setup();
+    notify.mockReturnValue(false);
+    await ipcMain.invoke('push:start', firebase);
+
+    FakeReceiver.created[0].notificationListener!(fcmMessage('C1234'));
+
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith('push:received', expect.objectContaining({ eventCode: 'C1234' }));
+  });
+
   it('keeps a click for a page that is not ready, until it asks', async () => {
     const { ipcMain, notify, send } = setup();
     send.mockReturnValue(false);
@@ -233,6 +247,38 @@ describe('push:stop', () => {
     expect(FakeReceiver.created[0].destroyed).toBe(true);
     expect(fs.existsSync(storePath)).toBe(false);
     await expect(ipcMain.invoke('push:start', firebase)).resolves.toEqual({ token: 'token-2' });
+  });
+
+  it('stops a start still registering: nothing saved, connected or handed back, and the next start is not cut short', async () => {
+    const pending: (() => void)[] = [];
+    const { ipcMain, storePath } = setup({
+      createReceiver: (config: ConstructorParameters<typeof FakeReceiver>[0]) => {
+        const receiver = new FakeReceiver(config);
+        const register = receiver.registerIfNeeded.bind(receiver);
+        receiver.registerIfNeeded = () => new Promise((resolve) => pending.push(() => resolve(register())));
+        return receiver;
+      },
+    });
+
+    const signedOut = ipcMain.invoke('push:start', firebase);
+    await ipcMain.invoke('push:stop', true);
+    const signedIn = ipcMain.invoke('push:start', firebase);
+
+    pending[0]();
+    await expect(signedOut).resolves.toEqual({ error: 'no-token' });
+    expect(FakeReceiver.created[0].destroyed).toBe(true);
+    expect(FakeReceiver.created[0].connected).toBe(false);
+    expect(fs.existsSync(storePath)).toBe(false);
+
+    // The overtaken start settling must not free the slot the running one holds.
+    const repeat = ipcMain.invoke('push:start', firebase);
+    expect(FakeReceiver.created).toHaveLength(2);
+
+    pending[1]();
+    await expect(signedIn).resolves.toEqual({ token: 'token-2' });
+    await expect(repeat).resolves.toEqual({ token: 'token-2' });
+    expect(FakeReceiver.created[1].connected).toBe(true);
+    expect(JSON.parse(fs.readFileSync(storePath, 'utf8')).credentials).toEqual({ fcm: { token: 'token-2' } });
   });
 
   it('keeps the credentials when only stopping', async () => {

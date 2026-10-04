@@ -63,6 +63,7 @@ function loadWorker(windows: FakeClient[] = []) {
   };
 
   return {
+    self,
     shown,
     opened,
     openedClient,
@@ -89,6 +90,20 @@ describe('service worker', () => {
     expect(worker.shown[0].title).toBe('Structure Fire');
     expect(worker.shown[0].options).toMatchObject({ body: '123 Main St', tag: 'C1234', requireInteraction: true, renotify: true });
     expect(open.posted).toEqual([{ type: 'PUSH_RECEIVED', data: { title: 'Structure Fire', body: '123 Main St', eventCode: 'C1234', type: '3', category: 'calls' } }]);
+  });
+
+  it('logs a push it could not show instead of dropping the failure', async () => {
+    const worker = loadWorker();
+    const failure = new Error('permission revoked');
+    worker.self.registration.showNotification = async () => {
+      throw failure;
+    };
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(worker.push(fcmPush('C1234', 'calls'))).resolves.toBeUndefined();
+
+    expect(consoleError).toHaveBeenCalledWith('Web push: the push could not be handled', { eventCode: 'C1234', error: failure });
+    consoleError.mockRestore();
   });
 
   it('lets other pushes close on their own, and never shows an empty one', async () => {

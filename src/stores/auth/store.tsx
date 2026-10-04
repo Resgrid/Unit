@@ -300,6 +300,7 @@ const useAuthStore = create<AuthState>()(
           } catch (error) {
             logger.warn({
               message: 'A sign-out hook failed',
+              operation: 'signOutHooks',
               context: { error },
             });
           }

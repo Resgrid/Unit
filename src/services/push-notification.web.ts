@@ -294,6 +294,13 @@ async function runSync(): Promise<void> {
     return;
   }
 
+  // Signed out or moved to another unit while the token was minted: the sign-out cleanup or the sync queued behind this
+  // one owns the device now, and registering here would put the token on a session that has ended.
+  const latest = currentIdentity();
+  if (!latest || keyOf(latest) !== keyOf(identity)) {
+    return;
+  }
+
   const current = readRegistration();
   if (current && current.key === keyOf(identity) && current.token === token && Date.now() - current.registeredAt < REREGISTER_AFTER_MS) {
     return;
@@ -311,11 +318,16 @@ async function runSync(): Promise<void> {
 let syncQueue: Promise<void> = Promise.resolve();
 let askArmed = false;
 
-/** Brings this device's registration in line with the signed-in unit. Calls run one at a time. */
-export function syncWebPush(): Promise<void> {
-  const run = syncQueue.then(runSync, runSync);
+/** Registration work (syncs and sign-out cleanups) runs one at a time, in the order it was asked for. */
+function enqueue(work: () => Promise<void>): Promise<void> {
+  const run = syncQueue.then(work, work);
   syncQueue = run.catch(() => undefined);
   return run;
+}
+
+/** Brings this device's registration in line with the signed-in unit. Calls run one at a time. */
+export function syncWebPush(): Promise<void> {
+  return enqueue(runSync);
 }
 
 /**
@@ -352,29 +364,37 @@ export function askForPermissionOnce(): void {
   document.addEventListener('click', ask, true);
 }
 
-registerSignOutHook(async (accessToken) => {
+async function unregisterAtSignOut(registration: StoredRegistration, accessToken: string): Promise<void> {
+  // Straight to the server, not through the api client: its 401 handling would re-enter logout. Awaited (sign-out
+  // waits on it), so no keepalive: some browsers refuse keepalive on a cross-origin call that needs a preflight.
+  try {
+    await fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
+      body: JSON.stringify({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }),
+    });
+  } catch (error) {
+    logger.warn({ message: 'Web push: the token could not be unregistered at sign-out', context: { error } });
+  }
+}
+
+async function signOutCleanup(accessToken: string | null, config: WebPushFirebaseConfig | null): Promise<void> {
   const stored = readRegistration();
   writeRegistration(null);
 
-  if (stored && accessToken) {
-    // Straight to the server, not through the api client: its 401 handling would re-enter logout. Awaited (sign-out
-    // waits on it), so no keepalive: some browsers refuse keepalive on a cross-origin call that needs a preflight.
-    try {
-      await fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
-        body: JSON.stringify({ Token: stored.token, Prefix: stored.prefix, UnitId: stored.unitId }),
-      });
-    } catch (error) {
-      logger.warn({ message: 'Web push: the token could not be unregistered at sign-out', context: { error } });
-    }
-  }
-
-  if (stored || getDesktopBridge()) {
-    await deleteLocalToken(getWebPushConfig());
-  }
+  // Killing the token here runs beside the server call, not after it: sign-out only waits so long, and this device has
+  // to stop showing the session's pushes even when the server is slow to answer.
+  await Promise.all([stored || getDesktopBridge() ? deleteLocalToken(config) : undefined, stored && accessToken ? unregisterAtSignOut(stored, accessToken) : undefined]);
 
   notify();
+}
+
+registerSignOutHook((accessToken) => {
+  // Read while the session's config is still loaded: the cleanup can run after sign-out has moved on.
+  const config = getWebPushConfig();
+  // Queued behind any sync in flight, so the registration that sync is still writing is the one taken off. The next
+  // sign-in's sync queues behind this in turn: a cleanup that outlasts sign-out's wait never tears down that session's token.
+  return enqueue(() => signOutCleanup(accessToken, config));
 });
 
 // --- Incoming pushes ---

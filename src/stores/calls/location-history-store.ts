@@ -17,10 +17,15 @@ export interface LocationHistoryEntry {
   error: string | null;
 }
 
+export interface FetchHistoryOptions {
+  /** Drops what is on screen while the replacement loads: for a grant that ended, whose revealed values must not stay up. */
+  discard?: boolean;
+}
+
 interface LocationHistoryState {
   entries: Record<string, LocationHistoryEntry>;
 
-  fetchHistory: (source: LocationHistorySource) => Promise<void>;
+  fetchHistory: (source: LocationHistorySource, options?: FetchHistoryOptions) => Promise<void>;
   clear: (source: LocationHistorySource) => void;
 }
 
@@ -38,11 +43,11 @@ let sequence = 0;
 export const useLocationHistoryStore = create<LocationHistoryState>((set) => ({
   entries: {},
 
-  fetchHistory: async (source: LocationHistorySource) => {
+  fetchHistory: async (source: LocationHistorySource, options?: FetchHistoryOptions) => {
     const key = locationHistoryKey(source);
     const request = ++sequence;
     latestRequests[key] = request;
-    set((state) => ({ entries: { ...state.entries, [key]: { history: state.entries[key]?.history ?? null, isLoading: true, error: null } } }));
+    set((state) => ({ entries: { ...state.entries, [key]: { history: options?.discard ? null : (state.entries[key]?.history ?? null), isLoading: true, error: null } } }));
 
     try {
       const result = source.kind === 'call' ? await getCallLocationHistory(source.id) : await getContactCallHistory(source.id);
