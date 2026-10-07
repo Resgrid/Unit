@@ -189,7 +189,9 @@ const Sidebar = ({ onClose }: SidebarProps) => {
           <VStack space="sm" className="mb-4 w-full">
             {offeredStatuses.offered.map((status) => {
               const isCurrent = String(status.Id) === currentStatusId;
-              const foreground = invertColor(status.BColor, true);
+              // invertColor throws on a non-hex value, so an option without a color falls back to white like the status sheet.
+              const background = status.BColor || '#ffffff';
+              const foreground = invertColor(background, true);
               const label = (
                 <HStack space="xs" className="items-center justify-center">
                   <ButtonText numberOfLines={1} style={{ color: foreground, flexShrink: 1 }}>
@@ -210,7 +212,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                     testID={`sidebar-status-hold-${status.Id}`}
                     onConfirm={() => setIsOpen(true, status, { holdConfirmed: true })}
                     onTap={() => showToast('info', t('status.hold_to_set_hint'))}
-                    backgroundColor={status.BColor || '#ffffff'}
+                    backgroundColor={background}
                     foregroundColor={foreground}
                     style={isCurrent ? styles.currentOutline : null}
                     contentStyle={styles.holdContent}
@@ -230,7 +232,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                   className="w-full justify-center overflow-visible px-3 py-2"
                   action="primary"
                   size="lg"
-                  style={[{ backgroundColor: status.BColor }, isCurrent ? styles.currentOutline : null]}
+                  style={[{ backgroundColor: background }, isCurrent ? styles.currentOutline : null]}
                   onPress={() => setIsOpen(true, status)}
                   accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
                 >

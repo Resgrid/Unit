@@ -154,7 +154,8 @@ export const CloseCallBottomSheet: React.FC<CloseCallBottomSheetProps> = ({ isOp
                   <Text className="font-medium">{t('call_detail.close_call_notify')}</Text>
                   <Text className="text-xs text-gray-500 dark:text-gray-400">{t('call_detail.close_call_notify_hint')}</Text>
                 </VStack>
-                <Switch value={sendNotification} onValueChange={setSendNotification} accessibilityLabel={t('call_detail.close_call_notify')} testID="close-call-notify-switch" />
+                {/* Locked while submitting: the choice is already on its way to the server. */}
+                <Switch value={sendNotification} onValueChange={setSendNotification} isDisabled={isSubmitting} accessibilityLabel={t('call_detail.close_call_notify')} testID="close-call-notify-switch" />
               </HStack>
 
               <HStack space="sm" className="mt-4 justify-between">

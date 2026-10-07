@@ -176,9 +176,9 @@ jest.mock('@/components/ui/textarea', () => ({
 }));
 
 jest.mock('@/components/ui/switch', () => ({
-  Switch: ({ value, onValueChange, testID }: any) => {
+  Switch: ({ value, onValueChange, isDisabled, testID }: any) => {
     const { Switch: RNSwitch } = require('react-native');
-    return <RNSwitch value={value} onValueChange={onValueChange} testID={testID} />;
+    return <RNSwitch value={value} onValueChange={onValueChange} disabled={isDisabled} testID={testID} />;
   },
 }));
 
@@ -380,6 +380,35 @@ describe('CloseCallBottomSheet', () => {
 
     await waitFor(() => {
       expect(mockCloseCall).toHaveBeenCalledWith({ callId: 'test-call-1', type: 7, note: '', sendNotification: false });
+    });
+  });
+
+  it('locks the notify switch while the close is in flight', async () => {
+    let resolveClose: () => void = () => {};
+    mockCloseCall.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveClose = resolve;
+        })
+    );
+    mockFetchCalls.mockResolvedValue(undefined);
+
+    render(<CloseCallBottomSheet isOpen={true} onClose={jest.fn()} callId="test-call-1" />);
+
+    expect(screen.getByTestId('close-call-notify-switch').props.disabled).toBeFalsy();
+
+    selectCloseCallType('1');
+    fireEvent.press(screen.getAllByText('call_detail.close_call')[1]);
+
+    await waitFor(() => {
+      expect(mockCloseCall).toHaveBeenCalled();
+      expect(screen.getByTestId('close-call-notify-switch').props.disabled).toBe(true);
+    });
+
+    resolveClose();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('close-call-notify-switch').props.disabled).toBeFalsy();
     });
   });
 
