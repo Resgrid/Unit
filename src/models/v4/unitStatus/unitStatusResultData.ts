@@ -3,6 +3,8 @@ export class UnitStatusResultData {
   public Name: string = '';
   public Type: string = '';
   public State: string = '';
+  /** Id of the current status option (matches StatusesResultData.Id); 0/missing on older servers. */
+  public StateId?: number | string | null = null;
   public StateCss: string = '';
   public StateStyle: string = '';
   public Timestamp: string = '';

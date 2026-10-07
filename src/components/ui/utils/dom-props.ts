@@ -1,3 +1,5 @@
+import { StyleSheet } from 'react-native';
+
 type WithTestID = { testID?: string };
 
 // React Native-only props that must never reach a DOM element. React warns
@@ -51,7 +53,9 @@ export function toDomProps<T extends object>(props: T & WithTestID): Omit<T, 'te
 
   for (const [key, value] of Object.entries(rest)) {
     if (!RN_ONLY_PROPS.has(key)) {
-      domProps[key] = value;
+      // Callers pass React Native style arrays (`style={[a, b]}`); a DOM element only takes one object, and an
+      // array makes React set style[0] on the CSSStyleDeclaration, which throws and takes the whole screen down.
+      domProps[key] = key === 'style' && Array.isArray(value) ? StyleSheet.flatten(value) : value;
     }
   }
 

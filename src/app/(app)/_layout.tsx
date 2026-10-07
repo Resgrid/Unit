@@ -650,6 +650,9 @@ export default function TabLayout() {
 
             <Tabs.Screen name="settings" options={settingsOptions} />
 
+            {/* Opened from Settings; without a declaration expo-router adds it to the tab bar as "account-security". */}
+            <Tabs.Screen name="account-security" options={{ href: null, title: t('mfa.account.title') }} />
+
             <Tabs.Screen name="chat" options={chatOptions} />
 
             <Tabs.Screen name="chatbot" options={chatbotOptions} />

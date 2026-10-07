@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { getCallFiles, getCallImages, saveCallImage } from '@/api/calls/callFiles';
 import { getCallNotes, saveCallNote } from '@/api/calls/callNotes';
 import { closeCall, type CloseCallRequest, getCall, getCallExtraData, updateCall, type UpdateCallRequest } from '@/api/calls/calls';
+import { getCallCloseErrorMessage } from '@/lib/call-close';
 import { logger } from '@/lib/logging';
 import { type CallFileResultData } from '@/models/v4/callFiles/callFileResultData';
 import { type CallNoteResultData } from '@/models/v4/callNotes/callNoteResultData';
@@ -214,7 +215,8 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
       set({ isLoading: false });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : 'Failed to close call',
+        // Prefer the server's reason (e.g. the call still has an active incident command)
+        error: getCallCloseErrorMessage(error) ?? (error instanceof Error ? error.message : 'Failed to close call'),
         isLoading: false,
       });
       throw error;
