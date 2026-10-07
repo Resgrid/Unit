@@ -3,18 +3,20 @@ import { ArrowLeft, ArrowRight, Check } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { InteractionManager, ScrollView, TouchableOpacity } from 'react-native';
+import { InteractionManager, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { logger } from '@/lib/logging';
 import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { getUnitStatusCallDestinationId, resolveDefaultStatusCall } from '@/lib/status-destination';
+import { canSubmitStatusWithoutInput, getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
 import { invertColor } from '@/lib/utils';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
 import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEntityTypes';
 import { type GroupResultData } from '@/models/v4/groups/groupsResultData';
 import { type PoiResultData } from '@/models/v4/mapping/poiResultData';
+import { type StatusesResultData } from '@/models/v4/statuses/statusesResultData';
 import { SaveUnitStatusInput, SaveUnitStatusRoleInput } from '@/models/v4/unitStatus/saveUnitStatusInput';
 import { acquireLocationFix, getLocationFixErrorMessage, readRecentLocation } from '@/services/location-fix';
 import { offlineEventManager } from '@/services/offline-event-manager.service';
@@ -32,6 +34,10 @@ import { Spinner } from '../ui/spinner';
 import { Text } from '../ui/text';
 import { Textarea, TextareaInput } from '../ui/textarea';
 import { VStack } from '../ui/vstack';
+import { HoldToConfirmButton } from './hold-to-confirm-button';
+
+/** The red outline that marks the unit's current status (crews asked for it to be unmistakable). */
+const CURRENT_STATUS_BORDER = '#dc2626';
 
 type DestinationTab = 'call' | 'station' | 'poi';
 
@@ -126,6 +132,8 @@ export const StatusBottomSheet = () => {
   const selectedDestinationType = useStatusBottomSheetStore((state) => state.selectedDestinationType);
   const selectedStatus = useStatusBottomSheetStore((state) => state.selectedStatus);
   const cameFromStatusSelection = useStatusBottomSheetStore((state) => state.cameFromStatusSelection);
+  const holdConfirmed = useStatusBottomSheetStore((state) => state.holdConfirmed);
+  const setHoldConfirmed = useStatusBottomSheetStore((state) => state.setHoldConfirmed);
   const note = useStatusBottomSheetStore((state) => state.note);
   const availableCalls = useStatusBottomSheetStore((state) => state.availableCalls);
   const availableStations = useStatusBottomSheetStore((state) => state.availableStations);
@@ -151,6 +159,9 @@ export const StatusBottomSheet = () => {
   const activeStatuses = useCoreStore((state) => state.activeStatuses);
   const unitRoleAssignments = useRolesStore((state) => state.unitRoleAssignments);
   const saveUnitStatus = useStatusesStore((state) => state.saveUnitStatus);
+  // Department "Hold to set status": a two-second press and hold replaces tap + Next/Submit.
+  const isHoldMode = useCoreStore((state) => state.config?.StatusHoldToConfirm === true);
+  const [showAllStatuses, setShowAllStatuses] = React.useState(false);
   // NOTE: location is read via useLocationStore.getState() inside handleSubmit
   // instead of subscribing — this sheet is mounted at the root and subscribing
   // here re-rendered the whole 900-line component on every GPS fix, even when
@@ -211,6 +222,24 @@ export const StatusBottomSheet = () => {
   // A status with a destination step waits for its lists; a status without one only waits when
   // there is a call it could be carrying, so an "Available" with nothing open is never held up.
   const isAwaitingDestinationData = isDestinationDataPending && (shouldShowDestinationStep || hasPotentialDefaultCall);
+
+  // The unit's current status within this unit type's statuses. activeUnitStatus is refreshed after a
+  // unit switch, so a status that still belongs to the previous unit marks nothing.
+  const currentStatusId = React.useMemo(() => {
+    if (!activeUnitStatus || (activeUnit?.UnitId && activeUnitStatus.UnitId && String(activeUnitStatus.UnitId) !== String(activeUnit.UnitId))) {
+      return null;
+    }
+
+    return resolveCurrentStatusId(activeStatuses?.Statuses, activeUnitStatus);
+  }, [activeStatuses?.Statuses, activeUnit?.UnitId, activeUnitStatus]);
+  const currentStatus = React.useMemo(() => activeStatuses?.Statuses?.find((status) => String(status.Id) === currentStatusId) ?? null, [activeStatuses?.Statuses, currentStatusId]);
+  const offeredStatuses = React.useMemo(() => getOfferedStatuses(activeStatuses?.Statuses, currentStatusId, showAllStatuses), [activeStatuses?.Statuses, currentStatusId, showAllStatuses]);
+  // Whether "Show next statuses only" has anything to go back to once the crew chose "Show all".
+  const hasNextStatusRestriction = React.useMemo(() => showAllStatuses && getOfferedStatuses(activeStatuses?.Statuses, currentStatusId, false).isRestricted, [activeStatuses?.Statuses, currentStatusId, showAllStatuses]);
+
+  // A held status saves straight away unless it still needs the crew: a required note, or a destination
+  // the sheet cannot fill from the active / dispatched call.
+  const canSubmitHeldStatus = canSubmitStatusWithoutInput(selectedStatus, { allowsCalls, hasDefaultCall: !!defaultCall });
 
   const effectiveDestination = React.useMemo((): StatusDestination => {
     if (!selectedStatus) {
@@ -282,6 +311,7 @@ export const StatusBottomSheet = () => {
       callRowOffsetsRef.current = {};
       // The sheet stays mounted at the root, so the next open must start with the default again.
       setHasExplicitDestinationChoice(false);
+      setShowAllStatuses(false);
     }
   }, [isOpen]);
 
@@ -695,6 +725,40 @@ export const StatusBottomSheet = () => {
     }
   }, [activeCallId, activeUnit, effectiveDestination, getStatusId, isAwaitingDestinationData, note, reset, saveUnitStatus, selectedStatus, setActiveCall, shouldShowDestinationStep, showToast, t, unitRoleAssignments]);
 
+  // A completed hold (in this list, or on a sidebar button that opened the sheet) acts once the status is
+  // selected and the destination lists it may default from have landed: it saves when nothing else is
+  // needed, and otherwise opens the step that still needs the crew.
+  React.useEffect(() => {
+    if (!isOpen || !holdConfirmed || !selectedStatus || isSubmitting || isAwaitingDestinationData) {
+      return;
+    }
+
+    setHoldConfirmed(false);
+
+    if (canSubmitHeldStatus) {
+      void handleSubmit();
+      return;
+    }
+
+    if (currentStep === 'select-status') {
+      setCurrentStep(shouldShowDestinationStep ? 'select-destination' : 'add-note');
+    }
+  }, [canSubmitHeldStatus, currentStep, handleSubmit, holdConfirmed, isAwaitingDestinationData, isOpen, isSubmitting, selectedStatus, setCurrentStep, setHoldConfirmed, shouldShowDestinationStep]);
+
+  const handleStatusHold = (statusId: string) => {
+    const status = activeStatuses?.Statuses?.find((item) => item.Id.toString() === statusId);
+    if (!status || pendingSubmissionRef.current !== null) {
+      return;
+    }
+
+    setSelectedStatus(status);
+    setHoldConfirmed(true);
+  };
+
+  const showHoldHint = () => {
+    showToast('info', t('status.hold_to_set_hint'));
+  };
+
   // True while the default call is still to be applied (list loading, or loaded but the auto-select
   // effect has not run yet) — "No destination" must not flash as the choice in that window.
   const isDefaultCallPending = isOpen && !!selectedStatus && allowsCalls && !hasExplicitDestinationChoice && hasPotentialDefaultCall && (isDestinationDataPending || !!defaultCall);
@@ -884,19 +948,132 @@ export const StatusBottomSheet = () => {
     </>
   );
 
-  // Status and destination steps advance with Next, or submit when they are the last step.
-  const renderAdvanceButton = () => (
-    <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
-      {isLastStep ? (
-        renderSubmitButtonContent()
-      ) : (
-        <>
-          <ButtonText className="text-sm">{t('common.next')}</ButtonText>
-          <ArrowRight size={14} color="#fff" />
-        </>
-      )}
-    </Button>
+  // In hold mode the submitting control is a press-and-hold button too, so a status that needed a destination
+  // or a note is confirmed the same way as one saved straight from the list.
+  const renderHoldSubmitButton = () => (
+    <View style={styles.holdSubmit}>
+      <HoldToConfirmButton
+        testID="status-hold-submit"
+        onConfirm={() => void handleSubmit()}
+        onTap={showHoldHint}
+        disabled={!canProceedFromCurrentStep()}
+        backgroundColor="#2563eb"
+        foregroundColor="#ffffff"
+        contentStyle={styles.holdSubmitContent}
+        accessibilityLabel={t('status.hold_to_submit')}
+        accessibilityHint={t('status.hold_to_set_hint')}
+      >
+        <HStack space="xs" className="items-center justify-center">
+          {isSubmitting ? <Spinner size="small" color="white" /> : null}
+          <Text className="text-center text-sm font-semibold" style={{ color: '#ffffff' }}>
+            {isSubmitting ? t('common.submitting') : t('status.hold_to_submit')}
+          </Text>
+        </HStack>
+      </HoldToConfirmButton>
+    </View>
   );
+
+  // Status and destination steps advance with Next, or submit when they are the last step.
+  const renderAdvanceButton = () => {
+    if (isHoldMode && isLastStep) {
+      return renderHoldSubmitButton();
+    }
+
+    return (
+      <Button onPress={handleNext} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-4 py-2">
+        {isLastStep ? (
+          renderSubmitButtonContent()
+        ) : (
+          <>
+            <ButtonText className="text-sm">{t('common.next')}</ButtonText>
+            <ArrowRight size={14} color="#fff" />
+          </>
+        )}
+      </Button>
+    );
+  };
+
+  const renderCurrentPill = () => (
+    <View style={styles.currentPill}>
+      <Text style={styles.currentPillText}>{t('status.current')}</Text>
+    </View>
+  );
+
+  const renderCurrentStatusBanner = (status: StatusesResultData) => {
+    const background = status.BColor || '#ffffff';
+    const foreground = invertColor(background, true);
+
+    return (
+      <View testID="status-current-banner" style={[styles.currentBanner, { backgroundColor: background }]}>
+        <Text style={[styles.currentBannerCaption, { color: foreground }]}>{t('status.current_status')}</Text>
+        <HStack space="sm" className="items-center">
+          <Text className="flex-1 font-bold" style={{ color: foreground }}>
+            {status.Text}
+          </Text>
+          {renderCurrentPill()}
+        </HStack>
+      </View>
+    );
+  };
+
+  const renderStatusOption = (status: StatusesResultData) => {
+    const statusDetailDescription = getStatusDetailDescription(Number(status.Detail));
+    const isCurrent = String(status.Id) === currentStatusId;
+    const background = status.BColor || '#ffffff';
+    const foreground = invertColor(background, true);
+
+    const details = (
+      <VStack className="flex-1">
+        <HStack space="sm" className="items-center">
+          <Text className="flex-1 font-bold" style={{ color: foreground }}>
+            {status.Text}
+          </Text>
+          {isCurrent ? renderCurrentPill() : null}
+        </HStack>
+        {Number(status.Detail) > 0 ? <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text> : null}
+        {Number(status.Note) > 0 ? <Text className="text-xs text-gray-500 dark:text-gray-500">{Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}</Text> : null}
+      </VStack>
+    );
+
+    if (isHoldMode) {
+      return (
+        <View key={status.Id} className="mb-3">
+          <HoldToConfirmButton
+            testID={`status-hold-${status.Id}`}
+            onConfirm={() => handleStatusHold(status.Id.toString())}
+            onTap={showHoldHint}
+            disabled={isSubmitting || holdConfirmed}
+            backgroundColor={background}
+            foregroundColor={foreground}
+            style={isCurrent ? styles.currentOutline : styles.optionOutline}
+            contentStyle={styles.holdOptionContent}
+            accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : status.Text}
+            accessibilityHint={t('status.hold_to_set_hint')}
+          >
+            {details}
+          </HoldToConfirmButton>
+        </View>
+      );
+    }
+
+    const isSelected = selectedStatus?.Id.toString() === status.Id.toString();
+
+    return (
+      <TouchableOpacity
+        key={status.Id}
+        testID={`status-option-${status.Id}`}
+        onPress={() => handleStatusSelect(status.Id.toString())}
+        className={`mb-3 rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
+        style={[{ backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff') }, isCurrent && !isSelected ? styles.currentOutline : null]}
+        accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
+      >
+        <HStack space="sm" className="items-center">
+          <Check size={20} color={isSelected ? '#3b82f6' : 'transparent'} />
+          {details}
+        </HStack>
+      </TouchableOpacity>
+    );
+  };
 
   // Opening straight into 'add-note' (status picked up front, no destination to choose)
   // leaves nothing to go back to, so the note step offers Cancel instead of Previous.
@@ -940,50 +1117,46 @@ export const StatusBottomSheet = () => {
 
           {currentStep === 'select-status' ? (
             <VStack space="md" className="w-full flex-1">
-              <Text className="mb-2 font-medium">{t('status.select_status_type')}</Text>
+              <Text className="mb-2 font-medium">{isHoldMode ? t('status.hold_to_set_instructions') : t('status.select_status_type')}</Text>
+
+              {/* The current status stays visible even when the list only offers what follows it. */}
+              {currentStatus && !offeredStatuses.offered.some((status) => String(status.Id) === currentStatusId) ? renderCurrentStatusBanner(currentStatus) : null}
 
               <ScrollView className="flex-1">
                 <VStack space="sm">
-                  {activeStatuses?.Statuses && activeStatuses.Statuses.length > 0 ? (
-                    activeStatuses.Statuses.map((status) => {
-                      const statusDetailDescription = getStatusDetailDescription(Number(status.Detail));
-                      const isSelected = selectedStatus?.Id.toString() === status.Id.toString();
-
-                      return (
-                        <TouchableOpacity
-                          key={status.Id}
-                          onPress={() => handleStatusSelect(status.Id.toString())}
-                          className={`mb-3 rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
-                          style={{
-                            backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff'),
-                          }}
-                        >
-                          <HStack space="sm" className="items-center">
-                            <Check size={20} color={isSelected ? '#3b82f6' : 'transparent'} />
-                            <VStack className="flex-1">
-                              <Text className="font-bold" style={{ color: invertColor(status.BColor || '#ffffff', true) }}>
-                                {status.Text}
-                              </Text>
-                              {Number(status.Detail) > 0 ? <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text> : null}
-                              {Number(status.Note) > 0 ? <Text className="text-xs text-gray-500 dark:text-gray-500">{Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}</Text> : null}
-                            </VStack>
-                          </HStack>
-                        </TouchableOpacity>
-                      );
-                    })
+                  {offeredStatuses.offered.length > 0 ? (
+                    offeredStatuses.offered.map((status) => renderStatusOption(status))
                   ) : (
                     <Text className="mt-4 italic text-gray-600 dark:text-gray-400">{t('status.no_statuses_available')}</Text>
                   )}
+
+                  {offeredStatuses.isRestricted ? (
+                    <TouchableOpacity testID="status-show-all" onPress={() => setShowAllStatuses(true)} className="items-center py-2">
+                      <Text className="font-semibold text-blue-600 dark:text-blue-400">{t('status.show_all_statuses', { count: offeredStatuses.hiddenCount })}</Text>
+                    </TouchableOpacity>
+                  ) : hasNextStatusRestriction ? (
+                    <TouchableOpacity testID="status-show-next" onPress={() => setShowAllStatuses(false)} className="items-center py-2">
+                      <Text className="font-semibold text-blue-600 dark:text-blue-400">{t('status.show_next_statuses')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </VStack>
               </ScrollView>
 
-              {isLastStep ? renderStatusSummary() : null}
+              {isLastStep && !isHoldMode ? renderStatusSummary() : null}
+              {isHoldMode && (holdConfirmed || isSubmitting) ? renderStatusSummary() : null}
 
-              <HStack space="xs" className="mt-2 justify-between px-4">
+              <HStack space="xs" className="mt-2 items-center justify-between px-4">
                 <Button variant="outline" onPress={handleClose} className="px-3">
                   <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
                 </Button>
-                {renderAdvanceButton()}
+                {!isHoldMode ? (
+                  renderAdvanceButton()
+                ) : holdConfirmed || isSubmitting ? (
+                  <HStack space="xs" className="items-center">
+                    <Spinner size="small" />
+                    <Text className="text-sm text-gray-600 dark:text-gray-400">{t('common.submitting')}</Text>
+                  </HStack>
+                ) : null}
               </HStack>
             </VStack>
           ) : null}
@@ -1173,9 +1346,13 @@ export const StatusBottomSheet = () => {
                       <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
                     </Button>
                   )}
-                  <Button onPress={() => void handleSubmit()} className="bg-blue-600 px-4 py-2" isDisabled={!canProceedFromCurrentStep()}>
-                    {renderSubmitButtonContent()}
-                  </Button>
+                  {isHoldMode ? (
+                    renderHoldSubmitButton()
+                  ) : (
+                    <Button onPress={() => void handleSubmit()} className="bg-blue-600 px-4 py-2" isDisabled={!canProceedFromCurrentStep()}>
+                      {renderSubmitButtonContent()}
+                    </Button>
+                  )}
                 </HStack>
               </VStack>
             </ScrollView>
@@ -1216,9 +1393,13 @@ export const StatusBottomSheet = () => {
                       <ButtonText className="text-sm">{t('common.cancel')}</ButtonText>
                     </Button>
                   )}
-                  <Button onPress={() => void handleSubmit()} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-3">
-                    {renderSubmitButtonContent()}
-                  </Button>
+                  {isHoldMode ? (
+                    renderHoldSubmitButton()
+                  ) : (
+                    <Button onPress={() => void handleSubmit()} isDisabled={!canProceedFromCurrentStep()} className="bg-blue-600 px-3">
+                      {renderSubmitButtonContent()}
+                    </Button>
+                  )}
                 </HStack>
               </VStack>
             </ScrollView>
@@ -1228,3 +1409,50 @@ export const StatusBottomSheet = () => {
     </Actionsheet>
   );
 };
+
+const styles = StyleSheet.create({
+  holdSubmit: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  holdSubmitContent: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  holdOptionContent: {
+    padding: 12,
+  },
+  optionOutline: {
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  currentOutline: {
+    borderWidth: 3,
+    borderColor: CURRENT_STATUS_BORDER,
+  },
+  currentPill: {
+    backgroundColor: CURRENT_STATUS_BORDER,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  currentPillText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  currentBanner: {
+    borderWidth: 3,
+    borderColor: CURRENT_STATUS_BORDER,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  currentBannerCaption: {
+    fontSize: 11,
+    fontWeight: '600',
+    opacity: 0.8,
+    textTransform: 'uppercase',
+  },
+});

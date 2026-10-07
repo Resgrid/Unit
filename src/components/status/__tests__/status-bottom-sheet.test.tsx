@@ -245,7 +245,7 @@ jest.mock('@/stores/toast/store', () => ({
 }));
 
 import React from 'react';
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
+import { act, render, fireEvent, waitFor, screen } from '@testing-library/react-native';
 import { useTranslation } from 'react-i18next';
 
 import { useStatusBottomSheetStore, useStatusesStore } from '@/stores/status/store';
@@ -4203,6 +4203,137 @@ describe('StatusBottomSheet', () => {
 
       expect(screen.getByTestId('status-summary').props.children).toBe('On Scene · No Destination');
       expect(findButton('Submit')?.props.accessibilityState?.disabled).toBe(false);
+    });
+  });
+
+  describe('status flow: current status, next statuses and hold to set', () => {
+    // Belgian EMS sequence: after "Departed" only "On Scene" is offered.
+    const available = { Id: 10, Type: 1, StateId: 1, Text: 'Available', BColor: '#28a745', Color: '#fff', Gps: false, Note: 0, Detail: 0, NextIds: [] as number[] };
+    const departed = { Id: 12, Type: 1, StateId: 1, Text: 'Departed', BColor: '#f0ad4e', Color: '#000', Gps: false, Note: 0, Detail: 2, NextIds: [13] };
+    const onScene = { Id: 13, Type: 1, StateId: 1, Text: 'On Scene', BColor: '#dc3545', Color: '#fff', Gps: false, Note: 0, Detail: 0, NextIds: [10] };
+    const flowStatuses = { UnitType: '0', Statuses: [available, departed, onScene] };
+    const departedUnitStatus = { UnitId: 'unit-1', State: 'Departed', StateId: 12, DestinationId: 0, DestinationType: 0 };
+
+    const setCoreStore = (overrides: Record<string, unknown>) => {
+      const store = { ...defaultCoreStore, activeStatuses: flowStatuses, activeUnitStatus: departedUnitStatus, ...overrides };
+      mockGetState.mockReturnValue(store as any);
+      mockUseCoreStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+    };
+
+    // Setters that write to the mocked state, so a re-render sees what a hold selected.
+    const mountStatefulSheetStore = (overrides: Record<string, unknown> = {}) => {
+      let state: any = { ...defaultBottomSheetStore, isOpen: true, currentStep: 'select-status', cameFromStatusSelection: true, holdConfirmed: false, lastFetchedAt: 1, ...overrides };
+      const update = (patch: Record<string, unknown>) => {
+        state = { ...state, ...patch };
+      };
+      state.setSelectedStatus = jest.fn((selectedStatus) => update({ selectedStatus }));
+      state.setHoldConfirmed = jest.fn((holdConfirmed) => update({ holdConfirmed }));
+      state.setCurrentStep = jest.fn((currentStep) => update({ currentStep }));
+      mockUseStatusBottomSheetStore.mockImplementation((selector: any) => (selector ? selector(state) : state));
+      return () => state;
+    };
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('offers only the next statuses and keeps the current one visible, outlined', () => {
+      setCoreStore({});
+      mountStatefulSheetStore();
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.getByText('On Scene')).toBeTruthy();
+      expect(screen.queryByText('Available')).toBeNull();
+      expect(screen.getByTestId('status-current-banner')).toBeTruthy();
+      expect(screen.getByText('Departed')).toBeTruthy();
+      expect(screen.getByText('status.current')).toBeTruthy();
+      expect(screen.getByText('status.show_all_statuses')).toBeTruthy();
+    });
+
+    it('shows every status on request, with the current one marked in the list', () => {
+      setCoreStore({});
+      mountStatefulSheetStore();
+
+      render(<StatusBottomSheet />);
+      fireEvent.press(screen.getByTestId('status-show-all'));
+
+      expect(screen.getByText('Available')).toBeTruthy();
+      expect(screen.getByText('On Scene')).toBeTruthy();
+      expect(screen.queryByTestId('status-current-banner')).toBeNull();
+      expect(screen.getByTestId('status-option-12').props.accessibilityLabel).toBe('Departed, status.current');
+      expect(screen.getByTestId('status-show-next')).toBeTruthy();
+    });
+
+    it('matches the current status by text on servers that send no StateId', () => {
+      setCoreStore({ activeUnitStatus: { UnitId: 'unit-1', State: 'Departed' } });
+      mountStatefulSheetStore();
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.queryByText('Available')).toBeNull();
+      expect(screen.getByTestId('status-current-banner')).toBeTruthy();
+    });
+
+    it('offers everything when the current status belongs to another unit', () => {
+      setCoreStore({ activeUnitStatus: { ...departedUnitStatus, UnitId: 'unit-2' } });
+      mountStatefulSheetStore();
+
+      render(<StatusBottomSheet />);
+
+      expect(screen.getByText('Available')).toBeTruthy();
+      expect(screen.queryByTestId('status-current-banner')).toBeNull();
+    });
+
+    it('in hold mode saves a held status that needs nothing more, without a Next tap', async () => {
+      jest.useFakeTimers();
+      setCoreStore({ config: { StatusHoldToConfirm: true }, activeUnitStatus: { UnitId: 'unit-1', State: 'On Scene', StateId: 13 } });
+      mountStatefulSheetStore();
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      expect(screen.queryByText('Next')).toBeNull();
+      expect(screen.getByText('status.hold_to_set_instructions')).toBeTruthy();
+
+      fireEvent(screen.getByTestId('status-hold-10'), 'pressIn');
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      rerender(<StatusBottomSheet />);
+
+      await waitFor(() => expect(mockSaveUnitStatus).toHaveBeenCalledWith(expect.objectContaining({ Type: '10', RespondingTo: '0' })));
+    });
+
+    it('in hold mode opens the destination step when the held status has no call to default to', () => {
+      jest.useFakeTimers();
+      setCoreStore({ config: { StatusHoldToConfirm: true }, activeUnitStatus: null });
+      const getState = mountStatefulSheetStore();
+
+      const { rerender } = render(<StatusBottomSheet />);
+
+      fireEvent(screen.getByTestId('status-hold-12'), 'pressIn');
+      act(() => {
+        jest.advanceTimersByTime(2000);
+      });
+      rerender(<StatusBottomSheet />);
+
+      expect(getState().currentStep).toBe('select-destination');
+      expect(getState().holdConfirmed).toBe(false);
+      expect(mockSaveUnitStatus).not.toHaveBeenCalled();
+    });
+
+    it('in hold mode explains the gesture when a status is only tapped', () => {
+      jest.useFakeTimers();
+      setCoreStore({ config: { StatusHoldToConfirm: true } });
+      mountStatefulSheetStore();
+
+      render(<StatusBottomSheet />);
+
+      fireEvent(screen.getByTestId('status-hold-13'), 'pressIn');
+      fireEvent(screen.getByTestId('status-hold-13'), 'pressOut');
+
+      expect(mockShowToast).toHaveBeenCalledWith('info', 'status.hold_to_set_hint');
+      expect(mockSaveUnitStatus).not.toHaveBeenCalled();
     });
   });
 });

@@ -32,6 +32,11 @@ interface StatusBottomSheetStore {
   selectedDestinationType: DestinationType;
   selectedStatus: StatusType | null;
   cameFromStatusSelection: boolean;
+  /**
+   * The crew completed a press-and-hold on the selected status (department "Hold to set status"), so the
+   * sheet saves it as soon as nothing else is needed — or opens the step that still is. Cleared once acted on.
+   */
+  holdConfirmed: boolean;
   note: string;
   availableCalls: CallResultData[];
   availableStations: GroupResultData[];
@@ -40,7 +45,8 @@ interface StatusBottomSheetStore {
   lastFetchedAt: number;
   isLoading: boolean;
   error: string | null;
-  setIsOpen: (isOpen: boolean, status?: StatusType) => void;
+  setIsOpen: (isOpen: boolean, status?: StatusType, options?: { holdConfirmed?: boolean }) => void;
+  setHoldConfirmed: (holdConfirmed: boolean) => void;
   setCurrentStep: (step: StatusStep) => void;
   setSelectedCall: (call: CallResultData | null) => void;
   setSelectedStation: (station: GroupResultData | null) => void;
@@ -98,6 +104,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
   selectedDestinationType: 'none',
   selectedStatus: null,
   cameFromStatusSelection: false,
+  holdConfirmed: false,
   note: '',
   availableCalls: [],
   availableStations: [],
@@ -106,7 +113,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
   lastFetchedAt: 0,
   isLoading: false,
   error: null,
-  setIsOpen: (isOpen, status) => {
+  setIsOpen: (isOpen, status, options) => {
     if (!isOpen) {
       set({ isOpen: false });
       return;
@@ -118,6 +125,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
         selectedStatus: null,
         currentStep: 'select-status',
         cameFromStatusSelection: true,
+        holdConfirmed: false,
       });
       return;
     }
@@ -127,8 +135,10 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       selectedStatus: status,
       currentStep: getInitialStepForStatus(status),
       cameFromStatusSelection: false,
+      holdConfirmed: options?.holdConfirmed === true,
     });
   },
+  setHoldConfirmed: (holdConfirmed) => set({ holdConfirmed }),
   setCurrentStep: (step) => set({ currentStep: step }),
   setSelectedCall: (call) => set({ selectedCall: call }),
   setSelectedStation: (station) => set({ selectedStation: station }),
@@ -180,6 +190,7 @@ export const useStatusBottomSheetStore = create<StatusBottomSheetStore>((set, ge
       selectedDestinationType: 'none',
       selectedStatus: null,
       cameFromStatusSelection: false,
+      holdConfirmed: false,
       note: '',
       availableCalls: [],
       availableStations: [],

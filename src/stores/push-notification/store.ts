@@ -29,6 +29,13 @@ interface PushNotificationModalState {
   parseNotification: (notificationData: PushNotificationData) => ParsedNotification;
 }
 
+// Whole event code prefixes, checked before the first-character map below.
+// "NC:{callId}": a call the unit or member was on has been closed. It leads with "n" so the server sends it as an
+// ordinary notification rather than a critical call alert; a tap still opens the call.
+const EVENT_CODE_TYPES: Record<string, NotificationType> = {
+  nc: 'call',
+};
+
 // First character of the event code prefix sent by the Resgrid backend, e.g.
 // "C:1234" call, "M:5678" message, "t:9012" chat, "g:3456" group chat.
 const EVENT_CODE_PREFIXES: Record<string, NotificationType> = {
@@ -57,7 +64,7 @@ export const parseNotificationData = (notificationData: PushNotificationData): P
     // Colon form ("C:1234", "t:{channelId}"): split on the FIRST colon only, so
     // an id that itself contains one survives intact.
     const lowerPrefix = eventCode.slice(0, separatorIndex).toLowerCase();
-    type = EVENT_CODE_PREFIXES[lowerPrefix.charAt(0)] ?? 'unknown';
+    type = EVENT_CODE_TYPES[lowerPrefix] ?? EVENT_CODE_PREFIXES[lowerPrefix.charAt(0)] ?? 'unknown';
     id = eventCode.slice(separatorIndex + 1);
   } else if (eventCode.length > 1) {
     // Legacy colon-less form ("C1234"): first character is the type prefix, the
