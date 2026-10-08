@@ -199,10 +199,10 @@ export const useCallDetailStore = create<CallDetailState>((set, get) => ({
       // Refresh call details after successful update
       await get().fetchCallDetail(callData.callId);
     } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to update call',
-        isLoading: false,
-      });
+      // A refused save (e.g. the department's required call fields) leaves the loaded call as it was.
+      // Setting `error` here swapped the edit form — and the call detail screen behind it — for an error
+      // page, so the user lost their edits instead of fixing the field. The caller reports the failure.
+      set({ isLoading: false });
       throw error;
     }
   },
