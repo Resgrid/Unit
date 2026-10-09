@@ -332,9 +332,9 @@ export default function ChannelConversationScreen() {
 
         {/* Unit-app identity chip: shows which unit the current user is chatting as. */}
         {activeUnit ? (
-          <HStack className="mx-3 mb-1 items-center self-start rounded-full bg-primary-50 px-3 py-1 dark:bg-primary-950" space="xs">
+          <HStack className="mx-3 mb-1 items-center self-start rounded-full bg-primary-50 px-3 py-1" space="xs">
             <Circle size={8} color="#2563eb" fill="#2563eb" />
-            <Text className="text-xs font-medium text-primary-700 dark:text-primary-300">{t('chat.chatting_as', { name: activeUnit.Name })}</Text>
+            <Text className="text-xs font-medium text-primary-700">{t('chat.chatting_as', { name: activeUnit.Name })}</Text>
           </HStack>
         ) : null}
 

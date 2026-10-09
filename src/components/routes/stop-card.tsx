@@ -81,14 +81,14 @@ export const StopCard: React.FC<StopCardProps> = ({ stop, isCurrent = false, onC
       {isCurrent && stop.Status !== RouteStopStatus.Completed && stop.Status !== RouteStopStatus.Skipped ? (
         <HStack className="mt-3 gap-3">
           {stop.Status === RouteStopStatus.Pending ? (
-            <Button size="sm" className="flex-1 bg-blue-500" onPress={onCheckIn}>
-              <ButtonText>{t('routes.check_in')}</ButtonText>
+            <Button size="sm" className="flex-1 bg-blue-600" onPress={onCheckIn}>
+              <ButtonText className="text-white">{t('routes.check_in')}</ButtonText>
             </Button>
           ) : null}
 
           {stop.Status === RouteStopStatus.InProgress ? (
-            <Button size="sm" className="flex-1 bg-green-500" onPress={onCheckOut}>
-              <ButtonText>{t('routes.check_out')}</ButtonText>
+            <Button size="sm" className="flex-1 bg-green-600" onPress={onCheckOut}>
+              <ButtonText className="text-white">{t('routes.check_out')}</ButtonText>
             </Button>
           ) : null}
 

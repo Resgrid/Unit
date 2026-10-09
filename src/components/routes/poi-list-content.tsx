@@ -146,7 +146,7 @@ export const PoiListContent: React.FC = () => {
                 <Text className="text-center text-xl font-bold text-gray-900 dark:text-white">{t('routes.no_search_results_pois')}</Text>
                 <Text className="max-w-[280] text-center text-base leading-5 text-gray-500 dark:text-gray-400">{t('routes.no_pois_filtered_description')}</Text>
                 <Pressable onPress={handleClearFilters} className="mt-2 rounded-full bg-gray-100 px-4 py-2 dark:bg-gray-800">
-                  <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('routes.clear_filters')}</Text>
+                  <Text className="text-sm font-medium text-primary-600">{t('routes.clear_filters')}</Text>
                 </Pressable>
               </VStack>
             </Box>

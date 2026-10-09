@@ -253,7 +253,7 @@ export default function SsoLogin() {
           {/* Back button */}
           <View className="mb-4 mt-2">
             <Button variant="link" action="secondary" onPress={() => router.back()} className="self-start">
-              <ArrowLeft size={18} className="mr-1" />
+              <ArrowLeft size={18} className="mr-1 text-typography-500" />
               <ButtonText className="text-sm">{t('common.back')}</ButtonText>
             </Button>
           </View>
@@ -344,7 +344,7 @@ export default function SsoLogin() {
                 </Button>
               ) : (
                 <Button className="w-full" variant="solid" action="primary" onPress={handleSsoPress} accessibilityLabel={t('login.sso_button')}>
-                  <ShieldCheck size={18} color="#fff" style={{ marginRight: 8 }} />
+                  <ShieldCheck size={18} className="text-typography-0" style={{ marginRight: 8 }} />
                   <ButtonText>{t('login.sso_button')}</ButtonText>
                 </Button>
               )}

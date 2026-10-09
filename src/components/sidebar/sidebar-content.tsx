@@ -4,13 +4,14 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
+import { CurrentStatusRing } from '@/components/status/current-status-ring';
 import { HoldToConfirmButton } from '@/components/status/hold-to-confirm-button';
 import { Button, ButtonText } from '@/components/ui/button';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
-import { invertColor } from '@/lib/utils';
+import { readableTextColor } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useIsChatEnabled, useIsChecklistsEnabled, useIsDeploymentsEnabled, useIsRecordsFieldEnabled } from '@/stores/feature-flags/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
@@ -22,6 +23,10 @@ import { CheckInSidebarWidget } from './check-in-sidebar-widget';
 import { SidebarRolesCard } from './roles-sidebar';
 import { SidebarStatusCard } from './status-sidebar';
 import { SidebarUnitCard } from './unit-sidebar';
+
+/** Corner radii of the two status button kinds (gluestack `rounded`, HoldToConfirmButton), for the current-status ring. */
+const BUTTON_RADIUS = 4;
+const HOLD_BUTTON_RADIUS = 8;
 
 interface SidebarProps {
   onClose?: () => void;
@@ -45,7 +50,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
 
   const isActiveStatusesEmpty = !activeStatuses?.Statuses || activeStatuses.Statuses.length === 0;
 
-  // Same status flow as the status sheet: the current status is outlined, and a status with next statuses
+  // Same status flow as the status sheet: the current status is ringed, and a status with next statuses
   // configured narrows the buttons to those until the crew asks for all of them.
   const currentStatusId = React.useMemo(() => {
     if (!activeUnitStatus || (activeUnitId && activeUnitStatus.UnitId && String(activeUnitStatus.UnitId) !== String(activeUnitId))) {
@@ -189,42 +194,31 @@ const Sidebar = ({ onClose }: SidebarProps) => {
           <VStack space="sm" className="mb-4 w-full">
             {offeredStatuses.offered.map((status) => {
               const isCurrent = String(status.Id) === currentStatusId;
-              // invertColor throws on a non-hex value, so an option without a color falls back to white like the status sheet.
+              // An option without a color falls back to white like the status sheet.
               const background = status.BColor || '#ffffff';
-              const foreground = invertColor(background, true);
+              const foreground = readableTextColor(background) ?? '#000000';
               const label = (
-                <HStack space="xs" className="items-center justify-center">
-                  <ButtonText numberOfLines={1} style={{ color: foreground, flexShrink: 1 }}>
-                    {status.Text}
-                  </ButtonText>
-                  {isCurrent ? (
-                    <View style={styles.currentPill}>
-                      <Text style={styles.currentPillText}>{t('status.current')}</Text>
-                    </View>
-                  ) : null}
-                </HStack>
+                <ButtonText numberOfLines={1} style={[styles.labelText, { color: foreground }]}>
+                  {status.Text}
+                </ButtonText>
               );
+              const accessibilityLabel = isCurrent ? `${status.Text}, ${t('status.current')}` : undefined;
 
-              if (isHoldMode) {
-                return (
-                  <HoldToConfirmButton
-                    key={status.Id}
-                    testID={`sidebar-status-hold-${status.Id}`}
-                    onConfirm={() => setIsOpen(true, status, { holdConfirmed: true })}
-                    onTap={() => showToast('info', t('status.hold_to_set_hint'))}
-                    backgroundColor={background}
-                    foregroundColor={foreground}
-                    style={isCurrent ? styles.currentOutline : null}
-                    contentStyle={styles.holdContent}
-                    accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : status.Text}
-                    accessibilityHint={t('status.hold_to_set_hint')}
-                  >
-                    {label}
-                  </HoldToConfirmButton>
-                );
-              }
-
-              return (
+              const button = isHoldMode ? (
+                <HoldToConfirmButton
+                  key={status.Id}
+                  testID={`sidebar-status-hold-${status.Id}`}
+                  onConfirm={() => setIsOpen(true, status, { holdConfirmed: true })}
+                  onTap={() => showToast('info', t('status.hold_to_set_hint'))}
+                  backgroundColor={background}
+                  foregroundColor={foreground}
+                  contentStyle={styles.holdContent}
+                  accessibilityLabel={accessibilityLabel ?? status.Text}
+                  accessibilityHint={t('status.hold_to_set_hint')}
+                >
+                  {label}
+                </HoldToConfirmButton>
+              ) : (
                 <Button
                   key={status.Id}
                   testID={`sidebar-status-${status.Id}`}
@@ -232,12 +226,21 @@ const Sidebar = ({ onClose }: SidebarProps) => {
                   className="w-full justify-center overflow-visible px-3 py-2"
                   action="primary"
                   size="lg"
-                  style={[{ backgroundColor: background }, isCurrent ? styles.currentOutline : null]}
+                  style={{ backgroundColor: background }}
                   onPress={() => setIsOpen(true, status)}
-                  accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
+                  accessibilityLabel={accessibilityLabel}
                 >
                   {label}
                 </Button>
+              );
+
+              return isCurrent ? (
+                <View key={status.Id}>
+                  <CurrentStatusRing radius={isHoldMode ? HOLD_BUTTON_RADIUS : BUTTON_RADIUS} testID={`sidebar-status-current-ring-${status.Id}`} />
+                  {button}
+                </View>
+              ) : (
+                button
               );
             })}
 
@@ -258,21 +261,9 @@ const Sidebar = ({ onClose }: SidebarProps) => {
 };
 
 const styles = StyleSheet.create({
-  currentOutline: {
-    borderWidth: 3,
-    borderColor: '#dc2626',
-  },
-  currentPill: {
-    backgroundColor: '#dc2626',
-    borderRadius: 999,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-  },
-  currentPillText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+  labelText: {
+    flexShrink: 1,
+    textAlign: 'center',
   },
   holdContent: {
     paddingHorizontal: 12,

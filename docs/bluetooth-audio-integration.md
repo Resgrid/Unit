@@ -25,17 +25,16 @@ This system provides comprehensive Bluetooth audio device integration for the Li
    - Tracks available devices, connection status, and button events
    - Provides reactive state for UI components
 
-3. **BluetoothAudioModal** (`src/components/bluetooth/bluetooth-audio-modal.tsx`)
+3. **BluetoothDeviceSelectionBottomSheet** (`src/components/settings/bluetooth-device-selection-bottom-sheet.tsx`)
    - User interface for device selection and management
    - Shows device list, connection status, and controls
-   - Displays button events and audio routing status
 
 ### Data Flow
 
 ```mermaid
 graph TD
     A[BluetoothAudioService] --> B[BluetoothAudioStore]
-    B --> C[BluetoothAudioModal]
+    B --> C[BluetoothDeviceSelectionBottomSheet]
     A --> D[LiveKit Integration]
     E[BLE Device] --> A
     A --> F[Audio Routing]
@@ -51,18 +50,18 @@ graph TD
 ```typescript
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import BluetoothAudioModal from '@/components/bluetooth/bluetooth-audio-modal';
+import { BluetoothDeviceSelectionBottomSheet } from '@/components/settings/bluetooth-device-selection-bottom-sheet';
 ```
 
 ### 2. Show Device Selection UI
 
 ```typescript
-const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState(false);
+const [isDeviceSelectionOpen, setIsDeviceSelectionOpen] = useState(false);
 
 // In your component render:
-<BluetoothAudioModal
-  isOpen={isBluetoothModalOpen}
-  onClose={() => setIsBluetoothModalOpen(false)}
+<BluetoothDeviceSelectionBottomSheet
+  isOpen={isDeviceSelectionOpen}
+  onClose={() => setIsDeviceSelectionOpen(false)}
 />
 ```
 
@@ -308,7 +307,7 @@ Tests are provided for:
 
 - BluetoothAudioStore state management
 - BluetoothAudioService methods
-- BluetoothAudioModal UI components
+- BluetoothDeviceSelectionBottomSheet UI components
 
 ### Mocking
 
@@ -324,7 +323,7 @@ The system includes mocks for:
 # Run all Bluetooth audio tests
 yarn test src/stores/app/__tests__/bluetooth-audio-store.test.ts
 yarn test src/services/__tests__/bluetooth-audio.service.test.ts
-yarn test src/components/bluetooth/__tests__/bluetooth-audio-modal.test.tsx
+yarn test src/components/settings/__tests__/bluetooth-device-selection-bottom-sheet.test.tsx
 ```
 
 ## Performance Considerations

@@ -449,7 +449,8 @@ export default function TabLayout() {
         zIndex: 100,
         backgroundColor: 'transparent',
         borderTopWidth: 0.5,
-        borderTopColor: 'rgba(0, 0, 0, 0.1)',
+        // Mid-gray rather than black-alpha so the divider still shows on the dark tab bar.
+        borderTopColor: 'rgba(127, 127, 127, 0.2)',
       },
     }),
     [isLandscape, insets.bottom]
@@ -462,12 +463,12 @@ export default function TabLayout() {
   const handleCloseNotifications = useCallback(() => setIsNotificationsOpen(false), []);
 
   // Memoize per-screen tab bar icon renderers to prevent new functions every render
-  const mapIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Map} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
-  const callsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Megaphone} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
-  const contactsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Contact} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const mapIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Map} stroke={color as string} className="text-primary-500" />, []);
+  const callsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Megaphone} stroke={color as string} className="text-primary-500" />, []);
+  const contactsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Contact} stroke={color as string} className="text-primary-500" />, []);
   const notesIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Notebook} stroke={color as string} />, []);
-  const routesIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Navigation} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
-  const weatherAlertsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={CloudAlert} stroke={color as string} className="text-primary-500 dark:text-primary-400" />, []);
+  const routesIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Navigation} stroke={color as string} className="text-primary-500" />, []);
+  const weatherAlertsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={CloudAlert} stroke={color as string} className="text-primary-500" />, []);
   const protocolsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={ListTree} stroke={color as string} />, []);
   const settingsIcon = useCallback(({ color }: { color: ColorValue }) => <Icon as={Settings} stroke={color as string} />, []);
 
@@ -604,7 +605,7 @@ export default function TabLayout() {
 
       {/* Loading overlay during initialization — shown on top of Tabs so the navigator stays mounted */}
       {!isInitComplete ? (
-        <View style={styles.loadingOverlay}>
+        <View style={styles.loadingOverlay} className={Platform.OS === 'web' ? 'bg-background-0' : 'bg-background-0/95'}>
           <ActivityIndicator size="large" />
         </View>
       ) : null}
@@ -701,7 +702,8 @@ const CreateDrawerMenuButton = ({ setIsOpen, isLandscape }: CreateDrawerMenuButt
         setIsOpen(true);
       }}
     >
-      <Menu size={24} color="currentColor" className="text-gray-700 dark:text-gray-300" />
+      {/* No `color` prop: an explicit one overrides the className colour, and "currentColor" resolves to black against the dark header. */}
+      <Menu size={24} className="text-gray-700 dark:text-gray-300" />
     </Pressable>
   );
 };
@@ -743,7 +745,6 @@ const styles = StyleSheet.create({
     ...(StyleSheet.absoluteFill as object),
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Platform.OS === 'web' ? '#ffffff' : 'rgba(255,255,255,0.95)',
     zIndex: 1000,
   },
 });

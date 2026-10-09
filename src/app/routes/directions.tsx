@@ -709,7 +709,7 @@ export default function RouteDirectionsScreen() {
 
         {/* Loading overlay while fetching driving directions */}
         {isFetchingDirections ? (
-          <View style={styles.fetchingOverlay}>
+          <View style={styles.fetchingOverlay} className="bg-background-0/90">
             <ActivityIndicator size="small" color="#3b82f6" />
             <Text className="ml-2 text-xs text-typography-500">{t('routes.fetching_directions')}</Text>
           </View>
@@ -877,7 +877,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.9)',
     paddingVertical: 6,
     marginHorizontal: 60,
     borderRadius: 20,

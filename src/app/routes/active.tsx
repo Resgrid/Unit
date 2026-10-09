@@ -380,7 +380,7 @@ export default function ActiveRouteScreen() {
           <Box className="mx-4 mt-4">
             <Button className="bg-red-500" onPress={handleEndRoute}>
               <Icon as={LogOut} size="sm" className="mr-2 text-white" />
-              <ButtonText>{t('routes.end_route')}</ButtonText>
+              <ButtonText className="text-white">{t('routes.end_route')}</ButtonText>
             </Button>
           </Box>
         </ScrollView>
@@ -394,13 +394,23 @@ export default function ActiveRouteScreen() {
               {t('routes.skip')} — {currentStop?.Name}
             </Text>
             <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t('routes.skip_reason')}</Text>
-            <TextInput value={skipReason} onChangeText={setSkipReason} placeholder={t('routes.skip_reason_placeholder')} placeholderTextColor="#9ca3af" multiline numberOfLines={3} style={styles.skipInput} autoFocus />
+            <TextInput
+              value={skipReason}
+              onChangeText={setSkipReason}
+              placeholder={t('routes.skip_reason_placeholder')}
+              placeholderTextColor="#9ca3af"
+              multiline
+              numberOfLines={3}
+              style={styles.skipInput}
+              className="border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
+              autoFocus
+            />
             <HStack className="mt-4 gap-3">
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSkipModalVisible(false)}>
                 <Text className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.skipBtn} onPress={handleSkipConfirm}>
-                <Text className="text-center text-sm font-semibold text-white">{t('routes.skip')}</Text>
+                <Text className="text-center text-sm font-semibold text-gray-900">{t('routes.skip')}</Text>
               </TouchableOpacity>
             </HStack>
           </Box>
@@ -416,11 +426,9 @@ const styles = StyleSheet.create({
   },
   skipInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 10,
     fontSize: 14,
-    color: '#111827',
     textAlignVertical: 'top',
     minHeight: 80,
   },

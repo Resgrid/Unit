@@ -124,7 +124,7 @@ jest.mock('nativewind', () => ({
 jest.mock('@/lib/utils', () => ({
   IS_ANDROID: false,
   IS_IOS: true,
-  invertColor: jest.fn(() => '#000000'),
+  readableTextColor: jest.fn(() => '#000000'),
   createSelectors: jest.fn(),
   openLinkInBrowser: jest.fn(),
   DEFAULT_CENTER_COORDINATE: [-77.036086, 38.910233],
@@ -3691,7 +3691,7 @@ describe('StatusBottomSheet', () => {
   });
 
   // New tests for color scheme functionality
-  it('should use BColor for background and invertColor for text color in status selection', () => {
+  it('should use BColor for background and a contrasting text color in status selection', () => {
     const statusWithBColor = {
       Id: 1,
       Type: 1,
@@ -4237,7 +4237,7 @@ describe('StatusBottomSheet', () => {
       jest.useRealTimers();
     });
 
-    it('offers only the next statuses and keeps the current one visible, outlined', () => {
+    it('offers only the next statuses and keeps the current one visible, ringed', () => {
       setCoreStore({});
       mountStatefulSheetStore();
 
@@ -4246,8 +4246,9 @@ describe('StatusBottomSheet', () => {
       expect(screen.getByText('On Scene')).toBeTruthy();
       expect(screen.queryByText('Available')).toBeNull();
       expect(screen.getByTestId('status-current-banner')).toBeTruthy();
+      expect(screen.getByTestId('status-current-banner-ring')).toBeTruthy();
       expect(screen.getByText('Departed')).toBeTruthy();
-      expect(screen.getByText('status.current')).toBeTruthy();
+      expect(screen.queryByText('status.current')).toBeNull();
       expect(screen.getByText('status.show_all_statuses')).toBeTruthy();
     });
 
@@ -4262,6 +4263,9 @@ describe('StatusBottomSheet', () => {
       expect(screen.getByText('On Scene')).toBeTruthy();
       expect(screen.queryByTestId('status-current-banner')).toBeNull();
       expect(screen.getByTestId('status-option-12').props.accessibilityLabel).toBe('Departed, status.current');
+      expect(screen.getByTestId('status-current-ring-12')).toBeTruthy();
+      expect(screen.queryByTestId('status-current-ring-10')).toBeNull();
+      expect(screen.queryByText('status.current')).toBeNull();
       expect(screen.getByTestId('status-show-next')).toBeTruthy();
     });
 

@@ -54,7 +54,7 @@ export const WeatherAlertDetailMap: React.FC<WeatherAlertDetailMapProps> = ({ al
 
   if (!mapCenter) {
     return (
-      <View style={styles.container} className="items-center justify-center bg-background-100 dark:bg-background-800">
+      <View style={styles.container} className="items-center justify-center bg-background-100">
         <Text className="text-sm text-gray-500 dark:text-gray-400">{t('call_detail.no_location')}</Text>
       </View>
     );

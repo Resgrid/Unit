@@ -22,12 +22,9 @@ jest.mock('@/stores/app/bluetooth-audio-store', () => ({
       setIsConnecting: jest.fn(),
       setConnectionError: jest.fn(),
       clearConnectionError: jest.fn(),
-      addButtonEvent: jest.fn(),
-      setLastButtonAction: jest.fn(),
       setAvailableAudioDevices: jest.fn(),
       setSelectedMicrophone: jest.fn(),
       setSelectedSpeaker: jest.fn(),
-      setAudioRoutingActive: jest.fn(),
       availableDevices: [],
       connectedDevice: null,
       preferredDevice: null,
@@ -237,8 +234,6 @@ describe('BluetoothAudioService - B01 Inrico Button Parsing', () => {
 
   describe('handleB01InricoButtonEvent', () => {
     it('should process base64 encoded button data', () => {
-      const mockAddButtonEvent = jest.fn();
-      const mockSetLastButtonAction = jest.fn();
       const mockProcessButtonEvent = jest.fn();
       
       // Mock the processButtonEvent method

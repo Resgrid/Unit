@@ -277,7 +277,7 @@ export default function StopDetailScreen() {
                   <Text className="text-sm font-semibold">{t('routes.contact')}</Text>
                   <Text className="text-xs text-typography-500">{t('routes.contact_details')}</Text>
                 </VStack>
-                <Text className="text-primary-500">{t('calls.view_details')}</Text>
+                <Text className="text-primary-600">{t('calls.view_details')}</Text>
               </HStack>
             </Box>
           </Pressable>
@@ -309,9 +309,9 @@ export default function StopDetailScreen() {
             </Button>
           )}
           {canSkip && (
-            <Button size="lg" variant="outline" action="warning" onPress={handleSkip}>
-              <ButtonIcon as={SkipForwardIcon} className="mr-2" />
-              <ButtonText>{t('routes.skip')}</ButtonText>
+            <Button size="lg" variant="outline" className="border-amber-500" onPress={handleSkip}>
+              <ButtonIcon as={SkipForwardIcon} className="mr-2 text-amber-600 dark:text-amber-400" />
+              <ButtonText className="text-amber-600 dark:text-amber-400">{t('routes.skip')}</ButtonText>
             </Button>
           )}
           {stop.Status === RouteStopStatus.Completed && (
@@ -334,13 +334,23 @@ export default function StopDetailScreen() {
               {t('routes.skip')} — {stop.Name}
             </Text>
             <Text className="mb-3 text-sm text-gray-500 dark:text-gray-400">{t('routes.skip_reason')}</Text>
-            <TextInput value={skipReason} onChangeText={setSkipReason} placeholder={t('routes.skip_reason_placeholder')} placeholderTextColor="#9ca3af" multiline numberOfLines={3} style={styles.skipInput} autoFocus />
+            <TextInput
+              value={skipReason}
+              onChangeText={setSkipReason}
+              placeholder={t('routes.skip_reason_placeholder')}
+              placeholderTextColor="#9ca3af"
+              multiline
+              numberOfLines={3}
+              style={styles.skipInput}
+              className="border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
+              autoFocus
+            />
             <HStack className="mt-4 gap-3">
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setSkipModalVisible(false)}>
                 <Text className="text-center text-sm font-medium text-gray-700 dark:text-gray-300">{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.skipBtn} onPress={handleSkipConfirm}>
-                <Text className="text-center text-sm font-semibold text-white">{t('routes.skip')}</Text>
+                <Text className="text-center text-sm font-semibold text-gray-900">{t('routes.skip')}</Text>
               </TouchableOpacity>
             </HStack>
           </Box>
@@ -360,11 +370,9 @@ const styles = StyleSheet.create({
   },
   skipInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 8,
     padding: 10,
     fontSize: 14,
-    color: '#111827',
     textAlignVertical: 'top',
     minHeight: 80,
   },

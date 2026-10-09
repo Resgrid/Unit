@@ -7,13 +7,7 @@ import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { callKeepService } from '@/services/callkeep.service';
 import { type AudioButtonEvent, type BluetoothAudioDevice, type Device, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-// Lazy getters to avoid circular dependencies with livekit-store and useLiveKitCallStore
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getLiveKitCallStore = (): any => {
-  // Using import() for lazy loading to avoid circular dependencies
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('@/features/livekit-call/store/useLiveKitCallStore').useLiveKitCallStore;
-};
+// Lazy getter to avoid a circular dependency with livekit-store
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getLiveKitStore = (): any => {
   // Using import() for lazy loading to avoid circular dependencies
@@ -2063,8 +2057,6 @@ class BluetoothAudioService {
       context: { buttonEvent },
     });
 
-    useBluetoothAudioStore.getState().addButtonEvent(buttonEvent);
-
     // Handle mute/unmute events
     if (buttonEvent.button === 'mute') {
       this.handleMuteToggle();
@@ -2119,11 +2111,6 @@ class BluetoothAudioService {
       context: { direction },
     });
 
-    useBluetoothAudioStore.getState().setLastButtonAction({
-      action: direction,
-      timestamp: Date.now(),
-    });
-
     // Add volume control logic here if needed
     // This would typically involve native audio controls
   }
@@ -2135,30 +2122,6 @@ class BluetoothAudioService {
 
   private async handleMuteToggle(): Promise<void> {
     try {
-      const featureLiveKitState = getLiveKitCallStore().getState();
-      const featureRoom = featureLiveKitState.roomInstance;
-      const featureLocalParticipant = featureRoom?.localParticipant ?? featureLiveKitState.localParticipant;
-
-      if (featureLiveKitState.isConnected && featureRoom && featureLocalParticipant) {
-        const nextMicEnabled = !featureLocalParticipant.isMicrophoneEnabled;
-        await featureLiveKitState.actions.setMicrophoneEnabled(nextMicEnabled);
-
-        const updatedState = getLiveKitCallStore().getState();
-        const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
-
-        if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === nextMicEnabled) {
-          return;
-        }
-
-        logger.warn({
-          message: 'Feature store microphone toggle did not apply, falling back to legacy store',
-          context: {
-            nextMicEnabled,
-            hasUpdatedParticipant: Boolean(updatedParticipant),
-          },
-        });
-      }
-
       await getLiveKitStore().getState().toggleMicrophone();
     } catch (error) {
       logger.error({
@@ -2251,45 +2214,17 @@ class BluetoothAudioService {
 
   private async applyMicrophoneEnabled(enabled: boolean): Promise<void> {
     try {
-      const featureLiveKitState = getLiveKitCallStore().getState();
-      const featureRoom = featureLiveKitState.roomInstance;
-      const legacyLiveKitState = getLiveKitStore().getState();
-      const hasFeatureRoom = Boolean(featureLiveKitState.isConnected && featureRoom?.localParticipant);
-      const hasLegacyRoom = Boolean(legacyLiveKitState.currentRoom?.localParticipant);
-      const stillConnecting = featureLiveKitState.isConnecting || legacyLiveKitState.isConnecting;
+      const liveKitState = getLiveKitStore().getState();
+      const hasRoom = Boolean(liveKitState.currentRoom?.localParticipant);
 
-      if (!hasFeatureRoom && !hasLegacyRoom && stillConnecting) {
+      if (!hasRoom && liveKitState.isConnecting) {
         this.scheduleMicApplyRetry(enabled);
         return;
       }
 
       this.clearMicApplyRetry();
 
-      if (featureLiveKitState.isConnected && featureRoom?.localParticipant) {
-        const currentFeatureMicEnabled = featureRoom.localParticipant.isMicrophoneEnabled;
-        if (currentFeatureMicEnabled === enabled) {
-          return;
-        }
-
-        await featureLiveKitState.actions.setMicrophoneEnabled(enabled);
-
-        const updatedState = getLiveKitCallStore().getState();
-        const updatedParticipant = updatedState.roomInstance?.localParticipant ?? updatedState.localParticipant;
-
-        if (updatedParticipant && updatedParticipant.isMicrophoneEnabled === enabled) {
-          return;
-        }
-
-        logger.warn({
-          message: 'Feature store setMicrophoneEnabled did not apply, falling back to legacy store',
-          context: {
-            enabled,
-            hasUpdatedParticipant: Boolean(updatedParticipant),
-          },
-        });
-      }
-
-      await getLiveKitStore().getState().setMicrophoneEnabled(enabled);
+      await liveKitState.setMicrophoneEnabled(enabled);
     } catch (error) {
       logger.error({
         message: 'Failed to set microphone via Bluetooth PTT button',
@@ -2336,8 +2271,6 @@ class BluetoothAudioService {
       // 2. Configure LiveKit's audio context to use the Bluetooth device as input/output
       // 3. Set audio session category and options appropriately
 
-      bluetoothStore.setAudioRoutingActive(true);
-
       // Notify LiveKit store about audio device change
       // This would trigger any necessary audio context updates
     } catch (error) {
@@ -2373,8 +2306,6 @@ class BluetoothAudioService {
         bluetoothStore.setSelectedSpeaker(defaultSpeaker);
       }
 
-      // Revert audio routing to default (phone speaker/microphone)
-      bluetoothStore.setAudioRoutingActive(false);
       bluetoothStore.setIsHeadsetButtonMonitoring(false);
       this.pttPressActive = false;
       this.clearPttReleaseFallback();

@@ -85,7 +85,6 @@ jest.mock('@/stores/app/bluetooth-audio-store', () => ({
     isConnecting: false,
     availableDevices: [],
     connectionError: null,
-    isAudioRoutingActive: false,
   },
   useBluetoothAudioStore: {
     setState: jest.fn(),
@@ -544,7 +543,6 @@ describe('app-reset.service', () => {
         isConnecting: false,
         availableDevices: [],
         connectionError: null,
-        isAudioRoutingActive: false,
       });
     });
 

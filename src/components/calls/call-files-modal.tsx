@@ -274,7 +274,7 @@ export const CallFilesModal: React.FC<CallFilesModalProps> = ({ isOpen, onClose,
               <Box className="w-full flex-row items-center justify-between border-b border-gray-200 px-4 pb-4 pt-2 dark:border-gray-700">
                 <Heading size="lg">{t('calls.files.title')}</Heading>
                 <Button variant="link" onPress={onClose} className="p-1" testID="close-button">
-                  <X size={24} />
+                  <X size={24} color={colorScheme === 'dark' ? '#D1D5DB' : '#374151'} />
                 </Button>
               </Box>
             </VStack>

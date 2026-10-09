@@ -10,7 +10,7 @@ import { logger } from '@/lib/logging';
 import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { getUnitStatusCallDestinationId, resolveDefaultStatusCall } from '@/lib/status-destination';
 import { canSubmitStatusWithoutInput, getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
-import { invertColor } from '@/lib/utils';
+import { readableTextColor } from '@/lib/utils';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
 import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEntityTypes';
@@ -34,10 +34,11 @@ import { Spinner } from '../ui/spinner';
 import { Text } from '../ui/text';
 import { Textarea, TextareaInput } from '../ui/textarea';
 import { VStack } from '../ui/vstack';
+import { CURRENT_STATUS_RING_OUTSET, CurrentStatusRing } from './current-status-ring';
 import { HoldToConfirmButton } from './hold-to-confirm-button';
 
-/** The red outline that marks the unit's current status (crews asked for it to be unmistakable). */
-const CURRENT_STATUS_BORDER = '#dc2626';
+/** Corner radius of a status option (`rounded-lg`, HoldToConfirmButton) and the current-status banner, for the ring. */
+const OPTION_RADIUS = 8;
 
 type DestinationTab = 'call' | 'station' | 'poi';
 
@@ -933,7 +934,7 @@ export const StatusBottomSheet = () => {
           className="flex-1 font-bold"
           numberOfLines={1}
           accessibilityLabel={`${t('status.selected_status')}: ${selectedStatus.Text}, ${t('status.selected_destination')}: ${destinationText}`}
-          style={{ color: invertColor(summaryBackground, true) }}
+          style={{ color: readableTextColor(summaryBackground) ?? '#000000' }}
         >
           {`${selectedStatus.Text} · ${destinationText}`}
         </Text>
@@ -944,7 +945,7 @@ export const StatusBottomSheet = () => {
   const renderSubmitButtonContent = () => (
     <>
       {isSubmitting ? <Spinner size="small" color="white" /> : null}
-      <ButtonText className="text-sm">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
+      <ButtonText className="text-sm text-white">{isSubmitting ? t('common.submitting') : t('common.submit')}</ButtonText>
     </>
   );
 
@@ -985,7 +986,7 @@ export const StatusBottomSheet = () => {
           renderSubmitButtonContent()
         ) : (
           <>
-            <ButtonText className="text-sm">{t('common.next')}</ButtonText>
+            <ButtonText className="text-sm text-white">{t('common.next')}</ButtonText>
             <ArrowRight size={14} color="#fff" />
           </>
         )}
@@ -993,25 +994,19 @@ export const StatusBottomSheet = () => {
     );
   };
 
-  const renderCurrentPill = () => (
-    <View style={styles.currentPill}>
-      <Text style={styles.currentPillText}>{t('status.current')}</Text>
-    </View>
-  );
-
   const renderCurrentStatusBanner = (status: StatusesResultData) => {
     const background = status.BColor || '#ffffff';
-    const foreground = invertColor(background, true);
+    const foreground = readableTextColor(background) ?? '#000000';
 
     return (
-      <View testID="status-current-banner" style={[styles.currentBanner, { backgroundColor: background }]}>
-        <Text style={[styles.currentBannerCaption, { color: foreground }]}>{t('status.current_status')}</Text>
-        <HStack space="sm" className="items-center">
-          <Text className="flex-1 font-bold" style={{ color: foreground }}>
+      <View>
+        <CurrentStatusRing radius={OPTION_RADIUS} testID="status-current-banner-ring" />
+        <View testID="status-current-banner" style={[styles.currentBanner, { backgroundColor: background }]}>
+          <Text style={[styles.currentBannerCaption, { color: foreground }]}>{t('status.current_status')}</Text>
+          <Text className="font-bold" style={{ color: foreground }}>
             {status.Text}
           </Text>
-          {renderCurrentPill()}
-        </HStack>
+        </View>
       </View>
     );
   };
@@ -1020,24 +1015,33 @@ export const StatusBottomSheet = () => {
     const statusDetailDescription = getStatusDetailDescription(Number(status.Detail));
     const isCurrent = String(status.Id) === currentStatusId;
     const background = status.BColor || '#ffffff';
-    const foreground = invertColor(background, true);
+    const foreground = readableTextColor(background) ?? '#000000';
 
     const details = (
       <VStack className="flex-1">
-        <HStack space="sm" className="items-center">
-          <Text className="flex-1 font-bold" style={{ color: foreground }}>
-            {status.Text}
+        <Text className="font-bold" style={{ color: foreground }}>
+          {status.Text}
+        </Text>
+        {/* These sit on the status's own fixed colour, so they follow its foreground rather than the theme. */}
+        {Number(status.Detail) > 0 ? (
+          <Text className="text-sm" style={{ color: foreground, opacity: 0.8 }}>
+            {statusDetailDescription}
           </Text>
-          {isCurrent ? renderCurrentPill() : null}
-        </HStack>
-        {Number(status.Detail) > 0 ? <Text className="text-sm text-gray-600 dark:text-gray-400">{statusDetailDescription}</Text> : null}
-        {Number(status.Note) > 0 ? <Text className="text-xs text-gray-500 dark:text-gray-500">{Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}</Text> : null}
+        ) : null}
+        {Number(status.Note) > 0 ? (
+          <Text className="text-xs" style={{ color: foreground, opacity: 0.7 }}>
+            {Number(status.Note) === 1 ? t('status.note_optional') : t('status.note_required')}
+          </Text>
+        ) : null}
       </VStack>
     );
+
+    const ring = isCurrent ? <CurrentStatusRing radius={OPTION_RADIUS} testID={`status-current-ring-${status.Id}`} /> : null;
 
     if (isHoldMode) {
       return (
         <View key={status.Id} className="mb-3">
+          {ring}
           <HoldToConfirmButton
             testID={`status-hold-${status.Id}`}
             onConfirm={() => handleStatusHold(status.Id.toString())}
@@ -1045,7 +1049,7 @@ export const StatusBottomSheet = () => {
             disabled={isSubmitting || holdConfirmed}
             backgroundColor={background}
             foregroundColor={foreground}
-            style={isCurrent ? styles.currentOutline : styles.optionOutline}
+            style={styles.optionOutline}
             contentStyle={styles.holdOptionContent}
             accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : status.Text}
             accessibilityHint={t('status.hold_to_set_hint')}
@@ -1059,19 +1063,21 @@ export const StatusBottomSheet = () => {
     const isSelected = selectedStatus?.Id.toString() === status.Id.toString();
 
     return (
-      <TouchableOpacity
-        key={status.Id}
-        testID={`status-option-${status.Id}`}
-        onPress={() => handleStatusSelect(status.Id.toString())}
-        className={`mb-3 rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
-        style={[{ backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff') }, isCurrent && !isSelected ? styles.currentOutline : null]}
-        accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
-      >
-        <HStack space="sm" className="items-center">
-          <Check size={20} color={isSelected ? '#3b82f6' : 'transparent'} />
-          {details}
-        </HStack>
-      </TouchableOpacity>
+      <View key={status.Id} className="mb-3">
+        {ring}
+        <TouchableOpacity
+          testID={`status-option-${status.Id}`}
+          onPress={() => handleStatusSelect(status.Id.toString())}
+          className={`rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
+          style={{ backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff') }}
+          accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
+        >
+          <HStack space="sm" className="items-center">
+            <Check size={20} color={isSelected ? '#3b82f6' : 'transparent'} />
+            {details}
+          </HStack>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -1122,7 +1128,8 @@ export const StatusBottomSheet = () => {
               {/* The current status stays visible even when the list only offers what follows it. */}
               {currentStatus && !offeredStatuses.offered.some((status) => String(status.Id) === currentStatusId) ? renderCurrentStatusBanner(currentStatus) : null}
 
-              <ScrollView className="flex-1">
+              {/* Pulled out by the ring's reach and padded back, so the current status's ring is not clipped. */}
+              <ScrollView className="flex-1" style={styles.optionList} contentContainerStyle={styles.optionListContent}>
                 <VStack space="sm">
                   {offeredStatuses.offered.length > 0 ? (
                     offeredStatuses.offered.map((status) => renderStatusOption(status))
@@ -1422,30 +1429,18 @@ const styles = StyleSheet.create({
   holdOptionContent: {
     padding: 12,
   },
+  optionList: {
+    marginHorizontal: -CURRENT_STATUS_RING_OUTSET,
+  },
+  optionListContent: {
+    padding: CURRENT_STATUS_RING_OUTSET,
+  },
   optionOutline: {
     borderWidth: 2,
     borderColor: 'transparent',
   },
-  currentOutline: {
-    borderWidth: 3,
-    borderColor: CURRENT_STATUS_BORDER,
-  },
-  currentPill: {
-    backgroundColor: CURRENT_STATUS_BORDER,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  currentPillText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
   currentBanner: {
-    borderWidth: 3,
-    borderColor: CURRENT_STATUS_BORDER,
-    borderRadius: 8,
+    borderRadius: OPTION_RADIUS,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
