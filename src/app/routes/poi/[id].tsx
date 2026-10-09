@@ -111,8 +111,8 @@ export default function PoiDetailScreen() {
 
           <VStack space="sm">
             <Button onPress={handleRoute} className="bg-blue-600">
-              <ButtonIcon as={Navigation} />
-              <ButtonText>{t('routes.route_to_poi')}</ButtonText>
+              <ButtonIcon as={Navigation} className="text-white" />
+              <ButtonText className="text-white">{t('routes.route_to_poi')}</ButtonText>
             </Button>
             {destinationEnabled ? (
               <Button onPress={handleSetDestination} variant="outline">

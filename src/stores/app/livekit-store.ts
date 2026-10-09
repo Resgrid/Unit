@@ -331,11 +331,6 @@ export const useLiveKitStore = create<LiveKitState>((set, get) => ({
         context: { enabled },
       });
 
-      useBluetoothAudioStore.getState().setLastButtonAction({
-        action: enabled ? 'unmute' : 'mute',
-        timestamp: Date.now(),
-      });
-
       if (enabled) {
         await audioService.playStartTransmittingSound();
       } else {

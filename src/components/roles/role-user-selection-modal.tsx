@@ -66,7 +66,7 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
         <Pressable
           key={item.UserId}
           onPress={() => handleSelect(item.UserId)}
-          className={`px-4 py-3 ${isSelected ? (isDark ? 'bg-primary-900/30' : 'bg-primary-50') : ''}`}
+          className={`px-4 py-3 ${isSelected ? (isDark ? 'bg-primary-100/30' : 'bg-primary-50') : ''}`}
           testID={`user-item-${item.UserId}`}
           accessibilityRole="button"
           accessibilityLabel={t('roles.selectUserLabel', { name: fullName, defaultValue: `Select ${fullName}` })}
@@ -78,7 +78,7 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
 
             <VStack className="flex-1" space="xs">
               <HStack className="items-center" space="sm">
-                <Text className={`text-base font-medium ${isSelected ? 'text-primary-600 dark:text-primary-400' : ''}`}>{fullName}</Text>
+                <Text className={`text-base font-medium ${isSelected ? 'text-primary-600' : ''}`}>{fullName}</Text>
                 {isAssignedElsewhere ? (
                   <View className="rounded-full bg-amber-100 px-2 py-0.5 dark:bg-amber-900/40">
                     <Text className="text-xs text-amber-700 dark:text-amber-400">{otherAssignment?.roleName ? otherAssignment.roleName : t('roles.assignedElsewhere', 'In another role')}</Text>
@@ -158,7 +158,7 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
           {/* Unassigned option */}
           <Pressable
             onPress={() => handleSelect(undefined)}
-            className={`px-4 py-3 ${!selectedUserId ? (isDark ? 'bg-primary-900/30' : 'bg-primary-50') : ''}`}
+            className={`px-4 py-3 ${!selectedUserId ? (isDark ? 'bg-primary-100/30' : 'bg-primary-50') : ''}`}
             testID="unassigned-option"
             accessibilityRole="button"
             accessibilityLabel={t('roles.unassigned', 'Unassigned')}
@@ -168,7 +168,7 @@ export const RoleUserSelectionModal: React.FC<RoleUserSelectionModalProps> = ({ 
                 {!selectedUserId ? <CheckIcon size={18} color="#ffffff" /> : <UserXIcon size={18} color={isDark ? '#a3a3a3' : '#737373'} />}
               </View>
               <VStack className="flex-1">
-                <Text className={`text-base font-medium ${!selectedUserId ? 'text-primary-600 dark:text-primary-400' : ''}`}>{t('roles.unassigned', 'Unassigned')}</Text>
+                <Text className={`text-base font-medium ${!selectedUserId ? 'text-primary-600' : ''}`}>{t('roles.unassigned', 'Unassigned')}</Text>
                 <Text className="text-xs text-neutral-500 dark:text-neutral-400">{t('roles.clearAssignment', 'Clear the current assignment')}</Text>
               </VStack>
               {!selectedUserId ? <CheckIcon size={20} color={isDark ? '#60a5fa' : '#2563eb'} /> : null}

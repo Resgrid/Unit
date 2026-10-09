@@ -103,6 +103,32 @@ describe('SidebarStatusCard', () => {
       });
     });
 
+    it('should give the label a fixed contrasting colour on a hex status colour', () => {
+      const cases = [
+        { StateStyle: 'label-warning', color: '#000000' },
+        { StateStyle: 'label-default', color: '#FFFFFF' },
+      ];
+
+      cases.forEach(({ StateStyle, color }) => {
+        const mockStatus = createMockStatus({ State: `Status ${StateStyle}`, StateStyle });
+        mockUseCoreStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus }));
+
+        const { getByText, unmount } = render(<SidebarStatusCard />);
+        expect(getByText(`Status ${StateStyle}`).props.style).toEqual(expect.objectContaining({ color }));
+        unmount();
+      });
+    });
+
+    it('should leave the themed label colour alone when the status has no hex colour', () => {
+      const mockStatus = createMockStatus({ State: 'Returning', StateStyle: 'label-returning' });
+      mockUseCoreStore.mockImplementation((selector: any) => (typeof selector === 'function' ? selector({ activeUnitStatus: mockStatus }) : { activeUnitStatus: mockStatus }));
+
+      const { getByText, unmount } = render(<SidebarStatusCard />);
+      const style = getByText('Returning').props.style;
+      expect(style?.color).toBeUndefined();
+      unmount();
+    });
+
     it('should handle unknown status styles by keeping original value', () => {
       const mockStatus = createMockStatus({
         State: 'Test Status',

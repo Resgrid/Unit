@@ -148,7 +148,7 @@ export function MessageComposer({ onSendText, onSendImage, onSendLocation, onOpe
           </Pressable>
         ) : null}
 
-        <Pressable className={`rounded-full p-2 ${text.trim() ? 'bg-primary-600' : 'bg-background-300'}`} onPress={handleSend} disabled={!text.trim() || disabled} accessibilityLabel={t('chat.send')}>
+        <Pressable className={`rounded-full p-2 ${text.trim() ? 'bg-primary-600 dark:bg-primary-400' : 'bg-background-300'}`} onPress={handleSend} disabled={!text.trim() || disabled} accessibilityLabel={t('chat.send')}>
           <Send size={20} color="#ffffff" />
         </Pressable>
       </HStack>

@@ -175,7 +175,7 @@ export default function StopContactScreen() {
           <Box className="mb-3 h-16 w-16 items-center justify-center rounded-full bg-primary-100">{contact.CompanyName ? <BuildingIcon size={28} color="#3b82f6" /> : <UserIcon size={28} color="#3b82f6" />}</Box>
           <Heading size="lg">{displayName}</Heading>
           {contact.CompanyName && contact.FirstName && <Text className="mt-1 text-sm text-typography-500">{[contact.FirstName, contact.LastName].filter(Boolean).join(' ')}</Text>}
-          {contact.Email && <Text className="mt-1 text-sm text-primary-500">{contact.Email}</Text>}
+          {contact.Email && <Text className="mt-1 text-sm text-primary-600">{contact.Email}</Text>}
         </Box>
 
         {/* Phone numbers */}

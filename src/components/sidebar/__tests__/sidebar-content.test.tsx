@@ -160,4 +160,18 @@ describe('Sidebar status buttons', () => {
 
     unmount();
   });
+
+  it.each([false, true])('rings only the current status, without a "Current" badge (hold mode: %s)', (holdMode) => {
+    setCoreState({ holdMode, currentStateId: 10 });
+
+    const { unmount } = render(<Sidebar />);
+    fireEvent.press(screen.getByTestId('sidebar-status-show-all'));
+
+    expect(screen.getByTestId('sidebar-status-current-ring-10')).toBeTruthy();
+    expect(screen.queryByTestId('sidebar-status-current-ring-11')).toBeNull();
+    expect(screen.queryByTestId('sidebar-status-current-ring-12')).toBeNull();
+    expect(screen.queryByText('status.current')).toBeNull();
+
+    unmount();
+  });
 });

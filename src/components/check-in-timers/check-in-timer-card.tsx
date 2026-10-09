@@ -90,7 +90,7 @@ export const CheckInTimerCard: React.FC<CheckInTimerCardProps> = ({ timer, onChe
       </HStack>
 
       {/* Progress bar */}
-      <Box className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200">
+      <Box className="mt-2 h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <Box className="h-full rounded-full" style={[styles.progressBar, { width: `${progress * 100}%`, backgroundColor: statusColor }]} />
       </Box>
 

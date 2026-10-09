@@ -86,7 +86,7 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
 
         {/* Type selector */}
         <VStack space="xs">
-          <Text className="text-sm font-medium text-gray-600">{t('check_in.select_type')}</Text>
+          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('check_in.select_type')}</Text>
           <HStack className="flex-wrap" space="sm">
             {selectableCheckInTypes.map((type) => (
               <Button key={type.value} variant={selectedType === type.value ? 'solid' : 'outline'} size="sm" onPress={() => setSelectedType(type.value)} className="mb-1">
@@ -98,9 +98,9 @@ export const CheckInBottomSheet: React.FC<CheckInBottomSheetProps> = ({ isOpen, 
 
         {/* Note input */}
         <VStack space="xs">
-          <Text className="text-sm font-medium text-gray-600">{t('check_in.add_note')}</Text>
+          <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('check_in.add_note')}</Text>
           <Box className="rounded-lg border border-outline-200 p-2">
-            <TextInput value={note} onChangeText={setNote} placeholder={t('check_in.add_note')} multiline numberOfLines={3} style={{ minHeight: 60, textAlignVertical: 'top' }} />
+            <TextInput className="text-typography-900" value={note} onChangeText={setNote} placeholder={t('check_in.add_note')} multiline numberOfLines={3} style={{ minHeight: 60, textAlignVertical: 'top' }} />
           </Box>
         </VStack>
 

@@ -232,7 +232,7 @@ export const RolesBottomSheet: React.FC<RolesBottomSheetProps> = ({ isOpen, onCl
             <ButtonText>{t('common.cancel', 'Cancel')}</ButtonText>
           </Button>
           <Button variant="solid" action="primary" className="flex-1" onPress={handleSave} isDisabled={isSaving || !hasChanges} testID="save-button">
-            {isSaving ? <Spinner size="small" /> : <ButtonText>{t('common.save', 'Save')}</ButtonText>}
+            {isSaving ? <Spinner size="small" className="text-typography-0" /> : <ButtonText>{t('common.save', 'Save')}</ButtonText>}
           </Button>
         </HStack>
       </VStack>

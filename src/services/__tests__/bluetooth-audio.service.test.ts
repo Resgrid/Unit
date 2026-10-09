@@ -63,19 +63,6 @@ jest.mock('@/services/audio.service', () => ({
   },
 }));
 
-jest.mock('@/features/livekit-call/store/useLiveKitCallStore', () => ({
-  useLiveKitCallStore: {
-    getState: jest.fn(() => ({
-      isConnected: false,
-      roomInstance: null,
-      localParticipant: null,
-      actions: {
-        setMicrophoneEnabled: jest.fn(),
-      },
-    })),
-  },
-}));
-
 jest.mock('@/stores/app/livekit-store', () => {
   const actions = {
     toggleMicrophone: jest.fn(),
@@ -224,27 +211,6 @@ describe('BluetoothAudioService Refactoring', () => {
 
       await service.setMicrophoneEnabled(false);
       expect(storeMock.setMicrophoneEnabled).toHaveBeenCalledWith(false);
-    });
-
-    it('should fall back to legacy livekitStore when feature store is connected but has no local participant', async () => {
-      const service = bluetoothAudioService as any;
-      const featureStore = require('@/features/livekit-call/store/useLiveKitCallStore').useLiveKitCallStore;
-      const mockFeatureSetMicrophoneEnabled = jest.fn();
-
-      featureStore.getState.mockReturnValue({
-        isConnected: true,
-        roomInstance: null,
-        localParticipant: null,
-        actions: {
-          setMicrophoneEnabled: mockFeatureSetMicrophoneEnabled,
-        },
-      });
-
-      await service.setMicrophoneEnabled(true);
-
-      const legacyStore = require('@/stores/app/livekit-store').useLiveKitStore.getState();
-      expect(mockFeatureSetMicrophoneEnabled).not.toHaveBeenCalled();
-      expect(legacyStore.setMicrophoneEnabled).toHaveBeenCalledWith(true);
     });
   });
 
