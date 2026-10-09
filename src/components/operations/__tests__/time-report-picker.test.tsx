@@ -4,9 +4,9 @@ import React from 'react';
 
 import { TimeReportEditor } from '@/components/operations/time-report-editor';
 import { newEntry } from '@/lib/operations/time';
-import { type TimeReport, TimeReportStatus, TimeSubjectType } from '@/models/v4/operations';
+import { type TimeReport, TimeReportScope, TimeReportStatus, TimeSubjectType } from '@/models/v4/operations';
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, options?: { number?: string }) => (options?.number ? `${key} ${options.number}` : key) }) }));
 jest.mock('@/components/operations/option-select', () => ({ OptionSelect: () => null }));
 jest.mock('react-native-safe-area-context', () => ({ SafeAreaView: require('react-native').View }));
 
@@ -53,5 +53,28 @@ it('does not allow time edits on a submitted report', () => {
   fireEvent.press(screen.getByTestId('operations-entry-start-0'));
   expect(screen.queryByTestId('operations-entry-start-0-done')).toBeNull();
   expect(options.onChange).not.toHaveBeenCalled();
+  screen.unmount();
+});
+
+it('shows an issued report number without a # prefix', () => {
+  const options = props();
+  options.report = { ...options.report, Scope: TimeReportScope.Crew, ReportNumber: 3, DisplayNumber: 'CTR-2026-0003' };
+  const screen = render(<TimeReportEditor {...options} />);
+  expect(screen.getByText('operations.time.crewReport CTR-2026-0003')).toBeTruthy();
+  screen.unmount();
+});
+
+it('labels a digit-only report number with #', () => {
+  const options = props();
+  options.report = { ...options.report, Scope: TimeReportScope.Individual, ReportNumber: 7 };
+  const screen = render(<TimeReportEditor {...options} />);
+  expect(screen.getByText('operations.time.individualReport #7')).toBeTruthy();
+  screen.unmount();
+});
+
+it('labels the covering report number the same way', () => {
+  const options = { ...props(), report: null, coveredBy: { ReportNumber: 4, DisplayNumber: 'DTR-2026-0004' } as TimeReport };
+  const screen = render(<TimeReportEditor {...options} />);
+  expect(screen.getByText('operations.time.coveredBy DTR-2026-0004')).toBeTruthy();
   screen.unmount();
 });
