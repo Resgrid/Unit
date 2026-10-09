@@ -1,8 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import axios from 'axios';
-import * as Location from 'expo-location';
 import { router, Stack } from 'expo-router';
-import { useColorScheme } from 'nativewind';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -12,55 +9,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as z from 'zod';
 
 import { createCall } from '@/api/calls/calls';
+import { CallAddressSelectionSheet, CallLocationSearchField } from '@/components/calls/call-location-fields';
 import { DestinationPoiSelector } from '@/components/calls/destination-poi-selector';
 import { DispatchSelectionModal } from '@/components/calls/dispatch-selection-modal';
+import { DateTimeField } from '@/components/common/date-time-field';
 import { HeaderBackButton } from '@/components/common/header-back-button';
 import { Loading } from '@/components/common/loading';
 import FullScreenLocationPicker from '@/components/maps/full-screen-location-picker';
 import LocationPicker from '@/components/maps/location-picker';
-import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Box } from '@/components/ui/box';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { FocusAwareStatusBar } from '@/components/ui/focus-aware-status-bar';
 import { FormControl, FormControlError, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
 import { Input, InputField } from '@/components/ui/input';
-import { ChevronDownIcon, PlusIcon, SearchIcon } from '@/components/ui/lucide-icons';
+import { ChevronDownIcon, PlusIcon } from '@/components/ui/lucide-icons';
 import { Select, SelectBackdrop, SelectContent, SelectIcon, SelectInput, SelectItem, SelectPortal, SelectTrigger } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { Textarea, TextareaInput } from '@/components/ui/textarea';
 import { useAnalytics } from '@/hooks/use-analytics';
+import { useCallLocationSearch } from '@/hooks/use-call-location-search';
 import { useNewCallFieldPolicy } from '@/hooks/use-new-call-field-policy';
 import { useToast } from '@/hooks/use-toast';
+import {
+  CALL_FIELD_LABEL_KEYS,
+  CALL_IDENTIFIER_FIELDS,
+  DISPATCH_ON_MIN_LEAD_MINUTES,
+  formatCallFieldLabels,
+  getEnforcedMissingCallFields,
+  getMissingRequiredCallFields,
+  getNewCallFieldValues,
+  isDispatchOnTooSoon,
+} from '@/lib/call-field-policy';
 import { logger } from '@/lib/logging';
-import { type NewCallFieldKey, NewCallFieldKeys } from '@/models/v4/calls/newCallFieldPolicyResultData';
-import { useCoreStore } from '@/stores/app/core-store';
+import { NewCallFieldKeys } from '@/models/v4/calls/newCallFieldPolicyResultData';
 import { useCallsStore } from '@/stores/calls/store';
 import { type DispatchSelection } from '@/stores/dispatch/store';
-
-// The policy speaks in stable wire keys; a dispatcher told to fill in 'contactName' is being shown
-// the protocol rather than their own form. Map each key back to the label this screen already puts
-// on the field. Only the fields this screen renders appear here — anything else falls back to the
-// raw key, which at least names something, rather than being dropped from the message.
-const NEW_CALL_FIELD_LABEL_KEYS: Partial<Record<NewCallFieldKey, string>> = {
-  [NewCallFieldKeys.Address]: 'calls.address',
-  [NewCallFieldKeys.Geolocation]: 'calls.coordinates',
-  [NewCallFieldKeys.What3Words]: 'calls.what3words',
-  [NewCallFieldKeys.PlusCode]: 'calls.plus_code',
-  [NewCallFieldKeys.Note]: 'calls.note',
-  [NewCallFieldKeys.ContactName]: 'calls.contact_name',
-  [NewCallFieldKeys.ContactInfo]: 'calls.contact_info',
-  [NewCallFieldKeys.DestinationPoi]: 'calls.destination',
-  [NewCallFieldKeys.DispatchList]: 'calls.dispatch_to',
-};
-
-// The policy's key set is shared with the web app, which offers fields this screen does not have:
-// external/incident/reference ids, protocols, linked call, indoor location and a scheduled dispatch
-// time. A rule marking one of those required must not be enforced here — there is no input to
-// satisfy it, so every submit would fail with a field the dispatcher cannot fill. The server
-// enforces the full policy on save and rejects with a reason. The supported set is the set this
-// screen renders, which is exactly the set it can label.
-const SUPPORTED_NEW_CALL_FIELDS = new Set<NewCallFieldKey>(Object.keys(NEW_CALL_FIELD_LABEL_KEYS) as NewCallFieldKey[]);
 
 // Define the form schema using zod
 const formSchema = z.object({
@@ -78,6 +62,10 @@ const formSchema = z.object({
   type: z.string().min(1, { message: 'Type is required' }),
   contactName: z.string().optional(),
   contactInfo: z.string().optional(),
+  externalId: z.string().optional(),
+  incidentId: z.string().optional(),
+  referenceId: z.string().optional(),
+  dispatchOn: z.string().optional(),
   dispatchSelection: z
     .object({
       everyone: z.boolean(),
@@ -91,49 +79,8 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-// Google Maps Geocoding API response types
-interface GeocodingResult {
-  formatted_address: string;
-  geometry: {
-    location: {
-      lat: number;
-      lng: number;
-    };
-  };
-  place_id: string;
-}
-
-interface GeocodingResponse {
-  results: GeocodingResult[];
-  status: string;
-}
-
-// what3words API response types
-interface What3WordsResponse {
-  country: string;
-  square: {
-    southwest: {
-      lng: number;
-      lat: number;
-    };
-    northeast: {
-      lng: number;
-      lat: number;
-    };
-  };
-  nearestPlace: string;
-  coordinates: {
-    lng: number;
-    lat: number;
-  };
-  words: string;
-  language: string;
-  map: string;
-}
-
 export default function NewCall() {
   const { t } = useTranslation();
-  const { colorScheme } = useColorScheme();
   const insets = useSafeAreaInsets();
   const callPriorities = useCallsStore((state) => state.callPriorities);
   const callTypes = useCallsStore((state) => state.callTypes);
@@ -142,17 +89,10 @@ export default function NewCall() {
   const isLoading = useCallsStore((state) => state.isLoading);
   const error = useCallsStore((state) => state.error);
   const fetchCallFormData = useCallsStore((state) => state.fetchCallFormData);
-  const config = useCoreStore((state) => state.config);
   const { trackEvent } = useAnalytics();
   const toast = useToast();
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
-  const [showAddressSelection, setShowAddressSelection] = useState(false);
-  const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
-  const [isGeocodingPlusCode, setIsGeocodingPlusCode] = useState(false);
-  const [isGeocodingCoordinates, setIsGeocodingCoordinates] = useState(false);
-  const [isGeocodingWhat3Words, setIsGeocodingWhat3Words] = useState(false);
-  const [addressResults, setAddressResults] = useState<GeocodingResult[]>([]);
   const [dispatchSelection, setDispatchSelection] = useState<DispatchSelection>({
     everyone: false,
     users: [],
@@ -192,6 +132,10 @@ export default function NewCall() {
       type: '',
       contactName: '',
       contactInfo: '',
+      externalId: '',
+      incidentId: '',
+      referenceId: '',
+      dispatchOn: '',
       dispatchSelection: {
         everyone: false,
         users: [],
@@ -224,36 +168,39 @@ export default function NewCall() {
         return;
       }
 
-      // A location on the equator or the prime meridian has a zero coordinate, which is a real
-      // place, not a blank field — test that both are finite rather than truthy.
-      const hasGeolocation = Number.isFinite(data.latitude) && Number.isFinite(data.longitude);
-
       // The department may require fields beyond the built-in mandatory four. Enforced here for a
       // clear message, and again on the server so an old build cannot slip an incomplete call past.
-      // Only the fields this screen renders are enforced — see SUPPORTED_NEW_CALL_FIELDS.
-      const missingFields = fieldPolicy
-        .missingRequired({
-          [NewCallFieldKeys.Address]: data.address,
-          [NewCallFieldKeys.Geolocation]: hasGeolocation ? `${data.latitude},${data.longitude}` : '',
-          [NewCallFieldKeys.What3Words]: data.what3words,
-          [NewCallFieldKeys.PlusCode]: data.plusCode,
-          [NewCallFieldKeys.Note]: data.note,
-          [NewCallFieldKeys.ContactName]: data.contactName,
-          [NewCallFieldKeys.ContactInfo]: data.contactInfo,
-          [NewCallFieldKeys.DestinationPoi]: data.destinationPoiId,
-          [NewCallFieldKeys.DispatchList]:
-            dispatchSelection.everyone || dispatchSelection.units.length > 0 || dispatchSelection.users.length > 0 || dispatchSelection.groups.length > 0 || dispatchSelection.roles.length > 0,
-        })
-        .filter((key) => SUPPORTED_NEW_CALL_FIELDS.has(key));
+      // Checked against what createCall will send (the location as the same "lat,lon" point rule the
+      // server applies). Only the fields this screen renders are enforced — see CALL_FORM_FIELDS.
+      const missingFields = getEnforcedMissingCallFields(
+        fieldPolicy.missingRequired(
+          getNewCallFieldValues({
+            note: data.note,
+            address: data.address,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            what3words: data.what3words,
+            plusCode: data.plusCode,
+            contactName: data.contactName,
+            contactInfo: data.contactInfo,
+            externalId: data.externalId,
+            incidentId: data.incidentId,
+            referenceId: data.referenceId,
+            dispatchOn: data.dispatchOn,
+            destinationPoiId: data.destinationPoiId,
+            dispatchSelection,
+          })
+        )
+      );
 
       if (missingFields.length > 0) {
-        const missingLabels = missingFields.map((key) => {
-          const labelKey = NEW_CALL_FIELD_LABEL_KEYS[key];
+        toast.error(t('calls.required_fields_missing', { fields: formatCallFieldLabels(missingFields, (labelKey) => t(labelKey)) }));
+        return;
+      }
 
-          return labelKey ? t(labelKey) : key;
-        });
-
-        toast.error(t('calls.required_fields_missing', { fields: missingLabels.join(', ') }));
+      // A scheduled dispatch has to leave the dispatcher time to change their mind — the web form's rule.
+      if (data.dispatchOn && isDispatchOnTooSoon(data.dispatchOn)) {
+        toast.error(t('calls.dispatch_on_too_soon', { minutes: DISPATCH_ON_MIN_LEAD_MINUTES }));
         return;
       }
 
@@ -290,6 +237,15 @@ export default function NewCall() {
         destinationPoiId: data.destinationPoiId ? Number(data.destinationPoiId) : null,
         what3words: data.what3words,
         plusCode: data.plusCode,
+        // The reporter's name and contact details were collected but never sent, so a call saved
+        // without them and a department requiring them was refused by the server for no visible reason.
+        contactName: data.contactName,
+        contactInfo: data.contactInfo,
+        externalId: data.externalId,
+        incidentId: data.incidentId,
+        referenceId: data.referenceId,
+        // Only when one is set: no time means "dispatch now".
+        dispatchOnUtc: data.dispatchOn || undefined,
         dispatchUsers: data.dispatchSelection?.users,
         dispatchGroups: data.dispatchSelection?.groups,
         dispatchRoles: data.dispatchSelection?.roles,
@@ -304,6 +260,15 @@ export default function NewCall() {
       router.push('/calls');
     } catch (error) {
       logger.error({ message: 'Error creating call', context: { error } });
+
+      // The server enforces the full policy, including fields this screen has no input for; name
+      // them the way the form does rather than showing a generic failure.
+      const serverMissingFields = getMissingRequiredCallFields(error);
+
+      if (serverMissingFields) {
+        toast.error(t('calls.required_fields_missing', { fields: formatCallFieldLabels(serverMissingFields, (labelKey) => t(labelKey)) }));
+        return;
+      }
 
       // Show error toast
       toast.error(t('calls.create_error'));
@@ -327,6 +292,9 @@ export default function NewCall() {
     setValue('coordinates', `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
   };
 
+  // Address, coordinates, what3words and plus code lookups — shared with the edit-call screen.
+  const locationSearch = useCallLocationSearch(handleLocationSelected);
+
   // Handle dispatch selection
   const handleDispatchSelection = (selection: DispatchSelection) => {
     setDispatchSelection(selection);
@@ -348,306 +316,6 @@ export default function NewCall() {
     return `${count} ${t('calls.selected')}`;
   };
 
-  /**
-   * Handles address search using Google Maps Geocoding API
-   *
-   * Features:
-   * - Validates empty/null address input and shows error toast
-   * - Uses Google Maps API key from CoreStore configuration
-   * - Handles single result: automatically selects location
-   * - Handles multiple results: shows bottom sheet for user selection
-   * - Handles API errors gracefully with user-friendly messages
-   * - URL encodes addresses properly for special characters
-   * - Shows loading state during API call
-   *
-   * @param address - The address string to geocode
-   */
-  const handleAddressSearch = async (address: string) => {
-    if (!address.trim()) {
-      toast.warning(t('calls.address_required'));
-      return;
-    }
-
-    setIsGeocodingAddress(true);
-    try {
-      // Get Google Maps API key from CoreStore config
-      const apiKey = config?.GoogleMapsKey;
-
-      if (!apiKey) {
-        throw new Error('Google Maps API key not configured');
-      }
-
-      // Make request to Google Maps Geocoding API
-      const response = await axios.get<GeocodingResponse>(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`);
-
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const results = response.data.results;
-
-        if (results.length === 1) {
-          // Single result - use it directly
-          const result = results[0];
-          const newLocation = {
-            latitude: result.geometry.location.lat,
-            longitude: result.geometry.location.lng,
-            address: result.formatted_address,
-          };
-
-          // Update the selected location and form values
-          handleLocationSelected(newLocation);
-
-          // Show success toast
-          toast.success(t('calls.address_found'));
-        } else {
-          // Multiple results - show selection bottom sheet
-          setAddressResults(results);
-          setShowAddressSelection(true);
-        }
-      } else {
-        // Show error toast for no results
-        toast.error(t('calls.address_not_found'));
-      }
-    } catch (error) {
-      logger.error({ message: 'Error geocoding address', context: { error } });
-
-      // Show error toast
-      toast.error(t('calls.geocoding_error'));
-    } finally {
-      setIsGeocodingAddress(false);
-    }
-  };
-
-  // Handle address selection from bottom sheet
-  const handleAddressSelected = (result: GeocodingResult) => {
-    const newLocation = {
-      latitude: result.geometry.location.lat,
-      longitude: result.geometry.location.lng,
-      address: result.formatted_address,
-    };
-
-    // Update the selected location and form values
-    handleLocationSelected(newLocation);
-    setShowAddressSelection(false);
-
-    // Show success toast
-    toast.success(t('calls.address_found'));
-  };
-
-  /**
-   * Handles what3words search using what3words API
-   *
-   * Features:
-   * - Validates empty/null what3words input and shows error toast
-   * - Uses what3words API key from CoreStore configuration
-   * - Handles API errors gracefully with user-friendly messages
-   * - Shows loading state during API call
-   * - Updates coordinates and address fields in form
-   * - Validates what3words format (3 words separated by dots)
-   *
-   * @param what3words - The what3words string to geocode (e.g., "filled.count.soap")
-   */
-  const handleWhat3WordsSearch = async (what3words: string) => {
-    if (!what3words.trim()) {
-      toast.warning(t('calls.what3words_required'));
-      return;
-    }
-
-    // Validate what3words format - should be 3 words separated by dots
-    const w3wRegex = /^[a-z]+\.[a-z]+\.[a-z]+$/;
-    if (!w3wRegex.test(what3words.trim().toLowerCase())) {
-      toast.warning(t('calls.what3words_invalid_format'));
-      return;
-    }
-
-    setIsGeocodingWhat3Words(true);
-    try {
-      // Get what3words API key from CoreStore config
-      const apiKey = config?.W3WKey;
-
-      if (!apiKey) {
-        throw new Error('what3words API key not configured');
-      }
-
-      // Make request to what3words API
-      const response = await axios.get<What3WordsResponse>(`https://api.what3words.com/v3/convert-to-coordinates?words=${encodeURIComponent(what3words)}&key=${apiKey}`);
-
-      if (response.data.coordinates) {
-        const newLocation = {
-          latitude: response.data.coordinates.lat,
-          longitude: response.data.coordinates.lng,
-          address: response.data.nearestPlace,
-        };
-
-        // Update the selected location and form values
-        handleLocationSelected(newLocation);
-
-        // Show success toast
-        toast.success(t('calls.what3words_found'));
-      } else {
-        // Show error toast for no results
-        toast.error(t('calls.what3words_not_found'));
-      }
-    } catch (error) {
-      logger.error({ message: 'Error geocoding what3words', context: { error } });
-
-      // Show error toast
-      toast.error(t('calls.what3words_geocoding_error'));
-    } finally {
-      setIsGeocodingWhat3Words(false);
-    }
-  };
-
-  /**
-   * Handles plus code search using Google Maps Geocoding API
-   *
-   * Features:
-   * - Validates empty/null plus code input and shows error toast
-   * - Uses Google Maps API key from CoreStore configuration
-   * - Handles API errors gracefully with user-friendly messages
-   * - URL encodes plus codes properly for special characters
-   * - Shows loading state during API call
-   * - Updates coordinates and address fields in form
-   *
-   * @param plusCode - The plus code string to geocode
-   */
-  const handlePlusCodeSearch = async (plusCode: string) => {
-    if (!plusCode.trim()) {
-      toast.warning(t('calls.plus_code_required'));
-      return;
-    }
-
-    setIsGeocodingPlusCode(true);
-    try {
-      // Get Google Maps API key from CoreStore config
-      const apiKey = config?.GoogleMapsKey;
-
-      if (!apiKey) {
-        throw new Error('Google Maps API key not configured');
-      }
-
-      // Make request to Google Maps Geocoding API with plus code
-      const response = await axios.get<GeocodingResponse>(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(plusCode)}&key=${apiKey}`);
-
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const result = response.data.results[0];
-        const newLocation = {
-          latitude: result.geometry.location.lat,
-          longitude: result.geometry.location.lng,
-          address: result.formatted_address,
-        };
-
-        // Update the selected location and form values
-        handleLocationSelected(newLocation);
-
-        // Show success toast
-        toast.success(t('calls.plus_code_found'));
-      } else {
-        // Show error toast for no results
-        toast.error(t('calls.plus_code_not_found'));
-      }
-    } catch (error) {
-      logger.error({ message: 'Error geocoding plus code', context: { error } });
-
-      // Show error toast
-      toast.error(t('calls.plus_code_geocoding_error'));
-    } finally {
-      setIsGeocodingPlusCode(false);
-    }
-  };
-
-  /**
-   * Handles coordinates search using Google Maps Reverse Geocoding API
-   *
-   * Features:
-   * - Validates and parses coordinates string (lat,lng format)
-   * - Uses Google Maps API key from CoreStore configuration
-   * - Handles API errors gracefully with user-friendly messages
-   * - Shows loading state during API call
-   * - Updates address field and map location
-   * - Supports various coordinate formats (decimal degrees)
-   *
-   * @param coordinates - The coordinates string to reverse geocode (e.g., "40.7128, -74.0060")
-   */
-  const handleCoordinatesSearch = async (coordinates: string) => {
-    if (!coordinates.trim()) {
-      toast.warning(t('calls.coordinates_required'));
-      return;
-    }
-
-    // Parse coordinates - expect format like "40.7128, -74.0060" or "40.7128,-74.0060"
-    const coordRegex = /^(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)$/;
-    const match = coordinates.trim().match(coordRegex);
-
-    if (!match) {
-      toast.warning(t('calls.coordinates_invalid_format'));
-      return;
-    }
-
-    const latitude = parseFloat(match[1]);
-    const longitude = parseFloat(match[2]);
-
-    // Validate coordinate ranges
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-      toast.warning(t('calls.coordinates_out_of_range'));
-      return;
-    }
-
-    setIsGeocodingCoordinates(true);
-    try {
-      // Get Google Maps API key from CoreStore config
-      const apiKey = config?.GoogleMapsKey;
-
-      if (!apiKey) {
-        throw new Error('Google Maps API key not configured');
-      }
-
-      // Make request to Google Maps Reverse Geocoding API
-      const response = await axios.get<GeocodingResponse>(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
-
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const result = response.data.results[0];
-        const newLocation = {
-          latitude,
-          longitude,
-          address: result.formatted_address,
-        };
-
-        // Update the selected location and form values
-        handleLocationSelected(newLocation);
-
-        // Show success toast
-        toast.success(t('calls.coordinates_found'));
-      } else {
-        // Even if no address found, still set the location on the map
-        const newLocation = {
-          latitude,
-          longitude,
-          address: undefined,
-        };
-
-        handleLocationSelected(newLocation);
-
-        // Show info toast
-        toast.info(t('calls.coordinates_no_address'));
-      }
-    } catch (error) {
-      logger.error({ message: 'Error reverse geocoding coordinates', context: { error } });
-
-      // Even if geocoding fails, still set the location on the map
-      const newLocation = {
-        latitude,
-        longitude,
-        address: undefined,
-      };
-
-      handleLocationSelected(newLocation);
-
-      // Show warning toast
-      toast.warning(t('calls.coordinates_geocoding_error'));
-    } finally {
-      setIsGeocodingCoordinates(false);
-    }
-  };
-
   // The location card holds four separate policy fields plus the destination selector; each is
   // hidden on its own, and the card itself goes away once the department has turned all of them off.
   const showAddress = fieldPolicy.isVisible(NewCallFieldKeys.Address);
@@ -656,6 +324,7 @@ export default function NewCall() {
   const showPlusCode = fieldPolicy.isVisible(NewCallFieldKeys.PlusCode);
   const showDestinationPoi = fieldPolicy.isVisible(NewCallFieldKeys.DestinationPoi);
   const showDispatchList = fieldPolicy.isVisible(NewCallFieldKeys.DispatchList);
+  const visibleIdentifierFields = CALL_IDENTIFIER_FIELDS.filter((field) => fieldPolicy.isVisible(field.key));
   const showLocationCard = showAddress || showGeolocation || showWhat3Words || showPlusCode || showDestinationPoi;
 
   if (isLoading) {
@@ -690,7 +359,7 @@ export default function NewCall() {
               <Text className="mb-6 text-2xl font-bold">{t('calls.create_new_call')}</Text>
 
               <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                <FormControl isInvalid={!!errors.name}>
+                <FormControl isRequired isInvalid={!!errors.name}>
                   <FormControlLabel>
                     <FormControlLabelText>{t('calls.name')}</FormControlLabelText>
                   </FormControlLabel>
@@ -712,7 +381,7 @@ export default function NewCall() {
               </Card>
 
               <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                <FormControl isInvalid={!!errors.nature}>
+                <FormControl isRequired isInvalid={!!errors.nature}>
                   <FormControlLabel>
                     <FormControlLabelText>{t('calls.nature')}</FormControlLabelText>
                   </FormControlLabel>
@@ -734,7 +403,7 @@ export default function NewCall() {
               </Card>
 
               <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                <FormControl isInvalid={!!errors.priority}>
+                <FormControl isRequired isInvalid={!!errors.priority}>
                   <FormControlLabel>
                     <FormControlLabelText>{t('calls.priority')}</FormControlLabelText>
                   </FormControlLabel>
@@ -767,7 +436,7 @@ export default function NewCall() {
               </Card>
 
               <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                <FormControl isInvalid={!!errors.type}>
+                <FormControl isRequired isInvalid={!!errors.type}>
                   <FormControlLabel>
                     <FormControlLabelText>{t('calls.type')}</FormControlLabelText>
                   </FormControlLabel>
@@ -801,7 +470,7 @@ export default function NewCall() {
 
               {fieldPolicy.isVisible(NewCallFieldKeys.Note) ? (
                 <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                  <FormControl>
+                  <FormControl isRequired={fieldPolicy.isRequired(NewCallFieldKeys.Note)}>
                     <FormControlLabel>
                       <FormControlLabelText>{t('calls.note')}</FormControlLabelText>
                     </FormControlLabel>
@@ -824,109 +493,85 @@ export default function NewCall() {
 
                   {/* Address Field */}
                   {showAddress ? (
-                    <FormControl className="mb-4">
-                      <FormControlLabel>
-                        <FormControlLabelText>{t('calls.address')}</FormControlLabelText>
-                      </FormControlLabel>
-                      <Controller
-                        control={control}
-                        name="address"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <Box className="flex-row items-center space-x-2">
-                            <Box className="flex-1">
-                              <Input>
-                                <InputField testID="address-input" placeholder={t('calls.address_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                              </Input>
-                            </Box>
-                            <Button testID="address-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handleAddressSearch(value || '')} disabled={isGeocodingAddress || !value?.trim()}>
-                              {isGeocodingAddress ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
-                            </Button>
-                          </Box>
-                        )}
-                      />
-                    </FormControl>
+                    <Controller
+                      control={control}
+                      name="address"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <CallLocationSearchField
+                          label={t('calls.address')}
+                          isRequired={fieldPolicy.isRequired(NewCallFieldKeys.Address)}
+                          testIDPrefix="address"
+                          placeholder={t('calls.address_placeholder')}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          onSearch={locationSearch.searchAddress}
+                          isSearching={locationSearch.isGeocodingAddress}
+                        />
+                      )}
+                    />
                   ) : null}
 
                   {/* GPS Coordinates Field */}
                   {showGeolocation ? (
-                    <FormControl className="mb-4">
-                      <FormControlLabel>
-                        <FormControlLabelText>{t('calls.coordinates')}</FormControlLabelText>
-                      </FormControlLabel>
-                      <Controller
-                        control={control}
-                        name="coordinates"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <Box className="flex-row items-center space-x-2">
-                            <Box className="flex-1">
-                              <Input>
-                                <InputField testID="coordinates-input" placeholder={t('calls.coordinates_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                              </Input>
-                            </Box>
-                            <Button
-                              testID="coordinates-search-button"
-                              size="sm"
-                              variant="outline"
-                              className="ml-2"
-                              onPress={() => handleCoordinatesSearch(value || '')}
-                              disabled={isGeocodingCoordinates || !value?.trim()}
-                            >
-                              {isGeocodingCoordinates ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
-                            </Button>
-                          </Box>
-                        )}
-                      />
-                    </FormControl>
+                    <Controller
+                      control={control}
+                      name="coordinates"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <CallLocationSearchField
+                          label={t('calls.coordinates')}
+                          isRequired={fieldPolicy.isRequired(NewCallFieldKeys.Geolocation)}
+                          testIDPrefix="coordinates"
+                          placeholder={t('calls.coordinates_placeholder')}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          onSearch={locationSearch.searchCoordinates}
+                          isSearching={locationSearch.isGeocodingCoordinates}
+                        />
+                      )}
+                    />
                   ) : null}
 
                   {/* what3words Field */}
                   {showWhat3Words ? (
-                    <FormControl className="mb-4">
-                      <FormControlLabel>
-                        <FormControlLabelText>{t('calls.what3words')}</FormControlLabelText>
-                      </FormControlLabel>
-                      <Controller
-                        control={control}
-                        name="what3words"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <Box className="flex-row items-center space-x-2">
-                            <Box className="flex-1">
-                              <Input>
-                                <InputField testID="what3words-input" placeholder={t('calls.what3words_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                              </Input>
-                            </Box>
-                            <Button testID="what3words-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handleWhat3WordsSearch(value || '')} disabled={isGeocodingWhat3Words || !value?.trim()}>
-                              {isGeocodingWhat3Words ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
-                            </Button>
-                          </Box>
-                        )}
-                      />
-                    </FormControl>
+                    <Controller
+                      control={control}
+                      name="what3words"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <CallLocationSearchField
+                          label={t('calls.what3words')}
+                          isRequired={fieldPolicy.isRequired(NewCallFieldKeys.What3Words)}
+                          testIDPrefix="what3words"
+                          placeholder={t('calls.what3words_placeholder')}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          onSearch={locationSearch.searchWhat3Words}
+                          isSearching={locationSearch.isGeocodingWhat3Words}
+                        />
+                      )}
+                    />
                   ) : null}
 
-                  {/* Plus Code Field */}
+                  {/* Plus Code Field — a lookup aid only (never stored), so never required. */}
                   {showPlusCode ? (
-                    <FormControl className="mb-4">
-                      <FormControlLabel>
-                        <FormControlLabelText>{t('calls.plus_code')}</FormControlLabelText>
-                      </FormControlLabel>
-                      <Controller
-                        control={control}
-                        name="plusCode"
-                        render={({ field: { onChange, onBlur, value } }) => (
-                          <Box className="flex-row items-center space-x-2">
-                            <Box className="flex-1">
-                              <Input>
-                                <InputField testID="plus-code-input" placeholder={t('calls.plus_code_placeholder')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                              </Input>
-                            </Box>
-                            <Button testID="plus-code-search-button" size="sm" variant="outline" className="ml-2" onPress={() => handlePlusCodeSearch(value || '')} disabled={isGeocodingPlusCode || !value?.trim()}>
-                              {isGeocodingPlusCode ? <Text>...</Text> : <SearchIcon size={16} color={colorScheme === 'dark' ? '#ffffff' : '#000000'} />}
-                            </Button>
-                          </Box>
-                        )}
-                      />
-                    </FormControl>
+                    <Controller
+                      control={control}
+                      name="plusCode"
+                      render={({ field: { onChange, onBlur, value } }) => (
+                        <CallLocationSearchField
+                          label={t('calls.plus_code')}
+                          testIDPrefix="plus-code"
+                          placeholder={t('calls.plus_code_placeholder')}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          onSearch={locationSearch.searchPlusCode}
+                          isSearching={locationSearch.isGeocodingPlusCode}
+                        />
+                      )}
+                    />
                   ) : null}
 
                   {/* Map Preview — the map is how a geolocation gets picked, so it follows that field. */}
@@ -953,6 +598,7 @@ export default function NewCall() {
                           selectedPoiId={value ? Number(value) : null}
                           isLoading={isLoading && destinationPois.length === 0}
                           onChange={(poiId) => onChange(poiId != null ? poiId.toString() : '')}
+                          isRequired={fieldPolicy.isRequired(NewCallFieldKeys.DestinationPoi)}
                         />
                       )}
                     />
@@ -962,7 +608,7 @@ export default function NewCall() {
 
               {fieldPolicy.isVisible(NewCallFieldKeys.ContactName) ? (
                 <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                  <FormControl>
+                  <FormControl isRequired={fieldPolicy.isRequired(NewCallFieldKeys.ContactName)}>
                     <FormControlLabel>
                       <FormControlLabelText>{t('calls.contact_name')}</FormControlLabelText>
                     </FormControlLabel>
@@ -981,7 +627,7 @@ export default function NewCall() {
 
               {fieldPolicy.isVisible(NewCallFieldKeys.ContactInfo) ? (
                 <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                  <FormControl>
+                  <FormControl isRequired={fieldPolicy.isRequired(NewCallFieldKeys.ContactInfo)}>
                     <FormControlLabel>
                       <FormControlLabelText>{t('calls.contact_info')}</FormControlLabelText>
                     </FormControlLabel>
@@ -998,9 +644,48 @@ export default function NewCall() {
                 </Card>
               ) : null}
 
+              {visibleIdentifierFields.length > 0 ? (
+                <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                  {visibleIdentifierFields.map((field, index) => (
+                    <FormControl key={field.key} className={index < visibleIdentifierFields.length - 1 ? 'mb-4' : undefined} isRequired={fieldPolicy.isRequired(field.key)}>
+                      <FormControlLabel>
+                        <FormControlLabelText>{t(CALL_FIELD_LABEL_KEYS[field.key])}</FormControlLabelText>
+                      </FormControlLabel>
+                      <Controller
+                        control={control}
+                        name={field.name}
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <Input>
+                            <InputField testID={field.testID} value={value} onChangeText={onChange} onBlur={onBlur} />
+                          </Input>
+                        )}
+                      />
+                    </FormControl>
+                  ))}
+                </Card>
+              ) : null}
+
+              {fieldPolicy.isVisible(NewCallFieldKeys.DispatchOn) ? (
+                <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
+                  <FormControl isRequired={fieldPolicy.isRequired(NewCallFieldKeys.DispatchOn)}>
+                    <FormControlLabel>
+                      <FormControlLabelText>{t('calls.dispatch_on')}</FormControlLabelText>
+                    </FormControlLabel>
+                    <Controller
+                      control={control}
+                      name="dispatchOn"
+                      render={({ field: { onChange, value } }) => <DateTimeField mode="datetime" value={value ?? ''} onChange={onChange} label={t('calls.dispatch_on')} testID="dispatch-on-field" />}
+                    />
+                  </FormControl>
+                </Card>
+              ) : null}
+
               {showDispatchList ? (
                 <Card className="mb-4 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
-                  <Text className="mb-4 text-lg font-semibold">{t('calls.dispatch_to')}</Text>
+                  <Text className="mb-4 text-lg font-semibold">
+                    {t('calls.dispatch_to')}
+                    {fieldPolicy.isRequired(NewCallFieldKeys.DispatchList) ? '*' : ''}
+                  </Text>
                   <Button onPress={() => setShowDispatchModal(true)} className="w-full">
                     <ButtonText>{getDispatchSummary()}</ButtonText>
                   </Button>
@@ -1046,20 +731,7 @@ export default function NewCall() {
       <DispatchSelectionModal isVisible={showDispatchModal} onClose={() => setShowDispatchModal(false)} onConfirm={handleDispatchSelection} initialSelection={dispatchSelection} />
 
       {/* Address selection bottom sheet */}
-      <CustomBottomSheet isOpen={showAddressSelection} onClose={() => setShowAddressSelection(false)} isLoading={false}>
-        <Box className="p-4">
-          <Text className="mb-4 text-center text-lg font-semibold">{t('calls.select_address')}</Text>
-          <ScrollView className="max-h-96">
-            {addressResults.map((result, index) => (
-              <Button key={result.place_id || index} variant="outline" className="mb-2 w-full" onPress={() => handleAddressSelected(result)}>
-                <ButtonText className="flex-1 text-left" numberOfLines={2}>
-                  {result.formatted_address}
-                </ButtonText>
-              </Button>
-            ))}
-          </ScrollView>
-        </Box>
-      </CustomBottomSheet>
+      <CallAddressSelectionSheet isOpen={locationSearch.isAddressSelectionOpen} onClose={locationSearch.closeAddressSelection} results={locationSearch.addressResults} onSelect={locationSearch.selectAddressResult} />
     </>
   );
 }

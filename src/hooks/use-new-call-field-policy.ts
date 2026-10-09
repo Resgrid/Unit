@@ -33,6 +33,12 @@ export interface NewCallFieldPolicy {
 /** Lowercased key -> canonical key, so a stored rule's casing never leaks out to callers. */
 const CANONICAL_KEYS = new Map<string, NewCallFieldKey>(Object.values(NewCallFieldKeys).map((key) => [key.toLowerCase(), key]));
 
+/**
+ * A plus code is only a way to find a location — it is never stored on the call — so it cannot be required. The
+ * server reports Required=false for it; this guards against a stale rule from an older server all the same.
+ */
+const NEVER_REQUIRED = new Set<string>([NewCallFieldKeys.PlusCode.toLowerCase()]);
+
 const hasValue = (value: unknown): boolean => {
   if (value === null || value === undefined) {
     return false;
@@ -107,7 +113,7 @@ export const useNewCallFieldPolicy = (): NewCallFieldPolicy => {
 
       // A hidden field is never required — requiring something nobody can fill in would make call
       // creation impossible. The server takes the same stance.
-      return !!rule && rule.Visible && rule.Required;
+      return !!rule && rule.Visible && rule.Required && !NEVER_REQUIRED.has(key.toLowerCase());
     },
     [rulesByKey]
   );
@@ -117,7 +123,7 @@ export const useNewCallFieldPolicy = (): NewCallFieldPolicy => {
       const missing: NewCallFieldKey[] = [];
 
       for (const rule of rules) {
-        if (!rule?.Key || !rule.Visible || !rule.Required) {
+        if (!rule?.Key || !rule.Visible || !rule.Required || NEVER_REQUIRED.has(rule.Key.toLowerCase())) {
           continue;
         }
 

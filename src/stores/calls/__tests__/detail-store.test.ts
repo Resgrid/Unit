@@ -508,6 +508,10 @@ describe('useCallDetailStore - Notes', () => {
       });
 
       expect(mockUpdateCall).toHaveBeenCalled();
+      // A refused save leaves the loaded call in place: the edit form (and the detail screen behind it)
+      // must not be swapped for an error page.
+      expect(result.current.error).toBeNull();
+      expect(result.current.isLoading).toBe(false);
     });
 
     it('should handle partial update data', async () => {
