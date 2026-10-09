@@ -124,7 +124,7 @@ jest.mock('nativewind', () => ({
 jest.mock('@/lib/utils', () => ({
   IS_ANDROID: false,
   IS_IOS: true,
-  readableTextColor: jest.fn(() => '#000000'),
+  readableColors: jest.fn((color?: string, fallback = '#808080') => ({ backgroundColor: color || fallback, textColor: '#000000' })),
   createSelectors: jest.fn(),
   openLinkInBrowser: jest.fn(),
   DEFAULT_CENTER_COORDINATE: [-77.036086, 38.910233],

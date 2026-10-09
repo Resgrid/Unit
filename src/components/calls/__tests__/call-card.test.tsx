@@ -75,9 +75,19 @@ describe('CallCard', () => {
     navy.unmount();
   });
 
-  it('renders a priority colour that is not hex instead of throwing', () => {
-    const { getByText, unmount } = render(<CallCard call={baseCall} priority={{ Id: 3, Name: 'Odd', Color: 'rgb(200, 0, 0)' } as never} />);
+  it('picks the text colour for an rgb() priority colour', () => {
+    const { getByText, root, unmount } = render(<CallCard call={baseCall} priority={{ Id: 3, Name: 'Odd', Color: 'rgb(200, 0, 0)' } as never} />);
 
+    expect(root).toHaveStyle({ backgroundColor: 'rgb(200, 0, 0)' });
+    expect(getByText('#2024-042').props.style).toEqual(expect.objectContaining({ color: '#FFFFFF' }));
+
+    unmount();
+  });
+
+  it('draws the default grey behind the text when the priority colour cannot be read', () => {
+    const { getByText, root, unmount } = render(<CallCard call={baseCall} priority={{ Id: 4, Name: 'Odd', Color: 'hsl(0, 100%, 25%)' } as never} />);
+
+    expect(root).toHaveStyle({ backgroundColor: '#808080' });
     expect(getByText('#2024-042').props.style).toEqual(expect.objectContaining({ color: '#000000' }));
 
     unmount();

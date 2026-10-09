@@ -52,7 +52,7 @@ jest.mock('../../ui/textarea', () => ({
 }));
 jest.mock('nativewind', () => ({ useColorScheme: () => ({ colorScheme: 'light' }), styled: (component: any) => component, cssInterop: (component: any) => component }));
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }));
-jest.mock('@/lib/utils', () => ({ readableTextColor: () => '#000000' }));
+jest.mock('@/lib/utils', () => ({ readableColors: (color?: string, fallback = '#808080') => ({ backgroundColor: color || fallback, textColor: '#000000' }) }));
 jest.mock('@/lib/logging', () => ({ logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 
 jest.mock('@/services/location-fix', () => ({

@@ -11,7 +11,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
-import { readableTextColor } from '@/lib/utils';
+import { readableColors } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useIsChatEnabled, useIsChecklistsEnabled, useIsDeploymentsEnabled, useIsRecordsFieldEnabled } from '@/stores/feature-flags/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
@@ -195,8 +195,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             {offeredStatuses.offered.map((status) => {
               const isCurrent = String(status.Id) === currentStatusId;
               // An option without a color falls back to white like the status sheet.
-              const background = status.BColor || '#ffffff';
-              const foreground = readableTextColor(background) ?? '#000000';
+              const { backgroundColor: background, textColor: foreground } = readableColors(status.BColor, '#ffffff');
               const label = (
                 <ButtonText numberOfLines={1} style={[styles.labelText, { color: foreground }]}>
                   {status.Text}

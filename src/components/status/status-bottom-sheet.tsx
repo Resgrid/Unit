@@ -10,7 +10,7 @@ import { logger } from '@/lib/logging';
 import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { getUnitStatusCallDestinationId, resolveDefaultStatusCall } from '@/lib/status-destination';
 import { canSubmitStatusWithoutInput, getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
-import { readableTextColor } from '@/lib/utils';
+import { readableColors } from '@/lib/utils';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { CustomStateDetailTypes, statusDetailAllowsCalls, statusDetailAllowsPois, statusDetailAllowsStations } from '@/models/v4/customStatuses/customStateDetailTypes';
 import { DestinationEntityTypes } from '@/models/v4/destinations/destinationEntityTypes';
@@ -924,17 +924,17 @@ export const StatusBottomSheet = () => {
       return null;
     }
 
-    const summaryBackground = selectedStatus.BColor || '#f3f4f6';
+    const summaryColors = readableColors(selectedStatus.BColor, '#f3f4f6');
     const destinationText = getSelectedDestinationDisplay();
 
     return (
-      <HStack className="w-full items-center rounded-lg px-3 py-2" style={{ backgroundColor: summaryBackground }}>
+      <HStack className="w-full items-center rounded-lg px-3 py-2" style={{ backgroundColor: summaryColors.backgroundColor }}>
         <Text
           testID="status-summary"
           className="flex-1 font-bold"
           numberOfLines={1}
           accessibilityLabel={`${t('status.selected_status')}: ${selectedStatus.Text}, ${t('status.selected_destination')}: ${destinationText}`}
-          style={{ color: readableTextColor(summaryBackground) ?? '#000000' }}
+          style={{ color: summaryColors.textColor }}
         >
           {`${selectedStatus.Text} · ${destinationText}`}
         </Text>
@@ -995,8 +995,7 @@ export const StatusBottomSheet = () => {
   };
 
   const renderCurrentStatusBanner = (status: StatusesResultData) => {
-    const background = status.BColor || '#ffffff';
-    const foreground = readableTextColor(background) ?? '#000000';
+    const { backgroundColor: background, textColor: foreground } = readableColors(status.BColor, '#ffffff');
 
     return (
       <View>
@@ -1014,8 +1013,7 @@ export const StatusBottomSheet = () => {
   const renderStatusOption = (status: StatusesResultData) => {
     const statusDetailDescription = getStatusDetailDescription(Number(status.Detail));
     const isCurrent = String(status.Id) === currentStatusId;
-    const background = status.BColor || '#ffffff';
-    const foreground = readableTextColor(background) ?? '#000000';
+    const { backgroundColor: background, textColor: foreground } = readableColors(status.BColor, '#ffffff');
 
     const details = (
       <VStack className="flex-1">
@@ -1069,7 +1067,7 @@ export const StatusBottomSheet = () => {
           testID={`status-option-${status.Id}`}
           onPress={() => handleStatusSelect(status.Id.toString())}
           className={`rounded-lg border-2 p-3 ${isSelected ? 'border-blue-500' : 'border-gray-200 dark:border-gray-700'}`}
-          style={{ backgroundColor: status.BColor || (isSelected ? '#dbeafe' : '#ffffff') }}
+          style={{ backgroundColor: status.BColor ? background : isSelected ? '#dbeafe' : '#ffffff' }}
           accessibilityLabel={isCurrent ? `${status.Text}, ${t('status.current')}` : undefined}
         >
           <HStack space="sm" className="items-center">
