@@ -317,6 +317,11 @@ describe('BluetoothAudioService - edge cases', () => {
     it('clears the stored preference and moves the audio selection back to the built-in devices', async () => {
       const store = useBluetoothAudioStore.getState();
       const headset = { id: DEVICE_ID, name: 'Headset', type: 'bluetooth' as const, isAvailable: true };
+      store.setAvailableAudioDevices([
+        { id: 'default-mic', name: 'Default Microphone', type: 'microphone', isAvailable: true },
+        { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
+        headset,
+      ]);
       store.setPreferredDevice({ id: DEVICE_ID, name: 'Headset' });
       store.setSelectedMicrophone(headset);
       store.setSelectedSpeaker(headset);
@@ -424,6 +429,68 @@ describe('BluetoothAudioService - edge cases', () => {
 
       expect(setMicrophoneEnabled()).not.toHaveBeenCalled();
       expect(callKeepService.ignoreMuteEvents).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('BleManager startup', () => {
+    // Holds BleManager.start() pending until the returned function is called
+    const deferredStart = () => {
+      let resolveStart: () => void = () => undefined;
+      const pending = new Promise<void>((resolve) => {
+        resolveStart = resolve;
+      });
+      (BleManager.start as jest.Mock).mockReturnValueOnce(pending);
+      return () => resolveStart();
+    };
+
+    beforeEach(() => {
+      service.isBleManagerStarted = false;
+      service.bleManagerStartPromise = null;
+    });
+
+    afterEach(() => {
+      service.eventListeners = [];
+      service.isBleManagerStarted = false;
+      service.bleManagerStartPromise = null;
+    });
+
+    it('starts BleManager and registers its listeners once for overlapping callers', async () => {
+      const resolveStart = deferredStart();
+
+      const first = service.ensureBleManagerStarted();
+      const second = service.ensureBleManagerStarted();
+      resolveStart();
+      await Promise.all([first, second]);
+      await service.ensureBleManagerStarted();
+
+      expect(BleManager.start).toHaveBeenCalledTimes(1);
+      expect(BleManager.onDidUpdateValueForCharacteristic).toHaveBeenCalledTimes(1);
+      expect(service.isBleManagerStarted).toBe(true);
+    });
+
+    it('does not register listeners when destroyed while BleManager is starting', async () => {
+      const resolveStart = deferredStart();
+
+      const starting = service.ensureBleManagerStarted();
+      const assertion = expect(starting).rejects.toThrow('destroyed while BleManager was starting');
+      const destroying = service.destroy();
+      resolveStart();
+      await assertion;
+      await destroying;
+
+      expect(BleManager.onDidUpdateValueForCharacteristic).not.toHaveBeenCalled();
+      expect(service.isBleManagerStarted).toBe(false);
+      expect(service.bleManagerStartPromise).toBeNull();
+    });
+
+    it('allows a retry after BleManager fails to start', async () => {
+      (BleManager.start as jest.Mock).mockRejectedValueOnce(new Error('start failed'));
+
+      await expect(service.ensureBleManagerStarted()).rejects.toThrow('start failed');
+      await service.ensureBleManagerStarted();
+
+      expect(BleManager.start).toHaveBeenCalledTimes(2);
+      expect(service.isBleManagerStarted).toBe(true);
     });
   });
 

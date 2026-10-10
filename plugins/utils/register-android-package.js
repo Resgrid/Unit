@@ -20,15 +20,17 @@
  */
 function registerAndroidPackage(contents, basePackageName, packageClass) {
   let result = contents;
+  // Line comments are stripped so a commented-out `// add(Package())` (like the template's example) doesn't count
+  const activeLines = () => result.split('\n').map((line) => line.replace(/\/\/.*$/, '').trim());
 
   const importStatement = `import ${basePackageName}.${packageClass}`;
-  if (!result.includes(importStatement)) {
+  if (!activeLines().includes(importStatement)) {
     result = result.replace(/^(package\s+[^\n]+\n)/, `$1${importStatement}\n`);
   }
 
   // Checked separately from the import: a MainApplication.kt that already imports the package
   // without registering it must still get the registration
-  if (result.includes(`add(${packageClass}())`)) {
+  if (activeLines().some((line) => line.includes(`add(${packageClass}())`))) {
     return result;
   }
 

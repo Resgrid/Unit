@@ -69,6 +69,8 @@ export class BluetoothAudioService {
   // repeatedly for the preferred device while a connection is still in flight.
   private isConnecting: boolean = false;
   private isBleManagerStarted: boolean = false;
+  // Shared by overlapping initialize()/scan calls so BleManager listeners are only registered once
+  private bleManagerStartPromise: Promise<void> | null = null;
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
@@ -217,14 +219,30 @@ export class BluetoothAudioService {
    * Start BleManager and register its listeners once. Called from initialize() and from scanning so a user who
    * denied permissions at startup and grants them later from settings can still scan.
    */
-  private async ensureBleManagerStarted(): Promise<void> {
+  private ensureBleManagerStarted(): Promise<void> {
     if (this.isBleManagerStarted) {
-      return;
+      return Promise.resolve();
     }
 
-    await BleManager.start({ showAlert: false });
-    this.setupEventListeners();
-    this.isBleManagerStarted = true;
+    if (!this.bleManagerStartPromise) {
+      const startPromise = BleManager.start({ showAlert: false })
+        .then(() => {
+          // destroy() ran while start was pending: don't restore listeners on a torn-down service
+          if (this.bleManagerStartPromise !== startPromise) {
+            throw new Error('Bluetooth Audio Service was destroyed while BleManager was starting');
+          }
+          this.setupEventListeners();
+          this.isBleManagerStarted = true;
+        })
+        .finally(() => {
+          if (this.bleManagerStartPromise === startPromise) {
+            this.bleManagerStartPromise = null;
+          }
+        });
+      this.bleManagerStartPromise = startPromise;
+    }
+
+    return this.bleManagerStartPromise;
   }
 
   private addEventListener(listener: { remove: () => void }): void {
@@ -2650,6 +2668,7 @@ export class BluetoothAudioService {
     // Reset initialization flags
     this.isInitialized = false;
     this.isBleManagerStarted = false;
+    this.bleManagerStartPromise = null;
     this.hasAttemptedPreferredDeviceConnection = false;
 
     try {

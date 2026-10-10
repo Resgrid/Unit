@@ -81,6 +81,20 @@ describe('registerAndroidPackage', () => {
     expect(result).toContain('add(InCallAudioPackage())');
   });
 
+  it('registers a package whose import and registration are only present as comments', () => {
+    const commentedOut = applyTemplate
+      .replace('package com.resgrid.unit.development\n', 'package com.resgrid.unit.development\n// import com.resgridunit.MediaButtonPackage\n')
+      .replace('// add(MyReactNativePackage())', '// add(MediaButtonPackage())');
+
+    const result = registerAndroidPackage(commentedOut, 'com.resgridunit', 'MediaButtonPackage');
+    const lines = result.split('\n');
+
+    expect(lines[1]).toBe('import com.resgridunit.MediaButtonPackage');
+    const applyLine = lines.findIndex((line) => line.includes('PackageList(this).packages.apply {'));
+    expect(lines[applyLine + 1]).toBe('          add(MediaButtonPackage())');
+    expect(countOf(result, '// add(MediaButtonPackage())')).toBe(1);
+  });
+
   it('throws when MainApplication.kt has no recognised package list', () => {
     const unknown = 'package com.example\n\nclass MainApplication : Application()\n';
 
