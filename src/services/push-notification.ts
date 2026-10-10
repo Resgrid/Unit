@@ -8,7 +8,7 @@ import { Platform } from 'react-native';
 import { registerUnitDevice } from '@/api/devices/push';
 import { logger } from '@/lib/logging';
 import { type RouterPushRetryOptions, routerPushWithRetry } from '@/lib/navigation';
-import { getDeviceUuid } from '@/lib/storage/app';
+import { getBaseApiUrl, getOrCreateDeviceUuid } from '@/lib/storage/app';
 import { getAppliedNotificationSoundMode, getModernNotificationSoundsEnabled, setAppliedNotificationSoundMode } from '@/lib/storage/notification-prefs';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
@@ -584,7 +584,7 @@ class PushNotificationService {
         UnitId: unitId,
         Token: this.pushToken || '',
         Platform: Platform.OS === 'ios' ? 1 : 2,
-        DeviceUuid: getDeviceUuid() || '',
+        DeviceUuid: getOrCreateDeviceUuid(),
         Prefix: departmentCode,
       });
 
@@ -653,43 +653,66 @@ export const usePushNotifications = () => {
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const rights = securityStore((state) => state.rights);
   const authStatus = useAuthStore((state) => state.status);
-  const previousUnitIdRef = useRef<string | null>(null);
+  // Registrations as "server|department|unit". Core files the token under a subscriber named from the department
+  // code and unit id, and both are only unique within one server, so a change in any of the three needs a new
+  // registration. Keying on the unit alone skipped it when persisted rights carried a stale department code, and
+  // after signing back in to the same unit.
+  const registeredKeyRef = useRef<string | null>(null);
+  const inFlightKeyRef = useRef<string | null>(null);
+  const currentKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Push notifications are native-only; skip on web
     if (Platform.OS === 'web') return;
+
+    if (authStatus === 'signedOut') {
+      // Whatever was registered belonged to the session that just ended (a server switch from Settings always ends one).
+      registeredKeyRef.current = null;
+    }
 
     // Don't register until auth has settled. On a cold start (especially a
     // background wake) the persisted activeUnitId and rights hydrate before
     // token validity is known, so registering here sends a request with a
     // stale token: the 401 forces a refresh and, if the refresh token has
     // expired, logs the user out.
-    if (authStatus !== 'signedIn' || !useAuthStore.getState().accessToken) return;
-
-    // Only register if we have an active unit ID and it's different from the previous one
-    if (rights && activeUnitId && activeUnitId !== previousUnitIdRef.current) {
-      pushNotificationService
-        .registerForPushNotifications(activeUnitId, rights.DepartmentCode)
-        .then((token) => {
-          if (token) {
-            // Only mark the unit as registered on success. Marking it
-            // unconditionally meant a single transient failure (401 during
-            // hydration, offline, 5xx) permanently disabled push for the rest
-            // of the app session, since the ref then matched forever.
-            previousUnitIdRef.current = activeUnitId;
-            logger.info({
-              message: 'Successfully registered for push notifications',
-              context: { unitId: activeUnitId },
-            });
-          }
-        })
-        .catch((error) => {
-          logger.error({
-            message: 'Error in push notification registration hook',
-            context: { error },
-          });
-        });
+    const departmentCode = rights?.DepartmentCode;
+    if (authStatus !== 'signedIn' || !useAuthStore.getState().accessToken || !activeUnitId || !departmentCode) {
+      currentKeyRef.current = null;
+      return;
     }
+
+    const key = `${getBaseApiUrl()}|${departmentCode}|${activeUnitId}`;
+    currentKeyRef.current = key;
+    if (key === registeredKeyRef.current || key === inFlightKeyRef.current) return;
+
+    inFlightKeyRef.current = key;
+    pushNotificationService
+      .registerForPushNotifications(activeUnitId, departmentCode)
+      .then((token) => {
+        // Only mark it registered on success. Marking it unconditionally meant a
+        // single transient failure (401 during hydration, offline, 5xx)
+        // permanently disabled push for the rest of the app session. A
+        // registration the session moved on from while it was in flight (signed
+        // out, switched server, picked another unit) is not current either.
+        if (token && currentKeyRef.current === key) {
+          registeredKeyRef.current = key;
+          logger.info({
+            message: 'Successfully registered for push notifications',
+            context: { unitId: activeUnitId },
+          });
+        }
+      })
+      .catch((error) => {
+        logger.error({
+          message: 'Error in push notification registration hook',
+          context: { error },
+        });
+      })
+      .finally(() => {
+        if (inFlightKeyRef.current === key) {
+          inFlightKeyRef.current = null;
+        }
+      });
 
     // Cleanup function
     return () => {

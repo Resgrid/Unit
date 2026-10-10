@@ -23,7 +23,8 @@ jest.mock('@/api/devices/push', () => ({
   unRegisterWebPush: (...args: unknown[]) => mockUnRegisterWebPush(...(args as [])),
 }));
 jest.mock('@/lib/navigation', () => ({ routerPushWithRetry: (...args: unknown[]) => mockRouterPushWithRetry(...(args as [])) }));
-jest.mock('@/lib/storage/app', () => ({ getBaseApiUrl: () => 'https://api.test/api/v4', getDeviceUuid: () => 'device-uuid' }));
+let mockBaseApiUrl = 'https://api.test/api/v4';
+jest.mock('@/lib/storage/app', () => ({ getBaseApiUrl: () => mockBaseApiUrl, getOrCreateDeviceUuid: () => 'device-uuid' }));
 jest.mock('@/lib/logging', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } }));
 jest.mock('@/lib/mfa/client-app', () => ({ CLIENT_HEADER: 'X-Resgrid-Client', RESGRID_CLIENT: 'unit' }));
 jest.mock('@/stores/push-notification/store', () => {
@@ -139,6 +140,7 @@ beforeEach(() => {
   mockState.auth = { status: 'signedIn', accessToken: 'access-token' };
   mockState.core = { activeUnitId: '12', config: { ...firebaseConfig } };
   mockState.security = { rights: { DepartmentCode: 'DEPT' } };
+  mockBaseApiUrl = 'https://api.test/api/v4';
   installBrowser();
   globals.fetch = jest.fn(async () => ({ ok: true }));
 });
@@ -297,6 +299,23 @@ describe('browser', () => {
     expect(globals.fetch).toHaveBeenCalledWith('https://api.test/api/v4/Devices/UnRegisterWebPush', expect.objectContaining({ body: JSON.stringify({ Token: 'browser-token', Prefix: 'DEPT', UnitId: '12' }) }));
     expect(mockFirebaseDeleteToken).toHaveBeenCalledTimes(1);
     expect(push.pushNotificationService.getPushToken()).toBeNull();
+  });
+
+  it('unregisters from the server the session belonged to when a server switch lands while the cleanup waits', async () => {
+    permission = 'granted';
+    const { push, hooks } = load();
+    const reachedMint = holdNextMint();
+
+    const sync = push.syncWebPush();
+    const releaseToken = await reachedMint();
+    const signOut = hooks.runSignOutHooks('access-token');
+    // Settings applies the new server once sign-out returns; this cleanup is still queued behind the sync.
+    mockBaseApiUrl = 'https://api-eu-central.resgrid.com/api/v4';
+    releaseToken('browser-token');
+    await Promise.all([sync, signOut]);
+
+    expect(globals.fetch).toHaveBeenCalledWith('https://api.test/api/v4/Devices/UnRegisterWebPush', expect.anything());
+    expect(globals.fetch).not.toHaveBeenCalledWith(expect.stringContaining('api-eu-central'), expect.anything());
   });
 
   it('registers nothing for a session that ended while its token was minted', async () => {

@@ -35,9 +35,8 @@ import { loadKeepAliveState } from '@/lib/hooks/use-keep-alive';
 import { loadSelectedTheme, useSelectedTheme } from '@/lib/hooks/use-selected-theme';
 import { logger } from '@/lib/logging';
 import { registerNavigationReadyCheck } from '@/lib/navigation';
-import { getDeviceUuid, setDeviceUuid } from '@/lib/storage/app';
+import { getOrCreateDeviceUuid } from '@/lib/storage/app';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
-import { uuidv4 } from '@/lib/utils';
 import { appInitializationService } from '@/services/app-initialization.service';
 
 // A web sign-in popup returns to the page its redirect names (/auth/callback), and a production web build loads a route's
@@ -117,10 +116,7 @@ SplashScreen.setOptions({
   fade: true,
 });
 
-const deviceUuid = getDeviceUuid();
-if (!deviceUuid) {
-  setDeviceUuid(uuidv4());
-}
+getOrCreateDeviceUuid();
 
 LogBox.ignoreLogs([
   //Mapbox errors

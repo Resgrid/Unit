@@ -1,4 +1,5 @@
 import { Env } from '@env';
+import { randomUUID } from 'expo-crypto';
 
 import { getItem, removeItem, setItem } from '@/lib/storage';
 
@@ -35,5 +36,21 @@ export const setDeviceUuid = (value: string) => setItem<string>(DEVICE_UUID, val
 
 export const getDeviceUuid = () => {
   const uuid = getItem<string>(DEVICE_UUID);
+  return uuid;
+};
+
+/**
+ * The device id sent with every push registration, minted on first use. Sign-out wipes it so the next session
+ * gets a fresh one, but sign-in does not restart the app: reading it with getDeviceUuid() after an in-app sign-out
+ * (which every server switch from Settings is) registered the device with an empty id.
+ */
+export const getOrCreateDeviceUuid = (): string => {
+  const existing = getDeviceUuid();
+  if (existing) {
+    return existing;
+  }
+
+  const uuid = randomUUID();
+  setDeviceUuid(uuid);
   return uuid;
 };

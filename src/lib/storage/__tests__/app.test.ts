@@ -11,7 +11,7 @@ jest.mock('@/lib/storage', () => ({
   }),
 }));
 
-import { getActiveCallId, getActiveUnitId, removeActiveCallId, removeActiveUnitId, setActiveCallId, setActiveUnitId } from '../app';
+import { getActiveCallId, getActiveUnitId, getDeviceUuid, getOrCreateDeviceUuid, removeActiveCallId, removeActiveUnitId, removeDeviceUuid, setActiveCallId, setActiveUnitId, setDeviceUuid } from '../app';
 
 // The core store's init() restores the crew's unit and call from these on every launch.
 describe('active unit and call persistence', () => {
@@ -47,5 +47,30 @@ describe('active unit and call persistence', () => {
     await removeActiveCallId();
 
     expect(getActiveCallId()).toBeNull();
+  });
+});
+
+// Every push registration carries this id. Sign-out wipes it, and signing in again does not restart the app.
+describe('device uuid', () => {
+  beforeEach(() => {
+    mockStore.clear();
+  });
+
+  it('keeps the id the device already has', async () => {
+    await setDeviceUuid('existing-uuid');
+
+    expect(getOrCreateDeviceUuid()).toBe('existing-uuid');
+  });
+
+  it('mints and saves a new id once sign-out has removed it', async () => {
+    await setDeviceUuid('previous-session-uuid');
+    await removeDeviceUuid();
+
+    const uuid = getOrCreateDeviceUuid();
+
+    expect(uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(uuid).not.toBe('previous-session-uuid');
+    expect(getDeviceUuid()).toBe(uuid);
+    expect(getOrCreateDeviceUuid()).toBe(uuid);
   });
 });

@@ -2309,6 +2309,28 @@ export class BluetoothAudioService {
     }
   }
 
+  /**
+   * Drop PTT state when its input source goes away (disconnect, reset, destroy). A queued unmute is
+   * discarded, but a held press is released and a queued release is kept, so the microphone is
+   * never left transmitting after the headset that keyed it is gone.
+   */
+  private resetPttState(): void {
+    const wasPttActive = this.pttPressActive;
+
+    this.pttPressActive = false;
+    this.clearPttReleaseFallback();
+    this.clearMicApplyRetry();
+
+    if (this.pendingMicEnabled === true) {
+      this.pendingMicEnabled = null;
+    }
+
+    if (wasPttActive) {
+      callKeepService.ignoreMuteEvents(1000);
+      this.requestMicrophoneState(false);
+    }
+  }
+
   private scheduleMicApplyRetry(enabled: boolean): void {
     this.retryMicEnabled = enabled;
 
@@ -2462,11 +2484,7 @@ export class BluetoothAudioService {
       }
 
       bluetoothStore.setIsHeadsetButtonMonitoring(false);
-      this.pttPressActive = false;
-      this.clearPttReleaseFallback();
-      this.clearMicApplyRetry();
-      this.retryMicEnabled = null;
-      this.pendingMicEnabled = null;
+      this.resetPttState();
       this.stopMonitoringWatchdog();
       this.stopReadPollingFallback();
       this.stopMediaButtonFallbackMonitoring();
@@ -2538,11 +2556,7 @@ export class BluetoothAudioService {
   async disconnectDevice(): Promise<void> {
     if (this.isWeb) return;
     useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
-    this.pttPressActive = false;
-    this.clearPttReleaseFallback();
-    this.clearMicApplyRetry();
-    this.retryMicEnabled = null;
-    this.pendingMicEnabled = null;
+    this.resetPttState();
     this.stopMonitoringWatchdog();
     this.stopReadPollingFallback();
     this.stopMediaButtonFallbackMonitoring();
@@ -2621,10 +2635,7 @@ export class BluetoothAudioService {
   async destroy(): Promise<void> {
     // Synchronous cleanup first so callers that don't await still get a fully reset service
     useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
-    this.clearPttReleaseFallback();
-    this.clearMicApplyRetry();
-    this.retryMicEnabled = null;
-    this.pendingMicEnabled = null;
+    this.resetPttState();
     this.stopMonitoringWatchdog();
     this.stopReadPollingFallback();
     this.stopMediaButtonFallbackMonitoring();
@@ -2687,10 +2698,7 @@ export class BluetoothAudioService {
       store.setIsConnecting(false);
       store.setIsScanning(false);
       store.setIsHeadsetButtonMonitoring(false);
-      this.clearPttReleaseFallback();
-      this.clearMicApplyRetry();
-      this.retryMicEnabled = null;
-      this.pendingMicEnabled = null;
+      this.resetPttState();
       this.stopMonitoringWatchdog();
       this.stopReadPollingFallback();
       this.stopMediaButtonFallbackMonitoring();
