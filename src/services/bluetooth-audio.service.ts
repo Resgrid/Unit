@@ -6,7 +6,7 @@ import BleManager, { type BleManagerDidUpdateValueForCharacteristicEvent, BleSca
 import { logger } from '@/lib/logging';
 import { audioService } from '@/services/audio.service';
 import { callKeepService } from '@/services/callkeep.service';
-import { type AudioButtonEvent, type BluetoothAudioDevice, type Device, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
+import { type AudioButtonEvent, type AudioDeviceInfo, type BluetoothAudioDevice, type Device, State, useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
 // Lazy getter to avoid a circular dependency with livekit-store
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getLiveKitStore = (): any => {
@@ -38,19 +38,37 @@ const HYS_HEADSET_SERVICE = '0000FFE0-0000-1000-8000-00805F9B34FB';
 const HYS_HEADSET_SERVICE_CHAR = '00002902-0000-1000-8000-00805F9B34FB';
 
 // Common button control characteristic UUIDs (varies by manufacturer)
-const BUTTON_CONTROL_UUIDS = [
-  '0000FE59-0000-1000-8000-00805F9B34FB', // Common button control
-  '0000180F-0000-1000-8000-00805F9B34FB', // Battery Service (often includes button data)
-  '00001812-0000-1000-8000-00805F9B34FB', // Human Interface Device Service
+const BUTTON_CONTROL_CHARACTERISTICS = [
+  '0000FE59-0000-1000-8000-00805F9B34FB', // Common button control characteristic
 ];
 
-class BluetoothAudioService {
+// Standard GATT characteristics that must never be fed to the generic button parser.
+// Their payloads are telemetry/descriptors, not button frames: a headset reporting
+// battery 100% (0x64) decodes as `0x64 & 0x0f === 0x04` -> 'mute', which would toggle
+// the LiveKit microphone mid-transmission. Battery levels 4/20/36/52/68/84/100 all hit it.
+const EXCLUDED_STANDARD_CHARACTERISTICS = [
+  '00002A19-0000-1000-8000-00805F9B34FB', // Battery Level
+  '00002A4A-0000-1000-8000-00805F9B34FB', // HID Information
+  '00002A4B-0000-1000-8000-00805F9B34FB', // HID Report Map
+  '00002A4C-0000-1000-8000-00805F9B34FB', // HID Control Point
+  '00002A4D-0000-1000-8000-00805F9B34FB', // HID Report
+];
+
+// Upper bound on a single BleManager.connect attempt (Android can hang indefinitely).
+const CONNECTION_TIMEOUT_MS = 15000;
+
+// Stop read-polling a characteristic after this many consecutive read failures (e.g. "Reading is not permitted")
+const READ_POLL_MAX_CONSECUTIVE_FAILURES = 3;
+
+export class BluetoothAudioService {
   private static instance: BluetoothAudioService;
   private connectedDevice: Device | null = null;
   private scanTimeout: ReturnType<typeof setTimeout> | null = null;
+  private connectionTimeout: ReturnType<typeof setTimeout> | null = null;
   // Guards connectToDevice against overlapping runs — discovery events can fire
   // repeatedly for the preferred device while a connection is still in flight.
   private isConnecting: boolean = false;
+  private isBleManagerStarted: boolean = false;
   private isInitialized: boolean = false;
   private hasAttemptedPreferredDeviceConnection: boolean = false;
   private eventListeners: { remove: () => void }[] = [];
@@ -59,7 +77,8 @@ class BluetoothAudioService {
   private monitoringWatchdogInterval: ReturnType<typeof setInterval> | null = null;
   private readPollingInterval: ReturnType<typeof setInterval> | null = null;
   private isReadPollingInFlight: boolean = false;
-  private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null; notificationConfirmed: boolean }[] = [];
+  private monitoredReadCharacteristics: { serviceUuid: string; characteristicUuid: string; lastHexValue: string | null; notificationConfirmed: boolean; consecutiveFailures: number }[] = [];
+  private hasVendorButtonCharacteristic: boolean = false;
   private mediaButtonEventListener: { remove: () => void } | null = null;
   private mediaButtonListeningActive: boolean = false;
   private pttPressActive: boolean = false;
@@ -94,13 +113,7 @@ class BluetoothAudioService {
     }
 
     try {
-      // Initialize BLE Manager
-      await BleManager.start({ showAlert: false });
-      this.setupEventListeners();
-
-      this.isInitialized = true;
-
-      // Check if we have permissions
+      // Permissions first: if they are denied, initialize() stays retryable instead of being marked done
       const hasPermissions = await this.requestPermissions();
       if (!hasPermissions) {
         logger.warn({
@@ -108,6 +121,9 @@ class BluetoothAudioService {
         });
         return;
       }
+
+      await this.ensureBleManagerStarted();
+      this.isInitialized = true;
 
       // Check Bluetooth state
       const state = await this.checkBluetoothState();
@@ -181,7 +197,8 @@ class BluetoothAudioService {
           });
 
           // If direct connection fails, start scanning to find the device
-          this.startScanning(5000); // 5 second scan
+          // Await so scan failures (BT off, permission denied) stay inside this try/catch
+          await this.startScanning(5000); // 5 second scan
         }
       } else {
         logger.info({
@@ -194,6 +211,20 @@ class BluetoothAudioService {
         context: { error },
       });
     }
+  }
+
+  /**
+   * Start BleManager and register its listeners once. Called from initialize() and from scanning so a user who
+   * denied permissions at startup and grants them later from settings can still scan.
+   */
+  private async ensureBleManagerStarted(): Promise<void> {
+    if (this.isBleManagerStarted) {
+      return;
+    }
+
+    await BleManager.start({ showAlert: false });
+    this.setupEventListeners();
+    this.isBleManagerStarted = true;
   }
 
   private addEventListener(listener: { remove: () => void }): void {
@@ -234,19 +265,24 @@ class BluetoothAudioService {
 
   private handleBluetoothStateChange(args: { state: BleState }): void {
     const state = this.mapBleStateToState(args.state);
+    const previousState = useBluetoothAudioStore.getState().bluetoothState;
 
     logger.info({
       message: 'Bluetooth state changed',
-      context: { state },
+      context: { state, previousState },
     });
 
     useBluetoothAudioStore.getState().setBluetoothState(state);
 
     if (state === State.PoweredOff || state === State.Unauthorized) {
       this.handleBluetoothDisabled();
-    } else if (state === State.PoweredOn && this.isInitialized && !this.hasAttemptedPreferredDeviceConnection) {
-      // If Bluetooth is turned back on, try to reconnect to preferred device
-      this.attemptReconnectToPreferredDevice();
+    } else if (state === State.PoweredOn && this.isInitialized && !this.connectedDevice && !this.isConnecting) {
+      // Retry the preferred device when no attempt has run yet (on iOS checkState can still report 'unknown' right
+      // after start, so initialize() skips it) or when Bluetooth comes back on after being off/unauthorized.
+      const turnedBackOn = previousState !== State.PoweredOn && previousState !== State.Unknown;
+      if (turnedBackOn || !this.hasAttemptedPreferredDeviceConnection) {
+        void this.attemptReconnectToPreferredDevice();
+      }
     }
   }
 
@@ -320,11 +356,12 @@ class BluetoothAudioService {
    * Record that a GATT notification was actually delivered for a characteristic.
    *
    * The read-polling fallback exists for devices whose notifications silently
-   * never fire (screen-off PTT must keep working), but polling every monitored
-   * characteristic every 700ms forever wastes battery/radio when notifications
-   * do work. Once a characteristic has delivered a notification it is excluded
-   * from polling; a re-subscribe (reconnect) rebuilds the entries unconfirmed,
-   * which resumes polling until notifications prove themselves again.
+   * never fire (screen-off PTT must keep working), but polling a characteristic
+   * whose notifications do work wastes battery/radio and can replay stale values
+   * after the notification (duplicate PTT/mute events). Once a characteristic has
+   * delivered a notification it is excluded from polling; a re-subscribe
+   * (reconnect) rebuilds the entries unconfirmed, which resumes polling until
+   * notifications prove themselves again.
    */
   private markNotificationConfirmed(serviceUuid: string, characteristicUuid: string): void {
     for (const entry of this.monitoredReadCharacteristics) {
@@ -339,6 +376,12 @@ class BluetoothAudioService {
   }
 
   private handleScanStopped(): void {
+    // Clear the pending scan timeout to avoid double-calls
+    if (this.scanTimeout) {
+      clearTimeout(this.scanTimeout);
+      this.scanTimeout = null;
+    }
+
     useBluetoothAudioStore.getState().setIsScanning(false);
     logger.info({
       message: 'Bluetooth scan stopped',
@@ -346,6 +389,15 @@ class BluetoothAudioService {
   }
 
   private handleButtonEventFromCharacteristic(peripheralId: string, serviceUuid: string, characteristicUuid: string, value: string): void {
+    // Standard GATT telemetry/descriptor characteristics are never button input.
+    if (this.isExcludedStandardCharacteristic(characteristicUuid)) {
+      logger.debug({
+        message: 'Ignoring standard GATT characteristic for button routing',
+        context: { peripheralId, serviceUuid, characteristicUuid },
+      });
+      return;
+    }
+
     // Route to appropriate handler based on service/characteristic
     if (this.areUuidsEqual(serviceUuid, AINA_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, AINA_HEADSET_SVC_PROP)) {
       this.handleAinaButtonEvent(value);
@@ -353,7 +405,18 @@ class BluetoothAudioService {
       this.handleB01InricoButtonEvent(value);
     } else if (this.areUuidsEqual(serviceUuid, HYS_HEADSET_SERVICE) && this.areUuidsEqual(characteristicUuid, HYS_HEADSET_SERVICE_CHAR)) {
       this.handleHYSButtonEvent(value);
-    } else if (BUTTON_CONTROL_UUIDS.some((uuid) => this.areUuidsEqual(characteristicUuid, uuid))) {
+    } else if (this.hasVendorButtonCharacteristic) {
+      // The headset reports buttons on its vendor characteristic. Its other characteristics (e.g. the AINA
+      // event counter) must not go through the generic parser, which would misread them as mute/PTT presses.
+      logger.debug({
+        message: 'Ignoring characteristic update (vendor button characteristic is active)',
+        context: {
+          peripheralId,
+          serviceUuid,
+          characteristicUuid,
+        },
+      });
+    } else if (BUTTON_CONTROL_CHARACTERISTICS.some((uuid) => this.areUuidsEqual(characteristicUuid, uuid))) {
       this.handleGenericButtonEvent(value);
     } else if (this.connectedDevice && this.connectedDevice.id === peripheralId && this.getDeviceType(this.connectedDevice) === 'specialized' && this.isLikelyButtonCharacteristic(serviceUuid, characteristicUuid)) {
       this.handleGenericButtonEvent(value);
@@ -391,7 +454,17 @@ class BluetoothAudioService {
     if (this.isWeb) return true;
     if (Platform.OS === 'android') {
       try {
-        const permissions = [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT, PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+        // Android 12+ (API 31) scans with BLUETOOTH_SCAN/CONNECT; Android 11 and lower need location for BLE scans.
+        // Requesting location on 12+ is unnecessary and collides with the app's own location prompt.
+        const permissions = Number(Platform.Version) >= 31 ? [PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN, PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] : [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+        const alreadyGranted = await Promise.all(permissions.map((permission) => PermissionsAndroid.check(permission)));
+        if (alreadyGranted.every(Boolean)) {
+          return true;
+        }
+
+        // Android drops a permission request made while another one is showing, so give startup prompts a moment
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
         const results = await PermissionsAndroid.requestMultiple(permissions);
 
@@ -434,6 +507,8 @@ class BluetoothAudioService {
     if (!hasPermissions) {
       throw new Error('Bluetooth permissions not granted');
     }
+
+    await this.ensureBleManagerStarted();
 
     const state = await this.checkBluetoothState();
     if (state !== State.PoweredOn) {
@@ -494,6 +569,8 @@ class BluetoothAudioService {
       throw new Error('Bluetooth permissions not granted');
     }
 
+    await this.ensureBleManagerStarted();
+
     const state = await this.checkBluetoothState();
     if (state !== State.PoweredOn) {
       throw new Error(`Bluetooth is ${state}. Please enable Bluetooth.`);
@@ -543,13 +620,10 @@ class BluetoothAudioService {
     // Check if device name contains audio-related keywords
     const hasAudioKeyword = audioKeywords.some((keyword) => name.includes(keyword));
 
-    // Check if device has audio service UUIDs - use advertising data
+    // Check if device has audio service UUIDs - use advertising data (iOS reports 16-bit UUIDs in short form, e.g. '111E')
     const advertisingData = device.advertising;
-    const hasAudioService =
-      advertisingData?.serviceUUIDs?.some((uuid: string) => {
-        const upperUuid = uuid.toUpperCase();
-        return [AUDIO_SERVICE_UUID, HFP_SERVICE_UUID, HSP_SERVICE_UUID, AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE].includes(upperUuid);
-      }) || false;
+    const expectedAudioUuids = [AUDIO_SERVICE_UUID, HFP_SERVICE_UUID, HSP_SERVICE_UUID, AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE];
+    const hasAudioService = advertisingData?.serviceUUIDs?.some((uuid: string) => expectedAudioUuids.some((expected) => this.areUuidsEqual(uuid, expected))) || false;
 
     // Check manufacturer data for known audio device manufacturers
     const hasAudioManufacturerData = advertisingData?.manufacturerData ? this.hasAudioManufacturerData(advertisingData.manufacturerData) : false;
@@ -614,7 +688,7 @@ class BluetoothAudioService {
             return false; // Skip non-string data
           }
 
-          const upperServiceUuid = serviceUuid.toUpperCase();
+          const normalizedServiceUuid = this.normalizeUuid(serviceUuid);
 
           // Check if the service UUID itself indicates audio capability
           const isAudioServiceUuid = [
@@ -626,13 +700,13 @@ class BluetoothAudioService {
             HYS_HEADSET_SERVICE,
             '0000FE59-0000-1000-8000-00805F9B34FB', // Common audio service
             '0000180F-0000-1000-8000-00805F9B34FB', // Battery service (often used by audio devices)
-          ].some((uuid) => uuid.toUpperCase() === upperServiceUuid);
+          ].some((uuid) => this.normalizeUuid(uuid) === normalizedServiceUuid);
 
           if (isAudioServiceUuid) {
             logger.debug({
               message: 'Found audio service UUID in service data',
               context: {
-                serviceUuid: upperServiceUuid,
+                serviceUuid: normalizedServiceUuid,
                 data: data,
               },
             });
@@ -711,12 +785,15 @@ class BluetoothAudioService {
     }
 
     try {
-      // Convert to hex string for pattern matching
+      // Convert to hex string for hex pattern matching
       const hexData = data.toString('hex').toLowerCase();
 
-      // Look for common audio device indicators in service data
-      const audioPatterns = [
-        // Common audio capability flags (these are example patterns)
+      // Convert to ASCII string for text pattern matching
+      const asciiData = data.toString('ascii').toLowerCase();
+
+      // Look for common audio device indicators in hex service data
+      const hexAudioPatterns = [
+        // Common audio capability flags (these are hex patterns)
         '0001', // Audio sink capability
         '0002', // Audio source capability
         '0004', // Headset capability
@@ -726,13 +803,17 @@ class BluetoothAudioService {
         '110b', // A2DP source service class
         '111e', // HFP service class
         '1203', // Audio/Video Remote Control Profile
-        // Known manufacturer-specific patterns
+      ];
+
+      // Look for manufacturer-specific ASCII identifiers in service data (these can never appear in the hex string)
+      const asciiAudioPatterns = [
         'aina', // AINA device identifier
         'inrico', // Inrico device identifier
         'hys', // HYS device identifier
       ];
 
-      const hasAudioPattern = audioPatterns.some((pattern) => hexData.includes(pattern));
+      const hasHexAudioPattern = hexAudioPatterns.some((pattern) => hexData.includes(pattern));
+      const hasAsciiAudioPattern = asciiAudioPatterns.some((pattern) => asciiData.includes(pattern));
 
       // Check for specific byte patterns that indicate audio capabilities
       const hasAudioCapabilityBytes = this.checkAudioCapabilityBytes(data);
@@ -744,14 +825,16 @@ class BluetoothAudioService {
         message: 'Service data audio analysis',
         context: {
           hexData,
-          hasAudioPattern,
+          asciiData: asciiData.replace(/[^\x20-\x7E]/g, '?'), // Replace non-printable chars for logging
+          hasHexAudioPattern,
+          hasAsciiAudioPattern,
           hasAudioCapabilityBytes,
           hasAudioDeviceClass,
           dataLength: data.length,
         },
       });
 
-      return hasAudioPattern || hasAudioCapabilityBytes || hasAudioDeviceClass;
+      return hasHexAudioPattern || hasAsciiAudioPattern || hasAudioCapabilityBytes || hasAudioDeviceClass;
     } catch (error) {
       logger.debug({
         message: 'Error in service data audio analysis',
@@ -775,9 +858,9 @@ class BluetoothAudioService {
         const byte2 = data[i + 1];
 
         // Check for audio device class patterns
-        if ((byte1 & 0x1f) === 0x04) {
+        if (byte1 !== undefined && (byte1 & 0x1f) === 0x04) {
           // Major class: Audio/Video
-          const minorClass = (byte2 >> 2) & 0x3f;
+          const minorClass = byte2 !== undefined ? (byte2 >> 2) & 0x3f : 0;
           if ([0x01, 0x02, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a].includes(minorClass)) {
             logger.debug({
               message: 'Found audio device class in service data',
@@ -815,7 +898,15 @@ class BluetoothAudioService {
     try {
       // Device class is typically 3 bytes: service classes (2 bytes) + device class (1 byte)
       for (let i = 0; i <= data.length - 3; i++) {
-        const cod = (data[i + 2] << 16) | (data[i + 1] << 8) | data[i];
+        const byte0 = data[i];
+        const byte1 = data[i + 1];
+        const byte2 = data[i + 2];
+
+        if (byte0 === undefined || byte1 === undefined || byte2 === undefined) {
+          continue;
+        }
+
+        const cod = (byte2 << 16) | (byte1 << 8) | byte0;
 
         // Extract major and minor device class
         const majorDeviceClass = (cod >> 8) & 0x1f;
@@ -921,7 +1012,7 @@ class BluetoothAudioService {
     // Check if device likely supports microphone control based on service UUIDs
     const advertisingData = device.advertising;
     const serviceUUIDs = advertisingData?.serviceUUIDs || [];
-    return serviceUUIDs.some((uuid: string) => [HFP_SERVICE_UUID, HSP_SERVICE_UUID].includes(uuid.toUpperCase()));
+    return serviceUUIDs.some((uuid: string) => [HFP_SERVICE_UUID, HSP_SERVICE_UUID].some((expected) => this.areUuidsEqual(uuid, expected)));
   }
 
   async stopScanning(): Promise<void> {
@@ -973,7 +1064,7 @@ class BluetoothAudioService {
         message: 'Attempting to connect to device via BleManager',
         context: { deviceId },
       });
-      await BleManager.connect(deviceId);
+      await this.withConnectionTimeout(Promise.resolve(BleManager.connect(deviceId)), deviceId);
 
       logger.info({
         message: 'Connected to Bluetooth audio device',
@@ -1074,6 +1165,39 @@ class BluetoothAudioService {
     }
   }
 
+  private withConnectionTimeout<T>(operation: Promise<T>, deviceId: string): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.clearConnectionTimeout();
+
+      this.connectionTimeout = setTimeout(() => {
+        this.connectionTimeout = null;
+        // Cancel the pending native connect so it cannot complete later without being tracked
+        Promise.resolve()
+          .then(() => BleManager.disconnect(deviceId))
+          .catch(() => undefined);
+        reject(new Error(`Timed out connecting to Bluetooth device ${deviceId}`));
+      }, CONNECTION_TIMEOUT_MS);
+
+      operation.then(
+        (value) => {
+          this.clearConnectionTimeout();
+          resolve(value);
+        },
+        (error: unknown) => {
+          this.clearConnectionTimeout();
+          reject(error);
+        }
+      );
+    });
+  }
+
+  private clearConnectionTimeout(): void {
+    if (this.connectionTimeout) {
+      clearTimeout(this.connectionTimeout);
+      this.connectionTimeout = null;
+    }
+  }
+
   async connectToSystemAudio(): Promise<void> {
     if (this.isWeb) return;
     try {
@@ -1125,6 +1249,7 @@ class BluetoothAudioService {
     // Only handle if this is our connected device
     if (this.connectedDevice && this.connectedDevice.id === args.peripheral) {
       this.connectedDevice = null;
+      this.hasVendorButtonCharacteristic = false;
 
       useBluetoothAudioStore.getState().setConnectedDevice(null);
       useBluetoothAudioStore.getState().clearConnectionError();
@@ -1334,39 +1459,47 @@ class BluetoothAudioService {
   }
 
   /**
-   * Compare two UUIDs handling 16-bit and 128-bit formats
+   * Normalizes a UUID to its full 128-bit form.
+   * Converts 16-bit UUIDs (e.g., '110A') and 32-bit UUIDs to their full 128-bit equivalent
+   * using the Bluetooth base UUID (0000xxxx-0000-1000-8000-00805F9B34FB).
+   * @param uuid - The UUID to normalize (16-bit, 32-bit, or 128-bit)
+   * @returns The normalized 128-bit UUID in uppercase
+   */
+  private normalizeUuid(uuid: string): string {
+    const cleanUuid = uuid.replace(/[-\s]/g, '').toUpperCase();
+
+    if (cleanUuid.length === 4) {
+      // 16-bit UUID: convert to 128-bit using Bluetooth base UUID
+      return `0000${cleanUuid}-0000-1000-8000-00805F9B34FB`;
+    } else if (cleanUuid.length === 8) {
+      // 32-bit UUID: convert to 128-bit using Bluetooth base UUID
+      return `${cleanUuid}-0000-1000-8000-00805F9B34FB`;
+    } else if (cleanUuid.length === 32) {
+      // 128-bit UUID: add hyphens if missing
+      return `${cleanUuid.substring(0, 8)}-${cleanUuid.substring(8, 12)}-${cleanUuid.substring(12, 16)}-${cleanUuid.substring(16, 20)}-${cleanUuid.substring(20)}`;
+    } else {
+      // Already formatted or unknown format: return as uppercase
+      return uuid.toUpperCase();
+    }
+  }
+
+  /**
+   * Compare two UUIDs regardless of 16/32/128-bit form, case or hyphenation
    */
   private areUuidsEqual(uuid1: string, uuid2: string): boolean {
     if (!uuid1 || !uuid2) return false;
 
-    const u1 = uuid1.replace(/-/g, '').toUpperCase();
-    const u2 = uuid2.replace(/-/g, '').toUpperCase();
+    return this.normalizeUuid(uuid1) === this.normalizeUuid(uuid2);
+  }
 
-    // If lengths match, just compare
-    if (u1.length === u2.length) {
-      return u1 === u2;
-    }
-
-    // Handle 16-bit vs 128-bit comparison
-    // 16-bit UUIDs are often returned as 4 characters, while 128-bit are 32 chars
-    // Standard base UUID: 0000xxxx-0000-1000-8000-00805F9B34FB
-
-    const longUuid = u1.length > u2.length ? u1 : u2;
-    const shortUuid = u1.length > u2.length ? u2 : u1;
-
-    // If short UUID is 4 chars (16-bit), check if it matches the 128-bit pattern
-    if (shortUuid.length === 4 && longUuid.length === 32) {
-      // Construct expected 128-bit UUID from 16-bit UUID
-      const expectedLong = `0000${shortUuid}00001000800000805F9B34FB`;
-      return longUuid === expectedLong;
-    }
-
-    return false;
+  private isExcludedStandardCharacteristic(characteristicUuid: string): boolean {
+    return EXCLUDED_STANDARD_CHARACTERISTICS.some((uuid) => this.areUuidsEqual(characteristicUuid, uuid));
   }
 
   private async startNotificationsForButtonControls(deviceId: string, peripheralInfo: PeripheralInfo): Promise<void> {
     const successfullySubscribed = new Set<string>();
     this.monitoredReadCharacteristics = [];
+    this.hasVendorButtonCharacteristic = false;
     const isSpecializedDevice = Boolean(this.connectedDevice && this.connectedDevice.id === deviceId && this.getDeviceType(this.connectedDevice) === 'specialized');
 
     // Try to start notifications for known button control service/characteristic combinations
@@ -1397,7 +1530,8 @@ class BluetoothAudioService {
         }
 
         await BleManager.startNotification(deviceId, config.service, config.characteristic);
-        successfullySubscribed.add(`${config.service.toUpperCase()}::${config.characteristic.toUpperCase()}`);
+        successfullySubscribed.add(this.getCharacteristicKey(config.service, config.characteristic));
+        this.hasVendorButtonCharacteristic = true;
         this.registerReadPollingCharacteristic(config.service, config.characteristic);
         logger.info({
           message: 'Started notifications for button control',
@@ -1430,7 +1564,13 @@ class BluetoothAudioService {
           continue;
         }
 
-        const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
+        // Never subscribe standard GATT telemetry/descriptor characteristics: they are
+        // not button frames and would be misread as presses (e.g. Battery Level -> 'mute').
+        if (this.isExcludedStandardCharacteristic(characteristicUuid)) {
+          continue;
+        }
+
+        const pairKey = this.getCharacteristicKey(serviceUuid, characteristicUuid);
         const shouldSubscribe = isSpecializedDevice ? true : this.isLikelyButtonCharacteristic(serviceUuid, characteristicUuid) || this.hasNotificationOrReadCapability(characteristic?.properties);
 
         if (!shouldSubscribe || successfullySubscribed.has(pairKey)) {
@@ -1441,7 +1581,7 @@ class BluetoothAudioService {
           await BleManager.startNotification(deviceId, serviceUuid, characteristicUuid);
           successfullySubscribed.add(pairKey);
 
-          if (isSpecializedDevice || this.hasReadCapability(characteristic?.properties)) {
+          if (this.hasReadCapability(characteristic?.properties)) {
             this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
           }
 
@@ -1468,24 +1608,6 @@ class BluetoothAudioService {
       }
     }
 
-    if (isSpecializedDevice && peripheralInfo?.characteristics?.length) {
-      for (const characteristic of peripheralInfo.characteristics) {
-        const serviceUuid = characteristic?.service;
-        const characteristicUuid = characteristic?.characteristic;
-
-        if (!serviceUuid || !characteristicUuid) {
-          continue;
-        }
-
-        const pairKey = `${String(serviceUuid).toUpperCase()}::${String(characteristicUuid).toUpperCase()}`;
-        if (!successfullySubscribed.has(pairKey)) {
-          continue;
-        }
-
-        this.registerReadPollingCharacteristic(serviceUuid, characteristicUuid);
-      }
-    }
-
     if (successfullySubscribed.size > 0) {
       useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(true);
       this.startReadPollingFallback(deviceId);
@@ -1506,7 +1628,16 @@ class BluetoothAudioService {
       characteristicUuid,
       lastHexValue: null,
       notificationConfirmed: false,
+      consecutiveFailures: 0,
     });
+  }
+
+  private getCharacteristicKey(serviceUuid: string, characteristicUuid: string): string {
+    return `${this.normalizeUuid(serviceUuid)}::${this.normalizeUuid(characteristicUuid)}`;
+  }
+
+  private unregisterReadPollingCharacteristic(serviceUuid: string, characteristicUuid: string): void {
+    this.monitoredReadCharacteristics = this.monitoredReadCharacteristics.filter((entry) => !(this.areUuidsEqual(entry.serviceUuid, serviceUuid) && this.areUuidsEqual(entry.characteristicUuid, characteristicUuid)));
   }
 
   private startReadPollingFallback(deviceId: string): void {
@@ -1528,8 +1659,8 @@ class BluetoothAudioService {
         return;
       }
 
-      // Every subscription has delivered a real notification — nothing left
-      // that needs the polling fallback.
+      // Every remaining subscription has delivered a real notification (or
+      // none are left) — nothing still needs the polling fallback.
       if (this.monitoredReadCharacteristics.every((entry) => entry.notificationConfirmed)) {
         this.stopReadPollingFallback();
         return;
@@ -1547,7 +1678,8 @@ class BluetoothAudioService {
   }
 
   private async pollReadCharacteristics(deviceId: string): Promise<void> {
-    for (const entry of this.monitoredReadCharacteristics) {
+    // Iterate a snapshot: entries can be unregistered while a read is awaiting
+    for (const entry of [...this.monitoredReadCharacteristics]) {
       // Notifications are proven to work for this characteristic — reading it
       // on a timer would only duplicate events and burn battery.
       if (entry.notificationConfirmed) {
@@ -1555,6 +1687,13 @@ class BluetoothAudioService {
       }
       try {
         const readValue = await BleManager.read(deviceId, entry.serviceUuid, entry.characteristicUuid);
+
+        // A notification arrived (or the device re-subscribed) while the read was in flight; this value may already be stale
+        if (entry.notificationConfirmed || !this.monitoredReadCharacteristics.includes(entry)) {
+          continue;
+        }
+
+        entry.consecutiveFailures = 0;
         const nextHexValue = Buffer.from(readValue).toString('hex');
 
         if (!nextHexValue || nextHexValue.length === 0) {
@@ -1575,6 +1714,23 @@ class BluetoothAudioService {
         const valueBase64 = Buffer.from(readValue).toString('base64');
         this.handleButtonEventFromCharacteristic(deviceId, entry.serviceUuid, entry.characteristicUuid, valueBase64);
       } catch (error) {
+        entry.consecutiveFailures += 1;
+
+        if (entry.consecutiveFailures >= READ_POLL_MAX_CONSECUTIVE_FAILURES) {
+          this.unregisterReadPollingCharacteristic(entry.serviceUuid, entry.characteristicUuid);
+          logger.info({
+            message: 'Stopped read polling for characteristic after repeated failures',
+            context: {
+              deviceId,
+              serviceUuid: entry.serviceUuid,
+              characteristicUuid: entry.characteristicUuid,
+              failures: entry.consecutiveFailures,
+              error,
+            },
+          });
+          continue;
+        }
+
         logger.debug({
           message: 'Read polling failed for characteristic',
           context: {
@@ -1665,13 +1821,14 @@ class BluetoothAudioService {
     const normalizedCharacteristic = characteristicUuid.replace(/-/g, '').toUpperCase();
 
     const knownServiceMatch = [AINA_HEADSET_SERVICE, B01INRICO_HEADSET_SERVICE, HYS_HEADSET_SERVICE].some((uuid) => this.areUuidsEqual(serviceUuid, uuid));
-    const knownCharacteristicMatch = [AINA_HEADSET_SVC_PROP, B01INRICO_HEADSET_SERVICE_CHAR, HYS_HEADSET_SERVICE_CHAR, ...BUTTON_CONTROL_UUIDS].some((uuid) => this.areUuidsEqual(characteristicUuid, uuid));
+    const knownCharacteristicMatch = [AINA_HEADSET_SVC_PROP, B01INRICO_HEADSET_SERVICE_CHAR, HYS_HEADSET_SERVICE_CHAR, ...BUTTON_CONTROL_CHARACTERISTICS].some((uuid) => this.areUuidsEqual(characteristicUuid, uuid));
 
     if (knownServiceMatch || knownCharacteristicMatch) {
       return true;
     }
 
-    const heuristicFragments = ['2A4D', '2A4E', '2A4B', 'FFE0', 'FFE1', 'FFE2', '8888', 'BEEF', 'FE59'];
+    // HID characteristics are deliberately absent: their reports are not single-byte button frames (see EXCLUDED_STANDARD_CHARACTERISTICS)
+    const heuristicFragments = ['FFE0', 'FFE1', 'FFE2', '8888', 'BEEF', 'FE59'];
     return heuristicFragments.some((fragment) => normalizedService.includes(fragment) || normalizedCharacteristic.includes(fragment));
   }
 
@@ -2295,9 +2452,7 @@ class BluetoothAudioService {
       bluetoothStore.setAvailableAudioDevices(nonBluetoothDevices);
 
       // Revert to default audio devices
-      const defaultMic = nonBluetoothDevices.find((d) => d.type === 'microphone' || d.id.toLowerCase().includes('mic')) || nonBluetoothDevices.find((d) => d.type === 'default');
-
-      const defaultSpeaker = nonBluetoothDevices.find((d) => d.type === 'speaker' || d.id.toLowerCase().includes('speaker')) || nonBluetoothDevices.find((d) => d.type === 'default');
+      const { microphone: defaultMic, speaker: defaultSpeaker } = this.findDefaultAudioDevices(nonBluetoothDevices);
 
       if (defaultMic) {
         bluetoothStore.setSelectedMicrophone(defaultMic);
@@ -2319,6 +2474,63 @@ class BluetoothAudioService {
       logger.error({
         message: 'Failed to revert LiveKit audio routing',
         context: { error },
+      });
+    }
+  }
+
+  /**
+   * Find the phone's built-in microphone/speaker among the non-Bluetooth audio devices
+   */
+  private findDefaultAudioDevices(devices: AudioDeviceInfo[]): { microphone: AudioDeviceInfo | undefined; speaker: AudioDeviceInfo | undefined } {
+    const nonBluetoothDevices = devices.filter((d) => d.type !== 'bluetooth');
+
+    return {
+      microphone: nonBluetoothDevices.find((d) => d.type === 'microphone' || d.id.toLowerCase().includes('mic')) || nonBluetoothDevices.find((d) => d.type === 'default'),
+      speaker: nonBluetoothDevices.find((d) => d.type === 'speaker' || d.id.toLowerCase().includes('speaker')) || nonBluetoothDevices.find((d) => d.type === 'default'),
+    };
+  }
+
+  /**
+   * Forget a device: drop it as the preferred device (storage + store), disconnect it if it is
+   * connected, and move any audio selection that pointed at it back to the built-in devices.
+   */
+  async forgetPreferredDevice(deviceId: string): Promise<void> {
+    try {
+      logger.info({
+        message: 'Forgetting preferred Bluetooth device',
+        context: { deviceId },
+      });
+
+      const store = useBluetoothAudioStore.getState();
+
+      if (store.preferredDevice?.id === deviceId) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { removeItem } = require('@/lib/storage');
+        await removeItem('preferredBluetoothDevice');
+        store.setPreferredDevice(null);
+      }
+
+      if (store.connectedDevice?.id === deviceId) {
+        logger.info({ message: 'Disconnecting device being forgotten', context: { deviceId } });
+        await this.disconnectDevice();
+      }
+
+      const { selectedAudioDevices, availableAudioDevices } = useBluetoothAudioStore.getState();
+      const defaults = this.findDefaultAudioDevices(availableAudioDevices ?? []);
+
+      if (selectedAudioDevices.microphone?.id === deviceId && defaults.microphone) {
+        logger.info({ message: 'Resetting microphone selection as device is forgotten' });
+        store.setSelectedMicrophone(defaults.microphone);
+      }
+
+      if (selectedAudioDevices.speaker?.id === deviceId && defaults.speaker) {
+        logger.info({ message: 'Resetting speaker selection as device is forgotten' });
+        store.setSelectedSpeaker(defaults.speaker);
+      }
+    } catch (error) {
+      logger.error({
+        message: 'Failed to forget preferred Bluetooth device',
+        context: { error, deviceId },
       });
     }
   }
@@ -2407,6 +2619,28 @@ class BluetoothAudioService {
   }
 
   async destroy(): Promise<void> {
+    // Synchronous cleanup first so callers that don't await still get a fully reset service
+    useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
+    this.clearPttReleaseFallback();
+    this.clearMicApplyRetry();
+    this.retryMicEnabled = null;
+    this.pendingMicEnabled = null;
+    this.stopMonitoringWatchdog();
+    this.stopReadPollingFallback();
+    this.stopMediaButtonFallbackMonitoring();
+    this.clearConnectionTimeout();
+
+    // Remove all event listeners
+    this.eventListeners.forEach((listener) => {
+      listener.remove();
+    });
+    this.eventListeners = [];
+
+    // Reset initialization flags
+    this.isInitialized = false;
+    this.isBleManagerStarted = false;
+    this.hasAttemptedPreferredDeviceConnection = false;
+
     try {
       await this.stopScanning();
     } catch (error) {
@@ -2423,24 +2657,6 @@ class BluetoothAudioService {
         context: { error },
       });
     }
-    useBluetoothAudioStore.getState().setIsHeadsetButtonMonitoring(false);
-    this.clearPttReleaseFallback();
-    this.clearMicApplyRetry();
-    this.retryMicEnabled = null;
-    this.pendingMicEnabled = null;
-    this.stopMonitoringWatchdog();
-    this.stopReadPollingFallback();
-    this.stopMediaButtonFallbackMonitoring();
-
-    // Remove all event listeners
-    this.eventListeners.forEach((listener) => {
-      listener.remove();
-    });
-    this.eventListeners = [];
-
-    // Reset initialization flags
-    this.isInitialized = false;
-    this.hasAttemptedPreferredDeviceConnection = false;
   }
 
   /**

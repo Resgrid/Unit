@@ -212,11 +212,13 @@ The system identifies audio devices using:
 
 ### Button Control Support
 
-Button events are monitored on these characteristic UUIDs:
+Button events are routed by characteristic:
 
-- `0000FE59-0000-1000-8000-00805F9B34FB` (Common button control)
-- `0000180F-0000-1000-8000-00805F9B34FB` (Battery Service)
-- `00001812-0000-1000-8000-00805F9B34FB` (HID Service)
+- Vendor button characteristics for AINA, B01 Inrico and HYS headsets are parsed with each vendor's protocol. Once one is subscribed, every other characteristic on that headset is ignored for button input (e.g. the AINA event counter).
+- `0000FE59-0000-1000-8000-00805F9B34FB` (Common button control) is parsed with the generic parser.
+- Standard GATT telemetry is never treated as a button: Battery Level (`2A19`) and the HID characteristics (`2A4A`–`2A4D`). A battery level of 100% would otherwise decode as a mute press.
+
+Characteristics whose notifications never arrive are read-polled as a fallback. Polling stops for a characteristic once it delivers a notification, and after three consecutive failed reads (e.g. write-only characteristics).
 
 **Note**: Button control implementation varies by manufacturer and may require device-specific customization.
 
@@ -289,8 +291,8 @@ try {
 
 ### Android
 
-- Requires `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, and `ACCESS_FINE_LOCATION` permissions
-- Permissions are requested automatically by the service
+- Android 12+ requires `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`; Android 11 and lower require `ACCESS_FINE_LOCATION` for BLE scanning
+- Permissions are requested automatically by the service, only when not already granted
 - Some devices may require location services to be enabled
 
 ### iOS
