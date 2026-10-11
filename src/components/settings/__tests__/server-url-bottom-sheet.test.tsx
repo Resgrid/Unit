@@ -385,6 +385,31 @@ describe('ServerUrlBottomSheet', () => {
       unmount();
     });
 
+    it('ends the session on the old server before the new url applies', async () => {
+      // Sign-out still talks to the server the session belongs to (taking the device's push token off it).
+      const order: string[] = [];
+      mockOnUrlChanged.mockImplementationOnce(async () => {
+        order.push('signOut');
+      });
+      mockSetUrl.mockImplementationOnce(async () => {
+        order.push('setUrl');
+      });
+
+      const { unmount } = render(<ServerUrlBottomSheet {...defaultProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('select-item-EU-Central')).toBeTruthy();
+      });
+
+      fireEvent.press(screen.getByTestId('select-item-EU-Central'));
+      fireEvent.press(screen.getByText('Save'));
+
+      await waitFor(() => {
+        expect(order).toEqual(['signOut', 'setUrl']);
+      });
+      unmount();
+    });
+
     it('does not report a change when the same server is saved again', async () => {
       mockGetUrl.mockResolvedValue('https://api.resgrid.com/api/v4');
 

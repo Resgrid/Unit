@@ -28,7 +28,7 @@ interface ServerUrlForm {
 interface ServerUrlBottomSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Called after a save that actually switched servers (e.g. to log out of the old one). */
+  /** Called when a save is about to switch servers, before the new URL applies (e.g. to log out of the old one). */
   onUrlChanged?: () => Promise<void>;
 }
 
@@ -142,11 +142,14 @@ export function ServerUrlBottomSheet({ isOpen, onClose, onUrlChanged }: ServerUr
       const nextApiUrl = buildApiUrl(resolvedBaseUrl);
       const previousApiUrl = buildApiUrl(await getUrl());
 
-      await setUrl(nextApiUrl);
-
+      // End the session on the server it belongs to before pointing the app at the new one. Signing out still talks to
+      // the old server (taking this device's web push token off it); with the URL switched first, those calls went to
+      // the new server carrying the old server's token.
       if (nextApiUrl !== previousApiUrl && onUrlChanged) {
         await onUrlChanged();
       }
+
+      await setUrl(nextApiUrl);
 
       logger.info({
         message: 'Server URL updated successfully',

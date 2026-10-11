@@ -58,8 +58,10 @@ jest.mock('@/lib/logging', () => ({
   },
 }));
 
+let mockBaseApiUrl = 'https://api.resgrid.com/api/v4';
 jest.mock('@/lib/storage/app', () => ({
-  getDeviceUuid: jest.fn(() => 'test-device-uuid'),
+  getOrCreateDeviceUuid: jest.fn(() => 'test-device-uuid'),
+  getBaseApiUrl: jest.fn(() => mockBaseApiUrl),
 }));
 
 jest.mock('@/lib/storage/notification-prefs', () => ({
@@ -119,7 +121,7 @@ jest.mock('@/stores/auth/store', () => {
   return { __esModule: true, default: store };
 });
 
-import { renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { logger } from '@/lib/logging';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -140,6 +142,7 @@ describe('usePushNotifications', () => {
     setAuthState({ status: 'signedIn', accessToken: 'test-access-token' });
     setCoreState({ activeUnitId: 'test-unit' });
     setSecurityState({ rights: { DepartmentCode: 'TEST' } });
+    mockBaseApiUrl = 'https://api.resgrid.com/api/v4';
     registerSpy = jest.spyOn(pushNotificationService, 'registerForPushNotifications').mockResolvedValue('test-device-token');
   });
 
@@ -250,6 +253,137 @@ describe('usePushNotifications', () => {
 
     await waitFor(() => {
       expect(logger.error).toHaveBeenCalledWith(expect.objectContaining({ message: 'Error in push notification registration hook' }));
+    });
+
+    unmount();
+  });
+
+  it('does not register without a department code', async () => {
+    // Core files the token under a subscriber named from the department code; a blank one is accepted and silently dropped.
+    setSecurityState({ rights: { DepartmentCode: '' } });
+
+    const { unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).not.toHaveBeenCalled();
+    });
+
+    unmount();
+  });
+
+  it('registers the same unit again when the department code changes', async () => {
+    // Persisted rights can carry a stale department until getRights() refreshes them; a token filed under the old code
+    // never receives the unit's pushes.
+    setSecurityState({ rights: { DepartmentCode: 'OLD' } });
+
+    const { rerender, unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledWith('test-unit', 'OLD');
+    });
+
+    setSecurityState({ rights: { DepartmentCode: 'NEW' } });
+    rerender({});
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenLastCalledWith('test-unit', 'NEW');
+    });
+    expect(registerSpy).toHaveBeenCalledTimes(2);
+
+    unmount();
+  });
+
+  it('registers the same unit again against a different server', async () => {
+    const { rerender, unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    mockBaseApiUrl = 'https://api-eu-central.resgrid.com/api/v4';
+    setSecurityState({ rights: { DepartmentCode: 'TEST' } });
+    rerender({});
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(2);
+    });
+
+    unmount();
+  });
+
+  it('registers the same unit again after signing out and back in', async () => {
+    const { rerender, unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    setAuthState({ status: 'signedOut', accessToken: null });
+    rerender({});
+    setAuthState({ status: 'signedIn', accessToken: 'next-access-token' });
+    rerender({});
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(2);
+    });
+
+    unmount();
+  });
+
+  it('does not start a second registration while one for the same unit is in flight', async () => {
+    let resolveRegistration: (token: string | null) => void = () => {};
+    registerSpy.mockReturnValueOnce(
+      new Promise<string | null>((resolve) => {
+        resolveRegistration = resolve;
+      })
+    );
+
+    const { rerender, unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    setSecurityState({ rights: { DepartmentCode: 'TEST' } });
+    rerender({});
+    expect(registerSpy).toHaveBeenCalledTimes(1);
+
+    resolveRegistration('test-device-token');
+    await waitFor(() => {
+      expect(logger.info).toHaveBeenCalledWith(expect.objectContaining({ message: 'Successfully registered for push notifications' }));
+    });
+
+    unmount();
+  });
+
+  it('does not count a registration that finished after the session ended', async () => {
+    let resolveRegistration: (token: string | null) => void = () => {};
+    registerSpy.mockReturnValueOnce(
+      new Promise<string | null>((resolve) => {
+        resolveRegistration = resolve;
+      })
+    );
+
+    const { rerender, unmount } = renderHook(() => usePushNotifications());
+
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // Signed out (as every server switch from Settings does) while the registration was still in flight.
+    setAuthState({ status: 'signedOut', accessToken: null });
+    rerender({});
+    await act(async () => {
+      resolveRegistration('test-device-token');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    setAuthState({ status: 'signedIn', accessToken: 'next-access-token' });
+    rerender({});
+
+    // The late answer was not taken as this session's registration, so signing in registers again.
+    await waitFor(() => {
+      expect(registerSpy).toHaveBeenCalledTimes(2);
     });
 
     unmount();

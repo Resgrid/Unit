@@ -37,9 +37,9 @@ jest.mock('../../../services/callkeep.service.ios', () => ({
 
 
 import { Platform } from 'react-native';
-import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync, setAudioModeAsync } from 'expo-audio';
 
-import { useLiveKitStore } from '../livekit-store';
+import { applyAudioRouting, useLiveKitStore } from '../livekit-store';
 import { logger } from '../../../lib/logging';
 
 // Mock livekit-client
@@ -416,5 +416,31 @@ describe('LiveKit Store - Permission Management', () => {
       
       expect(mockCallKeepService.setup).toHaveBeenCalled();
     });
+  });
+});
+
+describe('LiveKit Store - iOS audio routing', () => {
+  const mockSetAudioModeAsync = setAudioModeAsync as jest.MockedFunction<typeof setAudioModeAsync>;
+  const platform = Platform as unknown as { OS: typeof Platform.OS };
+  let originalOS: typeof Platform.OS;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    originalOS = platform.OS;
+    platform.OS = 'ios';
+  });
+
+  afterEach(() => {
+    platform.OS = originalOS;
+  });
+
+  it.each([
+    ['speaker', false],
+    ['bluetooth', false],
+    ['earpiece', true],
+  ] as const)('routes %s output with shouldRouteThroughEarpiece=%s so chimes are not sent to the receiver', async (deviceType, expectedEarpiece) => {
+    await applyAudioRouting(deviceType);
+
+    expect(mockSetAudioModeAsync).toHaveBeenCalledWith(expect.objectContaining({ allowsRecording: true, shouldRouteThroughEarpiece: expectedEarpiece }));
   });
 });

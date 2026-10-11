@@ -88,13 +88,16 @@ export const applyAudioRouting = async (deviceType: 'bluetooth' | 'speaker' | 'e
       });
     } else {
       // iOS handling (expo-audio configures the mode while CallKeep handles the session)
-      // Just ensure the mode is correct
+      // On iOS shouldRouteThroughEarpiece drops `defaultToSpeaker` from the playAndRecord session, which sends all
+      // app audio (PTT/room/device chimes included) to the earpiece receiver. Only do that when the earpiece is the
+      // target: a connected Bluetooth headset still takes the route, and without one the speaker is the fallback
+      // (expo-av always set defaultToSpeaker here before the expo-audio migration).
       await setAudioModeAsync({
         allowsRecording: true,
         shouldPlayInBackground: true,
         playsInSilentMode: true,
         interruptionMode: 'mixWithOthers',
-        shouldRouteThroughEarpiece: true,
+        shouldRouteThroughEarpiece: normalizedDeviceType === 'earpiece',
       });
     }
   } catch (error) {
