@@ -91,6 +91,86 @@ describe('Terminology store', () => {
     expect(terminologyStore.getState().names).toEqual({});
   });
 
+  describe('superseded requests', () => {
+    const deferred = () => {
+      let resolve: (value: { Data: { Key: string; Name: string }[] }) => void = () => {};
+      let reject: (error: Error) => void = () => {};
+      const promise = new Promise<{ Data: { Key: string; Name: string }[] }>((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      return { promise, resolve, reject };
+    };
+
+    it('drops the answer of a request still in flight at reset, so it is not restored or persisted', async () => {
+      const pending = deferred();
+      getTerminology.mockReturnValueOnce(pending.promise);
+
+      const fetching = terminologyStore.getState().fetchTerminology();
+      terminologyStore.getState().reset();
+      pending.resolve({ Data: [{ Key: TermKeys.Units, Name: 'Apparatus' }] });
+      await fetching;
+
+      const state = terminologyStore.getState();
+      expect(state.names).toEqual({});
+      expect(state.isLoaded).toBe(false);
+      expect(state.identityKey).toBeNull();
+    });
+
+    it('drops the error of a request still in flight at reset', async () => {
+      const pending = deferred();
+      getTerminology.mockReturnValueOnce(pending.promise);
+
+      const fetching = terminologyStore.getState().fetchTerminology();
+      terminologyStore.getState().reset();
+      pending.reject(new Error('offline'));
+      await fetching;
+
+      expect(terminologyStore.getState().error).toBeNull();
+      expect(terminologyStore.getState().isLoaded).toBe(false);
+    });
+
+    it('never lets an older request overwrite a newer one', async () => {
+      const older = deferred();
+      const newer = deferred();
+      getTerminology.mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise);
+
+      const first = terminologyStore.getState().fetchTerminology();
+      const second = terminologyStore.getState().fetchTerminology();
+      newer.resolve({ Data: [{ Key: TermKeys.Units, Name: 'Apparatus' }] });
+      await second;
+      older.resolve({ Data: [{ Key: TermKeys.Units, Name: 'Rigs' }] });
+      await first;
+
+      expect(terminologyStore.getState().names).toEqual({ [TermKeys.Units]: 'Apparatus' });
+    });
+
+    it('drops the answer when the session it was made for has moved on', async () => {
+      const pending = deferred();
+      getTerminology.mockReturnValueOnce(pending.promise);
+
+      const fetching = terminologyStore.getState().fetchTerminology();
+      setIdentity('user-2', 'dept-2');
+      pending.resolve({ Data: [{ Key: TermKeys.Units, Name: 'Apparatus' }] });
+      await fetching;
+
+      expect(terminologyStore.getState().names).toEqual({});
+      expect(terminologyStore.getState().identityKey).toBeNull();
+    });
+  });
+
+  it('reset clears the names and identity', () => {
+    terminologyStore.setState({ names: { [TermKeys.Records]: 'Reports' }, isLoaded: true, error: 'offline', identityKey: 'user-1:dept-1' });
+
+    terminologyStore.getState().reset();
+
+    const state = terminologyStore.getState();
+    expect(state.names).toEqual({});
+    expect(state.isLoaded).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.identityKey).toBeNull();
+  });
+
   it('maps record type numbers and built-in definition keys to term keys', () => {
     expect(recordTypeTermKey(1)).toBe('record-type.run');
     expect(recordTypeTermKey(8)).toBe('record-type.unit-activity');

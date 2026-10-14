@@ -484,9 +484,11 @@ export default function TabLayout() {
 
   // Memoize header left/right renders
   const headerLeftMap = useCallback(() => <CreateDrawerMenuButton setIsOpen={setIsOpen} isLandscape={isLandscape} />, [isLandscape]);
+  // Gated on novuReady like the inbox: before the unit's subscriberHash settles there is no NovuProvider yet, and
+  // the button's useCounts throws outside one.
   const headerRightNotification = useCallback(
-    () => <CreateNotificationButton config={config} setIsNotificationsOpen={handleOpenNotifications} activeUnitId={activeUnitId} departmentCode={rights?.DepartmentCode} />,
-    [config, handleOpenNotifications, activeUnitId, rights?.DepartmentCode]
+    () => (novuReady ? <CreateNotificationButton config={config} setIsNotificationsOpen={handleOpenNotifications} activeUnitId={activeUnitId} departmentCode={rights?.DepartmentCode} /> : null),
+    [novuReady, config, handleOpenNotifications, activeUnitId, rights?.DepartmentCode]
   );
 
   // Memoize per-screen options to prevent new objects every render

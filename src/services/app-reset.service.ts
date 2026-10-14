@@ -162,13 +162,6 @@ export const INITIAL_FEATURE_FLAGS_STATE = {
   identityKey: null,
 };
 
-export const INITIAL_TERMINOLOGY_STATE = {
-  names: {},
-  isLoaded: false,
-  error: null,
-  identityKey: null,
-};
-
 export const INITIAL_LOCATION_STATE = {
   latitude: null,
   longitude: null,
@@ -304,8 +297,9 @@ export const resetAllStores = async (): Promise<void> => {
   // resolves, instead of gating on the previous identity's flags.
   featureFlagsStore.setState(INITIAL_FEATURE_FLAGS_STATE);
 
-  // The department's own module and record-type names must not label the next session's screens.
-  terminologyStore.setState(INITIAL_TERMINOLOGY_STATE);
+  // The department's own module and record-type names must not label the next session's screens. reset() also drops
+  // the answer of a fetch still in flight, which would otherwise bring them back.
+  terminologyStore.getState().reset();
 
   // Stores with existing reset/clear methods
   useStatusBottomSheetStore.getState().reset();
@@ -489,7 +483,6 @@ export default {
   INITIAL_DISPATCH_STATE,
   INITIAL_SECURITY_STATE,
   INITIAL_FEATURE_FLAGS_STATE,
-  INITIAL_TERMINOLOGY_STATE,
   INITIAL_LOCATION_STATE,
   INITIAL_LIVEKIT_STATE,
   INITIAL_AUDIO_STREAM_STATE,

@@ -72,6 +72,7 @@ import { getActiveUnitId, getActiveCallId, removeActiveUnitId } from '@/lib/stor
 import { getConfig } from '@/api/config';
 import { logger } from '@/lib/logging';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import type { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
 import { getAllUnitStatuses } from '@/api/satuses/statuses';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { useUnitsStore } from '@/stores/units/store';
@@ -493,7 +494,7 @@ describe('Core Store', () => {
             { Id: 22, Text: 'En Route' },
           ],
         },
-      ] as any[];
+      ] as unknown as UnitTypeStatusResultData[];
       (useUnitsStore.getState as jest.Mock).mockReturnValue({
         fetchUnits: jest.fn(async () => undefined),
         units: [activeUnit],
@@ -516,7 +517,7 @@ describe('Core Store', () => {
             { Id: 22, Text: 'En Route' },
           ],
         },
-      ] as any[];
+      ] as unknown as UnitTypeStatusResultData[];
       (useUnitsStore.getState as jest.Mock).mockReturnValue({
         fetchUnits: jest.fn(async () => undefined),
         units: [activeUnit],

@@ -297,7 +297,6 @@ import {
   INITIAL_ROLES_STATE,
   INITIAL_ROUTES_STATE,
   INITIAL_SECURITY_STATE,
-  INITIAL_TERMINOLOGY_STATE,
   INITIAL_UNITS_STATE,
   resetAllStores,
   teardownServices,
@@ -320,6 +319,7 @@ const mockRecordsReset = jest.fn();
 const mockDeploymentsReset = jest.fn();
 const mockPreplanReset = jest.fn();
 const mockSiteInfoReset = jest.fn();
+const mockTerminologyReset = jest.fn();
 
 describe('app-reset.service', () => {
   beforeEach(() => {
@@ -374,6 +374,7 @@ describe('app-reset.service', () => {
     jest.requireMock('@/stores/records/deployments-store').useDeploymentsStore.getState.mockReturnValue({ reset: mockDeploymentsReset });
     jest.requireMock('@/stores/contacts/preplan-store').useContactPreplanStore.getState.mockReturnValue({ reset: mockPreplanReset });
     jest.requireMock('@/stores/calls/site-info-store').useSiteInfoStore.getState.mockReturnValue({ reset: mockSiteInfoReset });
+    jest.requireMock('@/stores/terminology/store').terminologyStore.getState.mockReturnValue({ reset: mockTerminologyReset });
 
     locationService.stopLocationUpdates.mockResolvedValue(undefined);
     signalRService.disconnectAll.mockResolvedValue(undefined);
@@ -503,15 +504,6 @@ describe('app-reset.service', () => {
     it('should export INITIAL_FEATURE_FLAGS_STATE with correct shape', () => {
       expect(INITIAL_FEATURE_FLAGS_STATE).toEqual({
         flags: {},
-        isLoaded: false,
-        error: null,
-        identityKey: null,
-      });
-    });
-
-    it('should export INITIAL_TERMINOLOGY_STATE with correct shape', () => {
-      expect(INITIAL_TERMINOLOGY_STATE).toEqual({
-        names: {},
         isLoaded: false,
         error: null,
         identityKey: null,
@@ -666,7 +658,6 @@ describe('app-reset.service', () => {
       const { usePoisStore } = jest.requireMock('@/stores/pois/store');
       const { useRoutesStore } = jest.requireMock('@/stores/routes/store');
       const { featureFlagsStore } = jest.requireMock('@/stores/feature-flags/store');
-      const { terminologyStore } = jest.requireMock('@/stores/terminology/store');
 
       await resetAllStores();
 
@@ -675,8 +666,8 @@ describe('app-reset.service', () => {
       expect(useUnitsStore.setState).toHaveBeenCalledWith(INITIAL_UNITS_STATE);
       // Logout must clear flags, resolution and identity so the next session fails closed.
       expect(featureFlagsStore.setState).toHaveBeenCalledWith(INITIAL_FEATURE_FLAGS_STATE);
-      // The department's own names must not label the next session's screens.
-      expect(terminologyStore.setState).toHaveBeenCalledWith(INITIAL_TERMINOLOGY_STATE);
+      // The department's own names must not label the next session's screens, nor a fetch still in flight restore them.
+      expect(mockTerminologyReset).toHaveBeenCalled();
       expect(mockStatusReset).toHaveBeenCalled();
       expect(mockOfflineQueueClear).toHaveBeenCalled();
       expect(mockLoadingReset).toHaveBeenCalled();

@@ -159,11 +159,26 @@ const ANDROID_SOUND_CHANNELS: AndroidSoundChannel[] = [
   { id: 'message', name: 'Message', description: 'Messages', vibration: false, modernSound: 'modernmessage', classicSound: 'newmessage' },
 ];
 
+interface PushSession {
+  /** Set at sign-out: the access token and server the session signed out with. */
+  signOut?: { accessToken: string | null; apiUrl: string };
+}
+
+const isSameRegistration = (a: NativePushUnRegistrationInput, b: NativePushUnRegistrationInput): boolean => a.Token === b.Token && a.Prefix === b.Prefix && a.UnitId === b.UnitId;
+
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
   /** What the server has registered for this phone (token, department and unit), so sign-out can take it back off. */
   private registration: NativePushUnRegistrationInput | null = null;
+  /** Units the phone left whose removal the server has not confirmed: retried on the next registration and at sign-out. */
+  private staleRegistrations: NativePushUnRegistrationInput[] = [];
+  /**
+   * The signed-in session registrations belong to. Sign-out replaces it, so a registration still in flight then can
+   * tell its session has ended; the ended one keeps how sign-out reached the server only for as long as such a
+   * registration still holds it.
+   */
+  private session: PushSession = {};
   private notificationListener: { remove: () => void } | null = null;
   private responseListener: { remove: () => void } | null = null;
   private notifeeForegroundUnsubscribe: (() => void) | null = null;
@@ -530,6 +545,8 @@ class PushNotificationService {
       return null;
     }
 
+    const session = this.session;
+
     try {
       // Request OS notification permissions (iOS critical alerts included).
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -584,24 +601,42 @@ class PushNotificationService {
         },
       });
 
+      // Signed out while permission and the token were sorted out: the session that asked for this has ended.
+      if (session !== this.session) {
+        return null;
+      }
+
+      const registration: NativePushUnRegistrationInput = { Token: this.pushToken || '', Prefix: departmentCode, UnitId: unitId };
+
       // Register device with backend
       await registerUnitDevice({
         UnitId: unitId,
-        Token: this.pushToken || '',
+        Token: registration.Token,
         Platform: Platform.OS === 'ios' ? 1 : 2,
         DeviceUuid: getOrCreateDeviceUuid(),
         Prefix: departmentCode,
       });
 
+      if (session !== this.session) {
+        // Signed out while the request was in flight. Sign-out could not take this registration off, as it had not
+        // landed yet: take it off now as the session that signed out, and never restore it, or the server keeps
+        // sending the signed-out unit's dispatches to this phone.
+        await this.unregisterAfterSignOut(session, registration);
+        return null;
+      }
+
       const previous = this.registration;
-      this.registration = { Token: this.pushToken || '', Prefix: departmentCode, UnitId: unitId };
+      this.registration = registration;
+      // A unit the phone left and has now come back to is its current one again, not one to take the token off.
+      this.staleRegistrations = this.staleRegistrations.filter((stale) => !isSameRegistration(stale, registration));
 
       // Switching units: the phone is on the new unit now, so take its token off the unit it left, or the rig keeps
       // getting that unit's dispatches. Only after the new registration is in, so a failure here never leaves the
-      // phone on no unit at all.
+      // phone on no unit at all. A removal that fails is kept and tried again later.
       if (previous && (previous.UnitId !== unitId || previous.Prefix !== departmentCode)) {
-        await this.unregisterPreviousUnit(previous);
+        this.staleRegistrations.push(previous);
       }
+      await this.removeStaleRegistrations(session);
 
       return this.pushToken;
     } catch (error) {
@@ -618,41 +653,82 @@ class PushNotificationService {
   }
 
   /** Quiet: the new unit is already registered, so a failure here only leaves the old unit's dispatches arriving too. */
-  private async unregisterPreviousUnit(previous: NativePushUnRegistrationInput): Promise<void> {
+  private async unregisterPreviousUnit(previous: NativePushUnRegistrationInput): Promise<boolean> {
     try {
       const result = await unRegisterNativePush(previous);
       if (result?.Status !== 'success') {
         logger.warn({ message: 'Push: the server did not unregister the token from the previous unit', context: { unitId: previous.UnitId, status: result?.Status } });
+        return false;
       }
+      return true;
     } catch (error) {
       logger.warn({ message: 'Push: the token could not be unregistered from the previous unit', context: { unitId: previous.UnitId, error } });
+      return false;
+    }
+  }
+
+  /** Takes the token off the units the phone left; each one stays pending until the server confirms its removal. */
+  private async removeStaleRegistrations(session: PushSession): Promise<void> {
+    for (const stale of [...this.staleRegistrations]) {
+      // Signed out meanwhile: sign-out took the rest off as the session that ended.
+      if (session !== this.session) {
+        return;
+      }
+      if (await this.unregisterPreviousUnit(stale)) {
+        this.staleRegistrations = this.staleRegistrations.filter((entry) => entry !== stale);
+      }
     }
   }
 
   /**
    * Takes this phone's token off the unit at sign-out, as the session that is signing out (the hook below runs
-   * before logout clears its access token). Straight to the server, not through the api client: its 401 handling
-   * would re-enter logout. Quiet: sign-out goes ahead whatever the server says.
+   * before logout clears its access token), along with any unit it left whose removal is still pending.
    */
   public async unregisterAtSignOut(accessToken: string | null): Promise<void> {
-    const registration = this.registration;
+    const registrations = [this.registration, ...this.staleRegistrations].filter((registration): registration is NativePushUnRegistrationInput => registration !== null);
     this.registration = null;
+    this.staleRegistrations = [];
 
-    if (!registration || !accessToken) {
+    // Read while the session's server is still current: a server switch applies the new URL once sign-out returns.
+    const apiUrl = getBaseApiUrl();
+    // A registration still in flight belongs to this session too, and takes itself off the same way once it lands.
+    this.session.signOut = { accessToken, apiUrl };
+    this.session = {};
+
+    if (!accessToken) {
       return;
     }
 
+    await Promise.all(registrations.map((registration) => this.unregisterAsSignedOutSession(registration, accessToken, apiUrl)));
+  }
+
+  /** A registration that landed after its session signed out: taken off with the token that session signed out with. */
+  private async unregisterAfterSignOut(session: PushSession, registration: NativePushUnRegistrationInput): Promise<void> {
+    const signOut = session.signOut;
+    if (!signOut?.accessToken) {
+      logger.warn({ message: 'Push: a registration that landed after sign-out could not be taken off', context: { unitId: registration.UnitId } });
+      return;
+    }
+
+    await this.unregisterAsSignedOutSession(registration, signOut.accessToken, signOut.apiUrl);
+  }
+
+  /**
+   * Straight to the server, not through the api client: its 401 handling would re-enter logout. Quiet: sign-out goes
+   * ahead whatever the server says.
+   */
+  private async unregisterAsSignedOutSession(registration: NativePushUnRegistrationInput, accessToken: string, apiUrl: string): Promise<void> {
     try {
-      const response = await fetch(`${getBaseApiUrl()}/Devices/UnRegisterNativePush`, {
+      const response = await fetch(`${apiUrl}/Devices/UnRegisterNativePush`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
         body: JSON.stringify(registration),
       });
       if (!response.ok) {
-        logger.warn({ message: 'Push: the server refused to unregister the device token at sign-out', context: { status: response.status } });
+        logger.warn({ message: 'Push: the server refused to unregister the device token at sign-out', context: { unitId: registration.UnitId, status: response.status } });
       }
     } catch (error) {
-      logger.warn({ message: 'Push: the device token could not be unregistered at sign-out', context: { error } });
+      logger.warn({ message: 'Push: the device token could not be unregistered at sign-out', context: { unitId: registration.UnitId, error } });
     }
   }
 
@@ -667,6 +743,7 @@ class PushNotificationService {
     try {
       this.pushToken = null;
       this.registration = null;
+      this.staleRegistrations = [];
       await Notifications.setBadgeCountAsync(0).catch(() => {});
       await Notifications.dismissAllNotificationsAsync().catch(() => {});
       if (Platform.OS === 'android') {

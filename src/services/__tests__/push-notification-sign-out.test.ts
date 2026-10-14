@@ -7,7 +7,7 @@ import { logger } from '@/lib/logging';
 jest.mock('react-native', () => ({
   Platform: {
     OS: 'ios',
-    select: jest.fn((obj: any) => obj.ios ?? obj.default),
+    select: jest.fn((options: { ios?: unknown; default?: unknown }) => options.ios ?? options.default),
   },
 }));
 
@@ -44,8 +44,10 @@ jest.mock('@notifee/react-native', () => ({
 
 jest.mock('@/stores/auth/store', () => {
   const state = { status: 'signedIn', accessToken: 'access-token' };
-  const store: any = jest.fn((selector: any) => (selector ? selector(state) : state));
-  store.getState = () => state;
+  const store = Object.assign(
+    jest.fn((selector?: (current: typeof state) => unknown) => (selector ? selector(state) : state)),
+    { getState: () => state }
+  );
   return { __esModule: true, default: store };
 });
 
@@ -187,6 +189,69 @@ describe('push notification sign-out', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  describe('signing out while a registration is in flight', () => {
+    const settle = async (condition: () => boolean) => {
+      for (let i = 0; i < 100 && !condition(); i++) {
+        await Promise.resolve();
+      }
+    };
+
+    it('takes a registration that lands after sign-out off as the signed-out session, and never restores it', async () => {
+      let resolveRegistration: (value: { Status: string }) => void = () => {};
+      (registerUnitDevice as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (resolveRegistration = resolve)));
+
+      const registering = pushNotificationService.registerForPushNotifications('42', 'DEPT');
+      await settle(() => (registerUnitDevice as jest.Mock).mock.calls.length > 0);
+
+      await runSignOutHooks('signed-out-token');
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      resolveRegistration({ Status: 'queued' });
+      await expect(registering).resolves.toBeNull();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe('https://api.example/api/v4/Devices/UnRegisterNativePush');
+      expect(init.headers).toEqual(expect.objectContaining({ Authorization: 'Bearer signed-out-token' }));
+      expect(JSON.parse(init.body)).toEqual({ Token: 'native-token', Prefix: 'DEPT', UnitId: '42' });
+
+      // Not restored: the next sign-out has nothing to take off.
+      fetchMock.mockClear();
+      await runSignOutHooks('access-token');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('warns when a registration lands after a sign-out that had no access token', async () => {
+      let resolveRegistration: (value: { Status: string }) => void = () => {};
+      (registerUnitDevice as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (resolveRegistration = resolve)));
+
+      const registering = pushNotificationService.registerForPushNotifications('42', 'DEPT');
+      await settle(() => (registerUnitDevice as jest.Mock).mock.calls.length > 0);
+
+      await runSignOutHooks(null);
+      resolveRegistration({ Status: 'queued' });
+
+      await expect(registering).resolves.toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Push: a registration that landed after sign-out could not be taken off' }));
+    });
+
+    it('does not register at all when sign-out comes before the request is sent', async () => {
+      let resolveToken: (value: { data: string }) => void = () => {};
+      (Notifications.getDevicePushTokenAsync as jest.Mock).mockImplementationOnce(() => new Promise((resolve) => (resolveToken = resolve)));
+
+      const registering = pushNotificationService.registerForPushNotifications('42', 'DEPT');
+      await settle(() => (Notifications.getDevicePushTokenAsync as jest.Mock).mock.calls.length > 0);
+
+      await runSignOutHooks('access-token');
+      resolveToken({ data: 'native-token' });
+
+      await expect(registering).resolves.toBeNull();
+      expect(registerUnitDevice).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('switching units', () => {
     it('takes the token off the unit the phone left, after the new unit is registered', async () => {
       await pushNotificationService.registerForPushNotifications('42', 'DEPT');
@@ -228,7 +293,7 @@ describe('push notification sign-out', () => {
       expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ Token: 'native-token', Prefix: 'DEPT', UnitId: '42' });
     });
 
-    it('keeps the new registration when the old unit could not be cleared', async () => {
+    it('keeps the new registration when the old unit could not be cleared, and takes both off at sign-out', async () => {
       await pushNotificationService.registerForPushNotifications('42', 'DEPT');
       (unRegisterNativePush as jest.Mock).mockRejectedValueOnce(new Error('offline'));
 
@@ -236,7 +301,37 @@ describe('push notification sign-out', () => {
 
       expect(logger.warn).toHaveBeenCalledWith(expect.objectContaining({ message: 'Push: the token could not be unregistered from the previous unit' }));
       await runSignOutHooks('access-token');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ Token: 'native-token', Prefix: 'DEPT', UnitId: '43' });
+      expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ Token: 'native-token', Prefix: 'DEPT', UnitId: '42' });
+    });
+
+    it('retries an old unit the server did not clear on the next registration', async () => {
+      await pushNotificationService.registerForPushNotifications('42', 'DEPT');
+      (unRegisterNativePush as jest.Mock).mockResolvedValueOnce({ Status: 'failure' });
+      await pushNotificationService.registerForPushNotifications('43', 'DEPT');
+
+      await pushNotificationService.registerForPushNotifications('44', 'DEPT');
+
+      // 42 failed, then 42 (retried) and 43 both cleared.
+      expect((unRegisterNativePush as jest.Mock).mock.calls.map(([input]) => input.UnitId)).toEqual(['42', '42', '43']);
+
+      // Nothing left pending: sign-out only takes the current unit off.
+      await runSignOutHooks('access-token');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ Token: 'native-token', Prefix: 'DEPT', UnitId: '44' });
+    });
+
+    it('does not take the token off a pending old unit the phone has come back to', async () => {
+      await pushNotificationService.registerForPushNotifications('42', 'DEPT');
+      (unRegisterNativePush as jest.Mock).mockRejectedValueOnce(new Error('offline'));
+      await pushNotificationService.registerForPushNotifications('43', 'DEPT');
+      (unRegisterNativePush as jest.Mock).mockClear();
+
+      await pushNotificationService.registerForPushNotifications('42', 'DEPT');
+
+      expect(unRegisterNativePush).toHaveBeenCalledTimes(1);
+      expect(unRegisterNativePush).toHaveBeenCalledWith({ Token: 'native-token', Prefix: 'DEPT', UnitId: '43' });
     });
 
     it('warns when the server reports it could not clear the old unit', async () => {

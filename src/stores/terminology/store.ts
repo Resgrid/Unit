@@ -77,6 +77,11 @@ const isPersistedIdentityStale = (persistedKey: string | null): boolean => {
   return false;
 };
 
+// Bumped by every fetch and by reset(). Only the newest request may commit its answer: an older one would
+// overwrite a newer one's names, and one still in flight at sign-out would bring the previous department's
+// names back (and persist them) after the reset cleared them.
+let requestGeneration = 0;
+
 export interface TerminologyState {
   /** Term key -> the department's own name. Only renamed terms are present. */
   names: Record<string, string>;
@@ -84,6 +89,8 @@ export interface TerminologyState {
   error: string | null;
   identityKey: string | null;
   fetchTerminology: () => Promise<void>;
+  /** Clears the names and drops the answer of any request still in flight. */
+  reset: () => void;
 }
 
 export const terminologyStore = create<TerminologyState>()(
@@ -94,13 +101,20 @@ export const terminologyStore = create<TerminologyState>()(
       error: null,
       identityKey: null,
       fetchTerminology: async () => {
+        requestGeneration += 1;
+        const generation = requestGeneration;
         const identityKey = getCurrentIdentityKey();
         if (isPersistedIdentityStale(get().identityKey)) {
           // Another account's or department's words must never label this one's screens.
           set({ names: {}, isLoaded: false, identityKey: null });
         }
+        // Superseded by a newer request or a reset, or the session it was made for has moved on.
+        const isCurrent = () => generation === requestGeneration && identityKey === getCurrentIdentityKey();
         try {
           const response = await getTerminology();
+          if (!isCurrent()) {
+            return;
+          }
           const names: Record<string, string> = {};
           for (const term of response?.Data ?? []) {
             const name = term?.Name?.trim();
@@ -110,6 +124,9 @@ export const terminologyStore = create<TerminologyState>()(
           }
           set({ names, isLoaded: true, error: null, identityKey });
         } catch (error) {
+          if (!isCurrent()) {
+            return;
+          }
           // Labels only: keep the persisted names (or the app's own) when offline or on an older server.
           logger.error({
             message: 'Failed to fetch department terminology',
@@ -117,6 +134,10 @@ export const terminologyStore = create<TerminologyState>()(
           });
           set({ error: error instanceof Error ? error.message : 'Failed to fetch department terminology', isLoaded: true });
         }
+      },
+      reset: () => {
+        requestGeneration += 1;
+        set({ names: {}, isLoaded: false, error: null, identityKey: null });
       },
     }),
     {
