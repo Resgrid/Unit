@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
 
 import { useCoreStore } from '@/stores/app/core-store';
+import { terminologyStore } from '@/stores/terminology/store';
 
 import Sidebar from '../sidebar-content';
 
@@ -31,11 +32,16 @@ jest.mock('@/stores/toast/store', () => ({
   useToastStore: (selector: (state: { showToast: jest.Mock }) => unknown) => selector({ showToast: mockShowToast }),
 }));
 
+const mockFlags = { checklists: false, records: false };
 jest.mock('@/stores/feature-flags/store', () => ({
   useIsChatEnabled: () => false,
-  useIsChecklistsEnabled: () => false,
+  useIsChecklistsEnabled: () => mockFlags.checklists,
   useIsDeploymentsEnabled: () => false,
-  useIsRecordsFieldEnabled: () => false,
+  useIsRecordsFieldEnabled: () => mockFlags.records,
+}));
+
+jest.mock('@/api/config/terminology', () => ({
+  getTerminology: jest.fn(),
 }));
 
 jest.mock('../call-sidebar', () => ({ SidebarCallCard: () => null }));
@@ -158,6 +164,45 @@ describe('Sidebar status buttons', () => {
     expect(screen.getByTestId('sidebar-status-12')).toBeTruthy();
     expect(screen.getByTestId('sidebar-status-show-next')).toBeTruthy();
 
+    unmount();
+  });
+});
+
+describe('Sidebar module labels', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockFlags.checklists = true;
+    mockFlags.records = true;
+    terminologyStore.setState({ names: {}, isLoaded: true, error: null, identityKey: null });
+  });
+
+  afterAll(() => {
+    mockFlags.checklists = false;
+    mockFlags.records = false;
+  });
+
+  it("shows the department's own module names", () => {
+    terminologyStore.setState({ names: { 'module.inventory': 'Gear', 'module.records': 'Reports', 'module.checklists': 'Rig Checks' } });
+    setCoreState({ holdMode: false });
+
+    const { unmount } = render(<Sidebar />);
+
+    expect(screen.getByText('Gear')).toBeTruthy();
+    expect(screen.getByText('Reports')).toBeTruthy();
+    expect(screen.getByText('Rig Checks')).toBeTruthy();
+    expect(screen.queryByText('inventory.title')).toBeNull();
+    expect(screen.queryByText('tabs.records')).toBeNull();
+    unmount();
+  });
+
+  it("keeps the app's own labels for modules that are not renamed", () => {
+    setCoreState({ holdMode: false });
+
+    const { unmount } = render(<Sidebar />);
+
+    expect(screen.getByText('inventory.title')).toBeTruthy();
+    expect(screen.getByText('tabs.records')).toBeTruthy();
+    expect(screen.getByText('checklists.labels.Checklists')).toBeTruthy();
     unmount();
   });
 });

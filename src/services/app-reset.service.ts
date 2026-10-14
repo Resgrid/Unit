@@ -43,6 +43,7 @@ import { useRoutesStore } from '@/stores/routes/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
+import { terminologyStore } from '@/stores/terminology/store';
 import { useUnitsStore } from '@/stores/units/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
@@ -156,6 +157,13 @@ export const INITIAL_SECURITY_STATE = {
 
 export const INITIAL_FEATURE_FLAGS_STATE = {
   flags: {},
+  isLoaded: false,
+  error: null,
+  identityKey: null,
+};
+
+export const INITIAL_TERMINOLOGY_STATE = {
+  names: {},
   isLoaded: false,
   error: null,
   identityKey: null,
@@ -295,6 +303,9 @@ export const resetAllStores = async (): Promise<void> => {
   // reset here so the next session starts unknown and fails closed until fetchFlags
   // resolves, instead of gating on the previous identity's flags.
   featureFlagsStore.setState(INITIAL_FEATURE_FLAGS_STATE);
+
+  // The department's own module and record-type names must not label the next session's screens.
+  terminologyStore.setState(INITIAL_TERMINOLOGY_STATE);
 
   // Stores with existing reset/clear methods
   useStatusBottomSheetStore.getState().reset();
@@ -478,6 +489,7 @@ export default {
   INITIAL_DISPATCH_STATE,
   INITIAL_SECURITY_STATE,
   INITIAL_FEATURE_FLAGS_STATE,
+  INITIAL_TERMINOLOGY_STATE,
   INITIAL_LOCATION_STATE,
   INITIAL_LIVEKIT_STATE,
   INITIAL_AUDIO_STREAM_STATE,

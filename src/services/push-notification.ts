@@ -5,11 +5,14 @@ import type { Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-import { registerUnitDevice } from '@/api/devices/push';
+import { registerUnitDevice, unRegisterNativePush } from '@/api/devices/push';
+import { registerSignOutHook } from '@/lib/auth/sign-out-hooks';
 import { logger } from '@/lib/logging';
+import { CLIENT_HEADER, RESGRID_CLIENT } from '@/lib/mfa/client-app';
 import { type RouterPushRetryOptions, routerPushWithRetry } from '@/lib/navigation';
-import { getDeviceUuid } from '@/lib/storage/app';
+import { getBaseApiUrl, getDeviceUuid } from '@/lib/storage/app';
 import { getAppliedNotificationSoundMode, getModernNotificationSoundsEnabled, setAppliedNotificationSoundMode } from '@/lib/storage/notification-prefs';
+import { type NativePushUnRegistrationInput } from '@/models/v4/device/nativePushUnRegistrationInput';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLocationStore } from '@/stores/app/location-store';
 import useAuthStore from '@/stores/auth/store';
@@ -159,6 +162,8 @@ const ANDROID_SOUND_CHANNELS: AndroidSoundChannel[] = [
 class PushNotificationService {
   private static instance: PushNotificationService;
   private pushToken: string | null = null;
+  /** What the server has registered for this phone (token, department and unit), so sign-out can take it back off. */
+  private registration: NativePushUnRegistrationInput | null = null;
   private notificationListener: { remove: () => void } | null = null;
   private responseListener: { remove: () => void } | null = null;
   private notifeeForegroundUnsubscribe: (() => void) | null = null;
@@ -588,6 +593,16 @@ class PushNotificationService {
         Prefix: departmentCode,
       });
 
+      const previous = this.registration;
+      this.registration = { Token: this.pushToken || '', Prefix: departmentCode, UnitId: unitId };
+
+      // Switching units: the phone is on the new unit now, so take its token off the unit it left, or the rig keeps
+      // getting that unit's dispatches. Only after the new registration is in, so a failure here never leaves the
+      // phone on no unit at all.
+      if (previous && (previous.UnitId !== unitId || previous.Prefix !== departmentCode)) {
+        await this.unregisterPreviousUnit(previous);
+      }
+
       return this.pushToken;
     } catch (error) {
       logger.warn({
@@ -602,16 +617,56 @@ class PushNotificationService {
     return this.pushToken;
   }
 
+  /** Quiet: the new unit is already registered, so a failure here only leaves the old unit's dispatches arriving too. */
+  private async unregisterPreviousUnit(previous: NativePushUnRegistrationInput): Promise<void> {
+    try {
+      const result = await unRegisterNativePush(previous);
+      if (result?.Status !== 'success') {
+        logger.warn({ message: 'Push: the server did not unregister the token from the previous unit', context: { unitId: previous.UnitId, status: result?.Status } });
+      }
+    } catch (error) {
+      logger.warn({ message: 'Push: the token could not be unregistered from the previous unit', context: { unitId: previous.UnitId, error } });
+    }
+  }
+
+  /**
+   * Takes this phone's token off the unit at sign-out, as the session that is signing out (the hook below runs
+   * before logout clears its access token). Straight to the server, not through the api client: its 401 handling
+   * would re-enter logout. Quiet: sign-out goes ahead whatever the server says.
+   */
+  public async unregisterAtSignOut(accessToken: string | null): Promise<void> {
+    const registration = this.registration;
+    this.registration = null;
+
+    if (!registration || !accessToken) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${getBaseApiUrl()}/Devices/UnRegisterNativePush`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
+        body: JSON.stringify(registration),
+      });
+      if (!response.ok) {
+        logger.warn({ message: 'Push: the server refused to unregister the device token at sign-out', context: { status: response.status } });
+      }
+    } catch (error) {
+      logger.warn({ message: 'Push: the device token could not be unregistered at sign-out', context: { error } });
+    }
+  }
+
   /**
    * Best-effort local push teardown on logout: clears the in-memory token,
    * badge and delivered notifications so the previous user's alerts don't
-   * linger for the next user of the device. NOTE: the backend has no
-   * unregister-device endpoint yet — server-side token invalidation should be
-   * added there and called from here when available.
+   * linger for the next user of the device. The server-side removal already
+   * ran earlier in sign-out (unregisterAtSignOut, via the sign-out hook below),
+   * while the session's access token still worked.
    */
   public async unregisterFromPushNotifications(): Promise<void> {
     try {
       this.pushToken = null;
+      this.registration = null;
       await Notifications.setBadgeCountAsync(0).catch(() => {});
       await Notifications.dismissAllNotificationsAsync().catch(() => {});
       if (Platform.OS === 'android') {
@@ -647,6 +702,10 @@ class PushNotificationService {
 }
 
 export const pushNotificationService = PushNotificationService.getInstance();
+
+// Sign-out takes this phone's token off the unit while the session can still authenticate, so the next person to
+// use the device never gets the previous one's dispatches.
+registerSignOutHook((accessToken) => pushNotificationService.unregisterAtSignOut(accessToken));
 
 // React hook for component usage
 export const usePushNotifications = () => {

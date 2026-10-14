@@ -32,6 +32,7 @@ import {
   CALL_FIELD_LABEL_KEYS,
   CALL_IDENTIFIER_FIELDS,
   DISPATCH_ON_MIN_LEAD_MINUTES,
+  findCallType,
   formatCallFieldLabels,
   getEditCallFieldValues,
   getEnforcedMissingCallFields,
@@ -160,8 +161,8 @@ export default function EditCall() {
   useEffect(() => {
     if (call) {
       const priority = callPriorities.find((p) => p.Id === call.Priority);
-      // Call.Type is the type's text, not its id -- matching on Id left the picker blank on every edit.
-      const type = callTypes.find((t) => t.Name === call.Type);
+      // Call.Type is the type's text, not its id -- matching it on Id left the picker blank on every edit; TypeId is the id.
+      const type = findCallType(callTypes, call);
 
       // Seed the picker with who the call already went to. Without this the edit posted an empty
       // dispatch list, which the API reads as "dispatch the whole department".

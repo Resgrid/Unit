@@ -52,6 +52,10 @@ jest.mock('@/lib/storage/app', () => ({
   getDeviceUuid: jest.fn(() => 'test-device-uuid'),
 }));
 
+// The service sends the app header on its sign-out call; the real module reads MMKV storage,
+// which the minimal react-native stub above cannot construct.
+jest.mock('@/lib/mfa/client-app', () => ({ CLIENT_HEADER: 'X-Resgrid-Client', RESGRID_CLIENT: 'unit' }));
+
 jest.mock('@/api/devices/push', () => ({
   registerUnitDevice: jest.fn(),
 }));

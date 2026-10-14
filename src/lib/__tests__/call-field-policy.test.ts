@@ -2,6 +2,7 @@ import { AxiosError, AxiosHeaders } from 'axios';
 
 import {
   CALL_FIELD_LABEL_KEYS,
+  findCallType,
   formatCallFieldLabels,
   formatCallGeolocation,
   getEditCallFieldValues,
@@ -85,6 +86,32 @@ describe('call field policy helpers', () => {
     expect(isPendingCallState(0)).toBe(false);
     expect(isPendingCallState('')).toBe(false);
     expect(isPendingCallState(undefined)).toBe(false);
+  });
+
+  describe('findCallType', () => {
+    const callTypes = [
+      { Id: '3', Name: 'Structure Fire' },
+      { Id: '7', Name: 'Medical' },
+    ];
+
+    it('finds the type by TypeId, so a renamed type still matches', () => {
+      expect(findCallType(callTypes, { Type: 'Fire (old name)', TypeId: '3' })?.Name).toBe('Structure Fire');
+    });
+
+    it('falls back to the type text when no TypeId is sent (older servers)', () => {
+      expect(findCallType(callTypes, { Type: 'Medical' })?.Name).toBe('Medical');
+      expect(findCallType(callTypes, { Type: 'Medical', TypeId: null })?.Name).toBe('Medical');
+    });
+
+    it('falls back to the type text when the TypeId matches none of the types', () => {
+      expect(findCallType(callTypes, { Type: 'Medical', TypeId: '99' })?.Name).toBe('Medical');
+    });
+
+    it('returns undefined when nothing matches', () => {
+      expect(findCallType(callTypes, { Type: 'Unknown Type' })).toBeUndefined();
+      expect(findCallType(null, { Type: 'Medical' })).toBeUndefined();
+      expect(findCallType(callTypes, null)).toBeUndefined();
+    });
   });
 
   it('treats an empty dispatch selection as no recipients', () => {

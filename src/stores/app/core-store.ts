@@ -9,6 +9,7 @@ import { logger } from '@/lib/logging';
 import { applyServerMapboxToken } from '@/lib/mapbox-token';
 import { zustandStorage } from '@/lib/storage';
 import { getActiveCallId, getActiveUnitId, removeActiveCallId, removeActiveUnitId, setActiveCallId, setActiveUnitId } from '@/lib/storage/app';
+import { findCurrentUnitStatusOption, findUnitStatusSet } from '@/lib/unit-status-set';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import { type CallResultData } from '@/models/v4/calls/callResultData';
 import { type GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
@@ -183,20 +184,10 @@ export const useCoreStore = create<CoreState>()(
             // fetchUnits() above already fetched /Statuses/GetAllUnitStatuses and
             // stored the identical payload as unitStatuses — reuse it instead of
             // issuing the same request a second time.
-            let activeStatuses: UnitTypeStatusResultData | undefined = undefined;
+            // The unit type's custom status set (by CustomStatusSetId, which survives a renamed unit type, then by
+            // the unit type name); a unit without one uses the built-in statuses.
             const defaultStatuses = find(unitStatuses, ['UnitType', '0']);
-
-            if (activeUnit.Type) {
-              const statusesForType = find(unitStatuses, ['UnitType', activeUnit.Type.toString()]);
-
-              if (statusesForType) {
-                activeStatuses = statusesForType;
-              } else {
-                activeStatuses = defaultStatuses;
-              }
-            } else {
-              activeStatuses = defaultStatuses;
-            }
+            const activeStatuses: UnitTypeStatusResultData | undefined = findUnitStatusSet(unitStatuses, activeUnit) ?? defaultStatuses;
 
             set({
               activeUnit: activeUnit,
@@ -225,9 +216,9 @@ export const useCoreStore = create<CoreState>()(
           const unitStatus = await getUnitStatus(unitId);
 
           if (unitStatus) {
-            const unitStatusType = unitStatuses.find((status) => status.UnitType === activeUnit?.Type);
+            const unitStatusType = findUnitStatusSet(unitStatuses, activeUnit);
             if (unitStatusType) {
-              const unitStatusInfo = unitStatusType.Statuses.find((status) => status.Text === unitStatus.Data.State);
+              const unitStatusInfo = findCurrentUnitStatusOption(unitStatusType.Statuses, unitStatus.Data);
               set({
                 activeUnitStatus: unitStatus.Data,
                 activeUnitStatusType: unitStatusInfo,

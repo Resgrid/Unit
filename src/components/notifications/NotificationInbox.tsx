@@ -298,7 +298,7 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     setShowDeleteConfirmModal(false);
 
     try {
-      const deletePromises = Array.from(selectedNotificationIds).map((id) => deleteMessage(id));
+      const deletePromises = Array.from(selectedNotificationIds).map((id) => deleteMessage(id, activeUnitId));
       await Promise.all(deletePromises);
 
       showToast('success', selectedNotificationIds.size > 1 ? t('notifications.removed_count', { count: selectedNotificationIds.size }) : t('notifications.removed_one'));
@@ -309,19 +309,19 @@ export const NotificationInbox = ({ isOpen, onClose }: NotificationInboxProps) =
     } finally {
       setIsDeletingSelected(false);
     }
-  }, [selectedNotificationIds, showToast, exitSelectionMode, refetch, t]);
+  }, [selectedNotificationIds, activeUnitId, showToast, exitSelectionMode, refetch, t]);
 
   const handleDeleteNotification = React.useCallback(
     async (_id: string) => {
       try {
-        await deleteMessage(_id);
+        await deleteMessage(_id, activeUnitId);
         showToast('success', t('notifications.removed_one'));
         refetch();
       } catch (error) {
         showToast('error', t('notifications.remove_failed_one'));
       }
     },
-    [showToast, refetch, t]
+    [activeUnitId, showToast, refetch, t]
   );
 
   const handleNavigateToReference = React.useCallback(

@@ -14,6 +14,7 @@ import { contentOf, groupEquipment, locationNames, orderLocations } from '@/lib/
 import { InventoryAssetStatus, InventoryCountStatus } from '@/models/v4/inventory';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useInventoryStore } from '@/stores/inventory/store';
+import { TermKeys, useTerm } from '@/stores/terminology/store';
 
 const todayKey = () => {
   const now = new Date();
@@ -30,6 +31,13 @@ export default function UnitInventoryScreen() {
   const { access, equipment, counts, busy, error } = useInventoryStore();
   const [countLocation, setCountLocation] = useState('');
   const unitId = activeUnitId ? Number(activeUnitId) : null;
+  const renamed = useTerm(TermKeys.Inventory, '');
+  const title = renamed || t('inventory.title');
+  let heading = title;
+  if (activeUnit?.Name) {
+    // Every locale's titleFor reads "<title> · <unit>"; the department's own word keeps that shape.
+    heading = renamed ? `${renamed} · ${activeUnit.Name}` : t('inventory.titleFor', { name: activeUnit.Name });
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -53,9 +61,9 @@ export default function UnitInventoryScreen() {
 
   return (
     <VStack className="flex-1 bg-background-0">
-      <Stack.Screen options={{ title: t('inventory.title') }} />
+      <Stack.Screen options={{ title }} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} refreshControl={<RefreshControl refreshing={busy} onRefresh={() => unitId && void useInventoryStore.getState().load(unitId)} />}>
-        <Text className="text-xl font-bold">{activeUnit?.Name ? t('inventory.titleFor', { name: activeUnit.Name }) : t('inventory.title')}</Text>
+        <Text className="text-xl font-bold">{heading}</Text>
         {!unitId ? <Text className="text-typography-500">{t('inventory.selectUnit')}</Text> : null}
         {busy && !access ? <Spinner /> : null}
         {error ? (
