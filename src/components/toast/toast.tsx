@@ -16,10 +16,11 @@ export const ToastMessage: React.FC<{
   const { t } = useTranslation();
 
   return (
+    // typography-0 flips against the toast backgrounds (dark in light mode, pastel in dark mode); a fixed white vanishes in dark mode.
     <Toast className="rounded-lg border" action={type}>
       <VStack space="xs">
-        {title && <ToastTitle className="font-medium text-white">{t(title)}</ToastTitle>}
-        <ToastDescription className="text-white">{t(message)}</ToastDescription>
+        {title && <ToastTitle className="font-medium">{t(title)}</ToastTitle>}
+        <ToastDescription className="text-typography-0">{t(message)}</ToastDescription>
       </VStack>
     </Toast>
   );

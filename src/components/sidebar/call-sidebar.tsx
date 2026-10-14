@@ -258,7 +258,7 @@ export const SidebarCallCard = () => {
                       });
                     }}
                     className={`rounded-lg border p-4 ${colorScheme === 'dark' ? 'border-neutral-800 bg-neutral-800' : 'border-neutral-200 bg-neutral-50'} ${
-                      activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-900' : 'bg-primary-50') : ''
+                      activeCall?.CallId === call.CallId ? (colorScheme === 'dark' ? 'bg-primary-100' : 'bg-primary-50') : ''
                     }`}
                     testID={`call-item-${call.CallId}`}
                   >

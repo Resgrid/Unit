@@ -1,6 +1,7 @@
 import * as React from 'react';
 
 import { Text } from '@/components/ui/text';
+import { readableTextColor } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 
 import { Card } from '../ui/card';
@@ -33,9 +34,14 @@ export const SidebarStatusCard = () => {
     displayColor = '#449d44';
   }
 
+  // A status colour is fixed in both themes, so the themed text colour can vanish against it; pick black or white instead.
+  const foreground = readableTextColor(displayColor);
+
   return (
     <Card className="flex-1 bg-background-50" style={{ backgroundColor: displayColor }} testID="status-card">
-      <Text className="font-medium">{displayStatus}</Text>
+      <Text className="font-medium" style={foreground ? { color: foreground } : undefined}>
+        {displayStatus}
+      </Text>
     </Card>
   );
 };

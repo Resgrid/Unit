@@ -64,7 +64,7 @@ jest.mock('@/lib/logging', () => ({
 }));
 
 jest.mock('@/lib/storage/app', () => ({
-  getDeviceUuid: jest.fn(() => 'test-uuid'),
+  getOrCreateDeviceUuid: jest.fn(() => 'test-uuid'),
   getBaseApiUrl: jest.fn(() => ''),
 }));
 

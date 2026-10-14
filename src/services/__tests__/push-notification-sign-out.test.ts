@@ -76,7 +76,7 @@ jest.mock('@/lib/logging', () => ({ logger: { info: jest.fn(), warn: jest.fn(), 
 jest.mock('@/lib/mfa/client-app', () => ({ CLIENT_HEADER: 'X-Resgrid-Client', RESGRID_CLIENT: 'unit' }));
 
 jest.mock('@/lib/storage/app', () => ({
-  getDeviceUuid: jest.fn(() => 'device-uuid'),
+  getOrCreateDeviceUuid: jest.fn(() => 'device-uuid'),
   getBaseApiUrl: jest.fn(() => 'https://api.example/api/v4'),
 }));
 

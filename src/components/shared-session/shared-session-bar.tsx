@@ -50,7 +50,7 @@ export const SharedSessionBar: React.FC = () => {
   };
 
   return (
-    <View className="border-b border-warning-300 bg-warning-50 px-3 py-1 dark:border-warning-700 dark:bg-warning-900" testID="shared-session-bar">
+    <View className="border-b border-warning-300 bg-warning-50 px-3 py-1" testID="shared-session-bar">
       <HStack space="sm" className="flex-wrap items-center justify-between">
         <Text size="xs" className="shrink font-medium" numberOfLines={1}>
           {installationLabel ? t('shared_session.bar_label', { label: installationLabel }) : t('shared_session.bar')}
@@ -72,7 +72,7 @@ export const SharedSessionBar: React.FC = () => {
           ) : (
             <>
               <Button size="xs" variant="outline" action="secondary" onPress={() => void lockSharedSession('explicit')} testID="shared-bar-lock">
-                <Lock size={12} style={{ marginRight: 4 }} />
+                <Lock size={12} className="text-typography-500" style={{ marginRight: 4 }} />
                 <ButtonText>{t('shared_session.lock')}</ButtonText>
               </Button>
               <Button size="xs" variant="outline" action="negative" onPress={() => setConfirmEnd(true)} testID="shared-bar-end">
@@ -84,7 +84,7 @@ export const SharedSessionBar: React.FC = () => {
       </HStack>
       {idleWarning || shiftEndsSoon ? (
         <HStack space="sm" className="mt-1 items-center justify-between" testID="shared-session-warning">
-          <Text size="xs" className="shrink text-warning-700 dark:text-warning-200" accessibilityLiveRegion="polite">
+          <Text size="xs" className="shrink text-warning-700" accessibilityLiveRegion="polite">
             {[
               idleWarning ? t('shared_session.idle_warning', { time: clockText(remaining ?? 0) }) : null,
               shiftEndsSoon && shiftEndsAt !== null ? t('shared_session.shift_ends_soon', { time: new Date(shiftEndsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) : null,

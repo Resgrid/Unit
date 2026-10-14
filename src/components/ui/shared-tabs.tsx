@@ -62,7 +62,7 @@ const getBadgeContainerClassName = (badgeVariant: TabItem['badgeVariant']): stri
 };
 
 const getBadgeTextClassName = (badgeVariant: TabItem['badgeVariant']): string => {
-  const textClassName = badgeVariant === 'warning' ? 'text-typography-950' : 'text-typography-white';
+  const textClassName = badgeVariant === 'warning' ? 'text-typography-black' : 'text-typography-white';
   return `text-2xs font-bold ${textClassName}`;
 };
 
@@ -144,8 +144,19 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
   );
 
   // Get appropriate text color based on theme
-  const getTextColor = () => {
+  // Pills and segmented tabs fill the active tab with primary, so its label and icon go white.
+  const isFilledActive = (index: number) => index === currentIndex && (variant === 'pills' || variant === 'segmented');
+
+  const getTextColor = (index: number) => {
+    if (isFilledActive(index)) return 'text-white';
     return colorScheme === 'dark' ? 'text-gray-200' : 'text-gray-800';
+  };
+
+  // Tab icons are usually raw lucide icons, whose default stroke is black; give them the label colour unless the caller chose one.
+  const renderIcon = (icon: React.ReactNode, index: number) => {
+    if (!React.isValidElement<{ color?: string }>(icon) || icon.props.color !== undefined) return icon;
+    const color = isFilledActive(index) ? '#ffffff' : colorScheme === 'dark' ? '#e5e7eb' : '#1f2937';
+    return React.cloneElement(icon, { color });
   };
 
   // Determine tab styles based on variant and size
@@ -160,9 +171,9 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
     }[size];
 
     const variantStyles = {
-      default: isActive ? 'border-b-2 border-primary-500 text-primary-500' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
+      default: isActive ? 'border-b-2 border-primary-600 text-primary-600' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
       pills: isActive ? 'bg-primary-500 text-white rounded-full' : `bg-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
-      underlined: isActive ? 'border-b-2 border-primary-500 text-primary-500' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
+      underlined: isActive ? 'border-b-2 border-primary-600 text-primary-600' : `border-b-2 border-transparent ${colorScheme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`,
       segmented: isActive ? 'bg-primary-500 text-white' : `${colorScheme === 'dark' ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`,
     }[variant];
 
@@ -222,13 +233,13 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
             {tabs.map((tab, index) => (
               <Pressable key={tab.key} testID={`shared-tab-${tab.key}`} className={`${getTabStyles(index)} relative`} style={styles.scrollableTab} onPress={() => handleTabPress(index)}>
                 <Box className="flex-row items-center justify-center">
-                  {tab.icon ? <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box> : null}
+                  {tab.icon ? <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{renderIcon(tab.icon, index)}</Box> : null}
                   {typeof tab.title === 'string' ? (
-                    <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1} style={styles.tabLabel}>
+                    <Text className={isLandscape ? getTextColor(index) : `text-xs ${getTextColor(index)}`} numberOfLines={1} style={styles.tabLabel}>
                       {t(tab.title)}
                     </Text>
                   ) : (
-                    <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1} style={styles.tabLabel}>
+                    <Text className={isLandscape ? getTextColor(index) : `text-xs ${getTextColor(index)}`} numberOfLines={1} style={styles.tabLabel}>
                       {tab.title}
                     </Text>
                   )}
@@ -245,24 +256,14 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
           </ScrollView>
 
           {showOverflowIndicators && overflowState.canScrollLeft ? (
-            <Box
-              pointerEvents="none"
-              testID="shared-tabs-left-overflow"
-              className="absolute bottom-0 left-0 top-0 items-center justify-center bg-background-0/95 dark:bg-background-950/95"
-              style={styles.overflowIndicator}
-            >
-              <ChevronLeft size={20} className="text-typography-700 dark:text-typography-200" />
+            <Box pointerEvents="none" testID="shared-tabs-left-overflow" className="absolute bottom-0 left-0 top-0 items-center justify-center bg-background-0/95" style={styles.overflowIndicator}>
+              <ChevronLeft size={20} className="text-typography-700" />
             </Box>
           ) : null}
 
           {showOverflowIndicators && overflowState.canScrollRight ? (
-            <Box
-              pointerEvents="none"
-              testID="shared-tabs-right-overflow"
-              className="absolute bottom-0 right-0 top-0 items-center justify-center bg-background-0/95 dark:bg-background-950/95"
-              style={styles.overflowIndicator}
-            >
-              <ChevronRight size={20} className="text-typography-700 dark:text-typography-200" />
+            <Box pointerEvents="none" testID="shared-tabs-right-overflow" className="absolute bottom-0 right-0 top-0 items-center justify-center bg-background-0/95" style={styles.overflowIndicator}>
+              <ChevronRight size={20} className="text-typography-700" />
             </Box>
           ) : null}
         </Box>
@@ -271,13 +272,13 @@ export const SharedTabs: React.FC<SharedTabsProps> = ({
           {tabs.map((tab, index) => (
             <Pressable key={tab.key} className={`flex-1 ${getTabStyles(index)} relative`} onPress={() => handleTabPress(index)}>
               <Box className="flex-row items-center justify-center">
-                {tab.icon ? <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{tab.icon}</Box> : null}
+                {tab.icon ? <Box className={isLandscape ? 'mr-1.5' : 'mr-1'}>{renderIcon(tab.icon, index)}</Box> : null}
                 {typeof tab.title === 'string' ? (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1} style={styles.tabLabel}>
+                  <Text className={isLandscape ? getTextColor(index) : `text-xs ${getTextColor(index)}`} numberOfLines={1} style={styles.tabLabel}>
                     {t(tab.title)}
                   </Text>
                 ) : (
-                  <Text className={isLandscape ? getTextColor() : `text-xs ${getTextColor()}`} numberOfLines={1} style={styles.tabLabel}>
+                  <Text className={isLandscape ? getTextColor(index) : `text-xs ${getTextColor(index)}`} numberOfLines={1} style={styles.tabLabel}>
                     {tab.title}
                   </Text>
                 )}

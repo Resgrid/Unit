@@ -1,4 +1,5 @@
 import { EditIcon, MoreVerticalIcon, XIcon } from 'lucide-react-native';
+import { useColorScheme } from 'nativewind';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable as RNPressable, StyleSheet, View } from 'react-native';
@@ -32,6 +33,8 @@ const HeaderRightMenuButton = ({ onPress }: HeaderRightMenuButtonProps) => {
 export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls = false }: CallDetailMenuProps) => {
   const { t } = useTranslation();
   const { trackEvent } = useAnalytics();
+  const { colorScheme } = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const [isKebabMenuOpen, setIsKebabMenuOpen] = useState(false);
 
   const closeMenu = () => setIsKebabMenuOpen(false);
@@ -75,7 +78,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
     return (
       <NativeModal visible={isKebabMenuOpen} transparent={true} animationType="slide" onRequestClose={closeMenu} testID="call-detail-actionsheet">
         <RNPressable style={menuStyles.backdrop} onPress={closeMenu}>
-          <RNPressable style={menuStyles.sheet}>
+          <RNPressable style={[menuStyles.sheet, isDark ? menuStyles.sheetDark : null]}>
             <View style={menuStyles.handle} />
 
             <RNPressable
@@ -87,7 +90,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
               testID="edit-call-button"
             >
               <HStack className="items-center">
-                <EditIcon size={20} color="#374151" style={{ marginRight: 12 }} />
+                <EditIcon size={20} color={isDark ? '#D1D5DB' : '#374151'} style={{ marginRight: 12 }} />
                 <Text className="text-base">{t('call_detail.edit_call')}</Text>
               </HStack>
             </RNPressable>
@@ -109,7 +112,7 @@ export const useCallDetailMenu = ({ onEditCall, onCloseCall, canUserCreateCalls 
         </RNPressable>
       </NativeModal>
     );
-  }, [isKebabMenuOpen, canUserCreateCalls, t, onEditCall, onCloseCall]);
+  }, [isKebabMenuOpen, canUserCreateCalls, t, onEditCall, onCloseCall, isDark]);
 
   return {
     HeaderRightMenu,
@@ -132,6 +135,9 @@ const menuStyles = StyleSheet.create({
     borderTopRightRadius: 16,
     paddingBottom: 34,
     paddingTop: 8,
+  },
+  sheetDark: {
+    backgroundColor: '#1F2937',
   },
   handle: {
     width: 36,

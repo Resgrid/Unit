@@ -28,7 +28,7 @@ import { registerSignOutHook } from '@/lib/auth/sign-out-hooks';
 import { logger } from '@/lib/logging';
 import { CLIENT_HEADER, RESGRID_CLIENT } from '@/lib/mfa/client-app';
 import { routerPushWithRetry } from '@/lib/navigation';
-import { getBaseApiUrl, getDeviceUuid } from '@/lib/storage/app';
+import { getBaseApiUrl, getOrCreateDeviceUuid } from '@/lib/storage/app';
 import { useCoreStore } from '@/stores/app/core-store';
 import useAuthStore from '@/stores/auth/store';
 import { isSafeRouteId, parseNotificationData, usePushNotificationModalStore } from '@/stores/push-notification/store';
@@ -290,6 +290,8 @@ async function runSync(): Promise<void> {
   const identity = currentIdentity();
   const config = getWebPushConfig();
   const accessToken = useAuthStore.getState().accessToken;
+  // The server this session (and so this registration) belongs to, before anything can switch it.
+  const apiUrl = getBaseApiUrl();
   if (!identity || !config) {
     return;
   }
@@ -333,7 +335,7 @@ async function runSync(): Promise<void> {
 
   const registration = { key: keyOf(identity), unitId: identity.unitId, prefix: identity.prefix, token, registeredAt: Date.now() };
   try {
-    await withPushTimeout('register unit device', (signal) => registerUnitDevice({ UnitId: identity.unitId, Token: token, Platform: WEB_PLATFORM, DeviceUuid: getDeviceUuid() || '', Prefix: identity.prefix }, signal));
+    await withPushTimeout('register unit device', (signal) => registerUnitDevice({ UnitId: identity.unitId, Token: token, Platform: WEB_PLATFORM, DeviceUuid: getOrCreateDeviceUuid(), Prefix: identity.prefix }, signal));
   } catch (error) {
     // A timed-out request may have reached Core. Keep the token available for the queued sign-out cleanup.
     writeRegistration({ ...registration, registeredAt: 0 });
@@ -341,7 +343,7 @@ async function runSync(): Promise<void> {
   }
   const registeredIdentity = currentIdentity();
   if (!registeredIdentity || keyOf(registeredIdentity) !== keyOf(identity)) {
-    await Promise.all([accessToken ? unregisterAtSignOut(registration, accessToken) : undefined, deleteLocalToken(config)]);
+    await Promise.all([accessToken ? unregisterAtSignOut(registration, accessToken, apiUrl) : undefined, deleteLocalToken(config)]);
     return;
   }
   writeRegistration(registration);
@@ -397,12 +399,12 @@ export function askForPermissionOnce(): void {
   document.addEventListener('click', ask, true);
 }
 
-async function unregisterAtSignOut(registration: StoredRegistration, accessToken: string): Promise<void> {
+async function unregisterAtSignOut(registration: StoredRegistration, accessToken: string, apiUrl: string): Promise<void> {
   // Straight to the server, not through the api client: its 401 handling would re-enter logout. Awaited (sign-out
   // waits on it), so no keepalive: some browsers refuse keepalive on a cross-origin call that needs a preflight.
   try {
     await withPushTimeout('unregister at sign-out', (signal) =>
-      fetch(`${getBaseApiUrl()}/Devices/UnRegisterWebPush`, {
+      fetch(`${apiUrl}/Devices/UnRegisterWebPush`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}`, [CLIENT_HEADER]: RESGRID_CLIENT },
         body: JSON.stringify({ Token: registration.token, Prefix: registration.prefix, UnitId: registration.unitId }),
@@ -414,23 +416,25 @@ async function unregisterAtSignOut(registration: StoredRegistration, accessToken
   }
 }
 
-async function signOutCleanup(accessToken: string | null, config: WebPushFirebaseConfig | null): Promise<void> {
+async function signOutCleanup(accessToken: string | null, config: WebPushFirebaseConfig | null, apiUrl: string): Promise<void> {
   const stored = readRegistration();
   writeRegistration(null);
 
   // Killing the token here runs beside the server call, not after it: sign-out only waits so long, and this device has
   // to stop showing the session's pushes even when the server is slow to answer.
-  await Promise.all([deleteLocalToken(config), stored && accessToken ? unregisterAtSignOut(stored, accessToken) : undefined]);
+  await Promise.all([deleteLocalToken(config), stored && accessToken ? unregisterAtSignOut(stored, accessToken, apiUrl) : undefined]);
 
   notify();
 }
 
 registerSignOutHook((accessToken) => {
-  // Read while the session's config is still loaded: the cleanup can run after sign-out has moved on.
+  // Read while the session's config and server are still current: the cleanup can run after sign-out has moved on, and
+  // a server switch applies the new URL once sign-out returns.
   const config = getWebPushConfig();
+  const apiUrl = getBaseApiUrl();
   // Queued behind any sync in flight, so the registration that sync is still writing is the one taken off. The next
   // sign-in's sync queues behind this in turn: a cleanup that outlasts sign-out's wait never tears down that session's token.
-  return enqueue(() => signOutCleanup(accessToken, config)).catch((error) => {
+  return enqueue(() => signOutCleanup(accessToken, config, apiUrl)).catch((error) => {
     logger.warn({ message: 'Web push sign-out cleanup failed', operation: 'signOutCleanup', context: { error } });
   });
 });

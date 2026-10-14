@@ -42,11 +42,6 @@ export interface AudioButtonEvent {
   timestamp: number;
 }
 
-export interface ButtonAction {
-  action: 'mute' | 'unmute' | 'volume_up' | 'volume_down';
-  timestamp: number;
-}
-
 export interface AudioDeviceInfo {
   id: string;
   name: string;
@@ -77,11 +72,6 @@ interface BluetoothAudioState {
 
   // Connection status
   connectionError: string | null;
-  isAudioRoutingActive: boolean;
-
-  // Button events
-  buttonEvents: AudioButtonEvent[];
-  lastButtonAction: ButtonAction | null;
 
   // Media button PTT settings (for AirPods/earbuds)
   mediaButtonPTTSettings: MediaButtonPTTSettings;
@@ -110,14 +100,6 @@ interface BluetoothAudioState {
   setConnectionError: (error: string | null) => void;
   clearConnectionError: () => void;
 
-  // Audio routing
-  setAudioRoutingActive: (active: boolean) => void;
-
-  // Button events
-  addButtonEvent: (event: AudioButtonEvent) => void;
-  clearButtonEvents: () => void;
-  setLastButtonAction: (action: ButtonAction | null) => void;
-
   // Media button PTT settings (for AirPods/earbuds)
   setMediaButtonPTTSettings: (settings: Partial<MediaButtonPTTSettings>) => void;
   setMediaButtonPTTEnabled: (enabled: boolean) => void;
@@ -141,10 +123,6 @@ export const INITIAL_STATE: Omit<
   | 'updateAudioDeviceAvailability'
   | 'setConnectionError'
   | 'clearConnectionError'
-  | 'setAudioRoutingActive'
-  | 'addButtonEvent'
-  | 'clearButtonEvents'
-  | 'setLastButtonAction'
   | 'setMediaButtonPTTSettings'
   | 'setMediaButtonPTTEnabled'
   | 'setIsHeadsetButtonMonitoring'
@@ -165,9 +143,6 @@ export const INITIAL_STATE: Omit<
     speaker: { id: 'default-speaker', name: 'Default Speaker', type: 'speaker', isAvailable: true },
   },
   connectionError: null,
-  isAudioRoutingActive: false,
-  buttonEvents: [],
-  lastButtonAction: null,
   mediaButtonPTTSettings: createDefaultPTTSettings(),
 };
 
@@ -230,21 +205,6 @@ export const useBluetoothAudioStore = create<BluetoothAudioState>((set, get) => 
   // Connection error management
   setConnectionError: (error) => set({ connectionError: error }),
   clearConnectionError: () => set({ connectionError: null }),
-
-  // Audio routing
-  setAudioRoutingActive: (active) => set({ isAudioRoutingActive: active }),
-
-  // Button events
-  addButtonEvent: (event) => {
-    const { buttonEvents } = get();
-    const maxEvents = 50; // Keep only the last 50 events
-    const updatedEvents = [event, ...buttonEvents].slice(0, maxEvents);
-    set({ buttonEvents: updatedEvents });
-  },
-
-  clearButtonEvents: () => set({ buttonEvents: [] }),
-
-  setLastButtonAction: (action) => set({ lastButtonAction: action }),
 
   // Preferred device management
   setPreferredDevice: (device) => set({ preferredDevice: device }),

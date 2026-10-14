@@ -168,13 +168,13 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
         <Pressable
           onPress={() => handleDeviceSelect(item)}
           disabled={!!connectingDeviceId}
-          className={`mb-2 rounded-lg border p-4 ${isSelected ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
+          className={`mb-2 rounded-lg border p-4 ${isSelected ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
         >
           <HStack className="items-center justify-between">
             <VStack className="flex-1">
               <HStack className="items-center">
                 <BluetoothIcon size={16} className="mr-2 text-primary-600" />
-                <Text className={`font-medium ${isSelected ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>{item.name || t('bluetooth.unknown_device')}</Text>
+                <Text className={`font-medium ${isSelected ? 'text-primary-700' : 'text-neutral-900 dark:text-neutral-100'}`}>{item.name || t('bluetooth.unknown_device')}</Text>
                 {isConnected && <WifiIcon size={14} className="ml-2 text-green-600" />}
               </HStack>
               <HStack className="mt-1 items-center">
@@ -187,7 +187,7 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
               <Spinner size="small" className="text-primary-600" color="#2563EB" />
             ) : isSelected ? (
               <VStack className="items-end">
-                <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('bluetooth.selected')}</Text>
+                <Text className="text-sm font-medium text-primary-600">{t('bluetooth.selected')}</Text>
                 {isConnected && <Text className="text-xs text-green-600 dark:text-green-400">{t('bluetooth.connected')}</Text>}
               </VStack>
             ) : null}
@@ -270,19 +270,19 @@ export function BluetoothDeviceSelectionBottomSheet({ isOpen, onClose }: Bluetoo
               }
             }}
             disabled={!!connectingDeviceId}
-            className={`rounded-lg border p-4 ${preferredDevice?.id === 'system-audio' ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
+            className={`rounded-lg border p-4 ${preferredDevice?.id === 'system-audio' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-800'} ${!!connectingDeviceId ? 'opacity-70' : ''}`}
           >
             <HStack className="items-center justify-between">
               <HStack className="items-center">
                 <BluetoothIcon size={16} className="mr-2 text-primary-600" />
                 <VStack>
-                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-900 dark:text-neutral-100'}`}>{t('bluetooth.system_audio')}</Text>
+                  <Text className={`font-medium ${preferredDevice?.id === 'system-audio' ? 'text-primary-700' : 'text-neutral-900 dark:text-neutral-100'}`}>{t('bluetooth.system_audio')}</Text>
                   <Text className="text-xs text-neutral-500">{t('bluetooth.system_audio_description')}</Text>
                 </VStack>
               </HStack>
               {preferredDevice?.id === 'system-audio' && (
                 <VStack className="items-end">
-                  <Text className="text-sm font-medium text-primary-600 dark:text-primary-400">{t('bluetooth.selected')}</Text>
+                  <Text className="text-sm font-medium text-primary-600">{t('bluetooth.selected')}</Text>
                 </VStack>
               )}
             </HStack>

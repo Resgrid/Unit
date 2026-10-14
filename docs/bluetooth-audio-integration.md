@@ -25,17 +25,16 @@ This system provides comprehensive Bluetooth audio device integration for the Li
    - Tracks available devices, connection status, and button events
    - Provides reactive state for UI components
 
-3. **BluetoothAudioModal** (`src/components/bluetooth/bluetooth-audio-modal.tsx`)
+3. **BluetoothDeviceSelectionBottomSheet** (`src/components/settings/bluetooth-device-selection-bottom-sheet.tsx`)
    - User interface for device selection and management
    - Shows device list, connection status, and controls
-   - Displays button events and audio routing status
 
 ### Data Flow
 
 ```mermaid
 graph TD
     A[BluetoothAudioService] --> B[BluetoothAudioStore]
-    B --> C[BluetoothAudioModal]
+    B --> C[BluetoothDeviceSelectionBottomSheet]
     A --> D[LiveKit Integration]
     E[BLE Device] --> A
     A --> F[Audio Routing]
@@ -51,18 +50,18 @@ graph TD
 ```typescript
 import { bluetoothAudioService } from '@/services/bluetooth-audio.service';
 import { useBluetoothAudioStore } from '@/stores/app/bluetooth-audio-store';
-import BluetoothAudioModal from '@/components/bluetooth/bluetooth-audio-modal';
+import { BluetoothDeviceSelectionBottomSheet } from '@/components/settings/bluetooth-device-selection-bottom-sheet';
 ```
 
 ### 2. Show Device Selection UI
 
 ```typescript
-const [isBluetoothModalOpen, setIsBluetoothModalOpen] = useState(false);
+const [isDeviceSelectionOpen, setIsDeviceSelectionOpen] = useState(false);
 
 // In your component render:
-<BluetoothAudioModal
-  isOpen={isBluetoothModalOpen}
-  onClose={() => setIsBluetoothModalOpen(false)}
+<BluetoothDeviceSelectionBottomSheet
+  isOpen={isDeviceSelectionOpen}
+  onClose={() => setIsDeviceSelectionOpen(false)}
 />
 ```
 
@@ -213,11 +212,13 @@ The system identifies audio devices using:
 
 ### Button Control Support
 
-Button events are monitored on these characteristic UUIDs:
+Button events are routed by characteristic:
 
-- `0000FE59-0000-1000-8000-00805F9B34FB` (Common button control)
-- `0000180F-0000-1000-8000-00805F9B34FB` (Battery Service)
-- `00001812-0000-1000-8000-00805F9B34FB` (HID Service)
+- Vendor button characteristics for AINA, B01 Inrico and HYS headsets are parsed with each vendor's protocol. Once one is subscribed, every other characteristic on that headset is ignored for button input (e.g. the AINA event counter).
+- `0000FE59-0000-1000-8000-00805F9B34FB` (Common button control) is parsed with the generic parser.
+- Standard GATT telemetry is never treated as a button: Battery Level (`2A19`) and the HID characteristics (`2A4A`–`2A4D`). A battery level of 100% would otherwise decode as a mute press.
+
+Characteristics whose notifications never arrive are read-polled as a fallback. Polling stops for a characteristic once it delivers a notification, and after three consecutive failed reads (e.g. write-only characteristics).
 
 **Note**: Button control implementation varies by manufacturer and may require device-specific customization.
 
@@ -290,8 +291,8 @@ try {
 
 ### Android
 
-- Requires `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, and `ACCESS_FINE_LOCATION` permissions
-- Permissions are requested automatically by the service
+- Android 12+ requires `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT`; Android 11 and lower require `ACCESS_FINE_LOCATION` for BLE scanning
+- Permissions are requested automatically by the service, only when not already granted
 - Some devices may require location services to be enabled
 
 ### iOS
@@ -308,7 +309,7 @@ Tests are provided for:
 
 - BluetoothAudioStore state management
 - BluetoothAudioService methods
-- BluetoothAudioModal UI components
+- BluetoothDeviceSelectionBottomSheet UI components
 
 ### Mocking
 
@@ -324,7 +325,7 @@ The system includes mocks for:
 # Run all Bluetooth audio tests
 yarn test src/stores/app/__tests__/bluetooth-audio-store.test.ts
 yarn test src/services/__tests__/bluetooth-audio.service.test.ts
-yarn test src/components/bluetooth/__tests__/bluetooth-audio-modal.test.tsx
+yarn test src/components/settings/__tests__/bluetooth-device-selection-bottom-sheet.test.tsx
 ```
 
 ## Performance Considerations

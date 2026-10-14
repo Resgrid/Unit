@@ -127,7 +127,6 @@ jest.mock('../bluetooth-audio-store', () => ({
         microphone: null,
         speaker: null,
       },
-      setLastButtonAction: jest.fn(),
       setSelectedMicrophone: jest.fn(),
       setSelectedSpeaker: jest.fn(),
     })),

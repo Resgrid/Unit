@@ -47,7 +47,6 @@ src/
 │   ├── common/           # Cross-feature shared components
 │   └── [domain]/         # Domain-specific components (maps, calls, etc.)
 ├── constants/            # App constants (colors, map icons)
-├── features/             # Feature-specific modules (livekit-call)
 ├── hooks/                # Custom React hooks
 ├── lib/                  # Core utilities & services
 │   ├── auth/             # Auth API, types, and utilities

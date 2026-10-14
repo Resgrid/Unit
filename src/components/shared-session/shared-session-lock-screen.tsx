@@ -239,11 +239,12 @@ export const SharedSessionLockScreen: React.FC = () => {
 
   return (
     <NativeModal visible={visible} animationType="none" transparent={false} onRequestClose={() => undefined} testID="shared-lock-screen">
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }} keyboardShouldPersistTaps="handled">
+      {/* An opaque Modal paints its own white container, so the page needs a themed background of its own. */}
+      <ScrollView className="bg-background-0" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }} keyboardShouldPersistTaps="handled">
         <Box className="w-full max-w-lg self-center">
           <VStack space="md">
             <VStack space="xs" className="items-center">
-              <Lock size={40} />
+              <Lock size={40} className="text-typography-700" />
               <Heading size="lg" className="text-center">
                 {t('shared_session.locked_title')}
               </Heading>
@@ -282,7 +283,7 @@ export const SharedSessionLockScreen: React.FC = () => {
                       />
                     </Input>
                     <Button action="primary" onPress={unlockWithCode} isDisabled={busy || code.trim().length === 0} testID="shared-lock-unlock">
-                      {busy ? <Spinner size="small" /> : <ButtonText>{t('shared_session.unlock')}</ButtonText>}
+                      {busy ? <Spinner size="small" className="text-typography-0" /> : <ButtonText>{t('shared_session.unlock')}</ButtonText>}
                     </Button>
                   </>
                 ) : null}

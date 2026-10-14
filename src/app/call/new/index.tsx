@@ -697,7 +697,7 @@ export default function NewCall() {
                   <ButtonText>{t('common.cancel')}</ButtonText>
                 </Button>
                 <Button className="ml-10 flex-1" variant="solid" action="primary" isDisabled={!fieldPolicy.isLoaded || isSubmitting} onPress={handleSubmit(onSubmit)} testID="create-call-button">
-                  {isSubmitting ? <ButtonSpinner className="mr-2" /> : <PlusIcon size={18} className="mr-2" />}
+                  {isSubmitting ? <ButtonSpinner className="mr-2" /> : <PlusIcon size={18} className="mr-2 text-typography-0" />}
                   <ButtonText>{isSubmitting ? t('common.submitting') : t('calls.create')}</ButtonText>
                 </Button>
               </Box>

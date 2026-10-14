@@ -16,13 +16,13 @@ const NotificationIcon = ({ type }: { type: NotificationType }) => {
 
   switch (type) {
     case 'call':
-      return <Phone size={iconSize} className="text-danger-500 dark:text-danger-400" testID="notification-icon" />;
+      return <Phone size={iconSize} className="text-error-500" testID="notification-icon" />;
     case 'message':
-      return <MailIcon size={iconSize} className="text-primary-500 dark:text-primary-400" testID="notification-icon" />;
+      return <MailIcon size={iconSize} className="text-primary-600" testID="notification-icon" />;
     case 'chat':
-      return <MessageCircle size={iconSize} className="text-success-500 dark:text-success-400" testID="notification-icon" />;
+      return <MessageCircle size={iconSize} className="text-success-500" testID="notification-icon" />;
     case 'group-chat':
-      return <Users size={iconSize} className="text-secondary-500 dark:text-secondary-400" testID="notification-icon" />;
+      return <Users size={iconSize} className="text-typography-500" testID="notification-icon" />;
     default:
       return <Bell size={iconSize} className="text-gray-600 dark:text-gray-400" testID="notification-icon" />;
   }
@@ -110,9 +110,9 @@ export const PushNotificationModal: React.FC = () => {
             ) : null}
 
             {notification.type === 'unknown' ? (
-              <HStack className="mt-2 items-center space-x-2 rounded-lg bg-warning-50 p-3 dark:bg-warning-900">
-                <AlertCircle size={20} className="text-warning-600 dark:text-warning-400" />
-                <Text className="flex-1 text-sm text-warning-800 dark:text-warning-200">{t('push_notifications.unknown_type_warning')}</Text>
+              <HStack className="mt-2 items-center space-x-2 rounded-lg bg-warning-50 p-3">
+                <AlertCircle size={20} className="text-warning-600" />
+                <Text className="flex-1 text-sm text-warning-800">{t('push_notifications.unknown_type_warning')}</Text>
               </HStack>
             ) : null}
           </VStack>

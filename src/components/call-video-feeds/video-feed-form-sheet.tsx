@@ -152,14 +152,14 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
 
           {/* Name */}
           <VStack space="xs">
-            <Text className="text-sm font-medium text-gray-600">{t('video_feeds.name')} *</Text>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.name')} *</Text>
             <Controller
               control={control}
               name="Name"
               rules={{ required: true }}
               render={({ field: { onChange, value } }) => (
                 <Box className="rounded-lg border border-outline-200 p-2">
-                  <TextInput value={value} onChangeText={onChange} placeholder={t('video_feeds.name')} />
+                  <TextInput className="text-typography-900" value={value} onChangeText={onChange} placeholder={t('video_feeds.name')} />
                 </Box>
               )}
             />
@@ -167,14 +167,14 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
 
           {/* URL */}
           <VStack space="xs">
-            <Text className="text-sm font-medium text-gray-600">{t('video_feeds.url')} *</Text>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.url')} *</Text>
             <Controller
               control={control}
               name="Url"
               rules={{ required: true }}
               render={({ field: { onChange, value } }) => (
                 <Box className="rounded-lg border border-outline-200 p-2">
-                  <TextInput value={value} onChangeText={onChange} onBlur={() => handleUrlBlur(value)} placeholder="https://" autoCapitalize="none" keyboardType="url" />
+                  <TextInput className="text-typography-900" value={value} onChangeText={onChange} onBlur={() => handleUrlBlur(value)} placeholder="https://" autoCapitalize="none" keyboardType="url" />
                 </Box>
               )}
             />
@@ -182,7 +182,7 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
 
           {/* Feed Type */}
           <VStack space="xs">
-            <Text className="text-sm font-medium text-gray-600">{t('video_feeds.feed_type')}</Text>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.feed_type')}</Text>
             <HStack className="flex-wrap" space="sm">
               {FEED_TYPES.map((type) => (
                 <Button key={type.value} variant={selectedFeedType === type.value ? 'solid' : 'outline'} size="sm" onPress={() => setValue('FeedType', type.value)} className="mb-1">
@@ -194,7 +194,7 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
 
           {/* Feed Format */}
           <VStack space="xs">
-            <Text className="text-sm font-medium text-gray-600">{t('video_feeds.feed_format')}</Text>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.feed_format')}</Text>
             <HStack className="flex-wrap" space="sm">
               {FEED_FORMATS.map((fmt) => (
                 <Button key={fmt.value} variant={selectedFeedFormat === fmt.value ? 'solid' : 'outline'} size="sm" onPress={() => setValue('FeedFormat', fmt.value)} className="mb-1">
@@ -206,13 +206,21 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
 
           {/* Description */}
           <VStack space="xs">
-            <Text className="text-sm font-medium text-gray-600">{t('video_feeds.description')}</Text>
+            <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.description')}</Text>
             <Controller
               control={control}
               name="Description"
               render={({ field: { onChange, value } }) => (
                 <Box className="rounded-lg border border-outline-200 p-2">
-                  <TextInput value={value} onChangeText={onChange} placeholder={t('video_feeds.description')} multiline numberOfLines={3} style={{ minHeight: 60, textAlignVertical: 'top' }} />
+                  <TextInput
+                    className="text-typography-900"
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={t('video_feeds.description')}
+                    multiline
+                    numberOfLines={3}
+                    style={{ minHeight: 60, textAlignVertical: 'top' }}
+                  />
                 </Box>
               )}
             />
@@ -221,25 +229,25 @@ export const VideoFeedFormSheet: React.FC<VideoFeedFormSheetProps> = ({ isOpen, 
           {/* Latitude / Longitude */}
           <HStack space="md">
             <VStack space="xs" className="flex-1">
-              <Text className="text-sm font-medium text-gray-600">{t('video_feeds.latitude')}</Text>
+              <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.latitude')}</Text>
               <Controller
                 control={control}
                 name="Latitude"
                 render={({ field: { onChange, value } }) => (
                   <Box className="rounded-lg border border-outline-200 p-2">
-                    <TextInput value={value} onChangeText={onChange} placeholder="0.0" keyboardType="numeric" />
+                    <TextInput className="text-typography-900" value={value} onChangeText={onChange} placeholder="0.0" keyboardType="numeric" />
                   </Box>
                 )}
               />
             </VStack>
             <VStack space="xs" className="flex-1">
-              <Text className="text-sm font-medium text-gray-600">{t('video_feeds.longitude')}</Text>
+              <Text className="text-sm font-medium text-gray-600 dark:text-gray-400">{t('video_feeds.longitude')}</Text>
               <Controller
                 control={control}
                 name="Longitude"
                 render={({ field: { onChange, value } }) => (
                   <Box className="rounded-lg border border-outline-200 p-2">
-                    <TextInput value={value} onChangeText={onChange} placeholder="0.0" keyboardType="numeric" />
+                    <TextInput className="text-typography-900" value={value} onChangeText={onChange} placeholder="0.0" keyboardType="numeric" />
                   </Box>
                 )}
               />
