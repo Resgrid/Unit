@@ -43,6 +43,7 @@ import { useRoutesStore } from '@/stores/routes/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
+import { terminologyStore } from '@/stores/terminology/store';
 import { useUnitsStore } from '@/stores/units/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 
@@ -295,6 +296,10 @@ export const resetAllStores = async (): Promise<void> => {
   // reset here so the next session starts unknown and fails closed until fetchFlags
   // resolves, instead of gating on the previous identity's flags.
   featureFlagsStore.setState(INITIAL_FEATURE_FLAGS_STATE);
+
+  // The department's own module and record-type names must not label the next session's screens. reset() also drops
+  // the answer of a fetch still in flight, which would otherwise bring them back.
+  terminologyStore.getState().reset();
 
   // Stores with existing reset/clear methods
   useStatusBottomSheetStore.getState().reset();

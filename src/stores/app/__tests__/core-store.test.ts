@@ -72,6 +72,7 @@ import { getActiveUnitId, getActiveCallId, removeActiveUnitId } from '@/lib/stor
 import { getConfig } from '@/api/config';
 import { logger } from '@/lib/logging';
 import { GetConfigResultData } from '@/models/v4/configs/getConfigResultData';
+import type { UnitTypeStatusResultData } from '@/models/v4/statuses/unitTypeStatusResultData';
 import { getAllUnitStatuses } from '@/api/satuses/statuses';
 import { getUnitStatus } from '@/api/units/unitStatuses';
 import { useUnitsStore } from '@/stores/units/store';
@@ -456,6 +457,77 @@ describe('Core Store', () => {
       await useCoreStore.getState().setActiveUnit('unit-1');
 
       expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[0]);
+    });
+
+    it('should resolve activeStatuses by the unit custom status set id, so a renamed unit type keeps its statuses', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [{ ...activeUnit, Type: 'Engine (renamed)', CustomStatusSetId: 's3' }],
+        unitStatuses,
+      });
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[1]);
+    });
+
+    it('should resolve activeStatuses by unit type name when the set id is the built-in 0 (or not sent)', async () => {
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [{ ...activeUnit, CustomStatusSetId: '0' }],
+        unitStatuses,
+      });
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeStatuses).toEqual(unitStatuses[1]);
+    });
+
+    it('should match the current status option by its id before its text', async () => {
+      const statusSets = [
+        { UnitType: '0', StatusId: '', Statuses: [{ Id: 0, Text: 'Available' }] },
+        {
+          UnitType: '3',
+          StatusId: 's3',
+          Statuses: [
+            { Id: 21, Text: 'Available' },
+            { Id: 22, Text: 'En Route' },
+          ],
+        },
+      ] as unknown as UnitTypeStatusResultData[];
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [activeUnit],
+        unitStatuses: statusSets,
+      });
+      (getUnitStatus as jest.Mock).mockImplementation(async () => ({ Data: { UnitId: 'unit-1', StateId: 22, State: 'Responding' } }));
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeUnitStatusType).toEqual(statusSets[1].Statuses[1]);
+    });
+
+    it('should match the current status option by its text when the server sends no option id', async () => {
+      const statusSets = [
+        {
+          UnitType: '3',
+          StatusId: 's3',
+          Statuses: [
+            { Id: 21, Text: 'Available' },
+            { Id: 22, Text: 'En Route' },
+          ],
+        },
+      ] as unknown as UnitTypeStatusResultData[];
+      (useUnitsStore.getState as jest.Mock).mockReturnValue({
+        fetchUnits: jest.fn(async () => undefined),
+        units: [activeUnit],
+        unitStatuses: statusSets,
+      });
+      (getUnitStatus as jest.Mock).mockImplementation(async () => ({ Data: { UnitId: 'unit-1', State: 'En Route' } }));
+
+      await useCoreStore.getState().setActiveUnit('unit-1');
+
+      expect(useCoreStore.getState().activeUnitStatusType).toEqual(statusSets[0].Statuses[1]);
     });
 
     it('should log a network failure at warn rather than error', async () => {

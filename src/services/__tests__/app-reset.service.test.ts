@@ -176,6 +176,13 @@ jest.mock('@/stores/feature-flags/store', () => ({
   },
 }));
 
+jest.mock('@/stores/terminology/store', () => ({
+  terminologyStore: {
+    setState: jest.fn(),
+    getState: jest.fn(() => ({})),
+  },
+}));
+
 jest.mock('@/stores/status/store', () => ({
   useStatusBottomSheetStore: {
     setState: jest.fn(),
@@ -312,6 +319,7 @@ const mockRecordsReset = jest.fn();
 const mockDeploymentsReset = jest.fn();
 const mockPreplanReset = jest.fn();
 const mockSiteInfoReset = jest.fn();
+const mockTerminologyReset = jest.fn();
 
 describe('app-reset.service', () => {
   beforeEach(() => {
@@ -366,6 +374,7 @@ describe('app-reset.service', () => {
     jest.requireMock('@/stores/records/deployments-store').useDeploymentsStore.getState.mockReturnValue({ reset: mockDeploymentsReset });
     jest.requireMock('@/stores/contacts/preplan-store').useContactPreplanStore.getState.mockReturnValue({ reset: mockPreplanReset });
     jest.requireMock('@/stores/calls/site-info-store').useSiteInfoStore.getState.mockReturnValue({ reset: mockSiteInfoReset });
+    jest.requireMock('@/stores/terminology/store').terminologyStore.getState.mockReturnValue({ reset: mockTerminologyReset });
 
     locationService.stopLocationUpdates.mockResolvedValue(undefined);
     signalRService.disconnectAll.mockResolvedValue(undefined);
@@ -657,6 +666,8 @@ describe('app-reset.service', () => {
       expect(useUnitsStore.setState).toHaveBeenCalledWith(INITIAL_UNITS_STATE);
       // Logout must clear flags, resolution and identity so the next session fails closed.
       expect(featureFlagsStore.setState).toHaveBeenCalledWith(INITIAL_FEATURE_FLAGS_STATE);
+      // The department's own names must not label the next session's screens, nor a fetch still in flight restore them.
+      expect(mockTerminologyReset).toHaveBeenCalled();
       expect(mockStatusReset).toHaveBeenCalled();
       expect(mockOfflineQueueClear).toHaveBeenCalled();
       expect(mockLoadingReset).toHaveBeenCalled();

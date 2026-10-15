@@ -4,6 +4,7 @@ import React from 'react';
 import { getRecord } from '@/api/records/records';
 import { RmsRecordState } from '@/models/v4/records';
 import { useRecordsStore } from '@/stores/records/store';
+import { terminologyStore } from '@/stores/terminology/store';
 
 import RecordScreen from '../[id]';
 
@@ -39,6 +40,10 @@ jest.mock('react-i18next', () => {
 
 jest.mock('@/api/records/records', () => ({
   getRecord: jest.fn(),
+}));
+
+jest.mock('@/api/config/terminology', () => ({
+  getTerminology: jest.fn(),
 }));
 
 jest.mock('@/lib/logging', () => ({
@@ -207,5 +212,18 @@ describe('RecordScreen', () => {
     expect(await screen.findByText('records.conflict_etag')).toBeTruthy();
     expect(store.finalize).not.toHaveBeenCalled();
     unmount();
+  });
+
+  it("heads a built-in record with the department's name for its type", async () => {
+    terminologyStore.setState({ names: { 'record-type.run': 'Incident' } });
+    mockGetRecord.mockReset();
+    mockGetRecord.mockResolvedValue({ Data: { ...record(4), DefinitionKey: 'system.run' } } as never);
+
+    const { unmount } = render(<RecordScreen />);
+
+    expect(await screen.findByText('Incident')).toBeTruthy();
+    expect(screen.queryByText('system.run')).toBeNull();
+    unmount();
+    terminologyStore.setState({ names: {} });
   });
 });

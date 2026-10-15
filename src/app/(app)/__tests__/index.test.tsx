@@ -41,6 +41,9 @@ jest.mock('@/api/mapping/mapping', () => ({
     Data: { MapMakerInfos: [] },
   }),
 }));
+jest.mock('@/api/config/terminology', () => ({
+  getTerminology: jest.fn(),
+}));
 // Camera commands issued by the screen. The MapView mock reports the map ready
 // on mount and the Camera mock exposes a real imperative handle, so the
 // follow-camera effects actually run in tests.

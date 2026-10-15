@@ -8,6 +8,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { useRecordTypeName } from '@/hooks/use-record-type-name';
 import { type FieldRecordAssignmentData, type RecordSummaryData, RmsRecordState } from '@/models/v4/records';
 import { type PendingRecordDraft } from '@/stores/records/store';
 
@@ -29,7 +30,9 @@ const stateAction = (state: number): 'muted' | 'info' | 'warning' | 'success' | 
 
 export const RecordListItem: React.FC<{ record: RecordSummaryData; onPress: () => void; testID?: string }> = ({ record, onPress, testID }) => {
   const { t } = useTranslation();
-  const title = record.RecordNumber || record.DraftReference || record.DefinitionKey || t('records.untitled');
+  // The raw key ("system.run") only when neither the department nor the catalog has a name for it.
+  const typeName = useRecordTypeName(record.DefinitionKey, record.RecordType) || record.DefinitionKey;
+  const title = record.RecordNumber || record.DraftReference || typeName || t('records.untitled');
 
   return (
     <Pressable onPress={onPress} className="px-4 py-3" testID={testID}>
@@ -42,7 +45,7 @@ export const RecordListItem: React.FC<{ record: RecordSummaryData; onPress: () =
             {title}
           </Text>
           <Text className="text-xs text-typography-500" numberOfLines={1}>
-            {record.DisplaySummary || record.DefinitionKey || ''}
+            {record.DisplaySummary || typeName || ''}
           </Text>
         </VStack>
         <Badge action={stateAction(record.State)} size="sm">

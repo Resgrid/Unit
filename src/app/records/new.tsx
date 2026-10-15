@@ -15,9 +15,11 @@ import { Pressable } from '@/components/ui/pressable';
 import { Spinner } from '@/components/ui/spinner';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { recordTypeName } from '@/hooks/use-record-type-name';
 import { canAuthorOffline, cellKey, toValueList, unsupportedFieldKeys, validate, type ValidationIssue, type ValueMap } from '@/lib/records/schema';
 import { type FieldRecordCatalogEntry, type RecordDefinitionSchema } from '@/models/v4/records';
 import { useRecordsStore } from '@/stores/records/store';
+import { terminologyStore } from '@/stores/terminology/store';
 
 // Contextual create: pick a definition the server offered for this context, then author it. The
 // catalog is the only source of what may be started here — nothing is inferred locally.
@@ -41,9 +43,11 @@ export default function NewRecordScreen() {
   const discardDraft = useRecordsStore((state) => state.discardDraft);
   const pushDraft = useRecordsStore((state) => state.pushDraft);
   const report = useRecordsStore((state) => state.report);
+  const termNames = terminologyStore((state) => state.names);
 
   const resumed = params.draft ? pendingDrafts[params.draft] : undefined;
   const [entry, setEntry] = useState<FieldRecordCatalogEntry | null>(null);
+  const entryName = entry ? recordTypeName(termNames, entry.DefinitionKey, entry.RecordType, entry.Name) : '';
   const [schema, setSchema] = useState<RecordDefinitionSchema | null>(null);
   const [values, setValues] = useState<ValueMap>({});
   const [issues, setIssues] = useState<ValidationIssue[]>([]);
@@ -131,7 +135,7 @@ export default function NewRecordScreen() {
         recordId: resumed?.recordId ?? null,
         definitionKey: entry.DefinitionKey,
         definitionVersion: entry.Version,
-        name: entry.Name,
+        name: entryName,
         values: toValueList(values),
         // A resumed draft stays on the Call it was started against, whatever is active now.
         callId: resumed ? (resumed.callId ?? null) : (context.CallId ?? null),
@@ -164,7 +168,7 @@ export default function NewRecordScreen() {
         setIsBusy(false);
       }
     },
-    [entry, schema, values, resumed, context, stageDraft, offlineCapable, pushDraft, discardDraft, router, t]
+    [entry, entryName, schema, values, resumed, context, stageDraft, offlineCapable, pushDraft, discardDraft, router, t]
   );
 
   if (!entry) {
@@ -181,7 +185,7 @@ export default function NewRecordScreen() {
                 <Pressable className="px-4 py-4" onPress={() => void choose(definition)} testID={`records-choose-${definition.DefinitionKey}`}>
                   <HStack className="items-center" space="md">
                     <VStack className="flex-1">
-                      <Text className="font-medium text-typography-900">{definition.Name}</Text>
+                      <Text className="font-medium text-typography-900">{recordTypeName(termNames, definition.DefinitionKey, definition.RecordType, definition.Name)}</Text>
                       <HStack space="xs" className="mt-1 flex-wrap items-center">
                         {definition.Category ? <Text className="text-xs text-typography-500">{definition.Category}</Text> : null}
                         {definition.RequiresProtectedGrant ? (
@@ -210,7 +214,7 @@ export default function NewRecordScreen() {
 
   return (
     <Box className="flex-1 bg-background-0">
-      <Stack.Screen options={{ title: entry.Name }} />
+      <Stack.Screen options={{ title: entryName }} />
       <ScrollView contentContainerClassName="p-4">
         {unsupported.length > 0 ? (
           <Box className="mb-4 rounded-md border border-warning-300 bg-background-warning p-3">

@@ -457,4 +457,24 @@ describe('EditCall field policy', () => {
 
     await waitFor(() => expect(mockToast.error).toHaveBeenCalledWith('call_detail.update_call_error'));
   });
+
+  describe('call type', () => {
+    it('finds the call type by TypeId, so a type renamed since the call was logged is still selected', async () => {
+      mockDetailState.call = { ...BASE_CALL, Type: 'Fire (old name)', TypeId: '1' };
+      await renderWithPolicy([]);
+
+      save();
+
+      await waitFor(() => expect(mockUpdateCall).toHaveBeenCalledWith(expect.objectContaining({ type: 'Fire' })));
+    });
+
+    it('finds the call type by name when the server sends no TypeId (older servers)', async () => {
+      mockDetailState.call = { ...BASE_CALL, Type: 'Fire' };
+      await renderWithPolicy([]);
+
+      save();
+
+      await waitFor(() => expect(mockUpdateCall).toHaveBeenCalledWith(expect.objectContaining({ type: 'Fire' })));
+    });
+  });
 });

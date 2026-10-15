@@ -15,6 +15,7 @@ import { readableColors } from '@/lib/utils';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useIsChatEnabled, useIsChecklistsEnabled, useIsDeploymentsEnabled, useIsRecordsFieldEnabled } from '@/stores/feature-flags/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
+import { TermKeys, useTerm } from '@/stores/terminology/store';
 import { useToastStore } from '@/stores/toast/store';
 
 import ZeroState from '../common/zero-state';
@@ -47,6 +48,9 @@ const Sidebar = ({ onClose }: SidebarProps) => {
   const isRecordsEnabled = useIsRecordsFieldEnabled();
   const { t } = useTranslation();
   const router = useRouter();
+  const checklistsLabel = useTerm(TermKeys.Checklists, t('checklists.labels.Checklists'));
+  const inventoryLabel = useTerm(TermKeys.Inventory, t('inventory.title'));
+  const recordsLabel = useTerm(TermKeys.Records, t('tabs.records'));
 
   const isActiveStatusesEmpty = !activeStatuses?.Statuses || activeStatuses.Statuses.length === 0;
 
@@ -128,7 +132,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             }}
             testID="sidebar-checklists"
           >
-            <ButtonText>{t('checklists.labels.Checklists')}</ButtonText>
+            <ButtonText>{checklistsLabel}</ButtonText>
           </Button>
         ) : null}
 
@@ -162,7 +166,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
             testID="sidebar-inventory"
           >
             <Package size={18} color="#2563eb" />
-            <ButtonText className="ml-2">{t('inventory.title')}</ButtonText>
+            <ButtonText className="ml-2">{inventoryLabel}</ButtonText>
           </Button>
         ) : null}
 
@@ -170,7 +174,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
         {isRecordsEnabled ? (
           <Button variant="outline" action="secondary" size="md" onPress={handleNavigateToRecords} testID="sidebar-records">
             <FileText size={18} color="#2563eb" />
-            <ButtonText className="ml-2">{t('tabs.records')}</ButtonText>
+            <ButtonText className="ml-2">{recordsLabel}</ButtonText>
           </Button>
         ) : null}
 

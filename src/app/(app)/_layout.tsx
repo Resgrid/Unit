@@ -27,6 +27,7 @@ import { useAnalytics } from '@/hooks/use-analytics';
 import { useAppLifecycle } from '@/hooks/use-app-lifecycle';
 import { useSharedSessionLifecycle } from '@/hooks/use-shared-session-lifecycle';
 import { useSignalRLifecycle } from '@/hooks/use-signalr-lifecycle';
+import { useUnitSubscriberHash } from '@/hooks/use-unit-subscriber-hash';
 import { getAppTabBarHeight } from '@/lib/app-shell-layout';
 import { useAuthStore } from '@/lib/auth';
 import { cacheManager } from '@/lib/cache/cache-manager';
@@ -43,6 +44,7 @@ import { FeatureFlagKeys, featureFlagsStore } from '@/stores/feature-flags/store
 import { useRolesStore } from '@/stores/roles/store';
 import { securityStore } from '@/stores/security/store';
 import { useSignalRStore } from '@/stores/signalr/signalr-store';
+import { terminologyStore, TermKeys } from '@/stores/terminology/store';
 import { useToastStore } from '@/stores/toast/store';
 import { useWeatherAlertsStore } from '@/stores/weather-alerts/store';
 import { isNetworkError } from '@/utils/network';
@@ -193,6 +195,9 @@ export default function TabLayout() {
       ]);
 
       if (!isCurrentRun()) return;
+
+      // After rights (its identity key needs the department); labels only, so it never holds up init.
+      void terminologyStore.getState().fetchTerminology();
 
       // SignalR needs config (EventingUrl) and rights (DepartmentId) — both
       // available now. The two hub connects are independent.
@@ -404,13 +409,17 @@ export default function TabLayout() {
   const config = useCoreStore((state) => state.config);
   const activeUnitId = useCoreStore((state) => state.activeUnitId);
   const rights = securityStore((state) => state.rights);
+  const termNames = terminologyStore((state) => state.names);
+  const unitSubscriberHash = useUnitSubscriberHash(activeUnitId);
 
-  // Compute Novu readiness once for consistent gating across the render
-  const novuReady = !!(activeUnitId && config?.NovuApplicationId && config?.NovuBackendApiUrl && config?.NovuSocketUrl && rights?.DepartmentCode);
+  // Compute Novu readiness once for consistent gating across the render. It also waits for the unit's
+  // subscriberHash fetch to settle, so a unit switch keeps the previous inbox up until the new one can open.
+  const novuReady = !!(activeUnitId && config?.NovuApplicationId && config?.NovuBackendApiUrl && config?.NovuSocketUrl && rights?.DepartmentCode && unitSubscriberHash.settled);
   // Cache the last known-good Novu config so NovuProvider stays mounted stably
   // even if a transient state update briefly nullifies one of the values.
   const lastNovuConfig = useRef<{
     subscriberId: string;
+    subscriberHash?: string;
     applicationIdentifier: string;
     backendUrl: string;
     socketUrl: string;
@@ -418,6 +427,7 @@ export default function TabLayout() {
   if (novuReady) {
     lastNovuConfig.current = {
       subscriberId: `${rights?.DepartmentCode}_Unit_${activeUnitId}`,
+      subscriberHash: unitSubscriberHash.subscriberHash,
       applicationIdentifier: config!.NovuApplicationId,
       backendUrl: config!.NovuBackendApiUrl,
       socketUrl: config!.NovuSocketUrl,
@@ -474,15 +484,17 @@ export default function TabLayout() {
 
   // Memoize header left/right renders
   const headerLeftMap = useCallback(() => <CreateDrawerMenuButton setIsOpen={setIsOpen} isLandscape={isLandscape} />, [isLandscape]);
+  // Gated on novuReady like the inbox: before the unit's subscriberHash settles there is no NovuProvider yet, and
+  // the button's useCounts throws outside one.
   const headerRightNotification = useCallback(
-    () => <CreateNotificationButton config={config} setIsNotificationsOpen={handleOpenNotifications} activeUnitId={activeUnitId} departmentCode={rights?.DepartmentCode} />,
-    [config, handleOpenNotifications, activeUnitId, rights?.DepartmentCode]
+    () => (novuReady ? <CreateNotificationButton config={config} setIsNotificationsOpen={handleOpenNotifications} activeUnitId={activeUnitId} departmentCode={rights?.DepartmentCode} /> : null),
+    [novuReady, config, handleOpenNotifications, activeUnitId, rights?.DepartmentCode]
   );
 
   // Memoize per-screen options to prevent new objects every render
   const indexOptions = useMemo(
     () => ({
-      title: t('tabs.map'),
+      title: termNames[TermKeys.Mapping] || t('tabs.map'),
       tabBarIcon: mapIcon,
       headerLeft: headerLeftMap,
       tabBarButtonTestID: 'map-tab' as const,
@@ -494,29 +506,29 @@ export default function TabLayout() {
       // a use-after-free). Freezing preserves the native MapView, shrinking that race.
       freezeOnBlur: true,
     }),
-    [t, mapIcon, headerLeftMap, headerRightNotification]
+    [t, termNames, mapIcon, headerLeftMap, headerRightNotification]
   );
 
   const callsOptions = useMemo(
     () => ({
-      title: t('tabs.calls'),
+      title: termNames[TermKeys.Calls] || t('tabs.calls'),
       headerShown: true as const,
       tabBarIcon: callsIcon,
       tabBarButtonTestID: 'calls-tab' as const,
       headerRight: headerRightNotification,
     }),
-    [t, callsIcon, headerRightNotification]
+    [t, termNames, callsIcon, headerRightNotification]
   );
 
   const contactsOptions = useMemo(
     () => ({
-      title: t('tabs.contacts'),
+      title: termNames[TermKeys.Contacts] || t('tabs.contacts'),
       headerShown: true as const,
       tabBarIcon: contactsIcon,
       tabBarButtonTestID: 'contacts-tab' as const,
       headerRight: headerRightNotification,
     }),
-    [t, contactsIcon, headerRightNotification]
+    [t, termNames, contactsIcon, headerRightNotification]
   );
 
   const routesOptions = useMemo(
@@ -532,13 +544,13 @@ export default function TabLayout() {
 
   const notesOptions = useMemo(
     () => ({
-      title: t('tabs.notes'),
+      title: termNames[TermKeys.Notes] || t('tabs.notes'),
       headerShown: true as const,
       tabBarIcon: notesIcon,
       tabBarButtonTestID: 'notes-tab' as const,
       headerRight: headerRightNotification,
     }),
-    [t, notesIcon, headerRightNotification]
+    [t, termNames, notesIcon, headerRightNotification]
   );
 
   const weatherAlertsOptions = useMemo(
@@ -638,9 +650,9 @@ export default function TabLayout() {
             <Tabs.Screen name="routes" options={routesOptions} />
 
             <Tabs.Screen name="contacts" options={contactsOptions} />
-            <Tabs.Screen name="checklists" options={{ href: null, title: t('checklists.labels.Checklists') }} />
+            <Tabs.Screen name="checklists" options={{ href: null, title: termNames[TermKeys.Checklists] || t('checklists.labels.Checklists') }} />
             <Tabs.Screen name="operations" options={{ href: null, headerShown: false }} />
-            <Tabs.Screen name="records" options={{ href: null, title: t('tabs.records') }} />
+            <Tabs.Screen name="records" options={{ href: null, title: termNames[TermKeys.Records] || t('tabs.records') }} />
             <Tabs.Screen name="inventory" options={{ href: null, headerShown: false }} />
 
             <Tabs.Screen name="notes" options={notesOptions} />
@@ -673,6 +685,7 @@ export default function TabLayout() {
     return (
       <NovuProvider
         subscriberId={lastNovuConfig.current.subscriberId}
+        subscriberHash={lastNovuConfig.current.subscriberHash}
         applicationIdentifier={lastNovuConfig.current.applicationIdentifier}
         backendUrl={lastNovuConfig.current.backendUrl}
         socketUrl={lastNovuConfig.current.socketUrl}

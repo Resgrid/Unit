@@ -145,6 +145,24 @@ const PENDING_CALL_STATE = 8;
 
 export const isPendingCallState = (state: unknown): boolean => (typeof state === 'number' || typeof state === 'string') && Number(state) === PENDING_CALL_STATE;
 
+/**
+ * The department call type a call was logged with: by `TypeId`, which survives a rename of the type, then by the
+ * type text (`Type` is the type's name, not its id; older servers send no `TypeId`).
+ */
+export const findCallType = <T extends { Id: number | string; Name: string }>(
+  callTypes: readonly T[] | null | undefined,
+  call: { Type?: string | null; TypeId?: number | string | null } | null | undefined
+): T | undefined => {
+  if (!callTypes || !call) {
+    return undefined;
+  }
+
+  const typeId = call.TypeId == null ? '' : String(call.TypeId).trim();
+  const byId = typeId !== '' ? callTypes.find((candidate) => String(candidate.Id) === typeId) : undefined;
+
+  return byId ?? callTypes.find((candidate) => candidate.Name === call.Type);
+};
+
 /** "Anyone selected?" — an empty selection is a blank dispatch list. */
 export const hasDispatchRecipients = (selection?: DispatchSelection | null): boolean =>
   !!selection && (selection.everyone || selection.users.length > 0 || selection.groups.length > 0 || selection.roles.length > 0 || selection.units.length > 0);
