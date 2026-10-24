@@ -48,9 +48,9 @@ const MapPin = React.memo(({ pin, onPinPress, isActiveCall }: { pin: MapMakerInf
       allowOverlap={true}
     >
       {poi ? (
-        <PoiMarker poiImage={pin.PoiImage} imagePath={pin.ImagePath} color={pin.Color} marker={pin.Marker} title={pin.Title} size={36} onPress={handlePress} />
+        <PoiMarker poiImage={pin.PoiImage} imagePath={pin.ImagePath} color={pin.Color} marker={pin.Marker} iconUrl={pin.IconUrl} title={pin.Title} size={36} onPress={handlePress} />
       ) : (
-        <PinMarker imagePath={pin.ImagePath as MapIconKey} poiImage={pin.PoiImage as MapIconKey} title={pin.Title} size={isActiveCall ? 40 : 32} isActive={isActiveCall} onPress={handlePress} />
+        <PinMarker imagePath={pin.ImagePath as MapIconKey} poiImage={pin.PoiImage as MapIconKey} iconUrl={pin.IconUrl} title={pin.Title} size={isActiveCall ? 40 : 32} isActive={isActiveCall} onPress={handlePress} />
       )}
     </Mapbox.MarkerView>
   );

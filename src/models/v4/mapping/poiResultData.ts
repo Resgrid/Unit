@@ -6,6 +6,8 @@ export class PoiTypeResultData {
   public PoiImage: string = '';
   public Marker: string = '';
   public IsDestination: boolean = false;
+  /** Absolute URL of the department's uploaded icon for the POI type (128x128 PNG, anonymous, immutable); null/absent when none or on older servers. */
+  public IconUrl?: string | null = null;
 }
 
 export class PoiResultData {
@@ -21,6 +23,8 @@ export class PoiResultData {
   public ImagePath: string = '';
   public Marker: string = '';
   public IsDestination: boolean = false;
+  /** Absolute URL of the department's uploaded icon for the POI type (128x128 PNG, anonymous, immutable); null/absent when none or on older servers. */
+  public IconUrl?: string | null = null;
 }
 
 export class PoiLayerData {
@@ -31,4 +35,6 @@ export class PoiLayerData {
   public PoiImage: string = '';
   public Marker: string = '';
   public IsDestination: boolean = false;
+  /** Absolute URL of the department's uploaded icon for the POI type (128x128 PNG, anonymous, immutable); null/absent when none or on older servers. */
+  public IconUrl?: string | null = null;
 }

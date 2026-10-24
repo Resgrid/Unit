@@ -3,6 +3,7 @@ import React from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import type { PointAnnotation } from '@/components/maps/mapbox';
+import { UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { MAP_ICONS } from '@/constants/map-icons';
 
 type MapIconKey = keyof typeof MAP_ICONS;
@@ -10,6 +11,8 @@ type MapIconKey = keyof typeof MAP_ICONS;
 interface PinMarkerProps {
   imagePath?: MapIconKey;
   poiImage?: MapIconKey;
+  /** The department's uploaded icon for the pin's unit type, call type or (personnel pins) role; the bundled icon is used when absent or it fails to load. */
+  iconUrl?: string | null;
   title: string;
   size?: number;
   markerRef?: React.ComponentRef<typeof PointAnnotation> | null;
@@ -18,7 +21,7 @@ interface PinMarkerProps {
   onPress?: () => void;
 }
 
-const PinMarker: React.FC<PinMarkerProps> = React.memo(({ imagePath, poiImage, title, size = 32, isActive = false, onPress }) => {
+const PinMarker: React.FC<PinMarkerProps> = React.memo(({ imagePath, poiImage, iconUrl, title, size = 32, isActive = false, onPress }) => {
   const { colorScheme } = useColorScheme();
 
   // Prefer poiImage (new field) over imagePath (null for POIs after backend fix),
@@ -30,15 +33,19 @@ const PinMarker: React.FC<PinMarkerProps> = React.memo(({ imagePath, poiImage, t
 
   const ringSize = size + 16;
 
+  const bundledImage = <Image fadeDuration={0} source={icon.uri} style={[styles.image, { width: size, height: size }]} />;
+  // Same footprint as the bundled pin; falls back to it when there is no upload or it fails to load.
+  const pinImage = iconUrl ? <UnitTypeIcon iconUrl={iconUrl} size={size} fallback={bundledImage} testID="pin-type-icon" /> : bundledImage;
+
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
       {isActive ? (
         <View style={[styles.iconWrapper, { width: ringSize, height: ringSize }]}>
           <View testID="pin-active-ring" style={[styles.activeRing, { width: ringSize, height: ringSize, borderRadius: ringSize / 2 }]} />
-          <Image fadeDuration={0} source={icon.uri} style={[styles.image, { width: size, height: size }]} />
+          {pinImage}
         </View>
       ) : (
-        <Image fadeDuration={0} source={icon.uri} style={[styles.image, { width: size, height: size }]} />
+        pinImage
       )}
       <Text style={[styles.title, isActive ? styles.titleActive : { color: colorScheme === 'dark' ? '#FFFFFF' : '#000000' }]} numberOfLines={2}>
         {title}

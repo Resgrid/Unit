@@ -5,6 +5,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { AudioStreamBottomSheet } from '@/components/audio-stream/audio-stream-bottom-sheet';
 import { Text } from '@/components/ui/text';
+import { UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { useAudioStreamStore } from '@/stores/app/audio-stream-store';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useLiveKitStore } from '@/stores/app/livekit-store';
@@ -57,7 +58,10 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
   return (
     <Card className={`flex-1 ${bgColor}`}>
       <Text className="text-sm text-gray-500">{displayType}</Text>
-      <Text className="font-medium">{displayName}</Text>
+      <View style={styles.nameRow}>
+        <UnitTypeIcon iconUrl={activeUnit?.TypeIconUrl} mapIcon={activeUnit?.TypeMapIcon} size={20} testID="unit-sidebar-type-icon" />
+        <Text className="shrink font-medium">{displayName}</Text>
+      </View>
       <Text className="text-sm text-gray-500">{displayGroup}</Text>
 
       {/* Call button and status */}
@@ -111,6 +115,11 @@ export const SidebarUnitCard = ({ unitName: defaultUnitName, unitType: defaultUn
 };
 
 const styles = StyleSheet.create({
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   callContainer: {
     marginTop: 8,
     flexDirection: 'row',

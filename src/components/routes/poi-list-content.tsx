@@ -14,7 +14,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Input, InputField, InputIcon, InputSlot } from '@/components/ui/input';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
-import { filterPois, getPoiDisplayName, getPoiTypeName, isPoiDestinationEnabled, sortPois } from '@/lib/poi-utils';
+import { filterPois, getPoiDisplayName, getPoiIconUrl, getPoiTypeName, isPoiDestinationEnabled, sortPois } from '@/lib/poi-utils';
 import { type PoiResultData } from '@/models/v4/mapping/poiResultData';
 import { usePoisStore } from '@/stores/pois/store';
 
@@ -125,6 +125,7 @@ export const PoiListContent: React.FC = () => {
               poi={item}
               poiTypeLabel={getPoiTypeName(item, poiTypesById) || t('routes.poi_type_unknown')}
               displayName={getPoiDisplayName(item, poiTypesById)}
+              iconUrl={getPoiIconUrl(item, poiTypesById)}
               isDestinationEnabled={isPoiDestinationEnabled(item, poiTypesById)}
               onPress={() => router.push({ pathname: '/routes/poi/[id]', params: { id: item.PoiId } })}
             />

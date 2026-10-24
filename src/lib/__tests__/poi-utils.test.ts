@@ -1,4 +1,4 @@
-import { createPoiTypeMap, getPoiDisplayName, getPoiSelectionLabel, groupPoisByType, isPoiDestinationEnabled, sortPois } from '../poi-utils';
+import { createPoiTypeMap, getPoiDisplayName, getPoiIconUrl, getPoiSelectionLabel, groupPoisByType, isPoiDestinationEnabled, sortPois } from '../poi-utils';
 
 describe('poi-utils', () => {
   const poiTypes = [
@@ -137,5 +137,19 @@ describe('poi-utils', () => {
     );
 
     expect(sorted.map((poi) => poi.PoiId)).toEqual([21, 20]);
+  });
+
+  it('resolves the POI type icon from the POI, then its type', () => {
+    const typesWithIcons = createPoiTypeMap([
+      { PoiTypeId: 1, Name: 'Hospital', IsDestination: true, IconUrl: 'https://cdn.example.test/hospital.png' },
+      { PoiTypeId: 2, Name: 'Shelter', IsDestination: false },
+    ] as any);
+
+    expect(getPoiIconUrl({ PoiTypeId: 1, IconUrl: 'https://cdn.example.test/own.png' }, typesWithIcons)).toBe('https://cdn.example.test/own.png');
+    expect(getPoiIconUrl({ PoiTypeId: 1, IconUrl: null }, typesWithIcons)).toBe('https://cdn.example.test/hospital.png');
+    expect(getPoiIconUrl({ PoiTypeId: 1 }, typesWithIcons)).toBe('https://cdn.example.test/hospital.png');
+    expect(getPoiIconUrl({ PoiTypeId: 2 }, typesWithIcons)).toBeNull();
+    expect(getPoiIconUrl({ PoiTypeId: 3, IconUrl: '  ' }, typesWithIcons)).toBeNull();
+    expect(getPoiIconUrl({ PoiTypeId: 1 })).toBeNull();
   });
 });

@@ -25,4 +25,6 @@ export class PersonnelInfoResultData {
   /** What the current staffing level means (StaffingBaseTypes); -1 none, undefined from older servers. */
   public StaffingBaseType?: number;
   public Roles: string[] = [];
+  /** Uploaded icon of the first role this person holds, in the department's role order, that has one (the same icon as their map pin); null/absent when none or on older servers. */
+  public RoleIconUrl?: string | null = null;
 }

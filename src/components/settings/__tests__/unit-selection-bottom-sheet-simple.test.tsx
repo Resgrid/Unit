@@ -5,6 +5,12 @@ jest.mock('react-i18next', () => ({
   }),
 }));
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock logging module to prevent Platform.OS undefined error
 jest.mock('@/lib/logging', () => ({
   logger: {

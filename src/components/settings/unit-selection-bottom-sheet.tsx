@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Check } from '@/components/ui/lucide-icons';
+import { UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { logger } from '@/lib/logging';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -34,6 +35,7 @@ const UnitItem = React.memo<UnitItemProps>(({ unit, isSelected, isLoading, onSel
 
   return (
     <ActionsheetItem key={unit.UnitId} onPress={handlePress} disabled={isLoading} className={isSelected ? 'data-[checked=true]:bg-background-100' : ''} testID={`unit-item-${unit.UnitId}`}>
+      <UnitTypeIcon iconUrl={unit.TypeIconUrl} mapIcon={unit.TypeMapIcon} size={28} testID={`unit-type-icon-${unit.UnitId}`} />
       <VStack className="flex-1">
         <ActionsheetItemText size="md" className={isSelected ? 'font-medium' : 'font-normal'}>
           {unit.Name}
@@ -177,9 +179,12 @@ export const UnitSelectionBottomSheet = React.memo<UnitSelectionBottomSheetProps
                 <Text size="sm" className="font-medium text-typography-900">
                   {t('settings.current_unit')}
                 </Text>
-                <Text size="sm" className="text-typography-600">
-                  {activeUnit.Name}
-                </Text>
+                <HStack space="sm" className="items-center">
+                  <UnitTypeIcon iconUrl={activeUnit.TypeIconUrl} mapIcon={activeUnit.TypeMapIcon} size={20} testID="current-unit-type-icon" />
+                  <Text size="sm" className="text-typography-600">
+                    {activeUnit.Name}
+                  </Text>
+                </HStack>
               </VStack>
             </Box>
           )}

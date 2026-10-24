@@ -9,6 +9,12 @@ jest.mock('@/hooks/use-keyboard-height', () => ({
   useKeyboardHeight: () => mockKeyboardHeight,
 }));
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock all UI components based on actual imports
 jest.mock('@/components/ui/actionsheet', () => {
   const mockReact = require('react');
@@ -1691,6 +1697,51 @@ describe('StatusBottomSheet', () => {
     expect(mockSetSelectedCall).toHaveBeenCalledWith(null);
     expect(mockSetSelectedStation).toHaveBeenCalledWith(null);
     expect(mockSetSelectedDestinationType).toHaveBeenCalledWith('poi');
+  });
+
+  it('should show POI type icons on POI destination rows', () => {
+    const poiWithIcon = { PoiId: 42, PoiTypeId: 7, PoiTypeName: 'Hospital', Name: 'Mercy Hospital', Address: '789 Care Way', Note: '' };
+    const poiWithoutIcon = { PoiId: 43, PoiTypeId: 8, PoiTypeName: 'Shelter', Name: 'North Shelter', Address: '1 North Rd', Note: '' };
+
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus: { Id: 'status-1', Text: 'Transporting', Detail: 4, Note: 0 },
+        availablePois: [poiWithIcon, poiWithoutIcon],
+        availablePoiTypes: [
+          { PoiTypeId: 7, Name: 'Hospital', IsDestination: true, IconUrl: 'https://cdn.example.test/hospital.png' },
+          { PoiTypeId: 8, Name: 'Shelter', IsDestination: true },
+        ],
+      };
+      return selector ? selector(store) : store;
+    });
+
+    render(<StatusBottomSheet />);
+
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    expect(screen.getByTestId('status-poi-type-icon-42', { includeHiddenElements: true }).props.source).toEqual({ uri: 'https://cdn.example.test/hospital.png' });
+    expect(screen.queryByTestId('status-poi-type-icon-43', { includeHiddenElements: true })).toBeNull();
+  });
+
+  it('should show call type icons on call destination rows', () => {
+    mockUseStatusBottomSheetStore.mockImplementation((selector: any) => {
+      const store = {
+        ...defaultBottomSheetStore,
+        isOpen: true,
+        selectedStatus: { Id: 'status-1', Text: 'Responding', Detail: 2, Note: 0 },
+        availableCalls: [
+          { CallId: 'call-1', Number: 'C001', Name: 'Structure Fire', Address: '1 Main St', TypeIconUrl: 'https://cdn.example.test/fire.png', TypeMapIcon: 'fire' },
+          { CallId: 'call-2', Number: 'C002', Name: 'Medical', Address: '2 Main St' },
+        ],
+      };
+      return selector ? selector(store) : store;
+    });
+
+    render(<StatusBottomSheet />);
+
+    expect(screen.getByTestId('status-call-type-icon-call-1', { includeHiddenElements: true }).props.source).toEqual({ uri: 'https://cdn.example.test/fire.png' });
+    expect(screen.queryByTestId('status-call-type-icon-call-2', { includeHiddenElements: true })).toBeNull();
   });
 
   it('should render many items without height constraints for proper scrolling', () => {

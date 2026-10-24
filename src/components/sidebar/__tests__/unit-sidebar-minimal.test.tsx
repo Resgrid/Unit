@@ -13,6 +13,12 @@ const mockPlatform = {
 // Mock react-native Platform
 jest.mock('react-native/Libraries/Utilities/Platform', () => mockPlatform);
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock react-native-svg to avoid Platform.OS issues
 jest.mock('react-native-svg', () => {
   const React = require('react');

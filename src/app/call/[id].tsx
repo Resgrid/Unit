@@ -45,6 +45,7 @@ import { HtmlRenderer } from '@/components/ui/html-renderer';
 import { SharedTabs, type TabItem } from '@/components/ui/shared-tabs';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { TypeIcon, UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { useAnalytics } from '@/hooks/use-analytics';
 import { useRecordsContext } from '@/hooks/use-records-context';
 import { getUnitTypeCheckInBadge } from '@/lib/check-in-timer-utils';
@@ -491,7 +492,11 @@ export default function CallDetail() {
               <VStack className="space-y-3">
                 {callExtraData.Dispatches.map((dispatched, index) => (
                   <Box key={index} className="rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                    <Text className="font-semibold">{dispatched.Name}</Text>
+                    <HStack space="sm" className="items-center">
+                      {/* Unit rows carry the unit type's icon; other rows have none and render nothing here. */}
+                      <UnitTypeIcon iconUrl={dispatched.TypeIconUrl} mapIcon={dispatched.TypeMapIcon} size={24} testID={`dispatched-unit-type-icon-${index}`} />
+                      <Text className="shrink font-semibold">{dispatched.Name}</Text>
+                    </HStack>
                     <HStack className="mt-1">
                       <Text className="mr-2 text-sm text-gray-600 dark:text-gray-400">
                         {t('call_detail.group')}: {dispatched.Group}
@@ -634,16 +639,20 @@ export default function CallDetail() {
         {/* Header */}
         <Box className="mx-4 mt-3 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
           <HStack className="mb-2 items-center justify-between">
-            <Heading size="md">
-              {/* The call NUMBER is not cataloged, so it stays visible and the record stays findable. */}
-              {isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callName, call.Name) ? (
-                <ProtectedText value={call.Name} fieldId={ProtectedFieldIds.callName} redactedFields={call.RedactedFields} />
-              ) : (
-                <>
-                  {call.Name} ({call.Number})
-                </>
-              )}
-            </Heading>
+            <HStack space="sm" className="shrink items-center">
+              {/* The call type's icon, when the department gave the type one. */}
+              <TypeIcon iconUrl={call.TypeIconUrl} mapIcon={call.TypeMapIcon} size={28} testID="call-detail-type-icon" />
+              <Heading size="md" className="shrink">
+                {/* The call NUMBER is not cataloged, so it stays visible and the record stays findable. */}
+                {isFieldRedacted(call.RedactedFields, ProtectedFieldIds.callName, call.Name) ? (
+                  <ProtectedText value={call.Name} fieldId={ProtectedFieldIds.callName} redactedFields={call.RedactedFields} />
+                ) : (
+                  <>
+                    {call.Name} ({call.Number})
+                  </>
+                )}
+              </Heading>
+            </HStack>
             {/* Show "Set Active" button if this call is not the active call and there is an active unit */}
             {activeUnit && activeCall?.CallId !== call.CallId ? (
               <Button variant="solid" size="sm" onPress={handleSetActive} disabled={isSettingActive} className={`${isSettingActive ? 'bg-primary-400 opacity-80' : 'bg-primary-500'} shadow-lg`}>

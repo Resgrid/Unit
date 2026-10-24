@@ -13,6 +13,7 @@ import { Input, InputField } from '@/components/ui/input';
 import { CheckIcon, SearchIcon, UsersIcon, X } from '@/components/ui/lucide-icons';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { type DispatchSelection, useDispatchStore } from '@/stores/dispatch/store';
 
 interface DispatchSelectionModalProps {
@@ -31,7 +32,11 @@ type RecipientKind = 'user' | 'group' | 'role' | 'unit';
  * ScrollView — a department with a few hundred recipients previously mounted
  * every card up front.
  */
-type DispatchRow = { type: 'everyone'; key: string } | { type: 'header'; key: string; label: string } | { type: 'recipient'; key: string; kind: RecipientKind; id: string; name: string } | { type: 'empty'; key: string };
+type DispatchRow =
+  | { type: 'everyone'; key: string }
+  | { type: 'header'; key: string; label: string }
+  | { type: 'recipient'; key: string; kind: RecipientKind; id: string; name: string; iconUrl?: string | null; mapIcon?: string | null }
+  | { type: 'empty'; key: string };
 
 const rowKeyExtractor = (row: DispatchRow) => row.key;
 
@@ -40,9 +45,12 @@ interface RecipientRowProps {
   name: string;
   isSelected: boolean;
   onToggle: (id: string) => void;
+  /** Unit rows only: the unit type's icon (uploaded URL, else built-in map icon name). */
+  iconUrl?: string | null;
+  mapIcon?: string | null;
 }
 
-const RecipientRow: React.FC<RecipientRowProps> = React.memo(({ id, name, isSelected, onToggle }) => {
+const RecipientRow: React.FC<RecipientRowProps> = React.memo(({ id, name, isSelected, onToggle, iconUrl, mapIcon }) => {
   const handlePress = useCallback(() => onToggle(id), [onToggle, id]);
 
   return (
@@ -53,7 +61,14 @@ const RecipientRow: React.FC<RecipientRowProps> = React.memo(({ id, name, isSele
             {isSelected ? <CheckIcon size={12} color="#ffffff" /> : null}
           </Box>
           <VStack className="flex-1">
-            <Text className="pl-4 font-medium">{name}</Text>
+            {iconUrl || mapIcon ? (
+              <HStack space="sm" className="items-center pl-4">
+                <UnitTypeIcon iconUrl={iconUrl} mapIcon={mapIcon} size={22} testID={`dispatch-unit-type-icon-${id}`} />
+                <Text className="shrink font-medium">{name}</Text>
+              </HStack>
+            ) : (
+              <Text className="pl-4 font-medium">{name}</Text>
+            )}
           </VStack>
         </HStack>
       </TouchableOpacity>
@@ -120,7 +135,8 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
       }
       built.push({ type: 'header', key: `header-${section.kind}`, label: `${t(section.labelKey)} (${section.items.length})` });
       for (const item of section.items) {
-        built.push({ type: 'recipient', key: `${section.kind}-${item.Id}`, kind: section.kind, id: item.Id, name: item.Name });
+        const typeIcon = section.kind === 'unit' ? { iconUrl: item.TypeIconUrl, mapIcon: item.TypeMapIcon } : {};
+        built.push({ type: 'recipient', key: `${section.kind}-${item.Id}`, kind: section.kind, id: item.Id, name: item.Name, ...typeIcon });
       }
     }
 
@@ -220,7 +236,7 @@ export const DispatchSelectionModal: React.FC<DispatchSelectionModalProps> = ({ 
         );
       }
 
-      return <RecipientRow id={item.id} name={item.name} isSelected={isRecipientSelected(item.kind, item.id)} onToggle={toggleForKind(item.kind)} />;
+      return <RecipientRow id={item.id} name={item.name} iconUrl={item.iconUrl} mapIcon={item.mapIcon} isSelected={isRecipientSelected(item.kind, item.id)} onToggle={toggleForKind(item.kind)} />;
     },
     [toggleEveryone, selection.everyone, t, isRecipientSelected, toggleForKind]
   );

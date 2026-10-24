@@ -168,6 +168,12 @@ jest.mock('@/components/ui/actionsheet', () => {
   };
 });
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock translations
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -271,5 +277,33 @@ describe('DispatchSelectionModal', () => {
 
     // Should show 0 selected by default
     expect(getByText('0 calls.selected')).toBeTruthy();
+  });
+
+  describe('unit type icons', () => {
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+
+    it('should show the unit type icon on unit rows', () => {
+      const unit = mockDispatchStore.data.units[0] as Record<string, unknown>;
+      Object.assign(unit, { Id: 'u1', TypeIconUrl: 'https://cdn.example.test/engine.png', TypeMapIcon: 'engine_available' });
+
+      try {
+        const { getByText, getByTestId } = render(<DispatchSelectionModal {...mockProps} />);
+
+        expect(getByText('Engine 1')).toBeTruthy();
+        expect(getByTestId('dispatch-unit-type-icon-u1', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/engine.png' });
+      } finally {
+        delete unit.Id;
+        delete unit.TypeIconUrl;
+        delete unit.TypeMapIcon;
+      }
+    });
+
+    it('should render unit rows without icon fields (older servers) as plain names', () => {
+      const { getByText, queryAllByTestId } = render(<DispatchSelectionModal {...mockProps} />);
+
+      expect(getByText('Engine 1')).toBeTruthy();
+      expect(queryAllByTestId(/^dispatch-unit-type-icon-/, hidden)).toHaveLength(0);
+    });
   });
 });

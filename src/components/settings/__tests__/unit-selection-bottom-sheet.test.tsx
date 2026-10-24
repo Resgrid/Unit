@@ -32,6 +32,12 @@ jest.mock('@/lib/logging', () => ({
   },
 }));
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock lucide icons to avoid SVG issues in tests
 jest.mock('lucide-react-native', () => ({
   Check: ({ size, className, testID, ...props }: any) => {
@@ -153,6 +159,7 @@ jest.mock('@/components/ui/center', () => ({
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import React from 'react';
 
+import { MAP_ICONS } from '@/constants/map-icons';
 import { type UnitResultData } from '@/models/v4/units/unitResultData';
 import { useCoreStore } from '@/stores/app/core-store';
 import { useRolesStore } from '@/stores/roles/store';
@@ -604,5 +611,32 @@ describe('UnitSelectionBottomSheet', () => {
     expect(screen.getAllByText('Engine')).toBeTruthy();
     expect(screen.getAllByText('Ladder')).toBeTruthy();
     expect(screen.getAllByText('Rescue')).toBeTruthy();
+  });
+
+  it('shows each unit type icon in the list and the current unit box', () => {
+    const iconUnits = [
+      { ...mockUnits[0], TypeIconUrl: 'https://cdn.example.test/engine.png', TypeMapIcon: 'engine_available' },
+      { ...mockUnits[1], TypeIconUrl: null, TypeMapIcon: 'truck' },
+      // Rescue 1 comes from an older server without the icon fields.
+      mockUnits[2],
+    ] as UnitResultData[];
+
+    mockUseCoreStore.mockImplementation((selector: any) => {
+      const state = { activeUnit: iconUnits[0], setActiveUnit: mockSetActiveUnit };
+      return typeof selector === 'function' ? selector(state as any) : (state as any);
+    });
+    mockUseUnitsStore.mockImplementation((selector: any) => {
+      const state = { units: iconUnits, fetchUnits: mockFetchUnits, isLoading: false, error: null, hasLoaded: true };
+      return typeof selector === 'function' ? selector(state as any) : (state as any);
+    });
+
+    render(<UnitSelectionBottomSheet {...mockProps} />);
+
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+    expect(screen.getByTestId('unit-type-icon-1', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/engine.png' });
+    expect(screen.getByTestId('unit-type-icon-2', hidden).props.source).toBe(MAP_ICONS.truck.uri);
+    expect(screen.queryByTestId('unit-type-icon-3', hidden)).toBeNull();
+    expect(screen.getByTestId('current-unit-type-icon', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/engine.png' });
   });
 });
