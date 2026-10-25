@@ -96,6 +96,11 @@ jest.mock('@/lib/env', () => ({
   },
 }));
 
+const mockLoadRealtimeGeolocationState = jest.fn(() => Promise.resolve(true));
+jest.mock('@/lib/storage/realtime-geolocation', () => ({
+  loadRealtimeGeolocationState: () => mockLoadRealtimeGeolocationState(),
+}));
+
 jest.mock('@/lib', () => ({
   useAuthStore: {
     getState: jest.fn(() => ({
@@ -498,6 +503,21 @@ describe('useSignalRStore', () => {
   });
 
   describe('connectGeolocationHub', () => {
+    it('should not connect while realtime geolocation is switched off', async () => {
+      // Every caller — init, app resume, shared-session unlock — goes through here, so the setting
+      // that subscribes the app to other units' positions is enforced in one place.
+      mockLoadRealtimeGeolocationState.mockResolvedValueOnce(false);
+      const { result } = renderHook(() => useSignalRStore());
+
+      await act(async () => {
+        await result.current.connectGeolocationHub();
+      });
+
+      expect(signalRService.connectToHubWithEventingUrl).not.toHaveBeenCalled();
+      expect(signalRService.invoke).not.toHaveBeenCalled();
+      expect(result.current.isGeolocationHubConnected).toBe(false);
+    });
+
     it('should handle missing EventingUrl', async () => {
       // Mock core store without EventingUrl
       mockCoreStoreGetState.mockReturnValue({

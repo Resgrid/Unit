@@ -154,12 +154,34 @@ jobs:
           sudo apt-get clean || true
           sudo rm -rf /var/lib/apt/lists/*
 
-          # Remove swap
+          # Replace the image's swap with a larger one. The native (CMake/clang) and Kotlin
+          # compiles run alongside 4 GB Gradle and Node heaps; with no swap the runner starves
+          # and GitHub drops it ("hosted runner lost communication"). Prefer the /mnt temp disk
+          # so swap doesn't eat into the root disk freed above.
           sudo swapoff -a || true
-          sudo rm -f /swapfile || true
+          sudo rm -f /swapfile /mnt/swapfile || true
+          SWAP_FILE=/swapfile
+          if mountpoint -q /mnt; then SWAP_FILE=/mnt/swapfile; fi
+          if sudo fallocate -l 8G "$SWAP_FILE" && sudo chmod 600 "$SWAP_FILE" && sudo mkswap "$SWAP_FILE" && sudo swapon "$SWAP_FILE"; then
+            echo "Enabled 8G swap at $SWAP_FILE"
+          else
+            echo "::warning::Could not enable swap at $SWAP_FILE"
+          fi
 
           echo "Disk space after cleanup:"
           df -h
+          free -h
+
+      # ubuntu-26.04 mounts /tmp as an ~8 GB RAM-backed tmpfs, and eas build --local works
+      # under /tmp by default, so the Gradle/CMake output fills it ("Disk quota exceeded").
+      # Move EAS's working dir and the general temp dir onto the runner's disk.
+      - name: 📂 Move build temp dirs off tmpfs (Android)
+        if: matrix.platform == 'android'
+        run: |
+          mkdir -p "${RUNNER_TEMP}/tmp" "${RUNNER_TEMP}/eas-build"
+          echo "TMPDIR=${RUNNER_TEMP}/tmp" >> "$GITHUB_ENV"
+          echo "EAS_LOCAL_BUILD_WORKINGDIR=${RUNNER_TEMP}/eas-build" >> "$GITHUB_ENV"
+          df -h /tmp "${RUNNER_TEMP}"
 
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
@@ -293,6 +315,9 @@ jobs:
         run: |
           mkdir -p ~/.gradle/
           printf '%s\n' "$GRADLE_PROPERTIES" > ~/.gradle/gradle.properties
+          # Each Gradle worker can drive its own CMake/ninja native build, so cap workers to
+          # keep concurrent clang processes within the runner's memory.
+          echo "org.gradle.workers.max=2" >> ~/.gradle/gradle.properties
 
       - name: 📱 Build Development APK
         if: (matrix.platform == 'android' && (github.event.inputs.buildType == 'all' || github.event_name == 'push' || github.event.inputs.buildType == 'dev'))

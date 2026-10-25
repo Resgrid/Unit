@@ -4,7 +4,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useBackgroundGeolocation } from '@/lib/hooks/use-background-geolocation';
-import { locationService } from '@/services/location';
+import { logger } from '@/lib/logging';
 import { useLocationStore } from '@/stores/app/location-store';
 
 import { Alert, AlertIcon, AlertText } from '../ui/alert';
@@ -22,19 +22,18 @@ export const BackgroundGeolocationItem = () => {
   const handleToggle = React.useCallback(
     async (value: boolean) => {
       try {
+        // Registers or unregisters the OS-managed background task through the location service.
+        // Starting the watcher-based fallback here as well would run a second watcher in the
+        // foreground whenever background permission is missing, posting every fix twice.
         await setBackgroundGeolocationEnabled(value);
 
         // Update the location store state
         setLocationBackgroundEnabled(value);
-
-        // Start or stop background location updates based on the value
-        if (value) {
-          await locationService.startBackgroundUpdates();
-        } else {
-          await locationService.stopBackgroundUpdates();
-        }
       } catch (error) {
-        console.error('Failed to toggle background geolocation:', error);
+        logger.error({
+          message: 'Failed to toggle background geolocation',
+          context: { error, enabled: value },
+        });
       }
     },
     [setBackgroundGeolocationEnabled, setLocationBackgroundEnabled]

@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image, type ImageContentFit } from 'expo-image';
 import React, { useState } from 'react';
 
 import { MAP_ICONS } from '@/constants/map-icons';
@@ -12,6 +12,8 @@ export interface UnitTypeIconProps {
   mapIcon?: string | null;
   /** Width and height of the square the icon is fitted into. */
   size?: number;
+  /** How the image is fitted into that square: `contain` (the default) for square uploads, `cover` to match an image drawn the way the bundled map pins are. */
+  contentFit?: ImageContentFit;
   /** Rendered when there is no icon to show (no upload, unknown built-in name, or the upload failed to load). */
   fallback?: React.ReactNode;
   testID?: string;
@@ -29,7 +31,7 @@ export const getUnitTypeMapIconKey = (mapIcon?: string | null): MapIconKey | nul
  * is one, else the type's built-in map icon, else `fallback`. A failed upload falls through to the
  * built-in icon. Decorative: the unit name next to it already says what it is.
  */
-export const UnitTypeIcon: React.FC<UnitTypeIconProps> = React.memo(({ iconUrl, mapIcon, size = 24, fallback = null, testID }) => {
+export const UnitTypeIcon: React.FC<UnitTypeIconProps> = React.memo(({ iconUrl, mapIcon, size = 24, contentFit = 'contain', fallback = null, testID }) => {
   const url = typeof iconUrl === 'string' ? iconUrl.trim() : '';
   // Keyed by URL so a new upload (new URL) gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export const UnitTypeIcon: React.FC<UnitTypeIconProps> = React.memo(({ iconUrl, 
       source={showUrl ? { uri: url } : MAP_ICONS[mapIconKey as MapIconKey].uri}
       recyclingKey={showUrl ? url : mapIconKey}
       style={{ width: size, height: size }}
-      contentFit="contain"
+      contentFit={contentFit}
       cachePolicy="memory-disk"
       transition={0}
       onError={showUrl ? () => setFailedUrl(url) : undefined}

@@ -31,4 +31,12 @@ export class MapMakerInfoData {
    * the icon of the first role the person holds, in the department's role order, that has one. Null/absent when none or on older servers.
    */
   public IconUrl?: string | null = null;
+  /**
+   * Absolute URL of the built-in pin recoloured to the call's priority or the unit's/person's status: the same 32x37 shape,
+   * size and anchor as the bundled `ImagePath` pin. Null for stations, POIs and hydrants, when the priority/status has no
+   * meaning, or on older servers.
+   */
+  public PinIconUrl?: string | null = null;
+  /** Style key behind `PinIconUrl` (a status such as `responding`, or a priority such as `high`); null whenever `PinIconUrl` is. */
+  public IconStyle?: string | null = null;
 }

@@ -172,4 +172,71 @@ describe('MapPins on web (mapbox-gl markers)', () => {
     expect(marker.element.querySelector('img')).toBe(img);
     expect(img!.getAttribute('src')).toBe(ROLE_ICON_URL);
   });
+
+  describe('status / priority styled pins (PinIconUrl)', () => {
+    const PIN_URL = 'https://api.example.test/api/v4/TypeIcons/Pins/Person-responding?v=1';
+    const NEXT_PIN_URL = 'https://api.example.test/api/v4/TypeIcons/Pins/Person-onscene?v=1';
+
+    it('draws the styled pin as a plain <img> in the bundled pin box: 32x32, cover fit, centered', () => {
+      renderPins([makePersonPin({ PinIconUrl: PIN_URL, IconStyle: 'responding' })]);
+
+      expect(markers).toHaveLength(1);
+      const [marker] = markers;
+      expect(marker.anchor).toBe('center');
+
+      const img = marker.element.querySelector('img') as HTMLImageElement;
+      expect(img).not.toBeNull();
+      expect(img.getAttribute('src')).toBe(PIN_URL);
+      expect(img.hasAttribute('crossorigin')).toBe(false);
+      expect(img.getAttribute('draggable')).toBe('false');
+      // Same fit as react-native-web's bundled pin (background-size: cover); no hue-rotate or other filter.
+      expect(img.style.objectFit).toBe('cover');
+      expect(img.style.filter).toBe('');
+      expect(findBundledIconBox(marker.element)).toBeNull();
+
+      const box = marker.element.querySelector('[data-testid="pin-styled-icon"]') as HTMLElement;
+      expect(box).not.toBeNull();
+      expect(box.contains(img)).toBe(true);
+      expect(box.style.width).toBe('32px');
+      expect(box.style.height).toBe('32px');
+      expect(marker.element.textContent).toContain('Jane Smith');
+    });
+
+    it('draws the uploaded icon, not the styled pin, when both are sent', () => {
+      renderPins([makePersonPin({ IconUrl: ROLE_ICON_URL, PinIconUrl: PIN_URL })]);
+      const [marker] = markers;
+
+      expect(marker.element.querySelector('[data-testid="pin-type-icon"]')).not.toBeNull();
+      expect(marker.element.querySelector('[data-testid="pin-styled-icon"]')).toBeNull();
+      expect(marker.element.querySelector(`img[src="${PIN_URL}"]`)).toBeNull();
+      expect(marker.element.querySelector('img')!.getAttribute('src')).toBe(ROLE_ICON_URL);
+    });
+
+    it('falls back to the bundled pin when the styled pin fails to load', () => {
+      renderPins([makePersonPin({ PinIconUrl: PIN_URL })]);
+      const [marker] = markers;
+
+      act(() => {
+        marker.element.querySelector('img')!.dispatchEvent(new Event('error'));
+      });
+
+      expect(marker.element.querySelector('[data-testid="pin-styled-icon"]')).toBeNull();
+      expect(marker.element.querySelector(`img[src="${PIN_URL}"]`)).toBeNull();
+      expect(findBundledIconBox(marker.element)).not.toBeNull();
+      expect(markers).toHaveLength(1);
+    });
+
+    it('redraws the same marker when a refetch only changes the status pin', () => {
+      const pin = makePersonPin({ PinIconUrl: PIN_URL, IconStyle: 'responding' });
+      renderPins([pin]);
+      const [marker] = markers;
+
+      renderPins([{ ...pin, PinIconUrl: NEXT_PIN_URL, IconStyle: 'onscene' }]);
+
+      // Same mapbox-gl Marker (no teardown), now showing the new status pin.
+      expect(markers).toHaveLength(1);
+      expect(marker.remove).not.toHaveBeenCalled();
+      expect(marker.element.querySelector('img')!.getAttribute('src')).toBe(NEXT_PIN_URL);
+    });
+  });
 });

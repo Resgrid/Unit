@@ -70,6 +70,15 @@ describe('UnitTypeIcon', () => {
     expect(screen.getByText('U')).toBeTruthy();
   });
 
+  it('fits the image with the given contentFit, keeping the square box', () => {
+    const { unmount } = render(<UnitTypeIcon iconUrl={ICON_URL} size={32} contentFit="cover" testID="icon" />);
+
+    const image = screen.getByTestId('icon', HIDDEN);
+    expect(image.props.contentFit).toBe('cover');
+    expect(image.props.style).toEqual({ width: 32, height: 32 });
+    unmount();
+  });
+
   it('tries a new upload URL after an earlier one failed', () => {
     const { rerender } = render(<UnitTypeIcon iconUrl={ICON_URL} fallback={<Text>U</Text>} testID="icon" />);
 

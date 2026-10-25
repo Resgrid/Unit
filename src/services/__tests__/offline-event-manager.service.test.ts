@@ -127,6 +127,7 @@ describe('OfflineEventManager', () => {
       addEvent: jest.fn().mockReturnValue('test-event-id'),
       updateEventStatus: jest.fn(),
       removeEvent: jest.fn(),
+      getEventsByType: jest.fn().mockReturnValue([]),
       getPendingEvents: jest.fn().mockReturnValue([]),
       getFailedEvents: jest.fn().mockReturnValue([]),
       pruneFailedEvents: jest.fn(),
@@ -227,6 +228,30 @@ describe('OfflineEventManager', () => {
           speed: undefined,
         })
       );
+    });
+
+    it('records when the fix was taken, not when it was queued', () => {
+      offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25, Date.UTC(2026, 9, 25, 12, 0, 0));
+
+      expect(mockStoreState.addEvent).toHaveBeenCalledWith(QueuedEventType.LOCATION_UPDATE, expect.objectContaining({ timestamp: '2026-10-25T12:00:00.000Z' }));
+    });
+
+    it('replaces positions still waiting for the same unit', () => {
+      // A dead zone must leave one position to replay, not one per fix.
+      mockStoreState.getEventsByType.mockReturnValue([
+        { id: 'waiting', status: QueuedEventStatus.PENDING, data: { unitId: 'unit-1' } },
+        { id: 'retrying', status: QueuedEventStatus.FAILED, data: { unitId: 'unit-1' } },
+        { id: 'in-flight', status: QueuedEventStatus.PROCESSING, data: { unitId: 'unit-1' } },
+        { id: 'other-unit', status: QueuedEventStatus.PENDING, data: { unitId: 'unit-2' } },
+      ]);
+
+      offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006);
+
+      expect(mockStoreState.getEventsByType).toHaveBeenCalledWith(QueuedEventType.LOCATION_UPDATE);
+      expect(mockStoreState.removeEvent).toHaveBeenCalledTimes(2);
+      expect(mockStoreState.removeEvent).toHaveBeenCalledWith('waiting');
+      expect(mockStoreState.removeEvent).toHaveBeenCalledWith('retrying');
+      expect(mockStoreState.addEvent).toHaveBeenCalledTimes(1);
     });
   });
 

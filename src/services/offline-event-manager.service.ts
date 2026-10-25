@@ -212,9 +212,20 @@ class OfflineEventManager {
   }
 
   /**
-   * Add a location update event to the queue
+   * Add a location update event to the queue, replacing any position still waiting for the same unit.
+   *
+   * Dispatch only needs where the unit is now. Keeping every fix from a dead zone would replay them
+   * all on reconnect — one request per fix, three per 10s tick, minutes of radio time spent moving
+   * the unit's pin back through positions it left long ago. A replay already in flight is left alone.
    */
-  public queueLocationUpdateEvent(unitId: string, latitude: number, longitude: number, accuracy?: number, heading?: number, speed?: number): string {
+  public queueLocationUpdateEvent(unitId: string, latitude: number, longitude: number, accuracy?: number, heading?: number, speed?: number, fixTimestamp?: number): string {
+    const store = useOfflineQueueStore.getState();
+
+    store
+      .getEventsByType(QueuedEventType.LOCATION_UPDATE)
+      .filter((event) => event.data?.unitId === unitId && (event.status === QueuedEventStatus.PENDING || event.status === QueuedEventStatus.FAILED))
+      .forEach((event) => store.removeEvent(event.id));
+
     const data = {
       unitId,
       latitude,
@@ -222,10 +233,11 @@ class OfflineEventManager {
       accuracy,
       heading,
       speed,
-      timestamp: new Date().toISOString(),
+      // When the fix was taken, not when it was queued: a deferred background batch can be older.
+      timestamp: new Date(fixTimestamp !== undefined && Number.isFinite(fixTimestamp) ? fixTimestamp : Date.now()).toISOString(),
     };
 
-    return useOfflineQueueStore.getState().addEvent(QueuedEventType.LOCATION_UPDATE, data);
+    return store.addEvent(QueuedEventType.LOCATION_UPDATE, data);
   }
 
   /**

@@ -28,7 +28,10 @@ function isCallPin(pin: MapMakerInfoData): boolean {
  * based on whether the marker is a POI or a legacy (call/unit/station/personnel) marker.
  *
  * POI markers use the SVG shape + icon rendering (per the "POI Map Icon Renderer"
- * reference document). Non-POI markers use PNG images from the MAP_ICONS lookup.
+ * reference document). Non-POI markers use PNG images from the MAP_ICONS lookup, or the
+ * department's uploaded icon (`IconUrl`), or the status/priority-coloured pin (`PinIconUrl`).
+ * The memo compares the pin object, so a refetch whose pin only changed its `PinIconUrl`
+ * (a status or priority change) still redraws it.
  */
 const MapPin = React.memo(({ pin, onPinPress, isActiveCall }: { pin: MapMakerInfoData; onPinPress?: (pin: MapMakerInfoData) => void; isActiveCall?: boolean }) => {
   const handlePress = useCallback(() => {
@@ -50,7 +53,16 @@ const MapPin = React.memo(({ pin, onPinPress, isActiveCall }: { pin: MapMakerInf
       {poi ? (
         <PoiMarker poiImage={pin.PoiImage} imagePath={pin.ImagePath} color={pin.Color} marker={pin.Marker} iconUrl={pin.IconUrl} title={pin.Title} size={36} onPress={handlePress} />
       ) : (
-        <PinMarker imagePath={pin.ImagePath as MapIconKey} poiImage={pin.PoiImage as MapIconKey} iconUrl={pin.IconUrl} title={pin.Title} size={isActiveCall ? 40 : 32} isActive={isActiveCall} onPress={handlePress} />
+        <PinMarker
+          imagePath={pin.ImagePath as MapIconKey}
+          poiImage={pin.PoiImage as MapIconKey}
+          iconUrl={pin.IconUrl}
+          pinIconUrl={pin.PinIconUrl}
+          title={pin.Title}
+          size={isActiveCall ? 40 : 32}
+          isActive={isActiveCall}
+          onPress={handlePress}
+        />
       )}
     </Mapbox.MarkerView>
   );

@@ -6,6 +6,7 @@ import { MAP_ICONS } from '@/constants/map-icons';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
 
 import MapPins from '../map-pins';
+import PinMarker from '../pin-marker';
 
 // Counts how many times each marker has been mounted. Stacking order is fixed
 // when a marker attaches to the map, so "the active pin re-attaches" is only
@@ -309,6 +310,164 @@ describe('MapPins', () => {
 
       expect(queryByTestId('pin-type-icon', hidden)).toBeNull();
       expect(UNSAFE_getByType(Image).props.source).toBe(MAP_ICONS.person_respondingcall.uri);
+      unmount();
+    });
+  });
+
+  // `PinIconUrl`: the bundled pin recoloured to the call's priority or the unit's/person's status. Precedence is
+  // uploaded icon (`IconUrl`) > styled pin (`PinIconUrl`) > bundled pin (`ImagePath`).
+  describe('status / priority styled pins', () => {
+    const hidden = { includeHiddenElements: true };
+    const ICON_URL = 'https://cdn.example.test/unit-types/7/icon.png';
+    const PIN_URL = 'https://api.example.test/api/v4/TypeIcons/Pins/Engine-responding?v=1';
+    const NEXT_PIN_URL = 'https://api.example.test/api/v4/TypeIcons/Pins/Engine-onscene?v=1';
+    const CALL_PIN_URL = 'https://api.example.test/api/v4/TypeIcons/Pins/Call-high?v=1';
+    const makeUnitPin = (overrides: Partial<MapMakerInfoData> = {}) => makePin({ Id: 'u7', Type: 1, ImagePath: 'Engine_Responding', Title: 'Engine 1', ...overrides });
+
+    it('draws the styled pin where and how the bundled pin is drawn: same box, cover fit, centered', () => {
+      const { getByTestId, queryByTestId, UNSAFE_queryAllByType, unmount } = render(<MapPins pins={[makeUnitPin({ PinIconUrl: PIN_URL, IconStyle: 'responding' })]} />);
+
+      const pin = getByTestId('pin-styled-icon', hidden);
+      expect(pin.props.source).toEqual({ uri: PIN_URL });
+      expect(pin.props.style).toEqual({ width: 32, height: 32 });
+      // The bundled pin is drawn with resizeMode 'cover'; the styled copy has the same shape, so it is fitted the same way.
+      expect(pin.props.contentFit).toBe('cover');
+      // No tint: the styled pin already carries the status colour.
+      expect(pin.props.tintColor).toBeUndefined();
+      expect(queryByTestId('pin-type-icon', hidden)).toBeNull();
+      expect(UNSAFE_queryAllByType(Image)).toHaveLength(0);
+      expect(getByTestId('pin-u7').props.anchor).toEqual({ x: 0.5, y: 0.5 });
+      unmount();
+    });
+
+    it('draws the uploaded icon instead of the styled pin when both are sent', () => {
+      const { getByTestId, queryByTestId, unmount } = render(<MapPins pins={[makeUnitPin({ IconUrl: ICON_URL, PinIconUrl: PIN_URL, IconStyle: 'responding' })]} />);
+
+      const icon = getByTestId('pin-type-icon', hidden);
+      expect(icon.props.source).toEqual({ uri: ICON_URL });
+      expect(icon.props.contentFit).toBe('contain');
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      unmount();
+    });
+
+    it('falls back to the bundled pin when the styled pin fails to load', () => {
+      const { getByTestId, queryByTestId, UNSAFE_getByType, unmount } = render(<MapPins pins={[makeUnitPin({ PinIconUrl: PIN_URL })]} />);
+
+      act(() => {
+        fireEvent(getByTestId('pin-styled-icon', hidden), 'error', { error: 'boom' });
+      });
+
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      const bundled = UNSAFE_getByType(Image);
+      expect(bundled.props.source).toBe(MAP_ICONS.engine_responding.uri);
+      expect(bundled.props.style).toEqual([
+        { overflow: 'visible', resizeMode: 'cover' },
+        { width: 32, height: 32 },
+      ]);
+      unmount();
+    });
+
+    it('falls back to the styled pin, then the bundled pin, when the uploaded icon fails to load', () => {
+      const { getByTestId, queryByTestId, UNSAFE_getByType, unmount } = render(<MapPins pins={[makeUnitPin({ IconUrl: ICON_URL, PinIconUrl: PIN_URL })]} />);
+
+      act(() => {
+        fireEvent(getByTestId('pin-type-icon', hidden), 'error', { error: 'boom' });
+      });
+      expect(queryByTestId('pin-type-icon', hidden)).toBeNull();
+      expect(getByTestId('pin-styled-icon', hidden).props.source).toEqual({ uri: PIN_URL });
+
+      act(() => {
+        fireEvent(getByTestId('pin-styled-icon', hidden), 'error', { error: 'boom' });
+      });
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      expect(UNSAFE_getByType(Image).props.source).toBe(MAP_ICONS.engine_responding.uri);
+      unmount();
+    });
+
+    it('draws the active call with its priority pin inside the highlight ring, at the active size', () => {
+      const callPins = [makePin({ Id: 'c101', Type: 0, ImagePath: 'Call', Title: 'Structure Fire', PinIconUrl: CALL_PIN_URL, IconStyle: 'high' })];
+      const { getByTestId, getAllByTestId, unmount } = render(<MapPins pins={callPins} activeCallId="101" />);
+
+      const pin = getByTestId('pin-styled-icon', hidden);
+      expect(pin.props.source).toEqual({ uri: CALL_PIN_URL });
+      expect(pin.props.style).toEqual({ width: 40, height: 40 });
+      expect(getAllByTestId('pin-active-ring')).toHaveLength(1);
+      unmount();
+    });
+
+    it('redraws the pin in place when a refetch only changes its status pin', () => {
+      const pin = makeUnitPin({ PinIconUrl: PIN_URL, IconStyle: 'responding' });
+      const { getByTestId, rerender, unmount } = render(<MapPins pins={[pin]} />);
+      const before = { ...mockMarkerMounts };
+
+      rerender(<MapPins pins={[{ ...pin, PinIconUrl: NEXT_PIN_URL, IconStyle: 'onscene' }]} />);
+
+      expect(getByTestId('pin-styled-icon', hidden).props.source).toEqual({ uri: NEXT_PIN_URL });
+      expect(mockMarkerMounts).toEqual(before);
+      unmount();
+    });
+
+    it('goes back to the bundled pin when the status no longer has a styled pin', () => {
+      const pin = makeUnitPin({ PinIconUrl: PIN_URL, IconStyle: 'responding' });
+      const { queryByTestId, UNSAFE_getByType, rerender, unmount } = render(<MapPins pins={[pin]} />);
+
+      rerender(<MapPins pins={[{ ...pin, PinIconUrl: null, IconStyle: null }]} />);
+
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      expect(UNSAFE_getByType(Image).props.source).toBe(MAP_ICONS.engine_responding.uri);
+      unmount();
+    });
+
+    it('tries the new status pin after the previous one failed to load', () => {
+      const pin = makeUnitPin({ PinIconUrl: PIN_URL });
+      const { getByTestId, queryByTestId, rerender, unmount } = render(<MapPins pins={[pin]} />);
+
+      act(() => {
+        fireEvent(getByTestId('pin-styled-icon', hidden), 'error', { error: 'boom' });
+      });
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+
+      rerender(<MapPins pins={[{ ...pin, PinIconUrl: NEXT_PIN_URL }]} />);
+
+      expect(getByTestId('pin-styled-icon', hidden).props.source).toEqual({ uri: NEXT_PIN_URL });
+      unmount();
+    });
+
+    it.each(['', '   ', '/api/v4/TypeIcons/Pins/Engine-responding?v=1', 'javascript:alert(1)', 'ftp://api.example.test/pin.png'])('ignores a PinIconUrl that is not an absolute http(s) URL (%p)', (pinIconUrl) => {
+      const { queryByTestId, UNSAFE_getByType, unmount } = render(<MapPins pins={[makeUnitPin({ PinIconUrl: pinIconUrl })]} />);
+
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      expect(UNSAFE_getByType(Image).props.source).toBe(MAP_ICONS.engine_responding.uri);
+      unmount();
+    });
+
+    it('draws the bundled pin exactly as before when there is no styled pin (or on older servers)', () => {
+      const withNulls = render(<MapPins pins={[makeUnitPin({ PinIconUrl: null, IconStyle: null })]} />);
+      const treeWithNulls = JSON.stringify(withNulls.toJSON());
+      withNulls.unmount();
+
+      const legacy = render(<MapPins pins={[makeUnitPin()]} />);
+      expect(JSON.stringify(legacy.toJSON())).toBe(treeWithNulls);
+      legacy.unmount();
+    });
+
+    it('does not draw a styled pin for a POI', () => {
+      const poiPins = [makePin({ Id: 'poi9', Type: 4, ImagePath: '', PoiImage: 'map-icon-hospital', Marker: 'MAP_PIN', Color: '#2563eb', Title: 'General Hospital', PinIconUrl: PIN_URL })];
+      const { queryByTestId, unmount } = render(<MapPins pins={poiPins} />);
+
+      expect(queryByTestId('pin-styled-icon', hidden)).toBeNull();
+      unmount();
+    });
+
+    // PinMarker's memo compares props shallowly: a re-render that only changes the styled pin must still draw it.
+    it('re-renders a memoized PinMarker when only its styled pin changes', () => {
+      const onPress = jest.fn();
+      const { getByTestId, rerender, unmount } = render(<PinMarker imagePath="engine_responding" pinIconUrl={PIN_URL} title="Engine 1" onPress={onPress} />);
+      expect(getByTestId('pin-styled-icon', hidden).props.source).toEqual({ uri: PIN_URL });
+
+      rerender(<PinMarker imagePath="engine_responding" pinIconUrl={NEXT_PIN_URL} title="Engine 1" onPress={onPress} />);
+
+      expect(getByTestId('pin-styled-icon', hidden).props.source).toEqual({ uri: NEXT_PIN_URL });
       unmount();
     });
   });

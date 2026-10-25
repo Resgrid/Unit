@@ -2,6 +2,7 @@ import { type FeatureCollection } from 'geojson';
 
 import { getBaseApiUrl } from '@/lib/storage/app';
 import { type GetMapDataAndMarkersResult } from '@/models/v4/mapping/getMapDataAndMarkersResult';
+import { type GetMapIconLegendResult } from '@/models/v4/mapping/getMapIconLegendResult';
 import { type GetMapLayersResult } from '@/models/v4/mapping/getMapLayersResult';
 import {
   type GetAllActiveLayersResult,
@@ -23,6 +24,8 @@ import { createApiEndpoint } from '../common/client';
 
 const getMayLayersApi = createApiEndpoint('/Mapping/GetMayLayers');
 const getMapDataAndMarkersApi = createApiEndpoint('/Mapping/GetMapDataAndMarkers');
+// Not cached: the legend follows the department's types, statuses, priorities and uploads, so every open asks again.
+const getMapIconLegendApi = createApiEndpoint('/Mapping/GetMapIconLegend');
 const getPoiApi = createCachedApiEndpoint('/Mapping/GetPoi', {
   ttl: 5 * 60 * 1000,
   enabled: true,
@@ -69,6 +72,12 @@ const searchAllMapFeaturesApi = createApiEndpoint('/Mapping/SearchAllMapFeatures
 
 export const getMapDataAndMarkers = async (signal?: AbortSignal) => {
   const response = await getMapDataAndMarkersApi.get<GetMapDataAndMarkersResult>(undefined, signal);
+  return response.data;
+};
+
+/** The department's map icon legend: every call, unit, personnel and POI icon the map can draw, and the colour styles. */
+export const getMapIconLegend = async (signal?: AbortSignal) => {
+  const response = await getMapIconLegendApi.get<GetMapIconLegendResult>(undefined, signal);
   return response.data;
 };
 

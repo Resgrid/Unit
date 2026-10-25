@@ -44,10 +44,35 @@ export interface PoiMarkerProps {
  *   - Title label below the marker
  */
 const PoiMarker: React.FC<PoiMarkerProps> = React.memo(({ poiImage, imagePath, color, marker, iconUrl, title, size = 36, onPress }) => {
+  return (
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+      <PoiMarkerGraphic poiImage={poiImage} imagePath={imagePath} color={color} marker={marker} iconUrl={iconUrl} size={size} />
+      <TitleLabel title={title} />
+    </TouchableOpacity>
+  );
+});
+
+PoiMarker.displayName = 'PoiMarker';
+
+export interface PoiMarkerGraphicProps {
+  poiImage?: string | null;
+  imagePath?: string | null;
+  color?: string | null;
+  marker?: string | null;
+  iconUrl?: string | null;
+  size?: number;
+}
+
+/**
+ * The drawing of a POI marker without its label: the POI type's uploaded icon when there is one, else the coloured shape with
+ * its white icon (also the fallback when the upload fails to load). Shared by the map's POI markers and the map legend, so a
+ * legend icon is exactly what the map draws. Props as for `PoiMarker`.
+ */
+export const PoiMarkerGraphic: React.FC<PoiMarkerGraphicProps> = React.memo(({ poiImage, imagePath, color, marker, iconUrl, size = 36 }) => {
   // Resolve rendering properties (with defaults per the reference document)
   const shapePath = getPoiMarkerShapePath(marker);
   const fillColor = getPoiMarkerColor(color);
-  const iconClass = getPoiMarkerIconClass({ PoiImage: poiImage, ImagePath: imagePath });
+  const iconClass = getPoiMarkerIconClass({ PoiImage: poiImage ?? undefined, ImagePath: imagePath ?? undefined });
   const iconKey = getMapIconKey(iconClass);
 
   // Height scales proportionally: width 36 → height 48, so height = width * (48/36) = width * 4/3
@@ -85,22 +110,17 @@ const PoiMarker: React.FC<PoiMarkerProps> = React.memo(({ poiImage, imagePath, c
     </View>
   );
 
-  return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
-      {iconUrl ? (
-        // Same footprint as the shape, sitting on its bottom edge (the marker is anchored at bottom-center).
-        <View style={[styles.uploadedIconContainer, { width: svgWidth, height: svgHeight }]}>
-          <TypeIcon iconUrl={iconUrl} size={svgWidth} fallback={shape} testID="poi-marker-type-icon" />
-        </View>
-      ) : (
-        shape
-      )}
-      <TitleLabel title={title} />
-    </TouchableOpacity>
+  return iconUrl ? (
+    // Same footprint as the shape, sitting on its bottom edge (the marker is anchored at bottom-center).
+    <View style={[styles.uploadedIconContainer, { width: svgWidth, height: svgHeight }]}>
+      <TypeIcon iconUrl={iconUrl} size={svgWidth} fallback={shape} testID="poi-marker-type-icon" />
+    </View>
+  ) : (
+    shape
   );
 });
 
-PoiMarker.displayName = 'PoiMarker';
+PoiMarkerGraphic.displayName = 'PoiMarkerGraphic';
 
 /**
  * Renders the title label below the POI marker shape.
