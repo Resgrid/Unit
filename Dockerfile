@@ -1,5 +1,7 @@
 ### STAGE 1: Build ###
-FROM node:22-alpine AS build
+# The build output is static web assets, so always build on the native builder platform.
+# Emulating this stage under QEMU for arm64 is extremely slow and fails during yarn install.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
