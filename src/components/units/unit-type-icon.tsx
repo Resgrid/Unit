@@ -1,5 +1,5 @@
 import { Image, type ImageContentFit } from 'expo-image';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 
 import { MAP_ICONS } from '@/constants/map-icons';
 
@@ -35,6 +35,7 @@ export const UnitTypeIcon: React.FC<UnitTypeIconProps> = React.memo(({ iconUrl, 
   const url = typeof iconUrl === 'string' ? iconUrl.trim() : '';
   // Keyed by URL so a new upload (new URL) gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const handleError = useCallback(() => setFailedUrl(url), [url]);
 
   const showUrl = url.length > 0 && failedUrl !== url;
   const mapIconKey = getUnitTypeMapIconKey(mapIcon);
@@ -52,7 +53,7 @@ export const UnitTypeIcon: React.FC<UnitTypeIconProps> = React.memo(({ iconUrl, 
       contentFit={contentFit}
       cachePolicy="memory-disk"
       transition={0}
-      onError={showUrl ? () => setFailedUrl(url) : undefined}
+      onError={showUrl ? handleError : undefined}
       // Web: an <img> is draggable by default, so grabbing a map pin would drag a ghost image instead of
       // panning the map. react-native-web's Image (the bundled pins) already renders draggable={false}.
       draggable={false}

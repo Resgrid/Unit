@@ -253,6 +253,52 @@ describe('OfflineEventManager', () => {
       expect(mockStoreState.removeEvent).toHaveBeenCalledWith('retrying');
       expect(mockStoreState.addEvent).toHaveBeenCalledTimes(1);
     });
+
+    describe('a replay in flight when a newer position is queued', () => {
+      const inFlight = {
+        id: 'in-flight',
+        type: QueuedEventType.LOCATION_UPDATE,
+        status: QueuedEventStatus.PROCESSING,
+        data: { unitId: 'unit-1', latitude: 40.7128, longitude: -74.006, timestamp: '2026-10-25T12:00:00.000Z' },
+        retryCount: 0,
+        maxRetries: 3,
+        createdAt: 1_000,
+      };
+      const newer = { ...inFlight, id: 'newer', status: QueuedEventStatus.PENDING, createdAt: 2_000 };
+
+      const processEvent = (event: typeof inFlight) => (offlineEventManager as any).processEvent(event);
+
+      it('is dropped instead of retried when it fails', async () => {
+        // Retrying it would replay both positions on reconnect, the old one first.
+        mockStoreState.getEventsByType.mockReturnValue([inFlight, newer]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).toHaveBeenCalledWith('in-flight');
+        expect(mockStoreState.updateEventStatus).not.toHaveBeenCalledWith('in-flight', QueuedEventStatus.FAILED, expect.anything());
+      });
+
+      it('is retried as usual when it fails with nothing newer queued', async () => {
+        mockStoreState.getEventsByType.mockReturnValue([inFlight]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('in-flight', QueuedEventStatus.FAILED, 'Network Error');
+      });
+
+      it('is retried as usual when the newer position is for another unit', async () => {
+        mockStoreState.getEventsByType.mockReturnValue([inFlight, { ...newer, data: { ...newer.data, unitId: 'unit-2' } }]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('in-flight', QueuedEventStatus.FAILED, 'Network Error');
+      });
+    });
   });
 
   describe('queueCallImageUploadEvent', () => {

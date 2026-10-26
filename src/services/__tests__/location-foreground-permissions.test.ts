@@ -262,6 +262,7 @@ describe('LocationService - Foreground-Only Permissions', () => {
           timeInterval: 15000,
           distanceInterval: 10,
         },
+        expect.any(Function),
         expect.any(Function)
       );
       

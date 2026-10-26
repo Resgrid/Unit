@@ -443,6 +443,7 @@ describe('LocationService', () => {
           timeInterval: 15000,
           distanceInterval: 10,
         },
+        expect.any(Function),
         expect.any(Function)
       );
 
@@ -453,6 +454,18 @@ describe('LocationService', () => {
           backgroundPermissions: true,
           backgroundSetting: false,
         },
+      });
+    });
+
+    it('should log foreground watcher errors instead of dropping them', async () => {
+      await locationService.startLocationUpdates();
+
+      const onError = mockLocation.watchPositionAsync.mock.calls[0][2] as (reason: string) => void;
+      onError('Location provider is unavailable');
+
+      expect(mockLogger.warn).toHaveBeenCalledWith({
+        message: 'Foreground location watcher failed',
+        context: { error: 'Location provider is unavailable' },
       });
     });
 
@@ -619,6 +632,7 @@ describe('LocationService', () => {
           timeInterval: 60000,
           distanceInterval: 20,
         },
+        expect.any(Function),
         expect.any(Function)
       );
 
@@ -1411,6 +1425,34 @@ describe('LocationService', () => {
       await advance(2 * FIVE_MINUTES);
 
       expect(mockSetUnitLocation).not.toHaveBeenCalled();
+    });
+
+    it('does not restart counting when tracking stops while the keep-alive reads its setting', async () => {
+      await startWatcher();
+      let resolveSetting: (enabled: boolean) => void = () => {};
+      mockLoadRealtimeGeolocationState.mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveSetting = resolve;
+          })
+      );
+
+      await advance(FIVE_MINUTES);
+      await locationService.stopLocationUpdates();
+      resolveSetting(true);
+      await flush();
+
+      // A timer left here would be inherited by the next start in place of a fresh countdown.
+      expect(jest.getTimerCount()).toBe(0);
+      expect(mockSetUnitLocation).not.toHaveBeenCalled();
+    });
+
+    it('leaves no countdown behind from a start still in flight when tracking stopped', async () => {
+      const start = locationService.startLocationUpdates();
+      const stop = locationService.stopLocationUpdates();
+      await Promise.all([start, stop]);
+
+      expect(jest.getTimerCount()).toBe(0);
     });
 
     it('reports at once on return to the foreground when the last report is overdue', async () => {

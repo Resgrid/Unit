@@ -481,7 +481,9 @@ class LocationService {
     // Read from storage, as the background task does: the setting that governs a report depends on
     // the app state it is sent in, and a headless launch has not loaded the service's copies.
     const isTransmissionEnabled = AppState.currentState === 'active' ? await loadRealtimeGeolocationState() : await loadBackgroundGeolocationState();
-    if (!isTransmissionEnabled) {
+    // Re-checked after the await: a stop that landed during it has already cancelled the countdown,
+    // and rearming it here would leave a stale timer for the next start to inherit.
+    if (!isTransmissionEnabled || !this.isTrackingRequested) {
       // Nothing may be sent in this state, so stop counting; the next transmission, a resume or a
       // restart of tracking starts the countdown again.
       return;
@@ -738,6 +740,13 @@ class LocationService {
         // running either way: the map, route ETAs and the status sheet all read the location
         // store, and switching transmission off must not blind the app to its own position.
         sendLocationToAPI(location, this.isRealtimeGeolocationEnabled);
+      },
+      // Without a handler expo-location drops watcher errors silently.
+      (reason) => {
+        logger.warn({
+          message: 'Foreground location watcher failed',
+          context: { error: reason },
+        });
       }
     )
       .then((subscription) => {
@@ -865,6 +874,12 @@ class LocationService {
         });
         useLocationStore.getState().setLocation(location);
         sendLocationToAPI(location, this.isBackgroundGeolocationEnabled); // Background fixes follow the background setting
+      },
+      (reason) => {
+        logger.warn({
+          message: 'Background location watcher failed',
+          context: { error: reason },
+        });
       }
     );
 
@@ -1016,6 +1031,11 @@ class LocationService {
         await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
       }
     }
+
+    // Pacing was cancelled above, but the start awaited here can still schedule the keep-alive, and
+    // a fix delivered before its subscription was removed can defer a transmission or restart it.
+    cancelPendingTransmission();
+    cancelHeartbeat();
 
     logger.info({
       message: 'All location updates stopped',

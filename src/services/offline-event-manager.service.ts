@@ -50,6 +50,17 @@ const isUndelivered = (event: QueuedEvent): boolean =>
 
 const isUndeliveredUnitStatusFor = (event: QueuedEvent, unitId: string): boolean => event.type === QueuedEventType.UNIT_STATUS && String(event.data?.unitId) === String(unitId) && isUndelivered(event);
 
+/**
+ * A location replay that a newer position for the same unit was queued behind while it was in
+ * flight: `queueLocationUpdateEvent` leaves a replay in flight alone and adds the new one beside it.
+ */
+const isSupersededLocationUpdate = (event: QueuedEvent): boolean =>
+  event.type === QueuedEventType.LOCATION_UPDATE &&
+  useOfflineQueueStore
+    .getState()
+    .getEventsByType(QueuedEventType.LOCATION_UPDATE)
+    .some((other) => other.id !== event.id && other.data?.unitId === event.data?.unitId && other.createdAt > event.createdAt && isUndelivered(other));
+
 interface ProcessEventOptions {
   /**
    * The crew is waiting on this delivery (it gates a status they just submitted). A connectivity
@@ -216,7 +227,8 @@ class OfflineEventManager {
    *
    * Dispatch only needs where the unit is now. Keeping every fix from a dead zone would replay them
    * all on reconnect — one request per fix, three per 10s tick, minutes of radio time spent moving
-   * the unit's pin back through positions it left long ago. A replay already in flight is left alone.
+   * the unit's pin back through positions it left long ago. A replay already in flight is left alone;
+   * if it fails, `processEvent` drops it rather than retrying it ahead of this newer one.
    */
   public queueLocationUpdateEvent(unitId: string, latitude: number, longitude: number, accuracy?: number, heading?: number, speed?: number, fixTimestamp?: number): string {
     const store = useOfflineQueueStore.getState();
@@ -498,6 +510,18 @@ class OfflineEventManager {
         logger.warn({
           message: 'Queued event could not be delivered ahead of a new submission, left pending',
           context: { eventId: event.id, type: event.type, error: errorMessage },
+        });
+        return;
+      }
+
+      if (isSupersededLocationUpdate(event)) {
+        // Retrying it would replay a position the unit has since left; the newer one queued behind it
+        // says where the unit is now.
+        store.removeEvent(event.id);
+
+        logger.warn({
+          message: 'Superseded location update could not be delivered, dropped for the newer position',
+          context: { eventId: event.id, error: errorMessage },
         });
         return;
       }
