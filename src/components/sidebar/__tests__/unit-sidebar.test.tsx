@@ -27,6 +27,12 @@ jest.mock('@/components/audio-stream/audio-stream-bottom-sheet', () => ({
   AudioStreamBottomSheet: () => null,
 }));
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock lucide-react-native icons
 jest.mock('lucide-react-native', () => ({
   Lock: () => null,
@@ -215,5 +221,35 @@ describe('SidebarUnitCard', () => {
     fireEvent.press(mapLockButton);
 
     expect(mockSetMapLocked).toHaveBeenCalledWith(false);
+  });
+
+  describe('unit type icon', () => {
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+
+    it('shows the active unit type icon next to its name', () => {
+      const mockActiveUnit = { Name: 'Ambulance 1', Type: 'Ambulance', GroupName: 'Station 1', TypeIconUrl: 'https://cdn.example.test/ambulance.png', TypeMapIcon: 'ambulance' } as any;
+      mockUseCoreStore.mockImplementation((selector) => selector({ activeUnit: mockActiveUnit } as any));
+
+      render(<SidebarUnitCard {...defaultProps} />);
+
+      expect(screen.getByText('Ambulance 1')).toBeTruthy();
+      expect(screen.getByTestId('unit-sidebar-type-icon', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/ambulance.png' });
+    });
+
+    it('shows no icon without an active unit', () => {
+      render(<SidebarUnitCard {...defaultProps} />);
+
+      expect(screen.queryByTestId('unit-sidebar-type-icon', hidden)).toBeNull();
+    });
+
+    it('shows no icon when the active unit type has none (older servers)', () => {
+      mockUseCoreStore.mockImplementation((selector) => selector({ activeUnit: { Name: 'Engine 1', Type: 'Engine', GroupName: 'Station 1' } } as any));
+
+      render(<SidebarUnitCard {...defaultProps} />);
+
+      expect(screen.getByText('Engine 1')).toBeTruthy();
+      expect(screen.queryByTestId('unit-sidebar-type-icon', hidden)).toBeNull();
+    });
   });
 }); 

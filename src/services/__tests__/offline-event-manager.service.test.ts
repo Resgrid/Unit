@@ -127,6 +127,7 @@ describe('OfflineEventManager', () => {
       addEvent: jest.fn().mockReturnValue('test-event-id'),
       updateEventStatus: jest.fn(),
       removeEvent: jest.fn(),
+      getEventsByType: jest.fn().mockReturnValue([]),
       getPendingEvents: jest.fn().mockReturnValue([]),
       getFailedEvents: jest.fn().mockReturnValue([]),
       pruneFailedEvents: jest.fn(),
@@ -227,6 +228,126 @@ describe('OfflineEventManager', () => {
           speed: undefined,
         })
       );
+    });
+
+    it('records when the fix was taken, not when it was queued', () => {
+      offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25, Date.UTC(2026, 9, 25, 12, 0, 0));
+
+      expect(mockStoreState.addEvent).toHaveBeenCalledWith(QueuedEventType.LOCATION_UPDATE, expect.objectContaining({ timestamp: '2026-10-25T12:00:00.000Z' }));
+    });
+
+    it('replaces positions still waiting for the same unit', () => {
+      // A dead zone must leave one position to replay, not one per fix.
+      mockStoreState.getEventsByType.mockReturnValue([
+        { id: 'waiting', status: QueuedEventStatus.PENDING, data: { unitId: 'unit-1' } },
+        { id: 'retrying', status: QueuedEventStatus.FAILED, data: { unitId: 'unit-1' } },
+        { id: 'in-flight', status: QueuedEventStatus.PROCESSING, data: { unitId: 'unit-1' } },
+        { id: 'other-unit', status: QueuedEventStatus.PENDING, data: { unitId: 'unit-2' } },
+      ]);
+
+      offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006);
+
+      expect(mockStoreState.getEventsByType).toHaveBeenCalledWith(QueuedEventType.LOCATION_UPDATE);
+      expect(mockStoreState.removeEvent).toHaveBeenCalledTimes(2);
+      expect(mockStoreState.removeEvent).toHaveBeenCalledWith('waiting');
+      expect(mockStoreState.removeEvent).toHaveBeenCalledWith('retrying');
+      expect(mockStoreState.addEvent).toHaveBeenCalledTimes(1);
+    });
+
+    describe('a fix older than one already queued for the unit', () => {
+      // POSTs in flight together can fail in either order, and a deferred background batch can be older
+      // than the last foreground fix, so the queue sees fixes out of order.
+      const queuedFix = (id: string, status: QueuedEventStatus) => ({ id, type: QueuedEventType.LOCATION_UPDATE, status, data: { unitId: 'unit-1', timestamp: '2026-10-25T12:00:10.000Z' }, retryCount: 0, maxRetries: 3, createdAt: 1_000 });
+
+      it.each([
+        ['waiting', QueuedEventStatus.PENDING],
+        ['in flight', QueuedEventStatus.PROCESSING],
+        ['waiting to retry', QueuedEventStatus.FAILED],
+      ])('is not queued while the newer one is %s', (_label, status) => {
+        mockStoreState.getEventsByType.mockReturnValue([queuedFix('newer', status)]);
+
+        const eventId = offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25, Date.UTC(2026, 9, 25, 12, 0, 0));
+
+        expect(eventId).toBe('newer');
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.addEvent).not.toHaveBeenCalled();
+      });
+
+      it('replaces a newer one that has run out of retries', () => {
+        // It will never be delivered, so it holds nothing back.
+        mockStoreState.getEventsByType.mockReturnValue([{ ...queuedFix('exhausted', QueuedEventStatus.FAILED), retryCount: 3 }]);
+
+        offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25, Date.UTC(2026, 9, 25, 12, 0, 0));
+
+        expect(mockStoreState.removeEvent).toHaveBeenCalledWith('exhausted');
+        expect(mockStoreState.addEvent).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not stop a newer fix from replacing an older waiting one', () => {
+        mockStoreState.getEventsByType.mockReturnValue([queuedFix('older', QueuedEventStatus.PENDING)]);
+
+        offlineEventManager.queueLocationUpdateEvent('unit-1', 40.7128, -74.006, 10, 45, 25, Date.UTC(2026, 9, 25, 12, 0, 20));
+
+        expect(mockStoreState.removeEvent).toHaveBeenCalledWith('older');
+        expect(mockStoreState.addEvent).toHaveBeenCalledWith(QueuedEventType.LOCATION_UPDATE, expect.objectContaining({ timestamp: '2026-10-25T12:00:20.000Z' }));
+      });
+    });
+
+    describe('a replay in flight when a newer position is queued', () => {
+      const inFlight = {
+        id: 'in-flight',
+        type: QueuedEventType.LOCATION_UPDATE,
+        status: QueuedEventStatus.PROCESSING,
+        data: { unitId: 'unit-1', latitude: 40.7128, longitude: -74.006, timestamp: '2026-10-25T12:00:00.000Z' },
+        retryCount: 0,
+        maxRetries: 3,
+        createdAt: 1_000,
+      };
+      const newer = { ...inFlight, id: 'newer', status: QueuedEventStatus.PENDING, data: { ...inFlight.data, timestamp: '2026-10-25T12:00:10.000Z' }, createdAt: 2_000 };
+
+      const processEvent = (event: typeof inFlight) => (offlineEventManager as any).processEvent(event);
+
+      it('is retried as usual when the fix queued after it was taken before it', async () => {
+        // Queued later, but older: it must not displace the newer position in flight.
+        mockStoreState.getEventsByType.mockReturnValue([inFlight, { ...newer, data: { ...newer.data, timestamp: '2026-10-25T11:59:50.000Z' } }]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('in-flight', QueuedEventStatus.FAILED, 'Network Error');
+      });
+
+      it('is dropped instead of retried when it fails', async () => {
+        // Retrying it would replay both positions on reconnect, the old one first.
+        mockStoreState.getEventsByType.mockReturnValue([inFlight, newer]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).toHaveBeenCalledWith('in-flight');
+        expect(mockStoreState.updateEventStatus).not.toHaveBeenCalledWith('in-flight', QueuedEventStatus.FAILED, expect.anything());
+      });
+
+      it('is retried as usual when it fails with nothing newer queued', async () => {
+        mockStoreState.getEventsByType.mockReturnValue([inFlight]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('in-flight', QueuedEventStatus.FAILED, 'Network Error');
+      });
+
+      it('is retried as usual when the newer position is for another unit', async () => {
+        mockStoreState.getEventsByType.mockReturnValue([inFlight, { ...newer, data: { ...newer.data, unitId: 'unit-2' } }]);
+        mockSetUnitLocation.mockRejectedValueOnce(new Error('Network Error'));
+
+        await processEvent(inFlight);
+
+        expect(mockStoreState.removeEvent).not.toHaveBeenCalled();
+        expect(mockStoreState.updateEventStatus).toHaveBeenLastCalledWith('in-flight', QueuedEventStatus.FAILED, 'Network Error');
+      });
     });
   });
 

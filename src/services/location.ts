@@ -7,6 +7,7 @@ import { setUnitLocation } from '@/api/units/unitLocation';
 import { registerLocationServiceUpdater } from '@/lib/hooks/use-background-geolocation';
 import { registerLocationServiceRealtimeUpdater } from '@/lib/hooks/use-realtime-geolocation';
 import { translate } from '@/lib/i18n/utils';
+import { LocationTransmissionGate, type TransmissionRecord } from '@/lib/location-transmission-gate';
 import { logger } from '@/lib/logging';
 import { isWeb } from '@/lib/platform';
 import { loadBackgroundGeolocationState } from '@/lib/storage/background-geolocation';
@@ -26,12 +27,34 @@ const LOCATION_TASK_NAME = 'location-updates';
 const REJECTION_BACKOFF_BASE_MS = 30 * 1000;
 const REJECTION_BACKOFF_MAX_MS = 15 * 60 * 1000;
 
+// Transmission pacing. The OS delivers fixes far faster than dispatch needs them (iOS ignores
+// `timeInterval` and reports every `distanceInterval` of travel), and every POST wakes the cellular
+// radio. A moving unit is reported at most every 15s.
+//
+// A parked unit is not silent, though: it re-reports every 5 minutes. The server drops a unit's
+// ping from the map once its Timestamp is older than the department's location TTL, and a unit
+// that is trapped or unresponsive is exactly the one dispatch must still be able to see.
+const MIN_TRANSMIT_INTERVAL_MS = 15 * 1000;
+const MIN_TRANSMIT_DISTANCE_METERS = 25;
+const STATIONARY_TRANSMIT_INTERVAL_MS = 5 * 60 * 1000;
+
 /**
  * Options for the OS-managed background task.
  *
- * `deferredUpdates*` is the significant battery lever on Android: it lets the OS collect fixes
- * while the screen is off and hand them over in one batch, instead of waking the JS runtime for
- * every individual fix. iOS ignores it.
+ * Background AVL is paced at roughly one fix every 25–30s, which is what dispatch's map needs, and
+ * each part of the request is set so the device does no more work than that:
+ *
+ * - `timeInterval` (Android only — iOS ignores it) is how often the fused provider computes a fix.
+ *   Computing at the reporting cadence instead of twice as often halves the location work while
+ *   the screen is off.
+ * - `distanceInterval` and `deferredUpdatesDistance` are 0 so a parked unit keeps delivering. Any
+ *   distance filter would silence it completely, and backgrounded JS has no other way to wake:
+ *   Android pauses JS timers there. These fixes are what let the transmission gate send the
+ *   parked unit's 5-minute keep-alive; the gate discards the rest without touching the network.
+ * - `deferredUpdatesInterval` holds fixes natively and wakes the JS runtime once per window
+ *   instead of once per fix. Both platforms apply it only while backgrounded. The interval sits
+ *   just under `timeInterval` so each Android fix still clears it rather than being held for a
+ *   second one.
  *
  * `pausesUpdatesAutomatically` is deliberately false. iOS will otherwise stop updates once it
  * decides the device has been stationary for a while and only resume on significant motion — an
@@ -39,13 +62,16 @@ const REJECTION_BACKOFF_MAX_MS = 15 * 60 * 1000;
  *
  * `activityType` is AutomotiveNavigation here (Responder uses Other): this app runs on a
  * vehicle-mounted device, and telling iOS so lets it tune the GPS duty cycle for road travel.
+ *
+ * TaskManager persists these with the registration, so a change here only reaches installed apps
+ * because `registerBackgroundTask` re-registers whenever the stored options differ.
  */
 const getBackgroundTaskOptions = (): Location.LocationTaskOptions => ({
   accuracy: Location.Accuracy.Balanced,
-  timeInterval: 15000,
-  distanceInterval: 10,
-  deferredUpdatesInterval: 30000,
-  deferredUpdatesDistance: 25,
+  timeInterval: 30000,
+  distanceInterval: 0,
+  deferredUpdatesInterval: 25000,
+  deferredUpdatesDistance: 0,
   pausesUpdatesAutomatically: false,
   activityType: Location.LocationActivityType.AutomotiveNavigation,
   showsBackgroundLocationIndicator: true,
@@ -54,6 +80,47 @@ const getBackgroundTaskOptions = (): Location.LocationTaskOptions => ({
     notificationBody: translate('location.tracking_notification_body'),
   },
 });
+
+/**
+ * Whether the options TaskManager holds for the task already match `desired`. Only the keys we set
+ * are compared, and booleans are allowed to round-trip through native storage as 0/1.
+ */
+const hasSameTaskOptions = (current: unknown, desired: unknown): boolean => {
+  if (desired !== null && typeof desired === 'object') {
+    if (current === null || typeof current !== 'object') {
+      return false;
+    }
+    return Object.entries(desired as Record<string, unknown>).every(([key, value]) => hasSameTaskOptions((current as Record<string, unknown>)[key], value));
+  }
+  return current === desired || (typeof desired === 'boolean' && Number(current) === Number(desired));
+};
+
+/**
+ * Register the background task, or re-register it when its stored options are out of date.
+ * Returns true when it called into the OS.
+ *
+ * Must run while the app is in the foreground: Android refuses to start the location foreground
+ * service from the background.
+ */
+const registerBackgroundTask = async (): Promise<boolean> => {
+  const options = getBackgroundTaskOptions();
+
+  if (await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME)) {
+    let currentOptions: unknown = null;
+    try {
+      currentOptions = await TaskManager.getTaskOptionsAsync(LOCATION_TASK_NAME);
+    } catch (error) {
+      // Unreadable options are treated as stale: re-registering only updates them in place.
+      logger.debug({ message: 'Could not read background location task options', context: { error } });
+    }
+    if (hasSameTaskOptions(currentOptions, options)) {
+      return false;
+    }
+  }
+
+  await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, options);
+  return true;
+};
 
 let rejectedUnitId: string | null = null;
 let consecutiveRejections = 0;
@@ -65,6 +132,66 @@ const resetRejectionBackoff = (): void => {
   nextAttemptAtMs = 0;
 };
 
+const transmissionGate = new LocationTransmissionGate({
+  minIntervalMs: MIN_TRANSMIT_INTERVAL_MS,
+  minDistanceMeters: MIN_TRANSMIT_DISTANCE_METERS,
+  stationaryIntervalMs: STATIONARY_TRANSMIT_INTERVAL_MS,
+});
+
+// The newest fix held back by the transmission interval. Without it, a unit that stops moving just
+// after a transmission would leave dispatch with the position it had up to 15s before it parked —
+// a stationary device produces no further fixes to correct that.
+let pendingTransmission: { location: Location.LocationObject; isTransmissionEnabled: boolean } | null = null;
+let pendingTransmissionTimer: ReturnType<typeof setTimeout> | null = null;
+
+const cancelPendingTransmission = (): void => {
+  if (pendingTransmissionTimer) {
+    clearTimeout(pendingTransmissionTimer);
+    pendingTransmissionTimer = null;
+  }
+  pendingTransmission = null;
+};
+
+// Foreground keep-alive for a parked unit. The foreground watcher's distance filter means a unit
+// that is not moving delivers no fixes, so nothing would ever re-report it. Restarted by every
+// transmission, so it only fires after 5 minutes of silence. JS timers do not run while Android is
+// backgrounded; there the background task's fixes carry the keep-alive instead (see
+// `getBackgroundTaskOptions`), and an overdue timer fires as soon as the app is foregrounded.
+let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+// Set by LocationService, which owns the settings and the last known position.
+let heartbeatHandler: (() => void) | null = null;
+
+const cancelHeartbeat = (): void => {
+  if (heartbeatTimer) {
+    clearTimeout(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+};
+
+/** Restart the keep-alive countdown: by default a full interval from now. */
+const scheduleHeartbeat = (delayMs: number = STATIONARY_TRANSMIT_INTERVAL_MS): void => {
+  cancelHeartbeat();
+  heartbeatTimer = setTimeout(() => {
+    heartbeatTimer = null;
+    heartbeatHandler?.();
+  }, delayMs);
+};
+
+/**
+ * Start the countdown unless one is already running, measured from the last transmission: a unit
+ * that last reported 10 minutes ago — say, before a stretch in the background where it was not
+ * allowed to — is overdue now, not in another 5 minutes.
+ */
+const ensureHeartbeatScheduled = (): void => {
+  if (heartbeatTimer) {
+    return;
+  }
+  const lastTransmittedAt = transmissionGate.getLastTransmittedAt();
+  // Clamped: a clock that went backwards must not push the keep-alive out past its interval.
+  const sinceLastTransmission = lastTransmittedAt === null ? 0 : Math.max(0, Date.now() - lastTransmittedAt);
+  scheduleHeartbeat(Math.max(0, STATIONARY_TRANSMIT_INTERVAL_MS - sinceLastTransmission));
+};
+
 /**
  * iOS reports -1 for course, speed and the accuracy fields when the value is
  * unavailable — a stationary unit (parked at the station, screen off) reports
@@ -72,6 +199,13 @@ const resetRejectionBackoff = (): void => {
  * never sent to the API or queued for offline replay.
  */
 const nonNegativeOrUndefined = (value: number | null | undefined): number | undefined => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined);
+
+/**
+ * The OS hands the background task a batch: every fix collected while deferring, oldest first. Only
+ * the newest one says where the unit is now — the first can be a whole deferral window old.
+ */
+const getNewestLocation = (locations: Location.LocationObject[] | undefined): Location.LocationObject | undefined =>
+  locations?.reduce<Location.LocationObject | undefined>((newest, candidate) => (!newest || candidate.timestamp >= newest.timestamp ? candidate : newest), undefined);
 
 /**
  * Post a fix to the unit-location endpoint.
@@ -82,6 +216,8 @@ const nonNegativeOrUndefined = (value: number | null | undefined): number | unde
  */
 const sendLocationToAPI = async (location: Location.LocationObject, isTransmissionEnabled: boolean): Promise<void> => {
   if (!isTransmissionEnabled) {
+    // The newest fix says not to transmit; an older one held back must not go out after it.
+    cancelPendingTransmission();
     logger.debug({
       message: 'Location transmission disabled for this fix, skipping API call',
     });
@@ -89,6 +225,7 @@ const sendLocationToAPI = async (location: Location.LocationObject, isTransmissi
   }
 
   const { activeUnitId } = useCoreStore.getState();
+  let transmission: TransmissionRecord | null = null;
   try {
     if (!activeUnitId) {
       logger.warn({
@@ -110,6 +247,38 @@ const sendLocationToAPI = async (location: Location.LocationObject, isTransmissi
       });
       return;
     }
+
+    const now = Date.now();
+    const decision = transmissionGate.evaluate(activeUnitId, location.coords, now);
+
+    if (decision.action === 'skip') {
+      // This fix is newer than anything held back and no further from the last transmitted
+      // position, so whatever was held back is already out of date.
+      cancelPendingTransmission();
+      return;
+    }
+
+    if (decision.action === 'defer') {
+      // Only the newest held-back fix matters; it replaces any older one under the same timer.
+      pendingTransmission = { location, isTransmissionEnabled };
+      if (!pendingTransmissionTimer) {
+        pendingTransmissionTimer = setTimeout(() => {
+          pendingTransmissionTimer = null;
+          const pending = pendingTransmission;
+          pendingTransmission = null;
+          if (pending) {
+            void sendLocationToAPI(pending.location, pending.isTransmissionEnabled);
+          }
+        }, decision.retryInMs);
+      }
+      return;
+    }
+
+    cancelPendingTransmission();
+    // Recorded before the request resolves: iOS can deliver several fixes while one POST is in
+    // flight, and each of them must see this one.
+    transmission = transmissionGate.record(activeUnitId, location.coords, now);
+    scheduleHeartbeat();
 
     const { latitude, longitude, altitude, accuracy, altitudeAccuracy, speed, heading } = location.coords;
 
@@ -167,10 +336,19 @@ const sendLocationToAPI = async (location: Location.LocationObject, isTransmissi
       });
     }
 
+    const isOffline = isNetworkError(error);
+
+    // A position the server refused is not on the server, so the next fix must not be skipped as
+    // "unchanged". One lost to the network is different: it goes to the offline queue below, and
+    // retrying it on every fix would only keep the radio busy in a dead zone.
+    if (transmission && !isOffline) {
+      transmissionGate.markRejected(transmission);
+    }
+
     // Queue the position for offline replay on genuine network failures so the
     // unit's location on the server does not silently go stale. Server
     // rejections (4xx) are NOT queued — replaying them would fail forever.
-    if (isNetworkError(error) && activeUnitId) {
+    if (isOffline && activeUnitId) {
       try {
         offlineEventManager.queueLocationUpdateEvent(
           activeUnitId,
@@ -178,7 +356,8 @@ const sendLocationToAPI = async (location: Location.LocationObject, isTransmissi
           location.coords.longitude,
           nonNegativeOrUndefined(location.coords.accuracy),
           nonNegativeOrUndefined(location.coords.heading),
-          nonNegativeOrUndefined(location.coords.speed)
+          nonNegativeOrUndefined(location.coords.speed),
+          location.timestamp
         );
       } catch (queueError) {
         logger.warn({
@@ -189,6 +368,14 @@ const sendLocationToAPI = async (location: Location.LocationObject, isTransmissi
     }
   }
 };
+
+/** Clears all transmission pacing and backoff state. Test-only. */
+export function _resetLocationTransmissionForTests(): void {
+  cancelPendingTransmission();
+  cancelHeartbeat();
+  transmissionGate.reset();
+  resetRejectionBackoff();
+}
 
 // Define the background task (native only — TaskManager is unsupported on web)
 if (!isWeb) {
@@ -202,24 +389,33 @@ if (!isWeb) {
     }
     if (data) {
       const { locations } = data as { locations: Location.LocationObject[] };
-      const location = locations[0];
+      const location = getNewestLocation(locations);
       if (location) {
+        const isForeground = AppState.currentState === 'active';
+
+        // The OS task keeps delivering while the app is foregrounded, at the same time as the
+        // foreground watcher. When the watcher is running it already records and transmits every
+        // fix; handling this one as well would post each position twice.
+        if (isForeground && locationService.isForegroundWatcherActive()) {
+          return;
+        }
+
         logger.info({
           message: 'Background location update received',
           context: {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
             heading: location.coords.heading,
+            batchSize: locations.length,
           },
         });
 
         // Update local store
         useLocationStore.getState().setLocation(location);
 
-        // The OS task keeps delivering while the app is foregrounded, so the fix has to be
-        // attributed to the right setting before it can be sent: foreground fixes belong to
-        // Realtime Geolocation, background ones to Background Geolocation.
-        const isTransmissionEnabled = AppState.currentState === 'active' ? await loadRealtimeGeolocationState() : await loadBackgroundGeolocationState();
+        // The fix has to be attributed to the right setting before it can be sent: foreground
+        // fixes belong to Realtime Geolocation, background ones to Background Geolocation.
+        const isTransmissionEnabled = isForeground ? await loadRealtimeGeolocationState() : await loadBackgroundGeolocationState();
 
         await sendLocationToAPI(location, isTransmissionEnabled);
       }
@@ -234,6 +430,9 @@ class LocationService {
   private appStateSubscription: { remove: () => void } | null = null;
   private isBackgroundGeolocationEnabled = false;
   private isRealtimeGeolocationEnabled = true;
+  // Set once something has asked for tracking (unit selected, map mounted) and cleared by a stop,
+  // so a resume only re-establishes tracking that is supposed to be running.
+  private isTrackingRequested = false;
   // Single-flight guards. The subscription fields are only assigned after an
   // await, so a plain "already subscribed?" check lets two concurrent starts
   // both pass it and create duplicate watchers — and lets a stop run in the gap
@@ -241,12 +440,17 @@ class LocationService {
   // promise instead, and stop* waits for it before tearing anything down.
   private startPromise: Promise<void> | null = null;
   private startBackgroundPromise: Promise<void> | null = null;
+  private resumePromise: Promise<void> | null = null;
+  private watcherPromise: Promise<void> | null = null;
 
   private constructor() {
     this.initializeAppStateListener();
     // Register this service's update function to avoid circular dependency
     registerLocationServiceUpdater(this.updateBackgroundGeolocationSetting.bind(this));
     registerLocationServiceRealtimeUpdater(this.updateRealtimeGeolocationSetting.bind(this));
+    heartbeatHandler = () => {
+      void this.sendHeartbeat();
+    };
   }
 
   static getInstance(): LocationService {
@@ -254,6 +458,78 @@ class LocationService {
       LocationService.instance = new LocationService();
     }
     return LocationService.instance;
+  }
+
+  /** True while the foreground watcher is delivering fixes to the store and the API. */
+  isForegroundWatcherActive(): boolean {
+    return this.locationSubscription !== null;
+  }
+
+  /**
+   * Re-report the unit's last known position after 5 minutes without a transmission, so a parked —
+   * or trapped — unit's marker never ages off the department's map.
+   *
+   * Stamped with the current time on purpose. The server ages a ping out by its Timestamp, and the
+   * report means "still here as of now"; the fix's own time is when the unit last moved, which
+   * would leave the marker expiring on schedule.
+   */
+  private async sendHeartbeat(): Promise<void> {
+    if (!this.isTrackingRequested) {
+      return;
+    }
+
+    // Read from storage, as the background task does: the setting that governs a report depends on
+    // the app state it is sent in, and a headless launch has not loaded the service's copies.
+    const isTransmissionEnabled = AppState.currentState === 'active' ? await loadRealtimeGeolocationState() : await loadBackgroundGeolocationState();
+    // Re-checked after the await: a stop that landed during it has already cancelled the countdown,
+    // and rearming it here would leave a stale timer for the next start to inherit.
+    if (!isTransmissionEnabled || !this.isTrackingRequested) {
+      // Nothing may be sent in this state, so stop counting; the next transmission, a resume or a
+      // restart of tracking starts the countdown again.
+      return;
+    }
+
+    // Keep counting even if this attempt finds nothing to send. A transmission below restarts the
+    // countdown from the moment it is sent.
+    scheduleHeartbeat();
+
+    const location = await this.getLastKnownLocation();
+    if (!location || !this.isTrackingRequested) {
+      return;
+    }
+
+    logger.info({
+      message: 'Sending location keep-alive for a stationary unit',
+      context: { latitude: location.coords.latitude, longitude: location.coords.longitude, fixTimestamp: location.timestamp },
+    });
+
+    await sendLocationToAPI({ ...location, timestamp: Date.now() }, isTransmissionEnabled);
+  }
+
+  /** The freshest position the device already holds, without powering up the location hardware. */
+  private async getLastKnownLocation(): Promise<Location.LocationObject | null> {
+    if (!isWeb) {
+      try {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown) {
+          return lastKnown;
+        }
+      } catch (error) {
+        logger.debug({ message: 'Could not read last known position for keep-alive', context: { error } });
+      }
+    }
+
+    // Nothing cached by the OS (or web, which has no such cache): fall back to the last fix this
+    // app recorded. A unit that has lost its signal still has a last known position worth keeping
+    // on the map.
+    const { latitude, longitude, heading, accuracy, speed, altitude, timestamp } = useLocationStore.getState();
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      return null;
+    }
+    return {
+      coords: { latitude, longitude, heading, accuracy, speed, altitude, altitudeAccuracy: null },
+      timestamp: timestamp ?? Date.now(),
+    };
   }
 
   private initializeAppStateListener(): void {
@@ -274,6 +550,7 @@ class LocationService {
         await this.startBackgroundUpdates();
       } else if (nextAppState === 'active') {
         await this.stopBackgroundUpdates();
+        await this.resumeTracking();
       }
     } catch (error) {
       logger.warn({
@@ -321,6 +598,8 @@ class LocationService {
   }
 
   private async performStartLocationUpdates(): Promise<void> {
+    this.isTrackingRequested = true;
+
     // On web, use a lightweight browser geolocation watcher instead of expo-location/TaskManager
     if (isWeb) {
       if (!('geolocation' in navigator)) {
@@ -358,6 +637,7 @@ class LocationService {
         this.locationSubscription = { remove: () => navigator.geolocation.clearWatch(watchId) } as unknown as Location.LocationSubscription;
         logger.info({ message: 'Foreground location updates started' });
       }
+      ensureHeartbeatScheduled();
       return;
     }
 
@@ -388,10 +668,7 @@ class LocationService {
     const shouldEnableBackground = this.isBackgroundGeolocationEnabled && hasBackgroundPermissions;
 
     if (shouldEnableBackground) {
-      // Check if task is already registered for background updates
-      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-      if (!isTaskRegistered) {
-        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, getBackgroundTaskOptions());
+      if (await registerBackgroundTask()) {
         logger.info({
           message: 'Background location task registered',
         });
@@ -408,33 +685,15 @@ class LocationService {
 
     // Start foreground updates (idempotent - check if already subscribed)
     if (!this.locationSubscription) {
-      this.locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 15000,
-          distanceInterval: 10,
-        },
-        (location) => {
-          logger.info({
-            message: 'Foreground location update received',
-            context: {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-              heading: location.coords.heading,
-            },
-          });
-          useLocationStore.getState().setLocation(location);
-          // Foreground transmission is governed by Realtime Geolocation. The watcher itself keeps
-          // running either way: the map, route ETAs and the status sheet all read the location
-          // store, and switching transmission off must not blind the app to its own position.
-          sendLocationToAPI(location, this.isRealtimeGeolocationEnabled);
-        }
-      );
+      await this.startForegroundWatcher();
     } else {
       logger.info({
         message: 'Foreground location subscription already active, skipping duplicate subscription',
       });
     }
+
+    // A unit that starts out parked may never produce a fix; the keep-alive still reports it.
+    ensureHeartbeatScheduled();
 
     logger.info({
       message: 'Foreground location updates started',
@@ -444,6 +703,124 @@ class LocationService {
         backgroundSetting: this.isBackgroundGeolocationEnabled,
       },
     });
+  }
+
+  /**
+   * Create the foreground watcher unless one exists or is already being created.
+   *
+   * The OS pauses it natively while the app is backgrounded (Android pauses every watcher, iOS
+   * watchers do not allow background updates), so it costs nothing there; the background task
+   * covers that state.
+   */
+  private startForegroundWatcher(): Promise<void> {
+    if (this.locationSubscription) {
+      return Promise.resolve();
+    }
+    if (this.watcherPromise) {
+      return this.watcherPromise;
+    }
+
+    const promise = Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 15000,
+        distanceInterval: 10,
+      },
+      (location) => {
+        logger.info({
+          message: 'Foreground location update received',
+          context: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            heading: location.coords.heading,
+          },
+        });
+        useLocationStore.getState().setLocation(location);
+        // Foreground transmission is governed by Realtime Geolocation. The watcher itself keeps
+        // running either way: the map, route ETAs and the status sheet all read the location
+        // store, and switching transmission off must not blind the app to its own position.
+        sendLocationToAPI(location, this.isRealtimeGeolocationEnabled);
+      },
+      // Without a handler expo-location drops watcher errors silently.
+      (reason) => {
+        logger.warn({
+          message: 'Foreground location watcher failed',
+          context: { error: reason },
+        });
+      }
+    )
+      .then((subscription) => {
+        this.locationSubscription = subscription;
+      })
+      .finally(() => {
+        if (this.watcherPromise === promise) {
+          this.watcherPromise = null;
+        }
+      });
+    this.watcherPromise = promise;
+    return promise;
+  }
+
+  /**
+   * Re-establish tracking when the app returns to the foreground.
+   *
+   * Location access is usually fixed in the OS settings app while this app sits in the background
+   * — after the start at unit selection already failed, or ran foreground-only. Nothing else
+   * retries until the next cold start, so a unit that granted access would stay off dispatch's map.
+   *
+   * Never prompts: it only reads the current grants. A prompt on every resume would be a nag, and on
+   * Android 11+ requesting background access opens the settings app.
+   */
+  private resumeTracking(): Promise<void> {
+    if (isWeb || !this.isTrackingRequested) {
+      return Promise.resolve();
+    }
+    if (this.resumePromise) {
+      return this.resumePromise;
+    }
+
+    const promise = this.performResumeTracking().finally(() => {
+      if (this.resumePromise === promise) {
+        this.resumePromise = null;
+      }
+    });
+    this.resumePromise = promise;
+    return promise;
+  }
+
+  private async performResumeTracking(): Promise<void> {
+    // A start still in flight is already doing this, with prompts where they are wanted.
+    if (this.startPromise) {
+      await this.startPromise.catch(() => {});
+    }
+
+    const { status: foregroundStatus } = await Location.getForegroundPermissionsAsync();
+    // Re-checked after every await: a stop that lands mid-resume must not be undone by it.
+    if (foregroundStatus !== 'granted' || !this.isTrackingRequested) {
+      return;
+    }
+
+    if (this.isBackgroundGeolocationEnabled) {
+      const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+      if (backgroundStatus === 'granted' && this.isTrackingRequested && (await registerBackgroundTask())) {
+        logger.info({
+          message: 'Background location task registered on app resume',
+        });
+      }
+    }
+
+    if (!this.locationSubscription && this.isTrackingRequested) {
+      await this.startForegroundWatcher();
+      logger.info({
+        message: 'Foreground location updates resumed',
+      });
+    }
+
+    // The countdown stops while reporting is not allowed (see `sendHeartbeat`); back in the
+    // foreground it runs again. One that went overdue while backgrounded has already fired.
+    if (this.isTrackingRequested) {
+      ensureHeartbeatScheduled();
+    }
   }
 
   async startBackgroundUpdates(): Promise<void> {
@@ -497,6 +874,12 @@ class LocationService {
         });
         useLocationStore.getState().setLocation(location);
         sendLocationToAPI(location, this.isBackgroundGeolocationEnabled); // Background fixes follow the background setting
+      },
+      (reason) => {
+        logger.warn({
+          message: 'Background location watcher failed',
+          context: { error: reason },
+        });
       }
     );
 
@@ -524,6 +907,10 @@ class LocationService {
     this.isRealtimeGeolocationEnabled = enabled;
 
     await saveRealtimeGeolocationState(enabled);
+
+    if (!enabled) {
+      cancelPendingTransmission();
+    }
 
     // Flipping the flag is worthless without a watcher, and one is not guaranteed to exist:
     // `startLocationUpdates` runs once per unit selection and throws when the permission prompt was
@@ -572,9 +959,7 @@ class LocationService {
       }
 
       // Register the task if not already registered
-      const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
-      if (!isTaskRegistered) {
-        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, getBackgroundTaskOptions());
+      if (await registerBackgroundTask()) {
         logger.info({
           message: 'Background location task registered after setting change',
         });
@@ -594,6 +979,7 @@ class LocationService {
         }
       }
     } else {
+      cancelPendingTransmission();
       // Stop background updates and unregister task
       await this.stopBackgroundUpdates();
       const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
@@ -607,11 +993,23 @@ class LocationService {
   }
 
   async stopLocationUpdates(): Promise<void> {
+    this.isTrackingRequested = false;
+    cancelPendingTransmission();
+    cancelHeartbeat();
+    // The next start may be for another unit, or long after this position was current.
+    transmissionGate.reset();
+
     // Wait out any start still in flight: it assigns this.locationSubscription
     // after its await, so stopping first would clear a null field and leave the
     // watcher that lands afterwards running with nothing tracking it.
     if (this.startPromise) {
       await this.startPromise.catch(() => {});
+    }
+    if (this.resumePromise) {
+      await this.resumePromise.catch(() => {});
+    }
+    if (this.watcherPromise) {
+      await this.watcherPromise.catch(() => {});
     }
 
     if (this.locationSubscription) {
@@ -633,6 +1031,11 @@ class LocationService {
         await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
       }
     }
+
+    // Pacing was cancelled above, but the start awaited here can still schedule the keep-alive, and
+    // a fix delivered before its subscription was removed can defer a transmission or restart it.
+    cancelPendingTransmission();
+    cancelHeartbeat();
 
     logger.info({
       message: 'All location updates stopped',

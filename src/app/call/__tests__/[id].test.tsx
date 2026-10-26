@@ -15,6 +15,12 @@ import { openMapsWithDirections } from '@/lib/navigation';
 
 import CallDetail from '../[id]';
 
+// A host element, since this file's react-native View mock renders only its children.
+jest.mock('expo-image', () => {
+  const React = require('react');
+  return { Image: (props: Record<string, unknown>) => React.createElement('expo-image', props) };
+});
+
 // Mock UI components that might use NativeWind
 jest.mock('@/components/ui', () => ({
   FocusAwareStatusBar: jest.fn().mockImplementation(() => null),
@@ -1481,6 +1487,85 @@ describe('CallDetail', () => {
       expect(JSON.stringify(toJSON())).toContain('Dispatched');
       expect(getAllByTestId('activity-link-marker-auto')).toHaveLength(1);
       expect(getAllByTestId('activity-link-marker-inferred')).toHaveLength(1);
+    });
+  });
+
+  describe('Dispatched tab unit type icons', () => {
+    const renderDispatched = (dispatches: Record<string, unknown>[]) => {
+      const store = {
+        call: { CallId: 'test-call-id', Name: 'Test Call', Number: 'C2024001', Priority: 1, Type: 'Fire', Address: '123 Main St', Latitude: null, Longitude: null },
+        callExtraData: { Protocols: [], Dispatches: dispatches, Activity: [] },
+        callPriority: { Name: 'High', Color: '#ff0000' },
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      };
+      mockUseCallDetailStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+      mockSelectedTabKey = 'dispatched';
+
+      return render(<CallDetail />);
+    };
+
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+
+    it('shows the uploaded type icon for a unit row and nothing for other rows', () => {
+      const { getByTestId, queryByTestId, toJSON } = renderDispatched([
+        { Id: '1', Type: 'Unit', Name: 'Ambulance 1', Group: 'Station 1', TypeIconUrl: 'https://cdn.example.test/ambulance.png', TypeMapIcon: 'ambulance' },
+        { Id: '2', Type: 'Personnel', Name: 'Jane Doe', Group: 'Station 1' },
+      ]);
+
+      expect(JSON.stringify(toJSON())).toContain('Ambulance 1');
+      expect(getByTestId('dispatched-unit-type-icon-0', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/ambulance.png' });
+      expect(queryByTestId('dispatched-unit-type-icon-1', hidden)).toBeNull();
+    });
+
+    it('falls back to the built-in map icon when the type has no upload', () => {
+      const { getByTestId } = renderDispatched([{ Id: '1', Type: 'Unit', Name: 'MUG 1', Group: 'Station 1', TypeIconUrl: null, TypeMapIcon: 'cartwo' }]);
+
+      expect(getByTestId('dispatched-unit-type-icon-0', hidden).props.source).toBeTruthy();
+      expect(getByTestId('dispatched-unit-type-icon-0', hidden).props.source).not.toEqual(expect.objectContaining({ uri: expect.any(String) }));
+    });
+
+    it('renders unit rows from older servers without the icon fields', () => {
+      const { queryByTestId, toJSON } = renderDispatched([{ Id: '1', Type: 'Unit', Name: 'Engine 1', Group: 'Station 1' }]);
+
+      expect(JSON.stringify(toJSON())).toContain('Engine 1');
+      expect(queryByTestId('dispatched-unit-type-icon-0', hidden)).toBeNull();
+    });
+  });
+
+  describe('Header call type icon', () => {
+    const renderWithCall = (callOverrides: Record<string, unknown>) => {
+      const store = {
+        call: { CallId: 'test-call-id', Name: 'Test Call', Number: 'C2024001', Priority: 1, Type: 'Fire', Address: '123 Main St', Latitude: null, Longitude: null, ...callOverrides },
+        callExtraData: { Protocols: [], Dispatches: [], Activity: [] },
+        callPriority: { Name: 'High', Color: '#ff0000' },
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      };
+      mockUseCallDetailStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
+
+      return render(<CallDetail />);
+    };
+
+    // The icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+
+    it('shows the uploaded call type icon next to the call name', () => {
+      const { getByTestId } = renderWithCall({ TypeIconUrl: 'https://cdn.example.test/fire.png', TypeMapIcon: 'fire' });
+
+      expect(getByTestId('call-detail-type-icon', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/fire.png' });
+    });
+
+    it('shows no icon for a call from an older server', () => {
+      const { queryByTestId, toJSON } = renderWithCall({});
+
+      expect(JSON.stringify(toJSON())).toContain('Test Call');
+      expect(queryByTestId('call-detail-type-icon', hidden)).toBeNull();
     });
   });
 });

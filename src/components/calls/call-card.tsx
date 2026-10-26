@@ -8,6 +8,7 @@ import { HStack } from '@/components/ui/hstack';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { TypeIcon, UnitTypeIcon } from '@/components/units/unit-type-icon';
 import { getTimeAgoUtc, readableColors } from '@/lib/utils';
 import { type CallPriorityResultData } from '@/models/v4/callPriorities/callPriorityResultData';
 import type { CallResultData } from '@/models/v4/calls/callResultData';
@@ -66,7 +67,8 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
       {/* Header with Call Number and Priority */}
       <HStack className="mb-4 items-center justify-between">
         <HStack className="items-center space-x-2">
-          <AlertTriangle size={20} color={textColor} />
+          {/* The call type's icon when the department gave it one; the generic alert icon otherwise. */}
+          <TypeIcon iconUrl={call.TypeIconUrl} mapIcon={call.TypeMapIcon} size={24} fallback={<AlertTriangle size={20} color={textColor} />} testID="call-card-type-icon" />
           <Text
             style={{
               color: textColor,
@@ -149,7 +151,8 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
               let typeLetter = 'P';
               let typeBgColor = '#3B82F6'; // blue - Personnel
               const t = d.Type?.toLowerCase() || '';
-              if (t.includes('unit')) {
+              const isUnit = t.includes('unit');
+              if (isUnit) {
                 typeLetter = 'U';
                 typeBgColor = '#10B981'; // green
               } else if (t.includes('group')) {
@@ -160,13 +163,18 @@ export const CallCard: React.FC<CallCardProps> = React.memo(({ call, priority, s
                 typeBgColor = '#F59E0B'; // amber
               }
 
+              const typeBadge = (
+                <Box style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }} className="items-center justify-center">
+                  <Text style={{ color: '#fff' }} className="text-xs font-bold">
+                    {typeLetter}
+                  </Text>
+                </Box>
+              );
+
               return (
                 <HStack key={`${d.Id || 'noid'}-${d.Name}-${index}`} style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, overflow: 'hidden' }} className="items-center">
-                  <Box style={{ backgroundColor: typeBgColor, minWidth: 24, height: 24 }} className="items-center justify-center">
-                    <Text style={{ color: '#fff' }} className="text-xs font-bold">
-                      {typeLetter}
-                    </Text>
-                  </Box>
+                  {/* A unit's type icon takes the place of the "U" badge; the badge stays when the type has none. */}
+                  {isUnit ? <UnitTypeIcon iconUrl={d.TypeIconUrl} mapIcon={d.TypeMapIcon} size={24} fallback={typeBadge} testID={`dispatch-chip-unit-icon-${d.Id || index}`} /> : typeBadge}
                   <Text style={{ color: textColor, paddingHorizontal: 6 }} className="text-xs font-medium" numberOfLines={1}>
                     {d.Name}
                   </Text>

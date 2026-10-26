@@ -19,4 +19,9 @@ export class DispatchedEventResultData {
    * call). Null or absent on older rows and non-status entries.
    */
   public DestinationSource?: number | null;
+
+  /** Unit rows only: uploaded icon URL for the unit's type; null/absent otherwise or on older servers. */
+  public TypeIconUrl?: string | null = null;
+  /** Unit rows only: built-in map icon name (lowercase `MAP_ICONS` key) for the unit's type. */
+  public TypeMapIcon?: string | null = null;
 }

@@ -1,5 +1,5 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { NavigationIcon } from 'lucide-react-native';
+import { InfoIcon, NavigationIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getMapDataAndMarkers } from '@/api/mapping/mapping';
 import { Loading } from '@/components/common/loading';
+import { MapLegendSheet } from '@/components/maps/map-legend-sheet';
 import MapPins from '@/components/maps/map-pins';
 import Mapbox from '@/components/maps/mapbox';
 import PinDetailModal from '@/components/maps/pin-detail-modal';
@@ -23,7 +24,7 @@ import { useWeatherAlertBanner } from '@/hooks/use-weather-alert-banner';
 import { logger } from '@/lib/logging';
 import { applyPitchHysteresis, applyZoomHysteresis, createCirclePolygon, normalizeHeading, normalizeSpeed, smoothSpeed, zoomForSpeed } from '@/lib/map-camera';
 import { getDepartmentMapCenter } from '@/lib/map-center';
-import { getPinEntityId } from '@/lib/map-pin-ids';
+import { getPinEntityId, MapPinType } from '@/lib/map-pin-ids';
 import { useDepartmentMapStyle } from '@/lib/map-style';
 import { getMapboxAccessToken } from '@/lib/mapbox-token';
 import { type MapMakerInfoData } from '@/models/v4/mapping/getMapDataAndMarkersData';
@@ -84,6 +85,7 @@ function MapContent() {
   const [mapPins, setMapPins] = useState<MapMakerInfoData[]>([]);
   const [selectedPin, setSelectedPin] = useState<MapMakerInfoData | null>(null);
   const [isPinDetailModalOpen, setIsPinDetailModalOpen] = useState(false);
+  const [isLegendOpen, setIsLegendOpen] = useState(false);
   const { isActive } = useAppLifecycle();
   const locationLatitude = useLocationStore((state) => state.latitude);
   const locationLongitude = useLocationStore((state) => state.longitude);
@@ -536,6 +538,17 @@ function MapContent() {
     setSelectedPin(null);
   };
 
+  const handleOpenLegend = useCallback(() => {
+    setIsLegendOpen(true);
+  }, []);
+
+  const handleCloseLegend = useCallback(() => {
+    setIsLegendOpen(false);
+  }, []);
+
+  // The legend shows the hydrant marker only while the map is drawing hydrants.
+  const showHydrantsInLegend = useMemo(() => mapPins.some((pin) => pin.Type === MapPinType.Hydrant), [mapPins]);
+
   // Show recenter button only when map is not locked and user has moved the map
   const showRecenterButton = !isMapLocked && hasUserMovedMap && locationLatitude != null && locationLongitude != null;
 
@@ -561,6 +574,10 @@ function MapContent() {
         },
         shadowOpacity: isDark ? 0.1 : 0.25,
         shadowRadius: 3.84,
+      },
+      // The legend button is the same control as the recenter button, one slot above it so the two never overlap.
+      legendButtonOffset: {
+        bottom: 20 + insets.bottom + 48 + 12,
       },
     };
   }, [colorScheme, insets.bottom]);
@@ -682,10 +699,24 @@ function MapContent() {
             <NavigationIcon size={20} color="#ffffff" />
           </TouchableOpacity>
         ) : null}
+
+        {/* Map legend button - what each icon on the map means */}
+        <TouchableOpacity
+          style={[styles.recenterButton, themedStyles.recenterButton, themedStyles.legendButtonOffset]}
+          onPress={handleOpenLegend}
+          accessibilityRole="button"
+          accessibilityLabel={t('map.legend.button')}
+          testID="map-legend-button"
+        >
+          <InfoIcon size={20} color="#ffffff" />
+        </TouchableOpacity>
       </View>
 
       {/* Pin Detail Modal */}
       <PinDetailModal pin={selectedPin} isOpen={isPinDetailModalOpen} onClose={handleClosePinDetail} onSetAsCurrentCall={handleSetAsCurrentCall} />
+
+      {/* Map Icon Legend */}
+      <MapLegendSheet isOpen={isLegendOpen} onClose={handleCloseLegend} showHydrants={showHydrantsInLegend} />
     </>
   );
 }

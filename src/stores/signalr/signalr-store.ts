@@ -4,6 +4,7 @@ import { useAuthStore } from '@/lib';
 import { Env } from '@/lib/env';
 import { type LiveLocationKind, type LiveLocations, mergeLiveLocation, parseLiveLocationPayload } from '@/lib/live-locations';
 import { logger } from '@/lib/logging';
+import { loadRealtimeGeolocationState } from '@/lib/storage/realtime-geolocation';
 import { SignalRService, signalRService } from '@/services/signalr.service';
 
 import { useCoreStore } from '../app/core-store';
@@ -678,6 +679,14 @@ export const useSignalRStore = create<SignalRState>((set, get) => ({
   },
   connectGeolocationHub: async () => {
     try {
+      // Guard here so every call path (init, app-resume reconnect, shared-session unlock) honors
+      // Realtime Geolocation: it is the setting that subscribes this app to other units' positions,
+      // and the hub pushes every position in the department — a steady stream of radio wake-ups.
+      if (!(await loadRealtimeGeolocationState())) {
+        logger.info({ message: 'Realtime geolocation disabled; skipping geolocation hub connection' });
+        return;
+      }
+
       // The flag alone must never block a repair: only skip when the service still holds the
       // connection the flag was set for.
       if (get().isGeolocationHubConnected && signalRService.isHubAvailable(Env.REALTIME_GEO_HUB_NAME)) {

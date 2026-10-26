@@ -7,7 +7,7 @@ import { InteractionManager, ScrollView, StyleSheet, TouchableOpacity, View } fr
 
 import { useKeyboardHeight } from '@/hooks/use-keyboard-height';
 import { logger } from '@/lib/logging';
-import { createPoiTypeMap, getPoiSelectionLabel } from '@/lib/poi-utils';
+import { createPoiTypeMap, getPoiIconUrl, getPoiSelectionLabel } from '@/lib/poi-utils';
 import { getUnitStatusCallDestinationId, resolveDefaultStatusCall } from '@/lib/status-destination';
 import { canSubmitStatusWithoutInput, getOfferedStatuses, resolveCurrentStatusId } from '@/lib/status-flow';
 import { readableColors } from '@/lib/utils';
@@ -34,6 +34,7 @@ import { Spinner } from '../ui/spinner';
 import { Text } from '../ui/text';
 import { Textarea, TextareaInput } from '../ui/textarea';
 import { VStack } from '../ui/vstack';
+import { TypeIcon } from '../units/unit-type-icon';
 import { CURRENT_STATUS_RING_OUTSET, CurrentStatusRing } from './current-status-ring';
 import { HoldToConfirmButton } from './hold-to-confirm-button';
 
@@ -1220,6 +1221,7 @@ export const StatusBottomSheet = () => {
                         >
                           <HStack space="sm" className="items-center">
                             <Check size={20} color={selectedCall?.CallId === call.CallId ? '#3b82f6' : 'transparent'} />
+                            <TypeIcon iconUrl={call.TypeIconUrl} mapIcon={call.TypeMapIcon} size={24} testID={`status-call-type-icon-${call.CallId}`} />
                             <VStack className="flex-1">
                               <Text className="font-bold">
                                 {call.Number} - {call.Name}
@@ -1285,6 +1287,7 @@ export const StatusBottomSheet = () => {
                           >
                             <HStack space="sm" className="items-center">
                               <Check size={20} color={selectedPoi?.PoiId === poi.PoiId ? '#3b82f6' : 'transparent'} />
+                              <TypeIcon iconUrl={getPoiIconUrl(poi, poiTypesById)} size={24} testID={`status-poi-type-icon-${poi.PoiId}`} />
                               <VStack className="flex-1">
                                 <Text className="font-bold">{getPoiSelectionLabel(poi, poiTypesById)}</Text>
                                 {poiSecondaryText ? <Text className="text-sm text-gray-600 dark:text-gray-400">{poiSecondaryText}</Text> : null}

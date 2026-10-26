@@ -198,6 +198,20 @@ describe('applyLiveLocations', () => {
     expect(pins[1]).toBe(unitPin);
   });
 
+  it("keeps a moved personnel pin's role icon and every other field", () => {
+    const iconPersonPin = makePin({ Id: 'pAB12-CD', Type: 3, Latitude: 30, Longitude: -80, ImagePath: 'Person_RespondingCall', Title: 'Jane Smith', IconUrl: 'https://cdn.example.test/roles/5/icon.png' });
+    const iconUnitPin = makePin({ Id: 'u1', Type: 1, Latitude: 40, Longitude: -74, IconUrl: 'https://cdn.example.test/unit-types/7/icon.png' });
+
+    const result = applyLiveLocations([iconUnitPin, iconPersonPin], {
+      'pab12-cd': makeLocation({ pinId: 'pab12-cd', latitude: 31, longitude: -81 }),
+      u1: makeLocation({ pinId: 'u1', latitude: 41, longitude: -73 }),
+    });
+
+    expect(result.pins[1]).toEqual({ ...iconPersonPin, Latitude: 31, Longitude: -81 });
+    expect(result.pins[1].IconUrl).toBe('https://cdn.example.test/roles/5/icon.png');
+    expect(result.pins[0].IconUrl).toBe('https://cdn.example.test/unit-types/7/icon.png');
+  });
+
   it('matches personnel pins case-insensitively', () => {
     const result = applyLiveLocations(pins, { 'pab12-cd': makeLocation({ pinId: 'pab12-cd', latitude: 31, longitude: -81 }) });
 

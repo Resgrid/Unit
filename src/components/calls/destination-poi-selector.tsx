@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView } from 'react-native';
 
-import { createPoiTypeMap, getPoiSelectionLabel, groupPoisByType } from '@/lib/poi-utils';
+import { createPoiTypeMap, getPoiIconUrl, getPoiSelectionLabel, groupPoisByType } from '@/lib/poi-utils';
 import { type PoiResultData, type PoiTypeResultData } from '@/models/v4/mapping/poiResultData';
 
 import { CustomBottomSheet } from '../ui/bottom-sheet';
@@ -10,6 +10,7 @@ import { Box } from '../ui/box';
 import { Button, ButtonText } from '../ui/button';
 import { Text } from '../ui/text';
 import { VStack } from '../ui/vstack';
+import { TypeIcon } from '../units/unit-type-icon';
 
 interface DestinationPoiSelectorProps {
   destinationPois: PoiResultData[];
@@ -44,6 +45,7 @@ export const DestinationPoiSelector: React.FC<DestinationPoiSelectorProps> = ({ 
           {isRequired ? '*' : ''}
         </Text>
         <Button variant="outline" onPress={() => setIsOpen(true)} className="w-full justify-start">
+          {selectedPoi ? <TypeIcon iconUrl={getPoiIconUrl(selectedPoi, poiTypesById)} size={22} testID="destination-poi-selected-type-icon" /> : null}
           <ButtonText className="flex-1 text-left" numberOfLines={2}>
             {selectedLabel}
           </ButtonText>
@@ -64,6 +66,7 @@ export const DestinationPoiSelector: React.FC<DestinationPoiSelectorProps> = ({ 
                   <Text className="px-1 text-xs font-semibold uppercase text-gray-500">{group.title}</Text>
                   {group.items.map((poi) => (
                     <Button key={poi.PoiId} variant={selectedPoiId === poi.PoiId ? 'solid' : 'outline'} className="w-full justify-start" onPress={() => handleSelect(poi.PoiId)}>
+                      <TypeIcon iconUrl={getPoiIconUrl(poi, poiTypesById)} size={22} testID={`destination-poi-type-icon-${poi.PoiId}`} />
                       <ButtonText className="flex-1 text-left" numberOfLines={2}>
                         {getPoiSelectionLabel(poi, poiTypesById)}
                       </ButtonText>

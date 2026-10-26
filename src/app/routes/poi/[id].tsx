@@ -14,8 +14,9 @@ import { Heading } from '@/components/ui/heading';
 import { HStack } from '@/components/ui/hstack';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { TypeIcon } from '@/components/units/unit-type-icon';
 import { openMapsWithDirections } from '@/lib/navigation';
-import { createPoiTypeMap, getPoiDisplayName, getPoiSelectionLabel, getPoiTypeName, isPoiDestinationEnabled } from '@/lib/poi-utils';
+import { createPoiTypeMap, getPoiDisplayName, getPoiIconUrl, getPoiSelectionLabel, getPoiTypeName, isPoiDestinationEnabled } from '@/lib/poi-utils';
 import { useLocationStore } from '@/stores/app/location-store';
 import { usePoisStore } from '@/stores/pois/store';
 import { useStatusBottomSheetStore } from '@/stores/status/store';
@@ -94,7 +95,12 @@ export default function PoiDetailScreen() {
       <ScrollView className="flex-1 bg-gray-50 dark:bg-gray-900">
         <VStack space="lg" className="p-4">
           <VStack space="sm">
-            <Heading size="xl">{displayName}</Heading>
+            <HStack space="sm" className="items-center">
+              <TypeIcon iconUrl={getPoiIconUrl(poi, poiTypesById)} size={36} testID="poi-detail-type-icon" />
+              <Heading size="xl" className="shrink">
+                {displayName}
+              </Heading>
+            </HStack>
             <HStack className="items-center gap-2">
               <Badge action="muted" variant="outline">
                 <BadgeText>{poiTypeName}</BadgeText>

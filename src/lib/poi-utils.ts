@@ -23,6 +23,11 @@ export const getPoiTypeName = (poi: Pick<PoiResultData, 'PoiTypeId' | 'PoiTypeNa
   return normalizeText(poi.PoiTypeName) || normalizeText(poiTypesById?.[poi.PoiTypeId]?.Name);
 };
 
+/** The uploaded icon for a POI's type: the POI's own `IconUrl`, else its type's; null when neither has one (or on older servers). */
+export const getPoiIconUrl = (poi: Pick<PoiResultData, 'PoiTypeId' | 'IconUrl'>, poiTypesById?: Record<number, PoiTypeResultData>): string | null => {
+  return normalizeText(poi.IconUrl) || normalizeText(poiTypesById?.[poi.PoiTypeId]?.IconUrl) || null;
+};
+
 export const getPoiDisplayName = (poi: PoiResultData, poiTypesById?: Record<number, PoiTypeResultData>): string => {
   return normalizeText(poi.Name) || normalizeText(poi.Address) || normalizeText(poi.Note) || getPoiTypeName(poi, poiTypesById);
 };

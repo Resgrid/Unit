@@ -8,23 +8,27 @@ import { HStack } from '@/components/ui/hstack';
 import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { TypeIcon } from '@/components/units/unit-type-icon';
 import { type PoiResultData } from '@/models/v4/mapping/poiResultData';
 
 interface PoiCardProps {
   poi: PoiResultData;
   poiTypeLabel: string;
   displayName: string;
+  /** The POI type's uploaded icon (see getPoiIconUrl); nothing is drawn when absent. */
+  iconUrl?: string | null;
   isDestinationEnabled: boolean;
   onPress: () => void;
 }
 
-export const PoiCard: React.FC<PoiCardProps> = ({ poi, poiTypeLabel, displayName, isDestinationEnabled, onPress }) => {
+export const PoiCard: React.FC<PoiCardProps> = ({ poi, poiTypeLabel, displayName, iconUrl, isDestinationEnabled, onPress }) => {
   const { t } = useTranslation();
 
   return (
     <Pressable onPress={onPress}>
       <Box className="mb-3 rounded-xl bg-white p-4 shadow-xs dark:bg-gray-800">
         <HStack className="items-start justify-between gap-3">
+          <TypeIcon iconUrl={iconUrl} size={32} testID={`poi-card-type-icon-${poi.PoiId}`} />
           <VStack className="flex-1">
             <Text className="text-base font-semibold text-gray-900 dark:text-white">{displayName}</Text>
 

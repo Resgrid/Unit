@@ -29,6 +29,12 @@ jest.mock('react-native', () => ({
   ActivityIndicator: (props: any) => <div {...props} />,
 }));
 
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
+});
+
 // Mock expo-router
 jest.mock('expo-router', () => ({
   useFocusEffect: jest.fn((callback: () => void) => {

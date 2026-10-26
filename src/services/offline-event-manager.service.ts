@@ -50,6 +50,41 @@ const isUndelivered = (event: QueuedEvent): boolean =>
 
 const isUndeliveredUnitStatusFor = (event: QueuedEvent, unitId: string): boolean => event.type === QueuedEventType.UNIT_STATUS && String(event.data?.unitId) === String(unitId) && isUndelivered(event);
 
+/**
+ * When a queued location fix was taken, or null when its timestamp is missing or unparseable.
+ *
+ * Recency is judged by this and not by `createdAt`: fixes reach the queue out of order — POSTs in
+ * flight together can fail in either order, and a deferred background batch can be older than the
+ * last foreground fix.
+ */
+const getLocationFixTime = (event: QueuedEvent): number | null => {
+  const fixTime = typeof event.data?.timestamp === 'string' ? Date.parse(event.data.timestamp) : Number.NaN;
+  return Number.isFinite(fixTime) ? fixTime : null;
+};
+
+/**
+ * A location replay that a position at least as recent for the same unit was queued beside while it
+ * was in flight: `queueLocationUpdateEvent` leaves a replay in flight alone and adds the new one next to it.
+ */
+const isSupersededLocationUpdate = (event: QueuedEvent): boolean => {
+  if (event.type !== QueuedEventType.LOCATION_UPDATE) {
+    return false;
+  }
+
+  const fixTime = getLocationFixTime(event);
+  return useOfflineQueueStore
+    .getState()
+    .getEventsByType(QueuedEventType.LOCATION_UPDATE)
+    .some((other) => {
+      if (other.id === event.id || other.data?.unitId !== event.data?.unitId || !isUndelivered(other)) {
+        return false;
+      }
+      // A fix with no usable time cannot be shown to be the newer one.
+      const otherFixTime = getLocationFixTime(other);
+      return otherFixTime !== null && (fixTime === null || otherFixTime >= fixTime);
+    });
+};
+
 interface ProcessEventOptions {
   /**
    * The crew is waiting on this delivery (it gates a status they just submitted). A connectivity
@@ -212,9 +247,36 @@ class OfflineEventManager {
   }
 
   /**
-   * Add a location update event to the queue
+   * Add a location update event to the queue, replacing any position still waiting for the same unit.
+   *
+   * Dispatch only needs where the unit is now. Keeping every fix from a dead zone would replay them
+   * all on reconnect — one request per fix, three per 10s tick, minutes of radio time spent moving
+   * the unit's pin back through positions it left long ago. A replay already in flight is left alone;
+   * if it fails, `processEvent` drops it rather than retrying it ahead of this newer one.
+   *
+   * A fix older than one the unit still owes the server, in flight included, is not queued: replayed
+   * after it, it would move the pin back. The id returned is then that newer event's.
    */
-  public queueLocationUpdateEvent(unitId: string, latitude: number, longitude: number, accuracy?: number, heading?: number, speed?: number): string {
+  public queueLocationUpdateEvent(unitId: string, latitude: number, longitude: number, accuracy?: number, heading?: number, speed?: number, fixTimestamp?: number): string {
+    const store = useOfflineQueueStore.getState();
+    // When the fix was taken, not when it was queued: a deferred background batch can be older.
+    const fixTime = fixTimestamp !== undefined && Number.isFinite(fixTimestamp) ? fixTimestamp : Date.now();
+    const queuedForUnit = store.getEventsByType(QueuedEventType.LOCATION_UPDATE).filter((event) => event.data?.unitId === unitId);
+
+    const newer = queuedForUnit.find((event) => {
+      const queuedFixTime = getLocationFixTime(event);
+      return isUndelivered(event) && queuedFixTime !== null && queuedFixTime > fixTime;
+    });
+    if (newer) {
+      logger.debug({
+        message: 'Location fix is older than one already queued for the unit, not queued',
+        context: { unitId, queuedEventId: newer.id },
+      });
+      return newer.id;
+    }
+
+    queuedForUnit.filter((event) => event.status === QueuedEventStatus.PENDING || event.status === QueuedEventStatus.FAILED).forEach((event) => store.removeEvent(event.id));
+
     const data = {
       unitId,
       latitude,
@@ -222,10 +284,10 @@ class OfflineEventManager {
       accuracy,
       heading,
       speed,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date(fixTime).toISOString(),
     };
 
-    return useOfflineQueueStore.getState().addEvent(QueuedEventType.LOCATION_UPDATE, data);
+    return store.addEvent(QueuedEventType.LOCATION_UPDATE, data);
   }
 
   /**
@@ -486,6 +548,18 @@ class OfflineEventManager {
         logger.warn({
           message: 'Queued event could not be delivered ahead of a new submission, left pending',
           context: { eventId: event.id, type: event.type, error: errorMessage },
+        });
+        return;
+      }
+
+      if (isSupersededLocationUpdate(event)) {
+        // Retrying it would replay a position the unit has since left; the newer one queued behind it
+        // says where the unit is now.
+        store.removeEvent(event.id);
+
+        logger.warn({
+          message: 'Superseded location update could not be delivered, dropped for the newer position',
+          context: { eventId: event.id, error: errorMessage },
         });
         return;
       }

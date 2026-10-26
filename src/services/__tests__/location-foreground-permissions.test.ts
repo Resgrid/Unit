@@ -98,6 +98,7 @@ jest.mock('expo-location', () => {
 jest.mock('expo-task-manager', () => ({
   defineTask: jest.fn(),
   isTaskRegisteredAsync: jest.fn(),
+  getTaskOptionsAsync: jest.fn(),
 }));
 
 jest.mock('react-native', () => ({
@@ -126,6 +127,7 @@ import { isNetworkError } from '@/utils/network';
 
 // Import the service after mocks are set up
 let locationService: any;
+let resetLocationTransmission: () => void;
 
 // Mock types
 const mockSetUnitLocation = setUnitLocation as jest.MockedFunction<typeof setUnitLocation>;
@@ -167,13 +169,21 @@ describe('LocationService - Foreground-Only Permissions', () => {
 
   beforeAll(() => {
     // Import the service after all mocks are set up
-    const { locationService: service } = require('../location');
+    const { locationService: service, _resetLocationTransmissionForTests } = require('../location');
     locationService = service;
+    resetLocationTransmission = _resetLocationTransmissionForTests;
+  });
+
+  afterEach(() => {
+    resetLocationTransmission();
   });
 
   beforeEach(() => {
     // Clear all mock call history
     jest.clearAllMocks();
+
+    // Pacing state lives in the module; every test starts with nothing transmitted.
+    resetLocationTransmission();
 
     // Reset mock functions in store states
     mockLocationStoreState.setLocation = jest.fn();
@@ -252,6 +262,7 @@ describe('LocationService - Foreground-Only Permissions', () => {
           timeInterval: 15000,
           distanceInterval: 10,
         },
+        expect.any(Function),
         expect.any(Function)
       );
       
@@ -439,8 +450,8 @@ describe('LocationService - Foreground-Only Permissions', () => {
         'location-updates',
         expect.objectContaining({
           accuracy: Location.Accuracy.Balanced,
-          timeInterval: 15000,
-          distanceInterval: 10,
+          timeInterval: 30000,
+          distanceInterval: 0,
         })
       );
     });
@@ -462,7 +473,8 @@ describe('LocationService - Foreground-Only Permissions', () => {
         mockLocationObject.coords.longitude,
         mockLocationObject.coords.accuracy,
         mockLocationObject.coords.heading,
-        mockLocationObject.coords.speed
+        mockLocationObject.coords.speed,
+        mockLocationObject.timestamp
       );
     });
 

@@ -1,6 +1,8 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 
+import { MAP_ICONS } from '@/constants/map-icons';
+
 import { CallCard } from '../call-card';
 
 jest.mock('react-i18next', () => ({
@@ -16,6 +18,12 @@ jest.mock('@/components/ui/html-renderer', () => {
   return {
     HtmlRenderer: () => <View testID="html-renderer" />,
   };
+});
+
+jest.mock('expo-image', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return { Image: (props: Record<string, unknown>) => React.createElement(View, props) };
 });
 
 const baseCall = {
@@ -101,5 +109,73 @@ describe('CallCard', () => {
     expect(getByText('1 Main St')).toBeTruthy();
 
     unmount();
+  });
+
+  describe('dispatch chips', () => {
+    // The type icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+    const dispatch = (overrides: Record<string, unknown>) => ({ Id: '1', Type: 'Unit', Name: 'Ambulance 1', Group: '', ...overrides }) as never;
+
+    it('shows a unit type icon in place of the U badge', () => {
+      const dispatches = [dispatch({ Id: '7', TypeIconUrl: 'https://cdn.example.test/ambulance.png', TypeMapIcon: 'ambulance' })];
+      const { getByTestId, getByText, queryByText, unmount } = render(<CallCard call={baseCall} priority={priority} dispatches={dispatches} />);
+
+      expect(getByText('Ambulance 1')).toBeTruthy();
+      expect(getByTestId('dispatch-chip-unit-icon-7', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/ambulance.png' });
+      expect(queryByText('U')).toBeNull();
+
+      unmount();
+    });
+
+    it('keeps the U badge for a unit whose type has no icon (older servers)', () => {
+      const { getByText, queryByTestId, unmount } = render(<CallCard call={baseCall} priority={priority} dispatches={[dispatch({ Id: '7' })]} />);
+
+      expect(getByText('U')).toBeTruthy();
+      expect(queryByTestId('dispatch-chip-unit-icon-7', hidden)).toBeNull();
+
+      unmount();
+    });
+
+    it('keeps the letter badge for personnel', () => {
+      const dispatches = [dispatch({ Id: '8', Type: 'Personnel', Name: 'Jane Doe', TypeIconUrl: 'https://cdn.example.test/ignored.png' })];
+      const { getByText, queryByTestId, unmount } = render(<CallCard call={baseCall} priority={priority} dispatches={dispatches} />);
+
+      expect(getByText('P')).toBeTruthy();
+      expect(queryByTestId('dispatch-chip-unit-icon-8', hidden)).toBeNull();
+
+      unmount();
+    });
+  });
+
+  describe('call type icon', () => {
+    // The type icon is decorative (hidden from accessibility services), so queries must opt in to hidden elements.
+    const hidden = { includeHiddenElements: true };
+
+    it('shows the uploaded call type icon in the header', () => {
+      const call = { ...(baseCall as object), TypeIconUrl: 'https://cdn.example.test/fire.png', TypeMapIcon: 'fire' } as never;
+      const { getByTestId, unmount } = render(<CallCard call={call} priority={priority} />);
+
+      expect(getByTestId('call-card-type-icon', hidden).props.source).toEqual({ uri: 'https://cdn.example.test/fire.png' });
+
+      unmount();
+    });
+
+    it('shows the built-in call type icon when the type has no upload', () => {
+      const call = { ...(baseCall as object), TypeIconUrl: null, TypeMapIcon: 'caraccident' } as never;
+      const { getByTestId, unmount } = render(<CallCard call={call} priority={priority} />);
+
+      expect(getByTestId('call-card-type-icon', hidden).props.source).toBe(MAP_ICONS.caraccident.uri);
+
+      unmount();
+    });
+
+    it('keeps the generic alert icon for calls from older servers', () => {
+      const { queryByTestId, getByText, unmount } = render(<CallCard call={baseCall} priority={priority} />);
+
+      expect(queryByTestId('call-card-type-icon', hidden)).toBeNull();
+      expect(getByText('#2024-042')).toBeTruthy();
+
+      unmount();
+    });
   });
 });
