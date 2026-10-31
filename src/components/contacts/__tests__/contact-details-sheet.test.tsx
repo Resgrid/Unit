@@ -1,5 +1,5 @@
 jest.mock('../contact-details-extra', () => ({ ContactDetailsExtra: () => null }));
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import React from 'react';
 
 import { ContactDetailsSheet } from '../contact-details-sheet';
@@ -31,6 +31,26 @@ jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
+}));
+
+// The real Actionsheet renders through a portal that is empty under Jest.
+jest.mock('@/components/ui/actionsheet', () => {
+  const { View } = require('react-native');
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => <View>{children}</View>;
+  return {
+    Actionsheet: ({ children, isOpen }: { children?: React.ReactNode; isOpen?: boolean }) => (isOpen ? <View>{children}</View> : null),
+    ActionsheetBackdrop: () => null,
+    ActionsheetContent: Passthrough,
+    ActionsheetDragIndicator: () => null,
+    ActionsheetDragIndicatorWrapper: Passthrough,
+  };
+});
+
+const mockOpenMapsWithAddress = jest.fn().mockResolvedValue(true);
+const mockOpenMapsWithDirections = jest.fn().mockResolvedValue(true);
+jest.mock('@/lib/navigation', () => ({
+  openMapsWithAddress: (...args: unknown[]) => mockOpenMapsWithAddress(...args),
+  openMapsWithDirections: (...args: unknown[]) => mockOpenMapsWithDirections(...args),
 }));
 
 // Create a minimal mock component for testing
@@ -412,6 +432,54 @@ describe('ContactDetailsSheet', () => {
         hasNotes: false,
         activeTab: 'details',
       });
+    });
+  });
+
+  describe('Address navigation', () => {
+    const mockUseContactsStore = require('@/stores/contacts/store').useContactsStore as jest.Mock;
+
+    beforeEach(() => {
+      const state = {
+        contacts: [mockPersonContact],
+        selectedContactId: 'contact-1',
+        isDetailsOpen: true,
+        closeDetails: jest.fn(),
+      };
+      mockUseContactsStore.mockImplementation((selector?: (s: typeof state) => unknown) => (typeof selector === 'function' ? selector(state) : state));
+    });
+
+    it('routes a GPS coordinate field to the point, not an address search', async () => {
+      const { getByLabelText } = render(<ContactDetailsSheet />);
+
+      fireEvent.press(getByLabelText('contacts.locationCoordinates, 37.7749,-122.4194'));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(37.7749, -122.4194, undefined, undefined, undefined, '37.7749,-122.4194');
+      });
+      expect(mockOpenMapsWithAddress).not.toHaveBeenCalled();
+    });
+
+    it('routes each GPS field to its own coordinates', async () => {
+      const { getByLabelText } = render(<ContactDetailsSheet />);
+
+      fireEvent.press(getByLabelText('contacts.entranceCoordinates, 37.7748,-122.4193'));
+      fireEvent.press(getByLabelText('contacts.exitCoordinates, 37.7750,-122.4195'));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(37.7748, -122.4193, undefined, undefined, undefined, '37.7748,-122.4193');
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(37.775, -122.4195, undefined, undefined, undefined, '37.7750,-122.4195');
+      });
+    });
+
+    it('searches a street address field by the full address', async () => {
+      const { getByLabelText } = render(<ContactDetailsSheet />);
+
+      fireEvent.press(getByLabelText('contacts.address, 123 Main St'));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithAddress).toHaveBeenCalledWith('123 Main St, Anytown, CA, 12345');
+      });
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
     });
   });
 }); 

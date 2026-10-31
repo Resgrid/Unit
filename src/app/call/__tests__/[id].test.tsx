@@ -69,7 +69,7 @@ jest.mock('@/components/ui/hstack', () => ({
 
 // The real component draws a lock icon for a withheld value, from an icon set these mocks do not provide.
 jest.mock('@/components/data-protection/protected-text', () => ({
-  ProtectedText: ({ value, fieldId, redactedFields, children }: any) => {
+  ProtectedText: ({ value, fieldId, redactedFields, children }: { value?: string | null; fieldId: string; redactedFields?: string[] | null; children?: React.ReactNode }) => {
     const { Text } = require('react-native');
     const { isFieldRedacted } = jest.requireActual('@/lib/data-protection/redacted');
     if (isFieldRedacted(redactedFields, fieldId, value)) {
@@ -1435,9 +1435,12 @@ describe('CallDetail', () => {
   });
 
   describe('Route to the call location', () => {
+    type CallDetailState = ReturnType<typeof useCallDetailStore.getState>;
+    type ToastState = ReturnType<typeof useToastStore.getState>;
     const mockShowToast = jest.fn();
 
     const renderWithCall = (call: Record<string, unknown>) => {
+      // Only the fields the screen reads; the rest of the store is never touched by these tests.
       const store = {
         call: { CallId: 'test-call-id', Name: 'Test Call', Number: 'C2024001', Priority: 2, Type: 'Emergency', NotesCount: 0, ImgagesCount: 0, FileCount: 0, ...call },
         callExtraData: null,
@@ -1446,12 +1449,10 @@ describe('CallDetail', () => {
         error: null,
         fetchCallDetail: jest.fn(),
         reset: jest.fn(),
-      };
-      mockUseCallDetailStore.mockImplementation((selector: any) => (selector ? selector(store) : store));
-      mockUseToastStore.mockImplementation((selector: any) => {
-        const toastStore = { showToast: mockShowToast };
-        return selector ? selector(toastStore) : toastStore;
-      });
+      } as unknown as CallDetailState;
+      mockUseCallDetailStore.mockImplementation((selector?: (state: CallDetailState) => unknown) => (selector ? selector(store) : store));
+      const toastStore = { showToast: mockShowToast } as unknown as ToastState;
+      mockUseToastStore.mockImplementation((selector?: (state: ToastState) => unknown) => (selector ? selector(toastStore) : toastStore));
       return render(<CallDetail />);
     };
 

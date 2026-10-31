@@ -24,9 +24,9 @@ import {
   X,
 } from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
-import { htmlToText, withoutRedacted } from '@/lib/contacts/format';
+import { htmlToText, parseCoordinates, withoutRedacted } from '@/lib/contacts/format';
 import { logger } from '@/lib/logging';
-import { openMapsWithAddress } from '@/lib/navigation';
+import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import { ContactType } from '@/models/v4/contacts/contactResultData';
 import { useContactsStore } from '@/stores/contacts/store';
 
@@ -86,6 +86,12 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
 
     if (action === 'address') {
       // The navigation app chosen in Settings; the helper owns the per-platform URLs, fallbacks and failure logging.
+      // A GPS field ("lat,lng") routes to the point: several apps only take coordinates, not an address search.
+      const coordinates = parseCoordinates(value.toString());
+      if (coordinates) {
+        await openMapsWithDirections(coordinates.latitude, coordinates.longitude, undefined, undefined, undefined, value.toString());
+        return;
+      }
       await openMapsWithAddress(fullAddress || value.toString());
       return;
     }
