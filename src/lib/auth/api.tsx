@@ -7,6 +7,7 @@ import { applyClientHeaders } from '@/lib/mfa/client-app';
 import { type MfaChallenge, parseMethods } from '@/lib/mfa/types';
 
 import { getBaseApiUrl } from '../storage/app';
+import { classifyLoginFailure } from './login-errors';
 import type { AuthResponse, LoginCredentials, LoginResponse, SsoLoginCredentials } from './types';
 
 const authApi = axios.create({
@@ -38,6 +39,7 @@ interface OAuthErrorBody {
   mfa_enrolled?: string;
   mfa_preferred?: string;
   mfa_expires_in?: number;
+  login_error?: unknown;
 }
 
 const oauthErrorBody = (error: unknown): OAuthErrorBody => {
@@ -94,8 +96,9 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
 
       return {
         successful: false,
-        message: 'Login failed',
+        message: 'login_failed',
         authResponse: null,
+        failure: { code: 'login_failed' },
       };
     }
   } catch (error) {
@@ -130,13 +133,23 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
       };
     }
 
+    const failure = classifyLoginFailure(error);
+    // The server's login_error is a fixed set of reason codes, never free text.
+    const loginError = typeof body.login_error === 'string' && /^[a-z_]{1,40}$/.test(body.login_error) ? body.login_error : undefined;
     // The sanitizer reduces axios errors to safe summaries (no request bodies).
     // Never include the username here — it is frequently an email address.
     logger.error({
       message: 'Login failed',
-      context: { error },
+      context: { error, loginFailure: failure.code, ...(loginError ? { loginError } : {}) },
     });
-    throw error;
+
+    // Return a failed response instead of throwing; the code carries the reason the login screen explains.
+    return {
+      successful: false,
+      message: failure.code,
+      authResponse: null,
+      failure,
+    };
   }
 };
 

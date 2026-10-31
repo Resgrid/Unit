@@ -73,7 +73,7 @@ jest.mock('@/components/ui/text', () => {
   const { Text } = require('react-native');
 
   return {
-    Text: ({ children, className }: any) => React.createElement(Text, { className }, children),
+    Text: ({ children, className, testID }: any) => React.createElement(Text, { className, testID }, children),
   };
 });
 
@@ -129,13 +129,23 @@ const mockUseAnalytics = jest.fn();
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
-    t: (key: string) => {
+    t: (key: string, options?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'login.errorModal.title': 'Error',
         'login.errorModal.message': 'Login failed',
         'login.errorModal.confirmButton': 'OK',
+        'login.server.us_west': 'US West',
+        'login.errors.invalid_credentials.title': 'Incorrect username or password',
+        'login.errors.invalid_credentials.message': 'Check your username and password.',
+        'login.errors.account_locked_out.title': 'Account temporarily locked',
+        'login.errors.account_locked_out.message': 'Wait {{minutes}} min and try again.',
+        'login.errors.account_locked.title': 'Account locked',
+        'login.errors.account_locked.message': 'Contact your department administrator.',
+        'login.errors.server_unreachable.title': "Can't reach the server",
+        'login.errors.server_unreachable.message': "Couldn't connect to {{server}}.",
       };
-      return translations[key] || key;
+      const text = translations[key] || key;
+      return options ? text.replace(/\{\{(\w+)\}\}/g, (_, name: string) => String(options[name] ?? '')) : text;
     },
   }),
 }));
@@ -279,6 +289,59 @@ describe('Login', () => {
     fireEvent.press(submitButton);
 
     expect(mockLogin).toHaveBeenCalledWith({ username: 'test', password: 'test' });
+  });
+});
+
+describe('a refused password sign-in on the login screen', () => {
+  const { default: useAuthStore } = jest.requireActual('@/stores/auth/store') as typeof import('@/stores/auth/store');
+  const { useServerUrlStore } = jest.requireActual('@/stores/app/server-url-store') as typeof import('@/stores/app/server-url-store');
+  const refusedWith = (error: string) => mockUseAuth.mockReturnValue({ login: jest.fn(), ssoLogin: jest.fn(), status: 'error', error, isAuthenticated: false });
+
+  beforeEach(() => {
+    mockUseAnalytics.mockReturnValue({ trackEvent: jest.fn() });
+    useServerUrlStore.setState({ url: 'https://api.resgrid.com/api/v4' });
+  });
+  afterEach(() => {
+    useAuthStore.setState({ loginFailure: null });
+    useServerUrlStore.setState({ url: '' });
+  });
+
+  it('says why it failed and what to do, in place of the raw code', () => {
+    refusedWith('invalid_credentials');
+    useAuthStore.setState({ loginFailure: { code: 'invalid_credentials' } });
+    render(<Login />);
+
+    expect(screen.getByText('Incorrect username or password')).toBeTruthy();
+    expect(screen.getByTestId('login-error-message')).toHaveTextContent('Check your username and password.');
+    // The form's banner shows the same guidance; the code itself never reaches the screen.
+    expect(screen.getAllByText('Check your username and password.')).toHaveLength(2);
+    expect(screen.queryByText('invalid_credentials')).toBeNull();
+    expect(screen.queryByText('Login failed')).toBeNull();
+  });
+
+  it('tells a temporarily locked account how long to wait', () => {
+    refusedWith('account_locked_out');
+    useAuthStore.setState({ loginFailure: { code: 'account_locked_out', lockoutMinutes: 12 } });
+    render(<Login />);
+
+    expect(screen.getByText('Account temporarily locked')).toBeTruthy();
+    expect(screen.getByTestId('login-error-message')).toHaveTextContent('Wait 12 min and try again.');
+  });
+
+  it('sends a lockout with no end to the administrator', () => {
+    refusedWith('account_locked_out');
+    render(<Login />);
+
+    expect(screen.getByText('Account locked')).toBeTruthy();
+    expect(screen.getByTestId('login-error-message')).toHaveTextContent('Contact your department administrator.');
+  });
+
+  it('names the server it could not reach', () => {
+    refusedWith('server_unreachable');
+    useAuthStore.setState({ loginFailure: { code: 'server_unreachable' } });
+    render(<Login />);
+
+    expect(screen.getByTestId('login-error-message')).toHaveTextContent("Couldn't connect to US West.");
   });
 });
 
