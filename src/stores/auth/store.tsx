@@ -327,6 +327,7 @@ const useAuthStore = create<AuthState>()(
             status: 'signedOut',
             // Why the session ended, when the screen should say (a shared shift that ran out); otherwise nothing.
             error: typeof reason === 'string' ? reason : null,
+            loginFailure: null,
             profile: null,
             // Clearing the user id is what drops the API cache scope; leaving it set keeps this user's
             // cache keys live for whoever signs in next on the same device.

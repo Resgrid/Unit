@@ -195,13 +195,22 @@ describe('auth store: login transaction and shared sessions', () => {
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', error: null });
   });
 
+  it('drops the last failed sign-in on sign-out', async () => {
+    useAuthStore.setState({ loginFailure: { code: 'account_locked_out', lockoutMinutes: 5 } });
+    await useAuthStore.getState().logout();
+    expect(useAuthStore.getState().loginFailure).toBeNull();
+  });
+
   it('never persists the pending challenge, recovery codes or the last login failure', () => {
-    useAuthStore.setState({ mfaChallenge: challenge, pendingRecoveryCodes: ['a-b'], loginFailure: { code: 'account_locked_out', lockoutMinutes: 5 }, accessToken: 'a' });
+    useAuthStore.setState({ mfaChallenge: challenge, pendingRecoveryCodes: ['a-b'], loginFailure: { code: 'account_locked_out', lockoutMinutes: 5 }, accessToken: 'a', status: 'error', error: 'account_locked_out' });
     const persist = (useAuthStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => Record<string, unknown> } } }).persist;
     const saved = persist.getOptions().partialize(useAuthStore.getState());
     expect(saved).not.toHaveProperty('mfaChallenge');
     expect(saved).not.toHaveProperty('pendingRecoveryCodes');
     expect(saved).not.toHaveProperty('loginFailure');
+    // A failed sign-in is not restored either: neither its status nor its error is stored.
+    expect(saved).not.toHaveProperty('status');
+    expect(saved).not.toHaveProperty('error');
     expect(saved.accessToken).toBe('a');
   });
 });

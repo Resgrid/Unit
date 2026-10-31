@@ -7,7 +7,7 @@ import { applyClientHeaders } from '@/lib/mfa/client-app';
 import { type MfaChallenge, parseMethods } from '@/lib/mfa/types';
 
 import { getBaseApiUrl } from '../storage/app';
-import { classifyLoginFailure } from './login-errors';
+import { classifyLoginFailure, isServerLoginReason } from './login-errors';
 import type { AuthResponse, LoginCredentials, LoginResponse, SsoLoginCredentials } from './types';
 
 const authApi = axios.create({
@@ -134,8 +134,8 @@ export const loginRequest = async (credentials: LoginCredentials): Promise<Login
     }
 
     const failure = classifyLoginFailure(error);
-    // The server's login_error is a fixed set of reason codes, never free text.
-    const loginError = typeof body.login_error === 'string' && /^[a-z_]{1,40}$/.test(body.login_error) ? body.login_error : undefined;
+    // Only a login_error the server is known to send; anything else is response text and is never logged.
+    const loginError = isServerLoginReason(body.login_error) ? body.login_error : undefined;
     // The sanitizer reduces axios errors to safe summaries (no request bodies).
     // Never include the username here — it is frequently an email address.
     logger.error({

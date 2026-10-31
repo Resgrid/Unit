@@ -41,11 +41,14 @@ describe('a refused password sign-in', () => {
     expect(await loginRequest({ username: 'user1', password: 'pw' })).toMatchObject({ successful: false, message: 'server_unreachable', failure: { code: 'server_unreachable' } });
   });
 
-  it('never logs a login_error that is not a plain reason code', async () => {
-    mockPost.mockRejectedValue(axiosError(400, { error: 'invalid_grant', login_error: 'user@example.com' }));
+  it('never logs a login_error the server does not send', async () => {
+    for (const unsafe of ['user@example.com', 'mysecretpassword']) {
+      (logger.error as jest.Mock).mockClear();
+      mockPost.mockRejectedValue(axiosError(400, { error: 'invalid_grant', login_error: unsafe }));
 
-    expect(await loginRequest({ username: 'user1', password: 'pw' })).toMatchObject({ failure: { code: 'invalid_credentials' } });
-    expect((logger.error as jest.Mock).mock.calls[0][0].context).not.toHaveProperty('loginError');
+      expect(await loginRequest({ username: 'user1', password: 'pw' })).toMatchObject({ failure: { code: 'invalid_credentials' } });
+      expect((logger.error as jest.Mock).mock.calls[0][0].context).not.toHaveProperty('loginError');
+    }
   });
 
   it('keeps the second-factor challenge apart from a refusal', async () => {
