@@ -3,7 +3,7 @@ import { BuildingIcon, ExternalLinkIcon, MapPinIcon, PhoneIcon, UserIcon } from 
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getStopContact } from '@/api/routes/routes';
 import { Loading } from '@/components/common/loading';
@@ -16,6 +16,7 @@ import { Pressable } from '@/components/ui/pressable';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useDepartmentMapStyle } from '@/lib/map-style';
+import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import type { ContactResultData } from '@/models/v4/contacts/contactResultData';
 
 /**
@@ -29,15 +30,6 @@ const parseGps = (coords?: string): { lat: number; lon: number } | null => {
   const lon = parseFloat(parts[1].trim());
   if (isNaN(lat) || isNaN(lon)) return null;
   return { lat, lon };
-};
-
-const openInMaps = (lat: number, lon: number, label: string) => {
-  const url = Platform.select({
-    ios: `maps://app?daddr=${lat},${lon}&q=${encodeURIComponent(label)}`,
-    android: `google.navigation:q=${lat},${lon}`,
-    default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
-  });
-  if (url) Linking.openURL(url);
 };
 
 const callPhone = (number: string) => {
@@ -131,11 +123,14 @@ export default function StopContactScreen() {
   }, [contact]);
 
   const handleAddressPress = useCallback(() => {
+    // Opens the navigation app chosen in Settings; a failure is logged by the helper.
     const coords = locationGps ?? entranceGps ?? exitGps;
     if (coords) {
-      openInMaps(coords.lat, coords.lon, displayName);
+      void openMapsWithDirections(coords.lat, coords.lon, displayName, undefined, undefined, fullAddress);
+    } else if (fullAddress) {
+      void openMapsWithAddress(fullAddress);
     }
-  }, [locationGps, entranceGps, exitGps, displayName]);
+  }, [locationGps, entranceGps, exitGps, displayName, fullAddress]);
 
   if (isLoading) {
     return (

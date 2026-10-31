@@ -12,6 +12,7 @@ import { KeepAliveItem } from '@/components/settings/keep-alive-item';
 import { LanguageItem } from '@/components/settings/language-item';
 import { LoginInfoBottomSheet } from '@/components/settings/login-info-bottom-sheet';
 import { ModernNotificationSoundsItem } from '@/components/settings/modern-notification-sounds-item';
+import { NavigationAppItem } from '@/components/settings/navigation-app-item';
 import { RealtimeGeolocationItem } from '@/components/settings/realtime-geolocation-item';
 import { ServerUrlBottomSheet } from '@/components/settings/server-url-bottom-sheet';
 import { ThemeItem } from '@/components/settings/theme-item';
@@ -152,6 +153,7 @@ export default function Settings() {
             <VStack space="sm">
               <ThemeItem />
               <LanguageItem />
+              <NavigationAppItem />
               <KeepAliveItem />
               <ModernNotificationSoundsItem />
               <RealtimeGeolocationItem />
