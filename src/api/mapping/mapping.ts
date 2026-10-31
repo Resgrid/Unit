@@ -26,10 +26,6 @@ const getMayLayersApi = createApiEndpoint('/Mapping/GetMayLayers');
 const getMapDataAndMarkersApi = createApiEndpoint('/Mapping/GetMapDataAndMarkers');
 // Not cached: the legend follows the department's types, statuses, priorities and uploads, so every open asks again.
 const getMapIconLegendApi = createApiEndpoint('/Mapping/GetMapIconLegend');
-const getPoiApi = createCachedApiEndpoint('/Mapping/GetPoi', {
-  ttl: 5 * 60 * 1000,
-  enabled: true,
-});
 const getPoisApi = createCachedApiEndpoint('/Mapping/GetPois', {
   ttl: 5 * 60 * 1000,
   enabled: true,
@@ -44,9 +40,6 @@ const getIndoorMapsApi = createCachedApiEndpoint('/Mapping/GetIndoorMaps', {
   ttl: 5 * 60 * 1000,
   enabled: true,
 });
-const getIndoorMapApi = createApiEndpoint('/Mapping/GetIndoorMap');
-const getIndoorMapFloorApi = createApiEndpoint('/Mapping/GetIndoorMapFloor');
-const getIndoorMapZonesGeoJSONApi = createApiEndpoint('/Mapping/GetIndoorMapZonesGeoJSON');
 const searchIndoorLocationsApi = createApiEndpoint('/Mapping/SearchIndoorLocations');
 const getNearbyIndoorMapsApi = createApiEndpoint('/Mapping/GetNearbyIndoorMaps');
 
@@ -55,11 +48,19 @@ const getCustomMapsApi = createCachedApiEndpoint('/Mapping/GetCustomMaps', {
   ttl: 5 * 60 * 1000,
   enabled: true,
 });
-const getCustomMapApi = createApiEndpoint('/Mapping/GetCustomMap');
-const getCustomMapLayerApi = createApiEndpoint('/Mapping/GetCustomMapLayer');
-const getMapLayerGeoJSONApi = createApiEndpoint('/Mapping/GetMapLayerGeoJSON');
-const getCustomMapRegionsGeoJSONApi = createApiEndpoint('/Mapping/GetCustomMapRegionsGeoJSON');
 const searchCustomMapRegionsApi = createApiEndpoint('/Mapping/SearchCustomMapRegions');
+
+/**
+ * The GeoJSON endpoints return a raw `application/geo+json` FeatureCollection body
+ * (not the standard v4 `{ Data: ... }` envelope). Accept either shape.
+ */
+const unwrapGeoJSON = (body: unknown): FeatureCollection => {
+  const asAny = body as { type?: string; Data?: FeatureCollection };
+  if (asAny?.type === 'FeatureCollection') {
+    return body as FeatureCollection;
+  }
+  return asAny?.Data ?? { type: 'FeatureCollection', features: [] };
+};
 
 // Discovery endpoints
 const getAllActiveLayersApi = createCachedApiEndpoint('/Mapping/GetAllActiveLayers', {
@@ -99,10 +100,9 @@ export const getPois = async (poiTypeId?: number, destinationOnly?: boolean) => 
   return response.data;
 };
 
+// The id-scoped endpoints below are path routes on the server (`/{id}`), so each call builds its own endpoint.
 export const getPoi = async (poiId: number | string) => {
-  const response = await getPoiApi.get<PoiResult>({
-    poiId: encodeURIComponent(String(poiId)),
-  });
+  const response = await createCachedApiEndpoint(`/Mapping/GetPoi/${encodeURIComponent(String(poiId))}`, { ttl: 5 * 60 * 1000, enabled: true }).get<PoiResult>();
   return response.data;
 };
 
@@ -124,24 +124,18 @@ export const getIndoorMaps = async () => {
 };
 
 export const getIndoorMap = async (mapId: string) => {
-  const response = await getIndoorMapApi.get<GetIndoorMapResult>({
-    id: encodeURIComponent(mapId),
-  });
+  const response = await createApiEndpoint(`/Mapping/GetIndoorMap/${encodeURIComponent(mapId)}`).get<GetIndoorMapResult>();
   return response.data;
 };
 
 export const getIndoorMapFloor = async (floorId: string) => {
-  const response = await getIndoorMapFloorApi.get<GetIndoorMapFloorResult>({
-    floorId: encodeURIComponent(floorId),
-  });
+  const response = await createApiEndpoint(`/Mapping/GetIndoorMapFloor/${encodeURIComponent(floorId)}`).get<GetIndoorMapFloorResult>();
   return response.data;
 };
 
-export const getIndoorMapZonesGeoJSON = async (floorId: string) => {
-  const response = await getIndoorMapZonesGeoJSONApi.get<GetGeoJSONResult>({
-    floorId: encodeURIComponent(floorId),
-  });
-  return response.data;
+export const getIndoorMapZonesGeoJSON = async (floorId: string): Promise<GetGeoJSONResult> => {
+  const response = await createApiEndpoint(`/Mapping/GetIndoorMapZonesGeoJSON/${encodeURIComponent(floorId)}`).get<unknown>();
+  return { Data: unwrapGeoJSON(response.data) } as GetGeoJSONResult;
 };
 
 export const searchIndoorLocations = async (term: string, mapId?: string) => {
@@ -174,31 +168,23 @@ export const getCustomMaps = async (type?: number) => {
 };
 
 export const getCustomMap = async (mapId: string) => {
-  const response = await getCustomMapApi.get<GetCustomMapResult>({
-    id: encodeURIComponent(mapId),
-  });
+  const response = await createApiEndpoint(`/Mapping/GetCustomMap/${encodeURIComponent(mapId)}`).get<GetCustomMapResult>();
   return response.data;
 };
 
 export const getCustomMapLayer = async (layerId: string) => {
-  const response = await getCustomMapLayerApi.get<GetCustomMapLayerResult>({
-    layerId: encodeURIComponent(layerId),
-  });
+  const response = await createApiEndpoint(`/Mapping/GetCustomMapLayer/${encodeURIComponent(layerId)}`).get<GetCustomMapLayerResult>();
   return response.data;
 };
 
-export const getMapLayerGeoJSON = async (layerId: string) => {
-  const response = await getMapLayerGeoJSONApi.get<GetGeoJSONResult>({
-    layerId: encodeURIComponent(layerId),
-  });
-  return response.data;
+export const getMapLayerGeoJSON = async (layerId: string): Promise<GetGeoJSONResult> => {
+  const response = await createApiEndpoint(`/Mapping/GetMapLayerGeoJSON/${encodeURIComponent(layerId)}`).get<unknown>();
+  return { Data: unwrapGeoJSON(response.data) } as GetGeoJSONResult;
 };
 
-export const getCustomMapRegionsGeoJSON = async (layerId: string) => {
-  const response = await getCustomMapRegionsGeoJSONApi.get<GetGeoJSONResult>({
-    layerId: encodeURIComponent(layerId),
-  });
-  return response.data;
+export const getCustomMapRegionsGeoJSON = async (layerId: string): Promise<GetGeoJSONResult> => {
+  const response = await createApiEndpoint(`/Mapping/GetCustomMapRegionsGeoJSON/${encodeURIComponent(layerId)}`).get<unknown>();
+  return { Data: unwrapGeoJSON(response.data) } as GetGeoJSONResult;
 };
 
 export const searchCustomMapRegions = async (term: string, layerId?: string) => {
