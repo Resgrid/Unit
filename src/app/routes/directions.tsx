@@ -3,7 +3,7 @@ import { AlertTriangleIcon, CheckCircleIcon, ClockIcon, ExternalLinkIcon, FlagIc
 import { useColorScheme } from 'nativewind';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Linking, Platform, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text as RNText, View } from 'react-native';
 
 import { Loading } from '@/components/common/loading';
 import { Camera, LineLayer, MapView, PointAnnotation, ShapeSource, UserLocation } from '@/components/maps/mapbox';
@@ -14,6 +14,7 @@ import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
 import { useDepartmentMapStyle } from '@/lib/map-style';
 import { getMapboxAccessToken } from '@/lib/mapbox-token';
+import { openMapsWithDirections } from '@/lib/navigation';
 import { RouteStopStatus } from '@/models/v4/routes/routeInstanceStopResultData';
 import { useRoutesStore } from '@/stores/routes/store';
 
@@ -67,15 +68,6 @@ interface CongestionSegment {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const openInMaps = (lat: number, lon: number, label: string) => {
-  const url = Platform.select({
-    ios: `maps://app?daddr=${lat},${lon}&q=${encodeURIComponent(label)}`,
-    android: `google.navigation:q=${lat},${lon}`,
-    default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}`,
-  });
-  if (url) Linking.openURL(url);
-};
 
 const formatDistance = (meters: number | null | undefined): string => {
   if (meters == null) return '';
@@ -571,8 +563,9 @@ export default function RouteDirectionsScreen() {
   // Destination for "Open in Maps"
   const destination = useMemo(() => {
     const last = sortedStops[sortedStops.length - 1];
-    if (last?.Latitude != null && last?.Longitude != null) {
-      return { lat: last.Latitude, lon: last.Longitude, name: last.Name };
+    // Coordinates when the stop has them, else its address (the navigation helper picks whichever is usable).
+    if ((last?.Latitude != null && last?.Longitude != null) || last?.Address?.trim()) {
+      return { lat: last.Latitude, lon: last.Longitude, name: last.Name, address: last.Address };
     }
     return null;
   }, [sortedStops]);
@@ -607,7 +600,8 @@ export default function RouteDirectionsScreen() {
 
   const handleOpenInMaps = useCallback(() => {
     if (destination) {
-      openInMaps(destination.lat, destination.lon, destination.name ?? t('routes.destination'));
+      // Opens the navigation app chosen in Settings; a failure is logged by the helper.
+      void openMapsWithDirections(destination.lat, destination.lon, destination.name || t('routes.destination'), undefined, undefined, destination.address);
     }
   }, [destination, t]);
 

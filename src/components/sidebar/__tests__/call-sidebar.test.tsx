@@ -519,8 +519,25 @@ describe('SidebarCallCard', () => {
 
       fireEvent.press(screen.getByTestId('map-pin-icon'));
 
-      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(mockCall.Latitude, mockCall.Longitude, mockCall.Address);
+      // The address doubles as the fallback for coordinates the helper finds unusable (the (0,0) sentinel).
+      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(mockCall.Latitude, mockCall.Longitude, mockCall.Address, undefined, undefined, mockCall.Address);
       expect(mockOpenMapsWithAddress).not.toHaveBeenCalled();
+    });
+
+    it('should keep a withheld address out of the navigation hand-off', async () => {
+      const callWithWithheldAddress = { ...mockCall, Address: 'REDACTED', RedactedFields: ['calls.address'] };
+
+      mockUseCoreStore.mockImplementation((selector: any) =>
+        typeof selector === 'function'
+          ? selector({ activeCall: callWithWithheldAddress, activePriority: mockPriority, setActiveCall: mockSetActiveCall })
+          : { activeCall: callWithWithheldAddress, activePriority: mockPriority, setActiveCall: mockSetActiveCall }
+      );
+
+      render(<SidebarCallCard />);
+
+      fireEvent.press(screen.getByTestId('map-pin-icon'));
+
+      expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(mockCall.Latitude, mockCall.Longitude, '', undefined, undefined, '');
     });
 
     it('should open maps with address when map pin button is pressed with address only', async () => {

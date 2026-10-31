@@ -9,6 +9,7 @@ import { Alert, Platform, Pressable, ScrollView } from 'react-native';
 import { CustomBottomSheet } from '@/components/ui/bottom-sheet';
 import { Text } from '@/components/ui/text';
 import { VStack } from '@/components/ui/vstack';
+import { isFieldRedacted, ProtectedFieldIds } from '@/lib/data-protection/redacted';
 import { logger } from '@/lib/logging';
 import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import { useCoreStore } from '@/stores/app/core-store';
@@ -104,12 +105,14 @@ export const SidebarCallCard = () => {
 
     const latitude = activeCall.Latitude;
     const longitude = activeCall.Longitude;
-    const address = activeCall.Address;
+    // A withheld address must not leave the app in a navigation URL.
+    const address = isFieldRedacted(activeCall.RedactedFields, ProtectedFieldIds.callAddress, activeCall.Address) ? '' : activeCall.Address;
 
     // Check if we have coordinates
     if (latitude && longitude) {
       try {
-        const opened = await openMapsWithDirections(latitude, longitude, address);
+        // The address is the fallback when the coordinates turn out unusable (e.g. the (0,0) sentinel).
+        const opened = await openMapsWithDirections(latitude, longitude, address, undefined, undefined, address);
         if (!opened) {
           showLocationAlert();
         }

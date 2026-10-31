@@ -58,7 +58,7 @@ export default function PoiDetailScreen() {
       return;
     }
 
-    const success = await openMapsWithDirections(poi.Latitude, poi.Longitude, getPoiSelectionLabel(poi, poiTypesById), userLatitude || undefined, userLongitude || undefined);
+    const success = await openMapsWithDirections(poi.Latitude, poi.Longitude, getPoiSelectionLabel(poi, poiTypesById), userLatitude || undefined, userLongitude || undefined, poi.Address);
     if (!success) {
       showToast('error', t('routes.failed_to_open_poi_maps'));
     }

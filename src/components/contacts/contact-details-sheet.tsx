@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linking, Platform, ScrollView, useWindowDimensions, View } from 'react-native';
+import { Linking, ScrollView, useWindowDimensions, View } from 'react-native';
 
 import { LocationHistoryPanel } from '@/components/calls/location-history-panel';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
@@ -24,8 +24,9 @@ import {
   X,
 } from '@/components/ui/lucide-icons';
 import { useAnalytics } from '@/hooks/use-analytics';
-import { htmlToText, withoutRedacted } from '@/lib/contacts/format';
+import { htmlToText, parseCoordinates, withoutRedacted } from '@/lib/contacts/format';
 import { logger } from '@/lib/logging';
+import { openMapsWithAddress, openMapsWithDirections } from '@/lib/navigation';
 import { ContactType } from '@/models/v4/contacts/contactResultData';
 import { useContactsStore } from '@/stores/contacts/store';
 
@@ -83,8 +84,19 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
   const handlePress = useCallback(async () => {
     if (action === 'none' || !value) return;
 
+    if (action === 'address') {
+      // The navigation app chosen in Settings; the helper owns the per-platform URLs, fallbacks and failure logging.
+      // A GPS field ("lat,lng") routes to the point: several apps only take coordinates, not an address search.
+      const coordinates = parseCoordinates(value.toString());
+      if (coordinates) {
+        await openMapsWithDirections(coordinates.latitude, coordinates.longitude, undefined, undefined, undefined, value.toString());
+        return;
+      }
+      await openMapsWithAddress(fullAddress || value.toString());
+      return;
+    }
+
     let url: string | null = null;
-    let webFallbackUrl: string | null = null;
 
     switch (action) {
       case 'email':
@@ -93,17 +105,6 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
       case 'phone':
         url = `tel:${value.toString().replace(/[^0-9+]/g, '')}`;
         break;
-      case 'address': {
-        const addressToOpen = fullAddress || value.toString();
-        const encodedAddress = encodeURIComponent(addressToOpen);
-        webFallbackUrl = `https://maps.google.com/?q=${encodedAddress}`;
-        url = Platform.select({
-          ios: `maps:0,0?q=${encodedAddress}`,
-          android: `geo:0,0?q=${encodedAddress}`,
-          default: webFallbackUrl,
-        });
-        break;
-      }
       case 'website': {
         const websiteUrl = value.toString();
         url = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`;
@@ -116,9 +117,6 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
         const canOpen = await Linking.canOpenURL(url);
         if (canOpen) {
           await Linking.openURL(url);
-        } else if (action === 'address' && webFallbackUrl) {
-          // Fallback to Google Maps web URL for address action
-          await Linking.openURL(webFallbackUrl);
         } else {
           logger.warn({
             message: 'Cannot open URL',
@@ -130,18 +128,6 @@ const ContactField: React.FC<ContactFieldProps> = ({ label, value, icon, isLink,
           message: 'Failed to open URL from contact details',
           context: { error, url, action },
         });
-
-        // For address action, attempt web fallback on error
-        if (action === 'address' && webFallbackUrl) {
-          try {
-            await Linking.openURL(webFallbackUrl);
-          } catch (fallbackError) {
-            logger.error({
-              message: 'Failed to open fallback Google Maps URL',
-              context: { error: fallbackError, webFallbackUrl },
-            });
-          }
-        }
       }
     }
   }, [action, value, fullAddress]);

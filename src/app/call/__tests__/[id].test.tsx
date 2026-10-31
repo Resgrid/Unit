@@ -67,6 +67,18 @@ jest.mock('@/components/ui/hstack', () => ({
   HStack: jest.fn().mockImplementation(({ children }) => children),
 }));
 
+// The real component draws a lock icon for a withheld value, from an icon set these mocks do not provide.
+jest.mock('@/components/data-protection/protected-text', () => ({
+  ProtectedText: ({ value, fieldId, redactedFields, children }: { value?: string | null; fieldId: string; redactedFields?: string[] | null; children?: React.ReactNode }) => {
+    const { Text } = require('react-native');
+    const { isFieldRedacted } = jest.requireActual('@/lib/data-protection/redacted');
+    if (isFieldRedacted(redactedFields, fieldId, value)) {
+      return <Text>data_protection.withheld</Text>;
+    }
+    return children ?? <Text>{value}</Text>;
+  },
+}));
+
 // Key of the tab the SharedTabs mock renders; undefined renders the first tab.
 let mockSelectedTabKey: string | undefined;
 
@@ -1419,6 +1431,79 @@ describe('CallDetail', () => {
         // using the current user location (40.7128, -74.0060) as the origin.
         expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(41.5, -73.5, 'Central Hospital', 40.7128, -74.006);
       });
+    });
+  });
+
+  describe('Route to the call location', () => {
+    type CallDetailState = ReturnType<typeof useCallDetailStore.getState>;
+    type ToastState = ReturnType<typeof useToastStore.getState>;
+    const mockShowToast = jest.fn();
+
+    const renderWithCall = (call: Record<string, unknown>) => {
+      // Only the fields the screen reads; the rest of the store is never touched by these tests.
+      const store = {
+        call: { CallId: 'test-call-id', Name: 'Test Call', Number: 'C2024001', Priority: 2, Type: 'Emergency', NotesCount: 0, ImgagesCount: 0, FileCount: 0, ...call },
+        callExtraData: null,
+        callPriority: null,
+        isLoading: false,
+        error: null,
+        fetchCallDetail: jest.fn(),
+        reset: jest.fn(),
+      } as unknown as CallDetailState;
+      mockUseCallDetailStore.mockImplementation((selector?: (state: CallDetailState) => unknown) => (selector ? selector(store) : store));
+      const toastStore = { showToast: mockShowToast } as unknown as ToastState;
+      mockUseToastStore.mockImplementation((selector?: (state: ToastState) => unknown) => (selector ? selector(toastStore) : toastStore));
+      return render(<CallDetail />);
+    };
+
+    beforeEach(() => {
+      mockShowToast.mockClear();
+    });
+
+    it('routes to the call coordinates with the address as label and fallback', async () => {
+      const { getByTestId } = renderWithCall({ Address: '123 Main St', Latitude: '40.7128', Longitude: '-74.0060' });
+
+      // The Button mock derives its testID from the label: 'button-' + ' common.route'.
+      fireEvent.press(await waitFor(() => getByTestId('button--common.route')));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(40.7128, -74.006, '123 Main St', 40.7128, -74.006, '123 Main St');
+      });
+    });
+
+    it('routes by address when the call has no coordinates', async () => {
+      const { getByTestId } = renderWithCall({ Address: 'Grand-Place 1, 1000 Bruxelles', Latitude: '', Longitude: '' });
+
+      // The Button mock derives its testID from the label: 'button-' + ' common.route'.
+      fireEvent.press(await waitFor(() => getByTestId('button--common.route')));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(null, null, 'Grand-Place 1, 1000 Bruxelles', 40.7128, -74.006, 'Grand-Place 1, 1000 Bruxelles');
+      });
+      expect(mockShowToast).not.toHaveBeenCalledWith('error', 'call_detail.no_location_for_routing');
+    });
+
+    it('keeps a withheld address out of the navigation hand-off', async () => {
+      const { getByTestId } = renderWithCall({ Address: 'REDACTED', RedactedFields: ['calls.address'], Latitude: '40.7128', Longitude: '-74.0060' });
+
+      // The Button mock derives its testID from the label: 'button-' + ' common.route'.
+      fireEvent.press(await waitFor(() => getByTestId('button--common.route')));
+
+      await waitFor(() => {
+        expect(mockOpenMapsWithDirections).toHaveBeenCalledWith(40.7128, -74.006, 'call_detail.call_location', 40.7128, -74.006, '');
+      });
+    });
+
+    it('reports no location when there are neither coordinates nor a usable address', async () => {
+      const { getByTestId } = renderWithCall({ Address: 'REDACTED', RedactedFields: ['calls.address'], Latitude: '', Longitude: '' });
+
+      // The Button mock derives its testID from the label: 'button-' + ' common.route'.
+      fireEvent.press(await waitFor(() => getByTestId('button--common.route')));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'call_detail.no_location_for_routing');
+      });
+      expect(mockOpenMapsWithDirections).not.toHaveBeenCalled();
     });
   });
 
