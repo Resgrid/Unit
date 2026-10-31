@@ -8,6 +8,7 @@ import { Image, Keyboard } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import * as z from 'zod';
 
+import { LoginServerBadge } from '@/components/auth/login-server-badge';
 import { View } from '@/components/ui';
 import { Button, ButtonSpinner, ButtonText } from '@/components/ui/button';
 import { FormControl, FormControlError, FormControlErrorIcon, FormControlErrorText, FormControlLabel, FormControlLabelText } from '@/components/ui/form-control';
@@ -98,7 +99,10 @@ export const LoginForm = ({ onSubmit = () => {}, isLoading = false, error = unde
         <View className="items-center justify-center">
           <Image style={{ width: '96%' }} source={colorScheme === 'dark' ? require('@assets/images/Resgrid_JustText_White.png') : require('@assets/images/Resgrid_JustText.png')} resizeMode="contain" />
           <Text className="pb-6 text-center text-4xl font-bold">{t('login.title')}</Text>
-          <Text className="mb-6 max-w-xl text-center text-gray-500">{t('login.subtitle')}</Text>
+          <Text className="mb-4 max-w-xl text-center text-gray-500">{t('login.subtitle')}</Text>
+        </View>
+        <View className="mb-6">
+          <LoginServerBadge onPress={onServerUrlPress} />
         </View>
 
         {/* Username */}

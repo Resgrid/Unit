@@ -54,6 +54,7 @@ jest.mock('lucide-react-native', () => {
     EyeIcon: makeIcon('eye-icon'),
     EyeOffIcon: makeIcon('eye-off-icon'),
     Globe: makeIcon('globe-icon'),
+    Server: makeIcon('server-icon'),
     ShieldCheck: makeIcon('shield-check-icon'),
   };
 });
@@ -452,6 +453,18 @@ describe('LoginForm', () => {
       expect(onServerUrlPress).toHaveBeenCalledTimes(1);
 
       second.unmount();
+    });
+
+    it('names the server being signed in to, and opens the server selector from that label', () => {
+      const onServerUrlPress = jest.fn();
+      const { unmount } = render(<LoginForm onServerUrlPress={onServerUrlPress} />);
+
+      const badge = screen.getByTestId('login-server-badge');
+      expect(badge.props.accessibilityLabel).toBe('login.server.signing_in_to');
+      fireEvent.press(badge);
+      expect(onServerUrlPress).toHaveBeenCalledTimes(1);
+
+      unmount();
     });
 
     it('renders and wires the SSO button only when a handler is supplied', () => {

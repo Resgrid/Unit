@@ -8,6 +8,7 @@ import { logger } from '@/lib/logging';
 
 import { loginRequest, ssoExternalTokenRequest } from '../../lib/auth/api';
 import { decodeJwtPayload, getJwtExpiryMs } from '../../lib/auth/jwt';
+import { isLoginErrorCode } from '../../lib/auth/login-errors';
 import { refreshTokenSingleFlight } from '../../lib/auth/refresh-lock';
 import { runSessionCleanup } from '../../lib/auth/session-cleanup';
 import { runSignOutHooks } from '../../lib/auth/sign-out-hooks';
@@ -94,6 +95,7 @@ const useAuthStore = create<AuthState>()(
       refreshTokenExpiresOn: null,
       status: 'idle',
       error: null,
+      loginFailure: null,
       profile: null,
       userId: null,
       isFirstTime: true,
@@ -103,7 +105,8 @@ const useAuthStore = create<AuthState>()(
       pendingRecoveryCodes: null,
       login: async (credentials: LoginCredentials) => {
         try {
-          set({ status: 'loading' });
+          // A previous password failure's reason goes with it; an MFA code (invalid_totp) stays until the retry answers.
+          set({ status: 'loading', loginFailure: null, ...(isLoginErrorCode(get().error) ? { error: null } : {}) });
           const response = await loginRequest(credentials);
 
           if (response.successful) {
@@ -169,15 +172,23 @@ const useAuthStore = create<AuthState>()(
               mfaChallenge: { kind: 'legacy', methods: ['totp'], enrolled: ['totp'], preferred: 'totp', expiresAt: null, source: 'password' },
             });
           } else {
+            const failure = response.failure ?? { code: 'login_failed' };
             set({
               status: 'error',
-              error: response.message,
+              error: failure.code,
+              loginFailure: failure,
             });
           }
         } catch (error) {
+          // An unreadable token response is the server's fault, not the member's; the detail stays in the log.
+          logger.error({
+            message: 'Login: Exception caught',
+            context: { error: error instanceof Error ? error.message : String(error) },
+          });
           set({
             status: 'error',
-            error: error instanceof Error ? error.message : 'Login failed',
+            error: 'login_failed',
+            loginFailure: { code: 'login_failed' },
           });
         }
       },
@@ -316,6 +327,7 @@ const useAuthStore = create<AuthState>()(
             status: 'signedOut',
             // Why the session ended, when the screen should say (a shared shift that ran out); otherwise nothing.
             error: typeof reason === 'string' ? reason : null,
+            loginFailure: null,
             profile: null,
             // Clearing the user id is what drops the API cache scope; leaving it set keeps this user's
             // cache keys live for whoever signs in next on the same device.

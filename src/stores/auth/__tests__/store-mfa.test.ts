@@ -59,7 +59,18 @@ describe('auth store: login transaction and shared sessions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     resetInFlightRefresh();
-    useAuthStore.setState({ accessToken: null, refreshToken: null, status: 'signedOut', error: null, profile: null, userId: null, refreshTimeoutId: null, mfaChallenge: null, pendingRecoveryCodes: null });
+    useAuthStore.setState({
+      accessToken: null,
+      refreshToken: null,
+      status: 'signedOut',
+      error: null,
+      loginFailure: null,
+      profile: null,
+      userId: null,
+      refreshTimeoutId: null,
+      mfaChallenge: null,
+      pendingRecoveryCodes: null,
+    });
     useSharedSessionStore.setState({ shared: false, locked: false, lockVersion: null });
   });
 
@@ -99,6 +110,40 @@ describe('auth store: login transaction and shared sessions', () => {
     mockLoginRequest.mockResolvedValue({ successful: false, message: 'mfa_enrollment_required', authResponse: null, enrollmentRequired: true });
     await useAuthStore.getState().login({ username: 'pat', password: 'pw' });
     expect(useAuthStore.getState()).toMatchObject({ status: 'error', error: 'mfa_enrollment_required' });
+  });
+
+  it('reports a refused password sign-in by its reason, keeping the minutes left on a lockout', async () => {
+    const failure = { code: 'account_locked_out' as const, lockoutMinutes: 12 };
+    mockLoginRequest.mockResolvedValue({ successful: false, message: 'account_locked_out', authResponse: null, failure });
+
+    await useAuthStore.getState().login({ username: 'pat', password: 'pw' });
+
+    expect(useAuthStore.getState()).toMatchObject({ status: 'error', error: 'account_locked_out', loginFailure: failure });
+  });
+
+  it('reports an unreadable sign-in as a general failure rather than its exception text', async () => {
+    mockLoginRequest.mockRejectedValue(new Error('Unexpected token < in JSON'));
+
+    await useAuthStore.getState().login({ username: 'pat', password: 'pw' });
+
+    expect(useAuthStore.getState()).toMatchObject({ status: 'error', error: 'login_failed', loginFailure: { code: 'login_failed' } });
+  });
+
+  it('drops the last password failure when a sign-in starts, but keeps a rejected authenticator code until the retry answers', async () => {
+    let answer: (value: unknown) => void = () => undefined;
+    mockLoginRequest.mockImplementation(() => new Promise((resolve) => (answer = resolve)));
+
+    useAuthStore.setState({ status: 'error', error: 'invalid_credentials', loginFailure: { code: 'invalid_credentials' } });
+    const retry = useAuthStore.getState().login({ username: 'pat', password: 'pw' });
+    expect(useAuthStore.getState()).toMatchObject({ status: 'loading', error: null, loginFailure: null });
+    answer({ successful: false, message: '', authResponse: null, mfaRequired: true, invalidOtp: true });
+    await retry;
+
+    expect(useAuthStore.getState()).toMatchObject({ status: 'mfaRequired', error: 'invalid_totp' });
+    const withCode = useAuthStore.getState().login({ username: 'pat', password: 'pw', otpCode: '123456' });
+    expect(useAuthStore.getState()).toMatchObject({ status: 'loading', error: 'invalid_totp' });
+    answer({ successful: false, message: '', authResponse: null, mfaRequired: true, invalidOtp: true });
+    await withCode;
   });
 
   it('keeps the tokens when a refresh is refused because the shared session is locked', async () => {
@@ -150,12 +195,22 @@ describe('auth store: login transaction and shared sessions', () => {
     expect(useAuthStore.getState()).toMatchObject({ status: 'signedOut', error: null });
   });
 
-  it('never persists the pending challenge or recovery codes', () => {
-    useAuthStore.setState({ mfaChallenge: challenge, pendingRecoveryCodes: ['a-b'], accessToken: 'a' });
+  it('drops the last failed sign-in on sign-out', async () => {
+    useAuthStore.setState({ loginFailure: { code: 'account_locked_out', lockoutMinutes: 5 } });
+    await useAuthStore.getState().logout();
+    expect(useAuthStore.getState().loginFailure).toBeNull();
+  });
+
+  it('never persists the pending challenge, recovery codes or the last login failure', () => {
+    useAuthStore.setState({ mfaChallenge: challenge, pendingRecoveryCodes: ['a-b'], loginFailure: { code: 'account_locked_out', lockoutMinutes: 5 }, accessToken: 'a', status: 'error', error: 'account_locked_out' });
     const persist = (useAuthStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => Record<string, unknown> } } }).persist;
     const saved = persist.getOptions().partialize(useAuthStore.getState());
     expect(saved).not.toHaveProperty('mfaChallenge');
     expect(saved).not.toHaveProperty('pendingRecoveryCodes');
+    expect(saved).not.toHaveProperty('loginFailure');
+    // A failed sign-in is not restored either: neither its status nor its error is stored.
+    expect(saved).not.toHaveProperty('status');
+    expect(saved).not.toHaveProperty('error');
     expect(saved.accessToken).toBe('a');
   });
 });
