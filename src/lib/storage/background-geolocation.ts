@@ -1,12 +1,9 @@
-import { Platform } from 'react-native';
-import { MMKV } from 'react-native-mmkv';
-
 import { logger } from '../logging';
+// Use the app's single MMKV instance. Opening the 'ResgridUnit' id a second time with a different
+// encryption key risks the whole store being opened (and encrypted) with the wrong key.
+import { storage } from './index';
 
 const BACKGROUND_GEOLOCATION_ENABLED = 'BACKGROUND_GEOLOCATION_ENABLED';
-
-// Create storage instance to avoid circular dependency
-const storage = Platform.OS === 'web' ? new MMKV({ id: 'ResgridUnit' }) : new MMKV({ id: 'ResgridUnit', encryptionKey: 'hunter2' });
 
 /**
  * Load background geolocation state from MMKV storage

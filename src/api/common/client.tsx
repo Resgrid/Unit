@@ -152,7 +152,7 @@ axiosInstance.interceptors.response.use(
         processQueue(refreshError as Error);
 
         // The store has already classified the failure: a credential rejection
-        // (400/401 from the token endpoint) triggered logout there; anything
+        // (a 400/401 invalid_grant from the token endpoint) triggered logout there; anything
         // else is transient and the session is preserved for a later retry.
         logger.warn({
           message: 'Request failed after token refresh attempt',
