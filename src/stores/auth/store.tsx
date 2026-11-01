@@ -435,7 +435,7 @@ const useAuthStore = create<AuthState>()(
           }
           if (isRefreshCredentialRejection(error)) {
             // The token endpoint explicitly rejected the refresh token
-            // (400 invalid_grant / 401) — credentials are known-bad, log out.
+            // (a 400/401 invalid_grant) — credentials are known-bad, log out.
             logger.error({
               message: 'Token refresh rejected by server, logging out user',
               context: { error },
@@ -444,9 +444,9 @@ const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          // Everything else is transient (offline, timeout, 5xx, 429) — keep the
-          // session and retry, otherwise a backend incident logs out every
-          // active responder at once.
+          // Everything else is transient (offline, timeout, 5xx, 429, other
+          // OAuth errors) — keep the session and retry, otherwise a backend
+          // incident logs out every active responder at once.
           logger.warn({
             message: 'Token refresh failed transiently, will retry',
             context: { error },
@@ -565,8 +565,8 @@ type PersistedSession = Pick<AuthState, 'accessToken' | 'refreshToken' | 'refres
  * - Refresh token only: nothing to call the API with, so show 'loading' while
  *   refreshing immediately (no fixed delay).
  * - Transient refresh failures keep the session (refreshAccessToken retries
- *   every 30s); only a definitive credential rejection (400/401 from
- *   /connect/token) logs the user out.
+ *   every 30s); only a definitive credential rejection (a 400/401
+ *   invalid_grant from /connect/token) logs the user out.
  */
 export const restoreSession = (state: PersistedSession | undefined): void => {
   if (!state || !state.refreshToken) {

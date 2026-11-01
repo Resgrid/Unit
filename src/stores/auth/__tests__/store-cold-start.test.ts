@@ -60,8 +60,8 @@ const makeAccessToken = (expiresAtMs: number): string => {
   return `header.${encoded}.signature`;
 };
 
-const axiosErrorWithStatus = (status: number): AxiosError => {
-  const response = { status, statusText: '', data: {}, headers: {}, config: {} as never } as AxiosResponse;
+const axiosErrorWithStatus = (status: number, data: unknown = {}): AxiosError => {
+  const response = { status, statusText: '', data, headers: {}, config: {} as never } as AxiosResponse;
   return new AxiosError('Request failed', 'ERR_BAD_RESPONSE', undefined, undefined, response);
 };
 
@@ -281,8 +281,8 @@ describe('auth store cold start', () => {
   });
 
   describe('credential rejection', () => {
-    it.each([400, 401])('logs out when the token endpoint rejects the refresh token (%i)', async (status) => {
-      mockRefreshTokenRequest.mockRejectedValue(axiosErrorWithStatus(status));
+    it.each([400, 401])('logs out when the token endpoint rejects the refresh token (%i invalid_grant)', async (status) => {
+      mockRefreshTokenRequest.mockRejectedValue(axiosErrorWithStatus(status, { error: 'invalid_grant' }));
       useAuthStore.setState({ refreshToken: 'stored-refresh-token', accessToken: 'stale', status: 'signedIn', userId: 'user-1' });
 
       await useAuthStore.getState().refreshAccessToken();
@@ -296,7 +296,7 @@ describe('auth store cold start', () => {
 
   describe('logout idempotence', () => {
     it('runs the session cleanup once when concurrent refreshes are all rejected', async () => {
-      mockRefreshTokenRequest.mockRejectedValue(axiosErrorWithStatus(401));
+      mockRefreshTokenRequest.mockRejectedValue(axiosErrorWithStatus(401, { error: 'invalid_grant' }));
       useAuthStore.setState({ refreshToken: 'stored-refresh-token', status: 'signedIn' });
 
       // Three independent callers (proactive timer + two queued 401s) race.

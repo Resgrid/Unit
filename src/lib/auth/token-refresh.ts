@@ -5,23 +5,33 @@ import { isAxiosError } from 'axios';
  * known-bad and the user must be logged out.
  *
  * Returns true ONLY when the OAuth2 token endpoint explicitly rejected the refresh
- * token — HTTP 400 (`invalid_grant`) or 401. Every other failure is treated as
- * transient and recoverable:
+ * token — a 400 or 401 whose body says `invalid_grant`. Every other failure is treated
+ * as transient and recoverable:
  *   - no response at all (offline, DNS/TLS failure, request timeout)
  *   - 5xx server errors (the backend is down/degraded, e.g. 502 Bad Gateway)
  *   - 429 rate limiting
+ *   - a 400/401 with any other OAuth error (`invalid_client`, `invalid_request`, ...) or
+ *     no OAuth body at all (a proxy's error page): those say nothing about this token
  *   - any non-Axios error (e.g. "no refresh token available")
  *
  * Treating those as recoverable (reject + retry on the next request) instead of
  * forcing logout prevents a backend incident from logging out every active user at
- * once — critical for an emergency-response app.
+ * once — critical for an emergency-response app. A refresh token that really is dead
+ * still ends the session once it expires.
+ *
+ * A locked shared session is also refused with a 400 `invalid_grant`, so callers check
+ * isSharedSessionLockedRefresh first.
  */
 export const isRefreshCredentialRejection = (error: unknown): boolean => {
   if (!isAxiosError(error)) {
     return false;
   }
   const status = error.response?.status;
-  return status === 400 || status === 401;
+  if (status !== 400 && status !== 401) {
+    return false;
+  }
+  const data: unknown = error.response?.data;
+  return typeof data === 'object' && data !== null && (data as { error?: unknown }).error === 'invalid_grant';
 };
 
 /** The HTTP response an error carries, read by shape so any HTTP error (not only an AxiosError instance) is understood. */
@@ -33,7 +43,8 @@ const responseOf = (error: unknown): { status?: number; data?: unknown } | undef
 /**
  * A refresh refused because the shared session is locked (passkey workbook section 1.3): `invalid_grant` with
  * `shared_session_locked: true`. Not a sign-out: the tokens stay, the lock screen unlocks the same session, and the
- * refresh runs again afterwards. Checked before isRefreshCredentialRejection, which would otherwise read it as a 400.
+ * refresh runs again afterwards. Checked before isRefreshCredentialRejection, which would otherwise read its
+ * 400 invalid_grant as a dead refresh token.
  */
 export const isSharedSessionLockedRefresh = (error: unknown): boolean => {
   const response = responseOf(error);
